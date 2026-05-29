@@ -224,25 +224,37 @@ export default function HomePage() {
     await pushWordToRemote(database.words, record);
 
     if (!meaning) {
-      void fetch('/api/meaning', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ word: record.word }),
-      })
-        .then((response) => response.json())
-        .then(async (data) => {
+      void (async () => {
+        try {
+          const response = await fetch('/api/meaning', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ word: record.word }),
+          });
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error('AI meaning API error:', response.status, errorText);
+            return;
+          }
+
+          const data = await response.json();
           const aiMeaning = String(data?.meaning ?? '').trim();
+
           if (!aiMeaning) {
+            console.warn('No meaning returned from AI for word:', record.word);
             return;
           }
 
           const doc = await database.words.findOne(record.id).exec();
           if (!doc) {
+            console.warn('Word document not found after AI fetch:', record.id);
             return;
           }
 
           const current = doc.toJSON();
           if (current.meaning) {
+            console.log('Meaning already exists, skipping AI update');
             return;
           }
 
@@ -254,10 +266,11 @@ export default function HomePage() {
 
           await database.words.upsert(updated);
           await pushWordToRemote(database.words, updated);
-        })
-        .catch(() => {
-          // Ignore AI failures; user can edit meaning later.
-        });
+          console.log('AI meaning updated for word:', record.word, '-', aiMeaning);
+        } catch (error) {
+          console.error('Error fetching meaning from AI:', error);
+        }
+      })();
     }
   };
 
