@@ -58,6 +58,5 @@
     "ts-jest": "^29.4.4",
     "typescript": "6.0.3",
     "webpack": "^5.94.0"
-  },
-  "packageManager": "yarn@4.15.0"
+  }
 }
