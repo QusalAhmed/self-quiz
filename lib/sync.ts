@@ -1,5 +1,4 @@
 import type { WordCollection, WordRecord } from './db';
-import { supabase } from './supabase';
 
 export type RemoteWordRow = {
   id: string;
@@ -9,8 +8,6 @@ export type RemoteWordRow = {
   updated_at: string;
   deleted: boolean;
 };
-
-const TABLE_NAME = 'words';
 
 function mapRowToRecord(row: RemoteWordRow): WordRecord {
   return {
@@ -25,14 +22,24 @@ function mapRowToRecord(row: RemoteWordRow): WordRecord {
 }
 
 export async function pullRemoteWords(collection: WordCollection): Promise<void> {
-  const { data, error } = await supabase.from(TABLE_NAME).select('*');
-  if (error || !data) {
-    return;
-  }
+  try {
+    const response = await fetch('/api/words');
+    if (!response.ok) {
+      console.error('Failed to pull remote words:', response.statusText);
+      return;
+    }
 
-  for (const row of data as RemoteWordRow[]) {
-    const mapped = mapRowToRecord(row);
-    await collection.upsert(mapped);
+    const { data } = await response.json();
+    if (!data || !Array.isArray(data)) {
+      return;
+    }
+
+    for (const row of data as RemoteWordRow[]) {
+      const mapped = mapRowToRecord(row);
+      await collection.upsert(mapped);
+    }
+  } catch (error) {
+    console.error('Error pulling remote words:', error);
   }
 }
 
@@ -40,24 +47,34 @@ export async function pushWordToRemote(
   collection: WordCollection,
   record: WordRecord
 ): Promise<void> {
-  const payload = {
-    id: record.id,
-    word: record.word,
-    meaning: record.meaning,
-    created_at: record.createdAt,
-    updated_at: record.updatedAt,
-    deleted: record.isDeleted,
-  };
+  try {
+    const payload = {
+      id: record.id,
+      word: record.word,
+      meaning: record.meaning,
+      created_at: record.createdAt,
+      updated_at: record.updatedAt,
+      deleted: record.isDeleted,
+    };
 
-  const { error } = await supabase.from(TABLE_NAME).upsert(payload, { onConflict: 'id' });
-  if (error) {
-    return;
+    const response = await fetch('/api/words', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      console.error('Failed to push word to remote:', response.statusText);
+      return;
+    }
+
+    await collection.upsert({
+      ...record,
+      lastSyncedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Error pushing word to remote:', error);
   }
-
-  await collection.upsert({
-    ...record,
-    lastSyncedAt: new Date().toISOString(),
-  });
 }
 
 export async function pushAllLocalWords(collection: WordCollection): Promise<void> {

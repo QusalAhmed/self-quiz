@@ -1,6 +1,6 @@
 import { addRxPlugin, createRxDatabase } from 'rxdb';
 import type { RxCollection, RxDatabase, RxJsonSchema } from 'rxdb';
-import { RxDBDevModePlugin } from 'rxdb/plugins/dev-mode';
+import { RxDBDevModePlugin, disableWarnings } from 'rxdb/plugins/dev-mode';
 import { RxDBMigrationSchemaPlugin } from 'rxdb/plugins/migration-schema';
 import { RxDBQueryBuilderPlugin } from 'rxdb/plugins/query-builder';
 import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie';
@@ -40,6 +40,7 @@ const wordSchema: RxJsonSchema<WordRecord> = {
 
 if (process.env.NODE_ENV === 'development') {
   addRxPlugin(RxDBDevModePlugin);
+  disableWarnings();
 }
 addRxPlugin(RxDBMigrationSchemaPlugin);
 addRxPlugin(RxDBQueryBuilderPlugin);
