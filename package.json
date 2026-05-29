@@ -56,6 +56,5 @@
     "stylelint-config-standard-scss": "^17.0.0",
     "ts-jest": "^29.4.4",
     "typescript": "6.0.3"
-  },
-  "packageManager": "yarn@4.15.0"
+  }
 }
