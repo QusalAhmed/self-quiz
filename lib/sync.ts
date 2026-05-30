@@ -40,7 +40,14 @@ export async function pullRemoteWords(collection: WordCollection): Promise<void>
 
   try {
     console.log('Pulling remote words from Supabase...');
-    const response = await fetch('/api/words');
+    // Add cache buster to force fresh fetch from server
+    const response = await fetch('/api/words?t=' + Date.now(), {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
+      },
+    });
     if (!response.ok) {
       console.error('Failed to pull remote words:', response.statusText);
       return;
@@ -55,7 +62,9 @@ export async function pullRemoteWords(collection: WordCollection): Promise<void>
     console.log('Successfully pulled', data.length, 'words from remote');
     for (const row of data as RemoteWordRow[]) {
       const mapped = mapRowToRecord(row);
+      // Always upsert to ensure we get latest data from remote
       await collection.upsert(mapped);
+      console.log('Synced from remote:', mapped.word, '- Meaning:', mapped.meaning);
     }
   } catch (error) {
     console.error('Error pulling remote words:', error);

@@ -261,17 +261,37 @@ export default function HomePage() {
 
     const handleVisibilityChange = async () => {
       if (!document.hidden) {
-        console.log('Page came into focus: Performing sync...');
+        console.log('Page came into focus: Performing fresh sync...');
+        try {
+          await pullRemoteWords(database.words);
+          await pushAllLocalWords(database.words);
+          await fetchMissingMeanings(database.words);
+          console.log('Sync completed successfully');
+        } catch (error) {
+          console.error('Error during visibility change sync:', error);
+        }
+      }
+    };
+
+    // Also sync when page becomes visible after being backgrounded
+    const handlePageShow = async () => {
+      console.log('Page show event: Performing fresh sync...');
+      try {
         await pullRemoteWords(database.words);
         await pushAllLocalWords(database.words);
         await fetchMissingMeanings(database.words);
+        console.log('Sync completed after page show');
+      } catch (error) {
+        console.error('Error during page show sync:', error);
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pageshow', handlePageShow);
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pageshow', handlePageShow);
     };
   }, [database]);
 
