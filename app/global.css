@@ -105,6 +105,19 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: var(--card-shadow-hover) !important;
 }
 
+/* Disable backdrop-filter blending on mobile screens to prevent GPU rendering artifacts (like glitchy dark block shadows) */
+@media (max-width: 48em) {
+  .glass-panel {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: #ffffff !important;
+  }
+  
+  [data-mantine-color-scheme="dark"] .glass-panel {
+    background: #141419 !important;
+  }
+}
+
 /* Premium gradient titles */
 .text-gradient {
   background: var(--accent-gradient);
@@ -214,4 +227,15 @@ h1, h2, h3, h4, h5, h6 {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
+}
+
+/* Responsive wrap controls for word cards */
+.word-card-group {
+  flex-wrap: wrap !important;
+}
+
+@media (min-width: 48em) {
+  .word-card-group {
+    flex-wrap: nowrap !important;
+  }
 }

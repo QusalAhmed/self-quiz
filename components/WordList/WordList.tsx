@@ -121,8 +121,8 @@ export function WordList({ words, onDelete, onEdit }: WordListProps) {
                 overflow: 'visible',
               }}
             >
-              <Group justify="space-between" align="flex-start" wrap="nowrap">
-                <Stack gap="xs" style={{ flex: 1 }}>
+              <Group justify="space-between" align="flex-start" className="word-card-group">
+                <Stack gap="xs" style={{ flex: 1, minWidth: 200 }}>
                   <Group gap="sm" align="center">
                     <Text
                       fw={700}
@@ -131,6 +131,7 @@ export function WordList({ words, onDelete, onEdit }: WordListProps) {
                         fontFamily: 'var(--font-title)',
                         color: 'var(--text-primary)',
                         letterSpacing: '-0.01em',
+                        wordBreak: 'break-word',
                       }}
                     >
                       {item.word}
