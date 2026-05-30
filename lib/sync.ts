@@ -240,3 +240,4 @@ export function setupOnlineSyncListener(collection: WordCollection): () => void 
   return () => {};
 }
 
+

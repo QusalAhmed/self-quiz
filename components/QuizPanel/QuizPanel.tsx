@@ -1,6 +1,6 @@
-import { ActionIcon, Button, Card, Group, Stack, Text, Title } from '@mantine/core';
-import { IconCopy } from '@tabler/icons-react';
-import { useEffect } from 'react';
+import { ActionIcon, Button, Card, Group, Progress, Stack, Text, Title, RingProgress } from '@mantine/core';
+import { IconAward, IconCopy, IconRotateClockwise, IconVolume, IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
+import { useEffect, useState } from 'react';
 
 export type QuizItem = {
   id: string;
@@ -16,6 +16,9 @@ type QuizPanelProps = {
   onPrevious: () => void;
   completed: boolean;
   hasPrevious: boolean;
+  currentIndex?: number;
+  totalCount?: number;
+  onRestart?: () => void;
 };
 
 export function QuizPanel({
@@ -26,50 +29,233 @@ export function QuizPanel({
   onPrevious,
   completed,
   hasPrevious,
+  currentIndex = 0,
+  totalCount = 0,
+  onRestart,
 }: QuizPanelProps) {
-  useEffect(() => {
-    if (!item) {
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+
+  const handleSpeak = (text: string) => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
       return;
     }
-  }, [item]);
+    
+    // Cancel currently speaking voices
+    window.speechSynthesis.cancel();
+    
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'en-US';
+    utterance.rate = 0.9;
+    
+    utterance.onstart = () => setIsPlayingAudio(true);
+    utterance.onend = () => setIsPlayingAudio(false);
+    utterance.onerror = () => setIsPlayingAudio(false);
+    
+    window.speechSynthesis.speak(utterance);
+  };
 
   if (completed) {
-    return <Text c="teal">Great job! You have covered all words in this quiz.</Text>;
+    return (
+      <Card
+        className="glass-panel animate-float"
+        radius="lg"
+        padding="xl"
+        style={{
+          textAlign: 'center',
+          border: '1px solid rgba(99, 102, 241, 0.25)',
+          background: 'rgba(99, 102, 241, 0.05)',
+        }}
+      >
+        <Stack gap="xl" align="center" py="lg">
+          <RingProgress
+            size={120}
+            roundCaps
+            thickness={8}
+            sections={[{ value: 100, color: 'indigo' }]}
+            label={
+              <Group justify="center">
+                <IconAward size={48} style={{ color: '#6366f1' }} />
+              </Group>
+            }
+          />
+          
+          <Stack gap="xs">
+            <Title order={2} className="text-gradient" style={{ fontFamily: 'var(--font-title)' }}>
+              Quiz Completed!
+            </Title>
+            <Text c="dimmed" size="sm" max-width="360px" mx="auto" style={{ lineHeight: 1.6 }}>
+              Fantastic effort! You've mastered all {totalCount} words selected for this session. Repetition is key to long-term memory.
+            </Text>
+          </Stack>
+
+          <Group justify="center" mt="md">
+            {onRestart && (
+              <Button
+                onClick={onRestart}
+                className="btn-premium btn-pulse"
+                size="md"
+                radius="md"
+                leftSection={<IconRotateClockwise size={18} />}
+              >
+                Restart Session
+              </Button>
+            )}
+          </Group>
+        </Stack>
+      </Card>
+    );
   }
 
   if (!item) {
-    return <Text c="dimmed">No words available for this quiz range.</Text>;
+    return (
+      <Card className="glass-panel" radius="lg" padding="xl" style={{ textAlign: 'center' }}>
+        <Text c="dimmed" style={{ fontStyle: 'italic' }}>
+          No vocabulary cards are available in the selected date range.
+        </Text>
+      </Card>
+    );
   }
 
+  // Calculate visual progress percentage
+  const progressPercent = totalCount > 0 ? ((currentIndex + (revealed ? 1 : 0)) / totalCount) * 100 : 0;
+
   return (
-    <Card withBorder radius="md" padding="lg">
-      <Stack gap="md">
-        <Group justify="space-between" align="center">
-          <Title order={4}>{item.word}</Title>
-          <ActionIcon
-            aria-label="Copy word"
-            variant="light"
-            onClick={() => navigator.clipboard.writeText(item.word)}
-          >
-            <IconCopy size={18} />
-          </ActionIcon>
-        </Group>
-        <Stack gap="xs">
-          {revealed ? (
-            <Text c="dimmed">{item.meaning}</Text>
-          ) : (
-            <Button variant="light" onClick={onReveal}>
-              Show meaning
-            </Button>
-          )}
-        </Stack>
-        <Group justify="space-between">
-          <Group gap="sm">
-            <Button variant="default" onClick={onPrevious} disabled={!hasPrevious}>
-              Previous word
-            </Button>
+    <Card className="glass-panel" radius="lg" padding="xl">
+      <Stack gap="xl">
+        {/* Progress Bar Header */}
+        {totalCount > 0 && (
+          <Stack gap="xs">
+            <Group justify="space-between">
+              <Text size="xs" fw={700} c="indigo">
+                SESSION PROGRESS
+              </Text>
+              <Text size="xs" fw={700} c="dimmed">
+                {Math.min(currentIndex + 1, totalCount)} of {totalCount} Words
+              </Text>
+            </Group>
+            <Progress
+              value={progressPercent}
+              size="sm"
+              radius="xl"
+              color="indigo"
+              animated
+              style={{ background: 'rgba(99, 102, 241, 0.1)' }}
+            />
+          </Stack>
+        )}
+
+        {/* Word Display Section */}
+        <Stack gap="md" align="center" style={{ minHeight: '160px', justify: 'center' }}>
+          <Group gap="sm" align="center">
+            <Title
+              order={1}
+              style={{
+                fontFamily: 'var(--font-title)',
+                fontSize: '2.5rem',
+                fontWeight: 800,
+                letterSpacing: '-0.02em',
+                textAlign: 'center',
+              }}
+            >
+              {item.word}
+            </Title>
+            <Group gap={6}>
+              <ActionIcon
+                aria-label="Speak pronunciation"
+                variant="subtle"
+                color={isPlayingAudio ? 'indigo' : 'gray'}
+                size="lg"
+                radius="md"
+                onClick={() => handleSpeak(item.word)}
+                style={{
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <IconVolume size={20} />
+              </ActionIcon>
+              <ActionIcon
+                aria-label="Copy word"
+                variant="subtle"
+                color="gray"
+                size="lg"
+                radius="md"
+                onClick={() => navigator.clipboard.writeText(item.word)}
+              >
+                <IconCopy size={20} />
+              </ActionIcon>
+            </Group>
           </Group>
-          <Button onClick={onNext}>Next word</Button>
+
+          {/* Meaning Block */}
+          <Stack style={{ width: '100%' }} mt="xs">
+            {revealed ? (
+              <Card
+                radius="md"
+                padding="md"
+                style={{
+                  background: 'rgba(99, 102, 241, 0.05)',
+                  border: '1px solid rgba(99, 102, 241, 0.15)',
+                  minHeight: '60px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  animation: 'pulse 0.3s ease-out',
+                }}
+              >
+                <Text
+                  size="md"
+                  fw={500}
+                  style={{
+                    color: 'var(--text-secondary)',
+                    textAlign: 'center',
+                    lineHeight: 1.6,
+                  }}
+                >
+                  {item.meaning ? item.meaning : 'No definition available.'}
+                </Text>
+              </Card>
+            ) : (
+              <Button
+                variant="light"
+                color="indigo"
+                onClick={onReveal}
+                size="lg"
+                radius="md"
+                className="btn-pulse"
+                style={{
+                  height: '60px',
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                Show Definition
+              </Button>
+            )}
+          </Stack>
+        </Stack>
+
+        {/* Navigation Action Buttons */}
+        <Group justify="space-between" mt="lg">
+          <Button
+            variant="subtle"
+            color="gray"
+            onClick={onPrevious}
+            disabled={!hasPrevious}
+            radius="md"
+            leftSection={<IconChevronLeft size={18} />}
+          >
+            Back
+          </Button>
+          
+          <Button
+            onClick={onNext}
+            className="btn-premium"
+            radius="md"
+            rightSection={<IconChevronRight size={18} />}
+          >
+            {currentIndex + 1 >= totalCount ? 'Complete Session' : 'Next Word'}
+          </Button>
         </Group>
       </Stack>
     </Card>

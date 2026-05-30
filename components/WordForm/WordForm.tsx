@@ -45,41 +45,61 @@ export function WordForm({ onAdd, disabled }: WordFormProps) {
   };
 
   return (
-    <Card withBorder radius="md" padding="lg" style={{ backgroundColor: 'var(--mantine-color-blue-0)' }}>
+    <Card
+      className="glass-panel"
+      radius="lg"
+      padding="xl"
+      style={{
+        borderLeft: '4px solid #6366f1',
+        overflow: 'hidden',
+      }}
+    >
       <form onSubmit={handleSubmit}>
-        <Stack gap="md">
+        <Stack gap="lg">
           <div>
-            <Text fw={600} mb="xs">Add New Word</Text>
-            <Text size="sm" c="dimmed">
-              Enter an English word and optionally add its definition. When online, definitions are automatically fetched.
+            <Text fw={700} size="lg" className="text-gradient" mb={4} style={{ fontFamily: 'var(--font-title)' }}>
+              Add New Vocabulary Word
+            </Text>
+            <Text size="xs" c="dimmed" style={{ lineHeight: 1.5 }}>
+              Enter an English word. If you leave the definition blank, it will be automatically fetched when your device is online.
             </Text>
           </div>
+
           <TextInput
             ref={wordInputRef}
-            label="English Word"
-            placeholder="e.g. concise, eloquent, pragmatic"
+            label={<Text size="xs" fw={600} c="dimmed">English Word</Text>}
+            placeholder="e.g. eloquent, pragmatic, nebulous"
             value={word}
             onChange={(event) => setWord(event.currentTarget.value)}
             disabled={disabled || isSaving}
             required
+            size="md"
+            radius="md"
           />
+
           <Textarea
-            label="Definition (optional - auto-filled when online)"
-            placeholder="Type a definition or leave blank"
+            label={<Text size="xs" fw={600} c="dimmed">Definition (optional)</Text>}
+            placeholder="Type your own definition here, or leave it blank to auto-fetch..."
             value={meaning}
             onChange={(event) => setMeaning(event.currentTarget.value)}
             onKeyDown={handleMeaningKeyDown}
             disabled={disabled || isSaving}
-            minRows={2}
+            minRows={2.5}
+            size="md"
+            radius="md"
           />
-          <Group justify="flex-end">
+
+          <Group justify="flex-end" mt="xs">
             <Button
               type="submit"
               disabled={!canSubmit || disabled}
               loading={isSaving}
-              leftSection={<IconPlus size={18} />}
+              className="btn-premium"
+              radius="md"
+              size="md"
+              leftSection={<IconPlus size={20} />}
             >
-              Add Word
+              Save Word
             </Button>
           </Group>
         </Stack>

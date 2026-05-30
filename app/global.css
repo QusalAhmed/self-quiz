@@ -1,0 +1,217 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+/* --- Premium CSS Variables & Theming --- */
+:root {
+  --font-title: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  
+  /* Modern Colors - Light Mode default */
+  --bg-gradient: radial-gradient(circle at 0% 0%, rgba(243, 244, 246, 0.6) 0%, rgba(255, 255, 255, 0.9) 100%),
+                 radial-gradient(circle at 100% 100%, rgba(224, 231, 255, 0.3) 0%, rgba(255, 255, 255, 0.9) 100%);
+  --grid-color: rgba(99, 102, 241, 0.03);
+  
+  --primary-glow: rgba(99, 102, 241, 0.15);
+  --accent-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+  --accent-gradient-hover: linear-gradient(135deg, #4f46e5 0%, #9333ea 100%);
+  
+  --card-bg: rgba(255, 255, 255, 0.7);
+  --card-border: rgba(229, 231, 235, 0.8);
+  --card-shadow: 0 4px 20px -2px rgba(156, 163, 175, 0.15), 0 2px 10px -1px rgba(156, 163, 175, 0.1);
+  --card-shadow-hover: 0 12px 30px -4px rgba(99, 102, 241, 0.2), 0 4px 15px -2px rgba(156, 163, 175, 0.15);
+  
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --text-muted: #9ca3af;
+}
+
+[data-mantine-color-scheme="dark"] {
+  --bg-gradient: radial-gradient(circle at 0% 0%, rgba(17, 24, 39, 0.95) 0%, rgba(10, 10, 12, 1) 100%),
+                 radial-gradient(circle at 100% 100%, rgba(49, 46, 129, 0.25) 0%, rgba(10, 10, 12, 1) 100%);
+  --grid-color: rgba(99, 102, 241, 0.05);
+  
+  --primary-glow: rgba(168, 85, 247, 0.25);
+  --accent-gradient: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
+  --accent-gradient-hover: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+  
+  --card-bg: rgba(20, 20, 25, 0.75);
+  --card-border: rgba(255, 255, 255, 0.07);
+  --card-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
+  --card-shadow-hover: 0 12px 40px rgba(99, 102, 241, 0.25);
+  
+  --text-primary: #f9fafb;
+  --text-secondary: #d1d5db;
+  --text-muted: #6b7280;
+}
+
+/* --- Global Body Setup --- */
+body {
+  font-family: var(--font-body);
+  background: var(--bg-gradient);
+  background-attachment: fixed;
+  min-height: 100vh;
+  color: var(--text-primary);
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Elegant grid overlay background pattern */
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: 
+    linear-gradient(var(--grid-color) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+  background-size: 40px 40px;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* Soft glowing radial lights */
+body::after {
+  content: "";
+  position: fixed;
+  top: -10%;
+  right: -10%;
+  width: 50%;
+  height: 50%;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.08) 0%, rgba(99, 102, 241, 0) 70%);
+  filter: blur(80px);
+  z-index: -2;
+  pointer-events: none;
+}
+
+/* --- Typography Overrides --- */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-title) !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em !important;
+}
+
+/* --- Premium Layout Utilities & Glassmorphism --- */
+.glass-panel {
+  background: var(--card-bg) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1px solid var(--card-border) !important;
+  box-shadow: var(--card-shadow) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.glass-panel:hover {
+  box-shadow: var(--card-shadow-hover) !important;
+}
+
+/* Premium gradient titles */
+.text-gradient {
+  background: var(--accent-gradient);
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+  color: transparent !important;
+  display: inline-block;
+}
+
+/* Card hover animation class */
+.hover-lift {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.hover-lift:hover {
+  transform: translateY(-5px) scale(1.008) !important;
+  box-shadow: var(--card-shadow-hover) !important;
+  border-color: rgba(99, 102, 241, 0.3) !important;
+}
+
+/* Custom interactive glowing button class */
+.btn-premium {
+  background: var(--accent-gradient) !important;
+  border: none !important;
+  color: white !important;
+  font-weight: 600 !important;
+  font-family: var(--font-title) !important;
+  letter-spacing: -0.01em !important;
+  box-shadow: 0 4px 14px 0 var(--primary-glow) !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.btn-premium:hover:not(:disabled) {
+  background: var(--accent-gradient-hover) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 20px 0 var(--primary-glow) !important;
+}
+
+.btn-premium:active:not(:disabled) {
+  transform: translateY(1px) !important;
+}
+
+/* Inputs focus styling */
+.mantine-TextInput-input, .mantine-Textarea-input, .mantine-Select-input {
+  font-family: var(--font-body) !important;
+  background-color: rgba(255, 255, 255, 0.02) !important;
+  border: 1px solid var(--card-border) !important;
+  transition: all 0.2s ease !important;
+}
+
+.mantine-TextInput-input:focus, .mantine-Textarea-input:focus, .mantine-Select-input:focus {
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15) !important;
+}
+
+/* Dark mode overrides for inputs inside mantine */
+[data-mantine-color-scheme="dark"] .mantine-TextInput-input,
+[data-mantine-color-scheme="dark"] .mantine-Textarea-input,
+[data-mantine-color-scheme="dark"] .mantine-Select-input {
+  background-color: rgba(0, 0, 0, 0.2) !important;
+  color: #f9fafb !important;
+}
+
+/* Pulse animation for CTA features */
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(99, 102, 241, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);
+  }
+}
+
+.btn-pulse {
+  animation: pulse 2s infinite;
+}
+
+/* Floating custom animations */
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+  100% { transform: translateY(0px); }
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+/* Premium subtle scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--card-border);
+  border-radius: 99px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
