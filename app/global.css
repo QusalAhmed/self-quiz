@@ -239,3 +239,22 @@ h1, h2, h3, h4, h5, h6 {
     flex-wrap: nowrap !important;
   }
 }
+
+/* Premium Word Card Layout to prevent GPU distortion artifacts on mobile Chrome/WebView */
+.word-card {
+  overflow: hidden !important;
+  background: var(--card-bg) !important;
+  border: 1px solid var(--card-border) !important;
+  box-shadow: var(--card-shadow) !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease !important;
+}
+
+@media (max-width: 48em) {
+  .word-card {
+    background: #ffffff !important;
+  }
+  
+  [data-mantine-color-scheme="dark"] .word-card {
+    background: #141419 !important;
+  }
+}

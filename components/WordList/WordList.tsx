@@ -3,7 +3,6 @@ import {
   Badge,
   Button,
   Card,
-  Collapse,
   Group,
   Modal,
   Stack,
@@ -115,16 +114,10 @@ export function WordList({ words, onDelete, onEdit }: WordListProps) {
               key={item.id}
               radius="md"
               padding={0}
+              className="word-card"
               style={{
-                overflow: 'hidden',
-                border: isEditing
-                  ? '1.5px solid rgba(99, 102, 241, 0.5)'
-                  : '1px solid var(--card-border)',
-                background: 'var(--card-bg)',
-                transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
-                boxShadow: isEditing
-                  ? '0 0 0 3px rgba(99, 102, 241, 0.12)'
-                  : 'var(--card-shadow)',
+                border: isEditing ? '1.5px solid rgba(99, 102, 241, 0.5)' : undefined,
+                boxShadow: isEditing ? '0 0 0 3px rgba(99, 102, 241, 0.12)' : undefined,
               }}
             >
               {/* ── Main row (always visible) ── */}
@@ -227,27 +220,23 @@ export function WordList({ words, onDelete, onEdit }: WordListProps) {
               </div>
 
               {/* ── Expandable meaning section ── */}
-              {!isEditing && (
-                <Collapse expanded={isExpanded}>
-                  <div
+              {!isEditing && isExpanded && (
+                <div
+                  style={{
+                    padding: '12px 16px 14px',
+                    borderTop: '1px solid var(--card-border)',
+                  }}
+                >
+                  <Text
+                    size="sm"
                     style={{
-                      padding: '0 16px 14px',
-                      borderTop: '1px solid var(--card-border)',
-                      marginTop: 0,
-                      paddingTop: 12,
+                      color: 'var(--text-secondary)',
+                      lineHeight: 1.7,
                     }}
                   >
-                    <Text
-                      size="sm"
-                      style={{
-                        color: 'var(--text-secondary)',
-                        lineHeight: 1.7,
-                      }}
-                    >
-                      {hasMeaning ? item.meaning : 'No definition available yet.'}
-                    </Text>
-                  </div>
-                </Collapse>
+                    {hasMeaning ? item.meaning : 'No definition available yet.'}
+                  </Text>
+                </div>
               )}
 
               {/* ── Edit form section ── */}
