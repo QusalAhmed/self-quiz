@@ -17,7 +17,7 @@ import { IconSearch } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { AppDatabase, WordRecord } from '@/lib/db';
 import { getDatabase } from '@/lib/db';
-import { pullRemoteWords, pushAllLocalWords, pushWordToRemote } from '@/lib/sync';
+import { pullRemoteWords, pushAllLocalWords, pushWordToRemote, setupOnlineSyncListener } from '@/lib/sync';
 import { PwaRegister } from '@/components/PwaRegister/PwaRegister';
 import { QuizPanel, type QuizItem } from '@/components/QuizPanel/QuizPanel';
 import { WordForm } from '@/components/WordForm/WordForm';
@@ -161,6 +161,7 @@ export default function HomePage() {
   useEffect(() => {
     let isMounted = true;
     let subscription: { unsubscribe: () => void } | null = null;
+    let cleanupOnlineListener: (() => void) | null = null;
 
     const load = async () => {
       const db = await getDatabase();
@@ -183,8 +184,14 @@ export default function HomePage() {
         setPage(1);
       });
 
+      // Initial pull from remote and push unsync local words
+      console.log('App started: Syncing with remote...');
       await pullRemoteWords(db.words);
       await pushAllLocalWords(db.words);
+
+      // Set up listeners for online/offline events
+      cleanupOnlineListener = setupOnlineSyncListener(db.words);
+
       if (isMounted) {
         setIsLoading(false);
       }
@@ -195,8 +202,30 @@ export default function HomePage() {
     return () => {
       isMounted = false;
       subscription?.unsubscribe();
+      cleanupOnlineListener?.();
     };
   }, []);
+
+  // Sync when page comes into focus (tab switch, page refresh, etc.)
+  useEffect(() => {
+    if (!database) {
+      return;
+    }
+
+    const handleVisibilityChange = async () => {
+      if (!document.hidden) {
+        console.log('Page came into focus: Performing sync...');
+        await pullRemoteWords(database.words);
+        await pushAllLocalWords(database.words);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [database]);
 
   useEffect(() => {
     resetQuiz();

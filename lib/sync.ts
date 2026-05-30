@@ -21,8 +21,25 @@ function mapRowToRecord(row: RemoteWordRow): WordRecord {
   };
 }
 
+/**
+ * Check if device is currently online
+ */
+function isOnline(): boolean {
+  if (typeof window === 'undefined') {
+    return true;
+  }
+  return navigator.onLine;
+}
+
 export async function pullRemoteWords(collection: WordCollection): Promise<void> {
+  // Skip if offline
+  if (!isOnline()) {
+    console.log('Device is offline, skipping pull from remote');
+    return;
+  }
+
   try {
+    console.log('Pulling remote words from Supabase...');
     const response = await fetch('/api/words');
     if (!response.ok) {
       console.error('Failed to pull remote words:', response.statusText);
@@ -31,9 +48,11 @@ export async function pullRemoteWords(collection: WordCollection): Promise<void>
 
     const { data } = await response.json();
     if (!data || !Array.isArray(data)) {
+      console.log('No remote words to pull');
       return;
     }
 
+    console.log('Successfully pulled', data.length, 'words from remote');
     for (const row of data as RemoteWordRow[]) {
       const mapped = mapRowToRecord(row);
       await collection.upsert(mapped);
@@ -47,6 +66,12 @@ export async function pushWordToRemote(
   collection: WordCollection,
   record: WordRecord
 ): Promise<void> {
+  // Skip if offline
+  if (!isOnline()) {
+    console.log('Device is offline, word saved locally. Will sync when online:', record.word);
+    return;
+  }
+
   try {
     const payload = {
       id: record.id,
@@ -57,6 +82,7 @@ export async function pushWordToRemote(
       deleted: record.isDeleted,
     };
 
+    console.log('Pushing word to remote:', record.word);
     const response = await fetch('/api/words', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -72,18 +98,65 @@ export async function pushWordToRemote(
       ...record,
       lastSyncedAt: new Date().toISOString(),
     });
+    console.log('Successfully synced word to remote:', record.word);
   } catch (error) {
     console.error('Error pushing word to remote:', error);
   }
 }
 
 export async function pushAllLocalWords(collection: WordCollection): Promise<void> {
-  const localWords = await collection.find().exec();
-  for (const word of localWords) {
-    const record = word.toJSON();
-    const shouldSync = !record.lastSyncedAt || record.lastSyncedAt < record.updatedAt;
-    if (shouldSync) {
-      await pushWordToRemote(collection, record);
+  // Skip if offline
+  if (!isOnline()) {
+    console.log('Device is offline, skipping push to remote. Will sync when online.');
+    return;
+  }
+
+  try {
+    console.log('Pushing all local words to remote...');
+    const localWords = await collection.find().exec();
+    let syncedCount = 0;
+
+    for (const word of localWords) {
+      const record = word.toJSON();
+      const shouldSync = !record.lastSyncedAt || record.lastSyncedAt < record.updatedAt;
+      if (shouldSync) {
+        await pushWordToRemote(collection, record);
+        syncedCount++;
+      }
     }
+
+    console.log('Synced', syncedCount, 'words to remote');
+  } catch (error) {
+    console.error('Error pushing all local words:', error);
   }
 }
+
+/**
+ * Set up online/offline event listeners for automatic sync
+ */
+export function setupOnlineSyncListener(collection: WordCollection): () => void {
+  const handleOnline = async () => {
+    console.log('Device is back online! Starting sync...');
+    await pullRemoteWords(collection);
+    await pushAllLocalWords(collection);
+    console.log('Sync completed');
+  };
+
+  const handleOffline = () => {
+    console.log('Device went offline. Will sync when back online.');
+  };
+
+  if (typeof window !== 'undefined') {
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    // Return cleanup function
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }
+
+  return () => {};
+}
+
