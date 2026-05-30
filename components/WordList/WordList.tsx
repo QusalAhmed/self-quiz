@@ -30,7 +30,14 @@ export function WordList({ words, onDelete, onEdit }: WordListProps) {
   const [isDeleting, setIsDeleting] = useState(false);
 
   if (words.length === 0) {
-    return <Text c="dimmed">No words yet. Add your first word above.</Text>;
+    return (
+      <Card withBorder radius="md" padding="lg" style={{ textAlign: 'center', backgroundColor: 'var(--mantine-color-gray-0)' }}>
+        <Stack gap="sm" align="center">
+          <Text c="dimmed" fw={500}>No words yet</Text>
+          <Text size="sm" c="dimmed">Add your first word using the form above. Definitions will be auto-fetched when online!</Text>
+        </Stack>
+      </Card>
+    );
   }
 
   const startEditing = (item: WordRecord) => {

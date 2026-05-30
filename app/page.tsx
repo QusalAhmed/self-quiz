@@ -226,6 +226,12 @@ export default function HomePage() {
     if (!meaning) {
       void (async () => {
         try {
+          // Only fetch definition if device is online
+          if (!navigator.onLine) {
+            console.warn('Device is offline, skipping definition fetch for:', record.word);
+            return;
+          }
+
           const response = await fetch('/api/meaning', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -234,7 +240,7 @@ export default function HomePage() {
 
           if (!response.ok) {
             const errorText = await response.text();
-            console.error('AI meaning API error:', response.status, errorText);
+            console.warn('Definition API error for word:', record.word, 'Status:', response.status, errorText);
             return;
           }
 
@@ -242,19 +248,19 @@ export default function HomePage() {
           const aiMeaning = String(data?.meaning ?? '').trim();
 
           if (!aiMeaning) {
-            console.warn('No meaning returned from AI for word:', record.word);
+            console.warn('No definition returned for word:', record.word);
             return;
           }
 
           const doc = await database.words.findOne(record.id).exec();
           if (!doc) {
-            console.warn('Word document not found after AI fetch:', record.id);
+            console.warn('Word document not found after fetch:', record.id);
             return;
           }
 
           const current = doc.toJSON();
           if (current.meaning) {
-            console.log('Meaning already exists, skipping AI update');
+            console.log('Meaning already exists, skipping update');
             return;
           }
 
@@ -266,9 +272,9 @@ export default function HomePage() {
 
           await database.words.upsert(updated);
           await pushWordToRemote(database.words, updated);
-          console.log('AI meaning updated for word:', record.word, '-', aiMeaning);
+          console.log('Definition updated for word:', record.word, '-', aiMeaning);
         } catch (error) {
-          console.error('Error fetching meaning from AI:', error);
+          console.error('Error fetching definition:', error);
         }
       })();
     }
