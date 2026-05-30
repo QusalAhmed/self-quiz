@@ -627,44 +627,87 @@ export default function HomePage() {
           <Stack gap="lg">
             <WordForm onAdd={handleAdd} disabled={isLoading} />
 
-            <Divider my="xs" style={{ opacity: 0.4 }} />
-
-            <Group justify="space-between" align="center">
-              <Title order={3} style={{ fontFamily: 'var(--font-title)', fontSize: '1.2rem' }}>
-                Your Workspace
-              </Title>
-              <Badge variant="light" color="indigo" size="md" radius="sm">
-                {filteredWords.length} word{filteredWords.length !== 1 ? 's' : ''}
-              </Badge>
-            </Group>
-
-            <TextInput
-              placeholder="Search vocabulary..."
-              leftSection={<IconSearch size={16} style={{ opacity: 0.45 }} />}
-              value={searchQuery}
-              size="sm"
-              radius="md"
-              onChange={(event) => {
-                setSearchQuery(event.currentTarget.value);
-                setPage(1);
+            {/* Redesigned Glassmorphic Workspace Control Center */}
+            <Card
+              className="glass-panel"
+              radius="lg"
+              padding="lg"
+              style={{
+                borderLeft: '4px solid #a855f7',
+                overflow: 'hidden',
               }}
-            />
+            >
+              <Stack gap="md">
+                <Group justify="space-between" align="center">
+                  <Group gap="xs">
+                    <IconBook size={22} style={{ color: '#a855f7' }} />
+                    <Title order={3} style={{ fontFamily: 'var(--font-title)', fontSize: '1.25rem', color: 'var(--text-primary)' }}>
+                      Your Workspace
+                    </Title>
+                  </Group>
+                  <Badge variant="gradient" gradient={{ from: 'indigo', to: 'purple' }} size="md" radius="md" style={{ fontWeight: 700 }}>
+                    {filteredWords.length} word{filteredWords.length !== 1 ? 's' : ''}
+                  </Badge>
+                </Group>
+                
+                <TextInput
+                  placeholder="Search vocabulary by keyword..."
+                  leftSection={<IconSearch size={18} style={{ opacity: 0.55, color: '#a855f7' }} />}
+                  value={searchQuery}
+                  size="md"
+                  radius="md"
+                  onChange={(event) => {
+                    setSearchQuery(event.currentTarget.value);
+                    setPage(1);
+                  }}
+                />
+              </Stack>
+            </Card>
 
             <WordList words={pagedWords} onDelete={handleDelete} onEdit={handleEdit} />
 
             {totalPages > 1 && (
               <Group justify="center" mt="sm">
-                <Pagination
-                  value={page}
-                  onChange={setPage}
-                  total={totalPages}
-                  radius="md"
-                  color="indigo"
-                  size="sm"
-                  siblings={1}
-                  boundaries={1}
-                  withEdges
-                />
+                <div className="desktop-only">
+                  <Pagination
+                    value={page}
+                    onChange={setPage}
+                    total={totalPages}
+                    radius="md"
+                    color="indigo"
+                    size="sm"
+                    siblings={1}
+                    boundaries={1}
+                    withEdges
+                  />
+                </div>
+                <div className="mobile-only">
+                  <Group gap="sm" align="center">
+                    <Button
+                      variant="subtle"
+                      color="indigo"
+                      size="xs"
+                      radius="md"
+                      disabled={page === 1}
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    >
+                      Prev
+                    </Button>
+                    <Text size="xs" fw={700} c="dimmed" style={{ minWidth: 60, textAlign: 'center' }}>
+                      {page} / {totalPages}
+                    </Text>
+                    <Button
+                      variant="subtle"
+                      color="indigo"
+                      size="xs"
+                      radius="md"
+                      disabled={page === totalPages}
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    >
+                      Next
+                    </Button>
+                  </Group>
+                </div>
               </Group>
             )}
           </Stack>

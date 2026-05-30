@@ -114,9 +114,16 @@ export function WordList({ words, onDelete, onEdit }: WordListProps) {
               key={item.id}
               radius="md"
               padding={0}
-              className="word-card"
+              className="word-card hover-lift"
               style={{
-                border: isEditing ? '1.5px solid rgba(99, 102, 241, 0.5)' : undefined,
+                borderLeft: isEditing 
+                  ? '4px solid #6366f1' 
+                  : hasMeaning 
+                    ? '4px solid rgba(99, 102, 241, 0.45)' 
+                    : '4px solid rgba(245, 158, 11, 0.45)',
+                borderTop: isEditing ? '1px solid rgba(99, 102, 241, 0.5)' : undefined,
+                borderRight: isEditing ? '1px solid rgba(99, 102, 241, 0.5)' : undefined,
+                borderBottom: isEditing ? '1px solid rgba(99, 102, 241, 0.5)' : undefined,
                 boxShadow: isEditing ? '0 0 0 3px rgba(99, 102, 241, 0.12)' : undefined,
               }}
             >
