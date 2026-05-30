@@ -10,7 +10,7 @@ import {
   TextInput,
   Textarea,
 } from '@mantine/core';
-import { IconEdit, IconTrash, IconChevronDown, IconChevronUp } from '@tabler/icons-react';
+import { IconEdit, IconTrash } from '@tabler/icons-react';
 import { useState } from 'react';
 import type { WordRecord } from '@/lib/db';
 import { formatDate } from '@/lib/dateUtils';
@@ -28,7 +28,6 @@ export function WordList({ words, onDelete, onEdit }: WordListProps) {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleteConfirmWord, setDeleteConfirmWord] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   if (words.length === 0) {
     return (
@@ -54,7 +53,6 @@ export function WordList({ words, onDelete, onEdit }: WordListProps) {
   }
 
   const startEditing = (item: WordRecord) => {
-    setExpandedId(null);
     setEditingId(item.id);
     setDraftWord(item.word);
     setDraftMeaning(item.meaning);
@@ -97,16 +95,11 @@ export function WordList({ words, onDelete, onEdit }: WordListProps) {
     }
   };
 
-  const toggleExpand = (id: string) => {
-    setExpandedId((prev) => (prev === id ? null : id));
-  };
-
   return (
     <>
       <Stack gap="sm">
         {words.map((item) => {
           const isEditing = editingId === item.id;
-          const isExpanded = expandedId === item.id;
           const hasMeaning = Boolean(item.meaning);
 
           return (
@@ -137,8 +130,8 @@ export function WordList({ words, onDelete, onEdit }: WordListProps) {
                   padding: '12px 16px',
                 }}
               >
-                {/* Left: word + date badge */}
-                <div style={{ minWidth: 0 }}>
+                {/* Left: word + date badge + definition */}
+                <div style={{ minWidth: 0, paddingRight: 8 }}>
                   <Group gap={8} wrap="wrap" align="center">
                     <Text
                       fw={700}
@@ -163,23 +156,19 @@ export function WordList({ words, onDelete, onEdit }: WordListProps) {
                     </Badge>
                   </Group>
 
-                  {/* Collapsed preview of meaning (one line) */}
-                  {!isEditing && !isExpanded && hasMeaning && (
+                  {/* Meaning (always visible) */}
+                  {!isEditing && (
                     <Text
-                      size="xs"
-                      c="dimmed"
-                      lineClamp={1}
-                      style={{ marginTop: 2, lineHeight: 1.5, maxWidth: '100%' }}
+                      size="sm"
+                      style={{
+                        marginTop: 6,
+                        color: hasMeaning ? 'var(--text-secondary)' : 'var(--text-muted)',
+                        fontStyle: hasMeaning ? 'normal' : 'italic',
+                        lineHeight: 1.6,
+                        wordBreak: 'break-word',
+                      }}
                     >
-                      {item.meaning}
-                    </Text>
-                  )}
-                  {!isEditing && !isExpanded && !hasMeaning && (
-                    <Text
-                      size="xs"
-                      style={{ marginTop: 2, color: 'var(--text-muted)', fontStyle: 'italic' }}
-                    >
-                      Fetching definition…
+                      {hasMeaning ? item.meaning : 'Fetching definition…'}
                     </Text>
                   )}
                 </div>
@@ -188,17 +177,6 @@ export function WordList({ words, onDelete, onEdit }: WordListProps) {
                 <Group gap={4} style={{ flexShrink: 0, marginLeft: 8 }}>
                   {!isEditing && (
                     <>
-                      <ActionIcon
-                        aria-label={`Expand ${item.word}`}
-                        variant="subtle"
-                        color="gray"
-                        size="sm"
-                        radius="md"
-                        onClick={() => toggleExpand(item.id)}
-                        style={{ transition: 'all 0.2s ease' }}
-                      >
-                        {isExpanded ? <IconChevronUp size={15} /> : <IconChevronDown size={15} />}
-                      </ActionIcon>
                       <ActionIcon
                         aria-label={`Edit ${item.word}`}
                         variant="subtle"
@@ -225,26 +203,6 @@ export function WordList({ words, onDelete, onEdit }: WordListProps) {
                   )}
                 </Group>
               </div>
-
-              {/* ── Expandable meaning section ── */}
-              {!isEditing && isExpanded && (
-                <div
-                  style={{
-                    padding: '12px 16px 14px',
-                    borderTop: '1px solid var(--card-border)',
-                  }}
-                >
-                  <Text
-                    size="sm"
-                    style={{
-                      color: 'var(--text-secondary)',
-                      lineHeight: 1.7,
-                    }}
-                  >
-                    {hasMeaning ? item.meaning : 'No definition available yet.'}
-                  </Text>
-                </div>
-              )}
 
               {/* ── Edit form section ── */}
               {isEditing && (

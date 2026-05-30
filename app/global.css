@@ -294,3 +294,16 @@ h6 {
     display: block !important;
   }
 }
+
+/* Custom Segmented Control active tab indicator highlight */
+.mantine-SegmentedControl-indicator {
+  background: var(--accent-gradient) !important;
+  box-shadow: 0 4px 14px 0 rgba(99, 102, 241, 0.25) !important;
+}
+
+/* Maintain crisp white text contrast for the active tab label */
+.mantine-SegmentedControl-control[data-active] {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  transition: color 0.2s ease !important;
+}
