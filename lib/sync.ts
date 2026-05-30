@@ -132,6 +132,76 @@ export async function pushAllLocalWords(collection: WordCollection): Promise<voi
 }
 
 /**
+ * Fetch missing meanings for words that don't have them yet
+ */
+export async function fetchMissingMeanings(collection: WordCollection): Promise<void> {
+  // Skip if offline
+  if (!isOnline()) {
+    console.log('Device is offline, skipping meaning fetch');
+    return;
+  }
+
+  try {
+    console.log('Fetching missing meanings for words...');
+    const allWords = await collection.find().exec();
+    let fetchedCount = 0;
+
+    for (const doc of allWords) {
+      const record = doc.toJSON();
+      // Skip if word has meaning or is deleted
+      if (record.meaning && record.meaning.trim().length > 0) {
+        continue;
+      }
+      if (record.isDeleted) {
+        continue;
+      }
+
+      try {
+        const response = await fetch('/api/meaning', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ word: record.word }),
+        });
+
+        if (!response.ok) {
+          console.warn('Failed to fetch meaning for:', record.word);
+          continue;
+        }
+
+        const data = await response.json();
+        const meaning = String(data?.meaning ?? '').trim();
+
+        if (!meaning) {
+          console.warn('No meaning returned for:', record.word);
+          continue;
+        }
+
+        // Update word with the fetched meaning
+        const updated = {
+          ...record,
+          meaning,
+          updatedAt: new Date().toISOString(),
+        };
+
+        await collection.upsert(updated);
+        await pushWordToRemote(collection, updated);
+        fetchedCount++;
+        console.log('Fetched meaning for:', record.word);
+
+        // Add small delay to avoid overwhelming the API
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      } catch (error) {
+        console.error('Error fetching meaning for word:', record.word, error);
+      }
+    }
+
+    console.log('Completed fetching', fetchedCount, 'missing meanings');
+  } catch (error) {
+    console.error('Error fetching missing meanings:', error);
+  }
+}
+
+/**
  * Set up online/offline event listeners for automatic sync
  */
 export function setupOnlineSyncListener(collection: WordCollection): () => void {
@@ -139,6 +209,7 @@ export function setupOnlineSyncListener(collection: WordCollection): () => void 
     console.log('Device is back online! Starting sync...');
     await pullRemoteWords(collection);
     await pushAllLocalWords(collection);
+    await fetchMissingMeanings(collection);
     console.log('Sync completed');
   };
 

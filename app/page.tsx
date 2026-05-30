@@ -17,7 +17,7 @@ import { IconSearch } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { AppDatabase, WordRecord } from '@/lib/db';
 import { getDatabase } from '@/lib/db';
-import { pullRemoteWords, pushAllLocalWords, pushWordToRemote, setupOnlineSyncListener } from '@/lib/sync';
+import { fetchMissingMeanings, pullRemoteWords, pushAllLocalWords, pushWordToRemote, setupOnlineSyncListener } from '@/lib/sync';
 import { PwaRegister } from '@/components/PwaRegister/PwaRegister';
 import { QuizPanel, type QuizItem } from '@/components/QuizPanel/QuizPanel';
 import { WordForm } from '@/components/WordForm/WordForm';
@@ -188,6 +188,11 @@ export default function HomePage() {
       console.log('App started: Syncing with remote...');
       await pullRemoteWords(db.words);
       await pushAllLocalWords(db.words);
+      
+      // If online, fetch any missing meanings
+      if (navigator.onLine) {
+        await fetchMissingMeanings(db.words);
+      }
 
       // Set up listeners for online/offline events
       cleanupOnlineListener = setupOnlineSyncListener(db.words);
@@ -217,6 +222,7 @@ export default function HomePage() {
         console.log('Page came into focus: Performing sync...');
         await pullRemoteWords(database.words);
         await pushAllLocalWords(database.words);
+        await fetchMissingMeanings(database.words);
       }
     };
 
