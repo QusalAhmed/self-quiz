@@ -3,6 +3,7 @@ import {
   Badge,
   Button,
   Card,
+  Collapse,
   Group,
   Modal,
   Stack,
@@ -10,7 +11,7 @@ import {
   TextInput,
   Textarea,
 } from '@mantine/core';
-import { IconEdit, IconTrash } from '@tabler/icons-react';
+import { IconEdit, IconTrash, IconChevronDown, IconChevronUp } from '@tabler/icons-react';
 import { useState } from 'react';
 import type { WordRecord } from '@/lib/db';
 import { formatDate } from '@/lib/dateUtils';
@@ -28,32 +29,33 @@ export function WordList({ words, onDelete, onEdit }: WordListProps) {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleteConfirmWord, setDeleteConfirmWord] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   if (words.length === 0) {
     return (
-      <Card
-        className="glass-panel animate-float"
-        radius="lg"
-        padding="xl"
+      <div
         style={{
           textAlign: 'center',
-          border: '1px dashed var(--accent-gradient)',
-          background: 'rgba(255, 255, 255, 0.05)',
+          padding: '48px 24px',
+          borderRadius: '16px',
+          border: '1.5px dashed rgba(99, 102, 241, 0.3)',
+          background: 'rgba(99, 102, 241, 0.03)',
         }}
       >
-        <Stack gap="md" align="center" py="lg">
-          <Text fw={700} size="xl" className="text-gradient" style={{ fontFamily: 'var(--font-title)' }}>
+        <Stack gap="sm" align="center">
+          <Text fw={700} size="lg" className="text-gradient" style={{ fontFamily: 'var(--font-title)' }}>
             Your Vocabulary is Empty
           </Text>
-          <Text size="sm" c="dimmed" max-width="400px" style={{ lineHeight: 1.6 }}>
-            Add your first word using the panel above. When you are online, definitions will be automatically fetched for you!
+          <Text size="sm" c="dimmed" style={{ lineHeight: 1.6, maxWidth: 360, margin: '0 auto' }}>
+            Add your first word using the panel above. When online, definitions will be automatically fetched.
           </Text>
         </Stack>
-      </Card>
+      </div>
     );
   }
 
   const startEditing = (item: WordRecord) => {
+    setExpandedId(null);
     setEditingId(item.id);
     setDraftWord(item.word);
     setDraftMeaning(item.meaning);
@@ -66,16 +68,10 @@ export function WordList({ words, onDelete, onEdit }: WordListProps) {
   };
 
   const saveEditing = async () => {
-    if (!editingId) {
-      return;
-    }
-
+    if (!editingId) return;
     const nextWord = draftWord.trim();
     const nextMeaning = draftMeaning.trim();
-    if (!nextWord) {
-      return;
-    }
-
+    if (!nextWord) return;
     await onEdit(editingId, nextWord, nextMeaning);
     cancelEditing();
   };
@@ -92,10 +88,7 @@ export function WordList({ words, onDelete, onEdit }: WordListProps) {
   };
 
   const confirmDelete = async () => {
-    if (!deleteConfirmId) {
-      return;
-    }
-
+    if (!deleteConfirmId) return;
     setIsDeleting(true);
     try {
       await onDelete(deleteConfirmId);
@@ -105,139 +98,205 @@ export function WordList({ words, onDelete, onEdit }: WordListProps) {
     }
   };
 
+  const toggleExpand = (id: string) => {
+    setExpandedId((prev) => (prev === id ? null : id));
+  };
+
   return (
     <>
-      <Stack gap="md">
+      <Stack gap="sm">
         {words.map((item) => {
           const isEditing = editingId === item.id;
+          const isExpanded = expandedId === item.id;
+          const hasMeaning = Boolean(item.meaning);
+
           return (
             <Card
               key={item.id}
-              className="glass-panel hover-lift"
-              radius="lg"
-              padding="lg"
+              radius="md"
+              padding={0}
               style={{
-                position: 'relative',
-                overflow: 'visible',
+                overflow: 'hidden',
+                border: isEditing
+                  ? '1.5px solid rgba(99, 102, 241, 0.5)'
+                  : '1px solid var(--card-border)',
+                background: 'var(--card-bg)',
+                transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
+                boxShadow: isEditing
+                  ? '0 0 0 3px rgba(99, 102, 241, 0.12)'
+                  : 'var(--card-shadow)',
               }}
             >
-              <Group justify="space-between" align="flex-start" className="word-card-group">
-                <Stack gap="xs" style={{ flex: 1, minWidth: 200 }}>
-                  <Group gap="sm" align="center">
+              {/* ── Main row (always visible) ── */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr auto',
+                  alignItems: 'center',
+                  gap: 0,
+                  padding: '12px 16px',
+                }}
+              >
+                {/* Left: word + date badge */}
+                <div style={{ minWidth: 0 }}>
+                  <Group gap={8} wrap="wrap" align="center">
                     <Text
                       fw={700}
-                      size="lg"
+                      size="md"
                       style={{
                         fontFamily: 'var(--font-title)',
-                        color: 'var(--text-primary)',
                         letterSpacing: '-0.01em',
+                        color: 'var(--text-primary)',
                         wordBreak: 'break-word',
                       }}
                     >
                       {item.word}
                     </Text>
                     <Badge
-                      variant="light"
-                      color="indigo"
-                      size="sm"
+                      variant="dot"
+                      color={hasMeaning ? 'indigo' : 'orange'}
+                      size="xs"
                       radius="sm"
-                      style={{
-                        fontSize: '10px',
-                        fontWeight: 600,
-                        textTransform: 'none',
-                        letterSpacing: '0.02em',
-                      }}
+                      style={{ fontSize: '10px', fontWeight: 600, textTransform: 'none' }}
                     >
-                      Updated {formatDate(item.updatedAt)}
+                      {formatDate(item.updatedAt)}
                     </Badge>
                   </Group>
 
-                  {isEditing ? (
-                    <Stack gap="md" mt="sm">
-                      <TextInput
-                        label={<Text size="xs" fw={600} c="dimmed">Word</Text>}
-                        value={draftWord}
-                        onChange={(event) => setDraftWord(event.currentTarget.value)}
-                        required
+                  {/* Collapsed preview of meaning (one line) */}
+                  {!isEditing && !isExpanded && hasMeaning && (
+                    <Text
+                      size="xs"
+                      c="dimmed"
+                      lineClamp={1}
+                      style={{ marginTop: 2, lineHeight: 1.5, maxWidth: '100%' }}
+                    >
+                      {item.meaning}
+                    </Text>
+                  )}
+                  {!isEditing && !isExpanded && !hasMeaning && (
+                    <Text
+                      size="xs"
+                      style={{ marginTop: 2, color: 'var(--text-muted)', fontStyle: 'italic' }}
+                    >
+                      Fetching definition…
+                    </Text>
+                  )}
+                </div>
+
+                {/* Right: action buttons */}
+                <Group gap={4} style={{ flexShrink: 0, marginLeft: 8 }}>
+                  {!isEditing && (
+                    <>
+                      <ActionIcon
+                        aria-label={`Expand ${item.word}`}
+                        variant="subtle"
+                        color="gray"
+                        size="sm"
                         radius="md"
-                      />
-                      <Textarea
-                        label={<Text size="xs" fw={600} c="dimmed">Definition</Text>}
-                        value={draftMeaning}
-                        onChange={(event) => setDraftMeaning(event.currentTarget.value)}
-                        minRows={3}
+                        onClick={() => toggleExpand(item.id)}
+                        style={{ transition: 'all 0.2s ease' }}
+                      >
+                        {isExpanded ? <IconChevronUp size={15} /> : <IconChevronDown size={15} />}
+                      </ActionIcon>
+                      <ActionIcon
+                        aria-label={`Edit ${item.word}`}
+                        variant="subtle"
+                        color="indigo"
+                        size="sm"
                         radius="md"
-                      />
-                      <Group justify="flex-end" gap="xs">
-                        <Button variant="subtle" color="gray" onClick={cancelEditing} radius="md">
-                          Cancel
-                        </Button>
-                        <Button className="btn-premium" onClick={saveEditing} radius="md">
-                          Save Changes
-                        </Button>
-                      </Group>
-                    </Stack>
-                  ) : (
+                        onClick={() => startEditing(item)}
+                        style={{ transition: 'all 0.2s ease' }}
+                      >
+                        <IconEdit size={15} />
+                      </ActionIcon>
+                      <ActionIcon
+                        aria-label={`Delete ${item.word}`}
+                        variant="subtle"
+                        color="red"
+                        size="sm"
+                        radius="md"
+                        onClick={() => openDeleteConfirm(item.id, item.word)}
+                        style={{ transition: 'all 0.2s ease' }}
+                      >
+                        <IconTrash size={15} />
+                      </ActionIcon>
+                    </>
+                  )}
+                </Group>
+              </div>
+
+              {/* ── Expandable meaning section ── */}
+              {!isEditing && (
+                <Collapse expanded={isExpanded}>
+                  <div
+                    style={{
+                      padding: '0 16px 14px',
+                      borderTop: '1px solid var(--card-border)',
+                      marginTop: 0,
+                      paddingTop: 12,
+                    }}
+                  >
                     <Text
                       size="sm"
                       style={{
                         color: 'var(--text-secondary)',
-                        lineHeight: 1.6,
-                        fontStyle: item.meaning ? 'normal' : 'italic',
+                        lineHeight: 1.7,
                       }}
                     >
-                      {item.meaning ? item.meaning : 'Fetching meaning dynamically...'}
+                      {hasMeaning ? item.meaning : 'No definition available yet.'}
                     </Text>
-                  )}
-                </Stack>
+                  </div>
+                </Collapse>
+              )}
 
-                {!isEditing && (
-                  <Group gap="xs" style={{ flexShrink: 0 }}>
-                    <ActionIcon
-                      aria-label={`Edit ${item.word}`}
-                      variant="subtle"
-                      color="indigo"
-                      size="md"
+              {/* ── Edit form section ── */}
+              {isEditing && (
+                <div
+                  style={{
+                    padding: '12px 16px 16px',
+                    borderTop: '1px solid rgba(99, 102, 241, 0.15)',
+                  }}
+                >
+                  <Stack gap="md">
+                    <TextInput
+                      label={<Text size="xs" fw={600} c="dimmed">Word</Text>}
+                      value={draftWord}
+                      onChange={(e) => setDraftWord(e.currentTarget.value)}
+                      required
                       radius="md"
-                      onClick={() => startEditing(item)}
-                      style={{
-                        transition: 'all 0.2s ease',
-                      }}
-                      styles={{
-                        root: {
-                          '&:hover': {
-                            backgroundColor: 'rgba(99, 102, 241, 0.1) !important',
-                            transform: 'scale(1.05)',
-                          },
-                        },
-                      }}
-                    >
-                      <IconEdit size={18} />
-                    </ActionIcon>
-                    <ActionIcon
-                      aria-label={`Delete ${item.word}`}
-                      color="red"
-                      variant="subtle"
-                      size="md"
+                      size="sm"
+                    />
+                    <Textarea
+                      label={<Text size="xs" fw={600} c="dimmed">Definition</Text>}
+                      value={draftMeaning}
+                      onChange={(e) => setDraftMeaning(e.currentTarget.value)}
+                      minRows={2}
                       radius="md"
-                      onClick={() => openDeleteConfirm(item.id, item.word)}
-                      style={{
-                        transition: 'all 0.2s ease',
-                      }}
-                      styles={{
-                        root: {
-                          '&:hover': {
-                            backgroundColor: 'rgba(239, 68, 68, 0.1) !important',
-                            transform: 'scale(1.05)',
-                          },
-                        },
-                      }}
-                    >
-                      <IconTrash size={18} />
-                    </ActionIcon>
-                  </Group>
-                )}
-              </Group>
+                      size="sm"
+                    />
+                    <Group justify="flex-end" gap="xs">
+                      <Button
+                        variant="subtle"
+                        color="gray"
+                        size="xs"
+                        radius="md"
+                        onClick={cancelEditing}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        className="btn-premium"
+                        size="xs"
+                        radius="md"
+                        onClick={saveEditing}
+                      >
+                        Save Changes
+                      </Button>
+                    </Group>
+                  </Stack>
+                </div>
+              )}
             </Card>
           );
         })}
@@ -248,34 +307,32 @@ export function WordList({ words, onDelete, onEdit }: WordListProps) {
         opened={deleteConfirmId !== null}
         onClose={closeDeleteConfirm}
         title={
-          <Text fw={700} size="lg" style={{ fontFamily: 'var(--font-title)' }}>
-            Confirm Deletion
+          <Text fw={700} size="md" style={{ fontFamily: 'var(--font-title)' }}>
+            Delete Word
           </Text>
         }
         centered
         radius="lg"
-        overlayProps={{
-          backgroundOpacity: 0.55,
-          blur: 3,
-        }}
+        size="sm"
+        overlayProps={{ backgroundOpacity: 0.5, blur: 4 }}
         styles={{
           content: {
             border: '1px solid var(--card-border)',
             background: 'var(--card-bg)',
-            backdropFilter: 'blur(16px)',
           },
         }}
       >
         <Stack gap="lg">
-          <Text size="sm" style={{ color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-            Are you sure you want to delete <strong>{deleteConfirmWord}</strong> from your workspace? This will sync across your offline storage and Supabase backend.
+          <Text size="sm" c="dimmed" style={{ lineHeight: 1.6 }}>
+            Are you sure you want to delete <strong style={{ color: 'var(--text-primary)' }}>{deleteConfirmWord}</strong>?
+            This will be removed from your local database and synced to Supabase.
           </Text>
           <Group justify="flex-end" gap="sm">
-            <Button variant="default" onClick={closeDeleteConfirm} disabled={isDeleting} radius="md">
+            <Button variant="default" size="sm" radius="md" onClick={closeDeleteConfirm} disabled={isDeleting}>
               Cancel
             </Button>
-            <Button color="red" onClick={confirmDelete} loading={isDeleting} radius="md">
-              Delete Word
+            <Button color="red" size="sm" radius="md" onClick={confirmDelete} loading={isDeleting}>
+              Delete
             </Button>
           </Group>
         </Stack>

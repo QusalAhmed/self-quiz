@@ -626,23 +626,23 @@ export default function HomePage() {
         {mode === 'study' && (
           <Stack gap="lg">
             <WordForm onAdd={handleAdd} disabled={isLoading} />
-            
-            <Divider my="sm" style={{ opacity: 0.5 }} />
-            
+
+            <Divider my="xs" style={{ opacity: 0.4 }} />
+
             <Group justify="space-between" align="center">
-              <Title order={3} style={{ fontFamily: 'var(--font-title)', fontSize: '1.25rem' }}>
+              <Title order={3} style={{ fontFamily: 'var(--font-title)', fontSize: '1.2rem' }}>
                 Your Workspace
               </Title>
-              <Badge variant="light" color="indigo" size="lg" radius="sm">
-                {filteredWords.length} Words Listed
+              <Badge variant="light" color="indigo" size="md" radius="sm">
+                {filteredWords.length} word{filteredWords.length !== 1 ? 's' : ''}
               </Badge>
             </Group>
 
             <TextInput
-              placeholder="Search through saved vocabulary..."
-              leftSection={<IconSearch size={18} style={{ opacity: 0.5 }} />}
+              placeholder="Search vocabulary..."
+              leftSection={<IconSearch size={16} style={{ opacity: 0.45 }} />}
               value={searchQuery}
-              size="md"
+              size="sm"
               radius="md"
               onChange={(event) => {
                 setSearchQuery(event.currentTarget.value);
@@ -653,13 +653,17 @@ export default function HomePage() {
             <WordList words={pagedWords} onDelete={handleDelete} onEdit={handleEdit} />
 
             {totalPages > 1 && (
-              <Group justify="center" mt="md">
+              <Group justify="center" mt="sm">
                 <Pagination
                   value={page}
                   onChange={setPage}
                   total={totalPages}
                   radius="md"
                   color="indigo"
+                  size="sm"
+                  siblings={1}
+                  boundaries={1}
+                  withEdges
                 />
               </Group>
             )}
