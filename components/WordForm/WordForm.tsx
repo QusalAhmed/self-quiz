@@ -65,7 +65,7 @@ export function WordForm({ onAdd, disabled }: WordFormProps) {
           />
           <Textarea
             label="Definition (optional - auto-filled when online)"
-            placeholder="Type a definition or leave blank. Auto-fetched when you have internet connection."
+            placeholder="Type a definition or leave blank"
             value={meaning}
             onChange={(event) => setMeaning(event.currentTarget.value)}
             onKeyDown={handleMeaningKeyDown}

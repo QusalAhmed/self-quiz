@@ -14,7 +14,7 @@ import {
   Title,
 } from '@mantine/core';
 import { IconSearch } from '@tabler/icons-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AppDatabase, WordRecord } from '@/lib/db';
 import { getDatabase } from '@/lib/db';
 import { fetchMissingMeanings, pullRemoteWords, pushAllLocalWords, pushWordToRemote, setupOnlineSyncListener } from '@/lib/sync';
@@ -110,6 +110,7 @@ export default function HomePage() {
   const [page, setPage] = useState(1);
 
   const pageSize = 20;
+  const prevQuizRangeRef = useRef<QuizRangeKey>('all');
 
   const filteredWords = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -157,6 +158,47 @@ export default function HomePage() {
     setRevealed(false);
     setCompleted(queue.length === 0);
   }, [quizCandidates]);
+
+  // Initialize quiz when candidates are available, only if quiz is empty
+  useEffect(() => {
+    if (quizQueue.length === 0 && quizCandidates.length > 0) {
+      console.log('Initializing quiz with', quizCandidates.length, 'candidates');
+      resetQuiz();
+    }
+  }, [quizCandidates.length, resetQuiz]); // Depend on resetQuiz to get latest version
+
+  // Reset quiz ONLY when quiz range changes (not when words change)
+  useEffect(() => {
+    const rangeChanged = prevQuizRangeRef.current !== quizRange;
+    prevQuizRangeRef.current = quizRange;
+
+    if (!rangeChanged || quizQueue.length === 0) {
+      // Range didn't actually change or quiz is empty, so don't reset
+      return;
+    }
+
+    // Only reset if we have candidates for the new range
+    if (quizCandidates.length === 0) {
+      console.log('No words in this range');
+      setQuizQueue([]);
+      setCompleted(true);
+      return;
+    }
+
+    // Rebuild quiz with new range candidates
+    console.log('Quiz range changed, resetting quiz with', quizCandidates.length, 'filtered candidates');
+    const queue = shuffle(
+      quizCandidates.map((word) => ({
+        id: word.id,
+        word: word.word,
+        meaning: word.meaning,
+      }))
+    );
+    setQuizQueue(queue);
+    setQuizIndex(0);
+    setRevealed(false);
+    setCompleted(queue.length === 0);
+  }, [quizRange, quizCandidates]); // Track both, but logic ensures only range changes trigger reset
 
   useEffect(() => {
     let isMounted = true;
@@ -233,9 +275,6 @@ export default function HomePage() {
     };
   }, [database]);
 
-  useEffect(() => {
-    resetQuiz();
-  }, [resetQuiz]);
 
   const currentQuizItem = quizQueue[quizIndex] ?? null;
 
