@@ -3,7 +3,6 @@
 import {
   Button,
   Container,
-  Divider,
   Group,
   Pagination,
   Select,
@@ -125,7 +124,7 @@ export default function HomePage() {
   const [completed, setCompleted] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
-  
+
   // Custom states for UI Enhancements
   const { colorScheme, setColorScheme } = useMantineColorScheme();
   const [onlineStatus, setOnlineStatus] = useState(true);
@@ -274,7 +273,7 @@ export default function HomePage() {
       console.log('App started: Syncing with remote...');
       await pullRemoteWords(db.words);
       await pushAllLocalWords(db.words);
-      
+
       if (navigator.onLine) {
         await fetchMissingMeanings(db.words);
       }
@@ -501,19 +500,19 @@ export default function HomePage() {
       <PwaRegister />
       <Stack gap="xl">
         {/* --- Gorgeous Glassmorphic Header Panel --- */}
-        <Card className="glass-panel" padding="xl" radius="lg">
-          <Group justify="space-between" align="flex-start" wrap="nowrap">
-            <Stack gap="xs" style={{ flex: 1 }}>
+        <Card className="glass-panel header-panel" padding="xl" radius="lg">
+          <Group className="header-inner" justify="space-between" align="flex-start" wrap="wrap">
+            <Stack className="header-left" gap="xs" style={{ flex: 1 }}>
               <Title order={1} style={{ fontSize: '2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span className="text-gradient">English Word Memorizer</span>
               </Title>
-              <Text c="dimmed" size="sm" max-width="480px" style={{ lineHeight: 1.5 }}>
+              <Text c="dimmed" size="sm" style={{ lineHeight: 1.5, maxWidth: '480px' }}>
                 A modern local-first vocabulary companion. Learn new definitions, sync with Supabase Cloud, and practice dynamically offline.
               </Text>
             </Stack>
 
             {/* Quick Status Pill Bar & Theme Toggler */}
-            <Group gap="xs" style={{ flexShrink: 0 }}>
+            <Group className="header-right" gap="xs" style={{ flexShrink: 0 }}>
               <Tooltip label={onlineStatus ? 'Online' : 'Offline'}>
                 <Badge
                   color={onlineStatus ? 'teal' : 'red'}
@@ -649,7 +648,7 @@ export default function HomePage() {
                     {filteredWords.length} word{filteredWords.length !== 1 ? 's' : ''}
                   </Badge>
                 </Group>
-                
+
                 <TextInput
                   placeholder="Search vocabulary by keyword..."
                   leftSection={<IconSearch size={18} style={{ opacity: 0.55, color: '#a855f7' }} />}
@@ -731,7 +730,7 @@ export default function HomePage() {
                   allowDeselect={false}
                 />
               </Grid.Col>
-              
+
               <Grid.Col span={{ base: 12, sm: 4 }}>
                 <Button
                   variant="light"

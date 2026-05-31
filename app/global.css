@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+@import 'https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap';
 
 /* --- Premium CSS Variables & Theming --- */
 :root {
@@ -6,18 +6,18 @@
   --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 
   /* Modern Colors - Light Mode default */
-  --bg-gradient: radial-gradient(circle at 0% 0%, rgba(243, 244, 246, 0.6) 0%, rgba(255, 255, 255, 0.9) 100%),
-    radial-gradient(circle at 100% 100%, rgba(224, 231, 255, 0.3) 0%, rgba(255, 255, 255, 0.9) 100%);
-  --grid-color: rgba(99, 102, 241, 0.03);
+  --bg-gradient: radial-gradient(circle at 0% 0%, rgb(243, 244, 246, 0.6) 0%, rgb(255, 255, 255, 0.9) 100%),
+    radial-gradient(circle at 100% 100%, rgb(224, 231, 255, 0.3) 0%, rgb(255, 255, 255, 0.9) 100%);
+  --grid-color: rgb(99, 102, 241, 0.03);
 
-  --primary-glow: rgba(99, 102, 241, 0.15);
+  --primary-glow: rgb(99, 102, 241, 0.15);
   --accent-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
   --accent-gradient-hover: linear-gradient(135deg, #4f46e5 0%, #9333ea 100%);
 
-  --card-bg: rgba(255, 255, 255, 0.7);
-  --card-border: rgba(229, 231, 235, 0.8);
-  --card-shadow: 0 4px 20px -2px rgba(156, 163, 175, 0.15), 0 2px 10px -1px rgba(156, 163, 175, 0.1);
-  --card-shadow-hover: 0 12px 30px -4px rgba(99, 102, 241, 0.2), 0 4px 15px -2px rgba(156, 163, 175, 0.15);
+  --card-bg: rgb(255, 255, 255, 0.7);
+  --card-border: rgb(229, 231, 235, 0.8);
+  --card-shadow: 0 4px 20px -2px rgb(156, 163, 175, 0.15), 0 2px 10px -1px rgb(156, 163, 175, 0.1);
+  --card-shadow-hover: 0 12px 30px -4px rgb(99, 102, 241, 0.2), 0 4px 15px -2px rgb(156, 163, 175, 0.15);
 
   --text-primary: #111827;
   --text-secondary: #4b5563;
@@ -25,18 +25,18 @@
 }
 
 [data-mantine-color-scheme="dark"] {
-  --bg-gradient: radial-gradient(circle at 0% 0%, rgba(17, 24, 39, 0.95) 0%, rgba(10, 10, 12, 1) 100%),
-    radial-gradient(circle at 100% 100%, rgba(49, 46, 129, 0.25) 0%, rgba(10, 10, 12, 1) 100%);
-  --grid-color: rgba(99, 102, 241, 0.05);
+  --bg-gradient: radial-gradient(circle at 0% 0%, rgb(17, 24, 39, 0.95) 0%, rgb(10, 10, 12, 1) 100%),
+    radial-gradient(circle at 100% 100%, rgb(49, 46, 129, 0.25) 0%, rgb(10, 10, 12, 1) 100%);
+  --grid-color: rgb(99, 102, 241, 0.05);
 
-  --primary-glow: rgba(168, 85, 247, 0.25);
+  --primary-glow: rgb(168, 85, 247, 0.25);
   --accent-gradient: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
   --accent-gradient-hover: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
 
-  --card-bg: rgba(20, 20, 25, 0.75);
-  --card-border: rgba(255, 255, 255, 0.07);
-  --card-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
-  --card-shadow-hover: 0 12px 40px rgba(99, 102, 241, 0.25);
+  --card-bg: rgb(20, 20, 25, 0.75);
+  --card-border: rgb(255, 255, 255, 0.07);
+  --card-shadow: 0 4px 30px rgb(0, 0, 0, 0.4);
+  --card-shadow-hover: 0 12px 40px rgb(99, 102, 241, 0.25);
 
   --text-primary: #f9fafb;
   --text-secondary: #d1d5db;
@@ -78,7 +78,7 @@ body::after {
   right: -10%;
   width: 50%;
   height: 50%;
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.08) 0%, rgba(99, 102, 241, 0) 70%);
+  background: radial-gradient(circle, rgb(99, 102, 241, 0.08) 0%, rgb(99, 102, 241, 0) 70%);
   filter: blur(80px);
   z-index: -2;
   pointer-events: none;
@@ -115,7 +115,7 @@ h6 {
   .glass-panel {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
-    background: #ffffff !important;
+    background: #fff !important;
   }
 
   [data-mantine-color-scheme="dark"] .glass-panel {
@@ -141,7 +141,7 @@ h6 {
 .hover-lift:hover {
   transform: translateY(-5px) scale(1.008) !important;
   box-shadow: var(--card-shadow-hover) !important;
-  border-color: rgba(99, 102, 241, 0.3) !important;
+  border-color: rgb(99, 102, 241, 0.3) !important;
 }
 
 /* Custom interactive glowing button class */
@@ -171,7 +171,7 @@ h6 {
 .mantine-Textarea-input,
 .mantine-Select-input {
   font-family: var(--font-body) !important;
-  background-color: rgba(255, 255, 255, 0.02) !important;
+  background-color: rgb(255, 255, 255, 0.02) !important;
   border: 1px solid var(--card-border) !important;
   transition: all 0.2s ease !important;
 }
@@ -180,29 +180,29 @@ h6 {
 .mantine-Textarea-input:focus,
 .mantine-Select-input:focus {
   border-color: #6366f1 !important;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15) !important;
+  box-shadow: 0 0 0 3px rgb(99, 102, 241, 0.15) !important;
 }
 
 /* Dark mode overrides for inputs inside mantine */
 [data-mantine-color-scheme="dark"] .mantine-TextInput-input,
 [data-mantine-color-scheme="dark"] .mantine-Textarea-input,
 [data-mantine-color-scheme="dark"] .mantine-Select-input {
-  background-color: rgba(0, 0, 0, 0.2) !important;
+  background-color: rgb(0, 0, 0, 0.2) !important;
   color: #f9fafb !important;
 }
 
 /* Pulse animation for CTA features */
 @keyframes pulse {
   0% {
-    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4);
+    box-shadow: 0 0 0 0 rgb(99, 102, 241, 0.4);
   }
 
   70% {
-    box-shadow: 0 0 0 10px rgba(99, 102, 241, 0);
+    box-shadow: 0 0 0 10px rgb(99, 102, 241, 0);
   }
 
   100% {
-    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);
+    box-shadow: 0 0 0 0 rgb(99, 102, 241, 0);
   }
 }
 
@@ -270,7 +270,7 @@ h6 {
 
 @media (max-width: 48em) {
   .word-card {
-    background: #ffffff !important;
+    background: #fff !important;
   }
   
   [data-mantine-color-scheme="dark"] .word-card {
@@ -282,6 +282,7 @@ h6 {
 .mobile-only {
   display: block !important;
 }
+
 .desktop-only {
   display: none !important;
 }
@@ -290,6 +291,7 @@ h6 {
   .mobile-only {
     display: none !important;
   }
+
   .desktop-only {
     display: block !important;
   }
@@ -298,12 +300,52 @@ h6 {
 /* Custom Segmented Control active tab indicator highlight */
 .mantine-SegmentedControl-indicator {
   background: var(--accent-gradient) !important;
-  box-shadow: 0 4px 14px 0 rgba(99, 102, 241, 0.25) !important;
+  box-shadow: 0 4px 14px 0 rgb(99, 102, 241, 0.25) !important;
 }
 
 /* Maintain crisp white text contrast for the active tab label */
 .mantine-SegmentedControl-control[data-active] {
-  color: #ffffff !important;
+  color: #fff !important;
   font-weight: 700 !important;
   transition: color 0.2s ease !important;
+}
+
+/* Responsive header card layout */
+.header-panel {
+  /* ensure internal content can wrap cleanly */
+}
+
+.header-panel .header-inner {
+  width: 100%;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.header-panel .header-left {
+  flex: 1 1 320px;
+  min-width: 0; /* allow text truncation and wrapping */
+}
+
+.header-panel .header-right {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+@media (max-width: 48em) {
+  .header-panel .header-inner {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .header-panel .header-right {
+    justify-content: flex-end;
+    margin-top: 8px;
+  }
+
+  .header-panel .header-left {
+    margin-bottom: 6px;
+  }
 }
