@@ -714,7 +714,7 @@ export default function HomePage() {
 
         {/* --- QUIZ MODE --- */}
         {mode === 'quiz' && (
-          <Stack gap="lg" className={'min-h-dvh'}>
+          <Stack gap="lg" style={{minHeight: '100vh'}}>
             <Grid align="flex-end" gap="md">
               <Grid.Col span={{ base: 12, sm: 8 }}>
                 <Select
