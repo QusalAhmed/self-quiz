@@ -9,11 +9,12 @@ import {
   Text,
   TextInput,
   Textarea,
+  Tooltip,
 } from '@mantine/core';
 import { IconEdit, IconTrash } from '@tabler/icons-react';
 import { useState } from 'react';
 import type { WordRecord } from '@/lib/db';
-import { formatDate } from '@/lib/dateUtils';
+import { formatDate, formatRelativeShort } from '@/lib/dateUtils';
 
 type WordListProps = {
   words: WordRecord[];
@@ -145,15 +146,21 @@ export function WordList({ words, onDelete, onEdit }: WordListProps) {
                     >
                       {item.word}
                     </Text>
-                    <Badge
-                      variant="dot"
-                      color={hasMeaning ? 'indigo' : 'orange'}
-                      size="xs"
-                      radius="sm"
-                      style={{ fontSize: '10px', fontWeight: 600, textTransform: 'none' }}
-                    >
-                      {formatDate(item.updatedAt)}
-                    </Badge>
+                    {
+                      // Compact date pill with tooltip for full date
+                    }
+                    <Tooltip label={formatDate(item.updatedAt)} withArrow>
+                      <Badge
+                        variant="filled"
+                        color={hasMeaning ? 'indigo' : 'orange'}
+                        size="xs"
+                        radius="sm"
+                        className="date-pill"
+                        style={{ fontSize: '11px', fontWeight: 700, textTransform: 'none' }}
+                      >
+                        {formatRelativeShort(item.updatedAt)}
+                      </Badge>
+                    </Tooltip>
                   </Group>
 
                   {/* Meaning (always visible) */}
