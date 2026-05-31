@@ -542,7 +542,7 @@ export default function HomePage() {
         </Card>
 
         {/* --- Interactive Statistics Dashboard Row --- */}
-        <Grid gap="md">
+        <Grid gap="md" align={'center'}>
           {/* Card 1: Total Words */}
           <Grid.Col span={{ base: 12, sm: 4 }}>
             <Card className="glass-panel" radius="lg" padding="md" style={{ borderLeft: '4px solid #6366f1' }}>
@@ -586,12 +586,12 @@ export default function HomePage() {
                     CLOUD SYNC
                   </Text>
                   <Group gap={6} mt={4}>
-                    <Text size="sm" fw={700} c={unsyncedCount === 0 ? 'teal' : 'orange'}>
+                    <Text size="xl" fw={700} c={unsyncedCount === 0 ? 'teal' : 'orange'}>
                       {unsyncedCount === 0 ? 'Fully Synced' : `${unsyncedCount} Sync Pending`}
                     </Text>
                     {onlineStatus && (
-                      <ActionIcon size="xs" variant="subtle" color="teal" onClick={handleManualSync}>
-                        <IconRotateClockwise size={12} />
+                      <ActionIcon size="sm" variant="subtle" color="teal" onClick={handleManualSync}>
+                        <IconRotateClockwise size={16} />
                       </ActionIcon>
                     )}
                   </Group>
@@ -714,7 +714,7 @@ export default function HomePage() {
 
         {/* --- QUIZ MODE --- */}
         {mode === 'quiz' && (
-          <Stack gap="lg">
+          <Stack gap="lg" className={'min-h-dvh'}>
             <Grid align="flex-end" gap="md">
               <Grid.Col span={{ base: 12, sm: 8 }}>
                 <Select

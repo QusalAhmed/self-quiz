@@ -221,7 +221,7 @@ export function WordList({ words, onDelete, onEdit }: WordListProps) {
                 >
                   <Stack gap="md">
                     <TextInput
-                      label={<Text size="xs" fw={600} c="dimmed">Word</Text>}
+                      label={<Text size="xs" fw={600} c="dimmed" span>Word</Text>}
                       value={draftWord}
                       onChange={(e) => setDraftWord(e.currentTarget.value)}
                       required

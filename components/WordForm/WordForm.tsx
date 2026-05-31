@@ -57,17 +57,14 @@ export function WordForm({ onAdd, disabled }: WordFormProps) {
       <form onSubmit={handleSubmit}>
         <Stack gap="lg">
           <div>
-            <Text fw={700} size="lg" className="text-gradient" mb={4} style={{ fontFamily: 'var(--font-title)' }}>
+            <Text fw={700} size="lg" className="text-gradient" mb={2} style={{ fontFamily: 'var(--font-title)' }}>
               Add New Vocabulary Word
-            </Text>
-            <Text size="xs" c="dimmed" style={{ lineHeight: 1.5 }}>
-              Enter an English word. If you leave the definition blank, it will be automatically fetched when your device is online.
             </Text>
           </div>
 
           <TextInput
             ref={wordInputRef}
-            label={<Text size="xs" fw={600} c="dimmed">English Word</Text>}
+            label={<Text size="xs" fw={600} c="dimmed" span>English Word</Text>}
             placeholder="e.g. eloquent, pragmatic, nebulous"
             value={word}
             onChange={(event) => setWord(event.currentTarget.value)}
