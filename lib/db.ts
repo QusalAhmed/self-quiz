@@ -16,8 +16,21 @@ export type WordRecord = {
   lastSyncedAt: string;
 };
 
+export type MissedWordRecord = {
+  id: string;
+  wordId: string;
+  word: string;
+  meaning: string;
+  missedAt: string;
+  missedCount: number;
+  updatedAt: string;
+  lastSyncedAt: string;
+  isDeleted: boolean;
+};
+
 export type WordCollection = RxCollection<WordRecord>;
-export type AppDatabase = RxDatabase<{ words: WordCollection }>;
+export type MissedWordCollection = RxCollection<MissedWordRecord>;
+export type AppDatabase = RxDatabase<{ words: WordCollection; missedWords: MissedWordCollection }>;
 
 const wordSchema: RxJsonSchema<WordRecord> = {
   title: 'word schema',
@@ -34,8 +47,47 @@ const wordSchema: RxJsonSchema<WordRecord> = {
     isDeleted: { type: 'boolean', default: false },
     lastSyncedAt: { type: 'string', default: '' },
   },
-  required: ['id', 'word', 'meaning', 'createdAt', 'updatedAt', 'isDeleted', 'lastSyncedAt'],
+  required: [
+    'id',
+    'word',
+    'meaning',
+    'createdAt',
+    'updatedAt',
+    'isDeleted',
+    'lastSyncedAt',
+  ],
   indexes: ['word', 'updatedAt', 'isDeleted'],
+};
+
+const missedWordSchema: RxJsonSchema<MissedWordRecord> = {
+  title: 'missed words schema',
+  version: 0,
+  description: 'Words the user could not answer in quiz sessions',
+  primaryKey: 'id',
+  type: 'object',
+  properties: {
+    id: { type: 'string', maxLength: 64 },
+    wordId: { type: 'string', maxLength: 64 },
+    word: { type: 'string', maxLength: 128 },
+    meaning: { type: 'string' },
+    missedAt: { type: 'string', maxLength: 32 },
+    missedCount: { type: 'number', minimum: 1 },
+    updatedAt: { type: 'string', maxLength: 32 },
+    lastSyncedAt: { type: 'string', default: '' },
+    isDeleted: { type: 'boolean', default: false },
+  },
+  required: [
+    'id',
+    'wordId',
+    'word',
+    'meaning',
+    'missedAt',
+    'missedCount',
+    'updatedAt',
+    'lastSyncedAt',
+    'isDeleted',
+  ],
+  indexes: ['word', 'wordId', 'missedAt', 'updatedAt', 'isDeleted'],
 };
 
 if (process.env.NODE_ENV === 'development') {
@@ -66,6 +118,9 @@ async function createDatabase(): Promise<AppDatabase> {
       migrationStrategies: {
         1: (oldDoc) => ({ ...oldDoc }),
       },
+    },
+    missedWords: {
+      schema: missedWordSchema,
     },
   });
 

@@ -1,10 +1,21 @@
-import type { WordCollection, WordRecord } from './db';
+import type { MissedWordCollection, MissedWordRecord, WordCollection, WordRecord } from './db';
 
 export type RemoteWordRow = {
   id: string;
   word: string;
   meaning: string;
   created_at: string;
+  updated_at: string;
+  deleted: boolean;
+};
+
+export type RemoteMissedWordRow = {
+  id: string;
+  word_id: string;
+  word: string;
+  meaning: string;
+  missed_at: string;
+  missed_count: number;
   updated_at: string;
   deleted: boolean;
 };
@@ -18,6 +29,20 @@ function mapRowToRecord(row: RemoteWordRow): WordRecord {
     updatedAt: row.updated_at,
     isDeleted: row.deleted,
     lastSyncedAt: row.updated_at,
+  };
+}
+
+function mapMissedRowToRecord(row: RemoteMissedWordRow) {
+  return {
+    id: row.id,
+    wordId: row.word_id,
+    word: row.word,
+    meaning: row.meaning,
+    missedAt: row.missed_at,
+    missedCount: row.missed_count,
+    updatedAt: row.updated_at,
+    lastSyncedAt: row.updated_at,
+    isDeleted: row.deleted,
   };
 }
 
@@ -71,6 +96,43 @@ export async function pullRemoteWords(collection: WordCollection): Promise<void>
   }
 }
 
+export async function pullRemoteMissedWords(collection: MissedWordCollection): Promise<void> {
+  if (!isOnline()) {
+    console.log('Device is offline, skipping missed words pull from remote');
+    return;
+  }
+
+  try {
+    console.log('Pulling missed words from Supabase...');
+    const response = await fetch('/api/missed-words?t=' + Date.now(), {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+      },
+    });
+
+    if (!response.ok) {
+      console.error('Failed to pull missed words:', response.statusText);
+      return;
+    }
+
+    const { data } = await response.json();
+    if (!data || !Array.isArray(data)) {
+      console.log('No missed words to pull');
+      return;
+    }
+
+    console.log('Successfully pulled', data.length, 'missed words from remote');
+    for (const row of data as RemoteMissedWordRow[]) {
+      const mapped = mapMissedRowToRecord(row);
+      await collection.upsert(mapped);
+    }
+  } catch (error) {
+    console.error('Error pulling missed words:', error);
+  }
+}
+
 export async function pushWordToRemote(
   collection: WordCollection,
   record: WordRecord
@@ -113,6 +175,48 @@ export async function pushWordToRemote(
   }
 }
 
+export async function pushMissedWordToRemote(
+  collection: MissedWordCollection,
+  record: MissedWordRecord
+): Promise<void> {
+  if (!isOnline()) {
+    console.log('Device is offline, missed word saved locally. Will sync when online:', record.word);
+    return;
+  }
+
+  try {
+    const payload = {
+      id: record.id,
+      word_id: record.wordId,
+      word: record.word,
+      meaning: record.meaning,
+      missed_at: record.missedAt,
+      missed_count: record.missedCount,
+      updated_at: record.updatedAt,
+      deleted: record.isDeleted,
+    };
+
+    console.log('Pushing missed word to remote:', record.word);
+    const response = await fetch('/api/missed-words', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      console.error('Failed to push missed word to remote:', response.statusText);
+      return;
+    }
+
+    await collection.upsert({
+      ...record,
+      lastSyncedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Error pushing missed word to remote:', error);
+  }
+}
+
 export async function pushAllLocalWords(collection: WordCollection): Promise<void> {
   // Skip if offline
   if (!isOnline()) {
@@ -137,6 +241,32 @@ export async function pushAllLocalWords(collection: WordCollection): Promise<voi
     console.log('Synced', syncedCount, 'words to remote');
   } catch (error) {
     console.error('Error pushing all local words:', error);
+  }
+}
+
+export async function pushAllLocalMissedWords(collection: MissedWordCollection): Promise<void> {
+  if (!isOnline()) {
+    console.log('Device is offline, skipping missed words push to remote. Will sync when online.');
+    return;
+  }
+
+  try {
+    console.log('Pushing all missed words to remote...');
+    const localWords = await collection.find().exec();
+    let syncedCount = 0;
+
+    for (const word of localWords) {
+      const record = word.toJSON();
+      const shouldSync = !record.lastSyncedAt || record.lastSyncedAt < record.updatedAt;
+      if (shouldSync) {
+        await pushMissedWordToRemote(collection, record);
+        syncedCount++;
+      }
+    }
+
+    console.log('Synced', syncedCount, 'missed words to remote');
+  } catch (error) {
+    console.error('Error pushing all missed words:', error);
   }
 }
 
@@ -213,12 +343,17 @@ export async function fetchMissingMeanings(collection: WordCollection): Promise<
 /**
  * Set up online/offline event listeners for automatic sync
  */
-export function setupOnlineSyncListener(collection: WordCollection): () => void {
+export function setupOnlineSyncListener(
+  wordsCollection: WordCollection,
+  missedCollection: MissedWordCollection
+): () => void {
   const handleOnline = async () => {
     console.log('Device is back online! Starting sync...');
-    await pullRemoteWords(collection);
-    await pushAllLocalWords(collection);
-    await fetchMissingMeanings(collection);
+    await pullRemoteWords(wordsCollection);
+    await pullRemoteMissedWords(missedCollection);
+    await pushAllLocalWords(wordsCollection);
+    await pushAllLocalMissedWords(missedCollection);
+    await fetchMissingMeanings(wordsCollection);
     console.log('Sync completed');
   };
 
@@ -239,5 +374,3 @@ export function setupOnlineSyncListener(collection: WordCollection): () => void 
 
   return () => {};
 }
-
-

@@ -17,6 +17,7 @@ import {
   Grid,
   Card,
   Badge,
+  Divider,
 } from '@mantine/core';
 import {
   IconSearch,
@@ -31,9 +32,18 @@ import {
   IconRotateClockwise,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { AppDatabase, WordRecord } from '@/lib/db';
+import type { AppDatabase, MissedWordRecord, WordRecord } from '@/lib/db';
 import { getDatabase } from '@/lib/db';
-import { fetchMissingMeanings, pullRemoteWords, pushAllLocalWords, pushWordToRemote, setupOnlineSyncListener } from '@/lib/sync';
+import {
+  fetchMissingMeanings,
+  pullRemoteMissedWords,
+  pullRemoteWords,
+  pushAllLocalMissedWords,
+  pushAllLocalWords,
+  pushMissedWordToRemote,
+  pushWordToRemote,
+  setupOnlineSyncListener,
+} from '@/lib/sync';
 import { PwaRegister } from '@/components/PwaRegister/PwaRegister';
 import { QuizPanel, type QuizItem } from '@/components/QuizPanel/QuizPanel';
 import { WordForm } from '@/components/WordForm/WordForm';
@@ -48,7 +58,14 @@ const quizRanges = {
   year: 'This year',
 } as const;
 
+const quizSources = {
+  words: 'All Words',
+  missed: 'Missed Words',
+} as const;
+
 type QuizRangeKey = keyof typeof quizRanges;
+
+type QuizSourceKey = keyof typeof quizSources;
 
 function shuffle<T>(items: T[]): T[] {
   const result = [...items];
@@ -115,9 +132,11 @@ function capitalizeWord(value: string): string {
 export default function HomePage() {
   const [database, setDatabase] = useState<AppDatabase | null>(null);
   const [words, setWords] = useState<WordRecord[]>([]);
+  const [missedWords, setMissedWords] = useState<MissedWordRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [mode, setMode] = useState<'study' | 'quiz'>('study');
   const [quizRange, setQuizRange] = useState<QuizRangeKey>('all');
+  const [quizSource, setQuizSource] = useState<QuizSourceKey>('words');
   const [quizQueue, setQuizQueue] = useState<QuizItem[]>([]);
   const [quizIndex, setQuizIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
@@ -131,6 +150,7 @@ export default function HomePage() {
 
   const pageSize = 15; // Enhanced list density
   const prevQuizRangeRef = useRef<QuizRangeKey>('all');
+  const prevQuizSourceRef = useRef<QuizSourceKey>('words');
 
   // Track Network Status dynamically
   useEffect(() => {
@@ -177,20 +197,24 @@ export default function HomePage() {
   const quizCandidates = useMemo(() => {
     const start = getRangeStart(quizRange);
     const end = getRangeEnd(quizRange);
+    const source = quizSource === 'missed' ? missedWords : words;
+
     if (!start && quizRange !== 'all') {
       return [];
     }
-    return words.filter((word) => {
+
+    return source.filter((word) => {
       if (quizRange === 'all') {
         return true;
       }
-      const createdAt = new Date(word.createdAt);
+      const dateField = quizSource === 'missed' ? word.missedAt : word.createdAt;
+      const createdAt = new Date(dateField);
       if (end) {
         return createdAt >= (start as Date) && createdAt <= end;
       }
       return createdAt >= (start as Date);
     });
-  }, [words, quizRange]);
+  }, [words, missedWords, quizRange, quizSource]);
 
   const resetQuiz = useCallback(() => {
     const queue = shuffle(
@@ -214,12 +238,14 @@ export default function HomePage() {
     }
   }, [quizCandidates.length, resetQuiz, quizQueue.length]);
 
-  // Reset quiz ONLY when quiz range changes (not when words change)
+  // Reset quiz ONLY when quiz range/source changes (not when words change)
   useEffect(() => {
     const rangeChanged = prevQuizRangeRef.current !== quizRange;
+    const sourceChanged = prevQuizSourceRef.current !== quizSource;
     prevQuizRangeRef.current = quizRange;
+    prevQuizSourceRef.current = quizSource;
 
-    if (!rangeChanged || quizQueue.length === 0) {
+    if ((!rangeChanged && !sourceChanged) || quizQueue.length === 0) {
       return;
     }
 
@@ -230,7 +256,7 @@ export default function HomePage() {
       return;
     }
 
-    console.log('Quiz range changed, resetting quiz with', quizCandidates.length, 'filtered candidates');
+    console.log('Quiz pool changed, resetting quiz with', quizCandidates.length, 'candidates');
     const queue = shuffle(
       quizCandidates.map((word) => ({
         id: word.id,
@@ -242,11 +268,12 @@ export default function HomePage() {
     setQuizIndex(0);
     setRevealed(false);
     setCompleted(queue.length === 0);
-  }, [quizRange, quizCandidates]);
+  }, [quizRange, quizSource, quizCandidates, quizQueue.length]);
 
   useEffect(() => {
     let isMounted = true;
-    let subscription: { unsubscribe: () => void } | null = null;
+    let wordSubscription: { unsubscribe: () => void } | null = null;
+    let missedSubscription: { unsubscribe: () => void } | null = null;
     let cleanupOnlineListener: (() => void) | null = null;
 
     const load = async () => {
@@ -257,12 +284,12 @@ export default function HomePage() {
 
       setDatabase(db);
 
-      const query = db.words.find({
+      const wordQuery = db.words.find({
         selector: { isDeleted: { $ne: true } },
         sort: [{ updatedAt: 'desc' }],
       });
 
-      subscription = query.$.subscribe((docs) => {
+      wordSubscription = wordQuery.$.subscribe((docs) => {
         if (!isMounted) {
           return;
         }
@@ -270,15 +297,29 @@ export default function HomePage() {
         setPage(1);
       });
 
+      const missedQuery = db.missedWords.find({
+        selector: { isDeleted: { $ne: true } },
+        sort: [{ updatedAt: 'desc' }],
+      });
+
+      missedSubscription = missedQuery.$.subscribe((docs) => {
+        if (!isMounted) {
+          return;
+        }
+        setMissedWords(docs.map((doc) => doc.toJSON()));
+      });
+
       console.log('App started: Syncing with remote...');
       await pullRemoteWords(db.words);
+      await pullRemoteMissedWords(db.missedWords);
       await pushAllLocalWords(db.words);
+      await pushAllLocalMissedWords(db.missedWords);
 
       if (navigator.onLine) {
         await fetchMissingMeanings(db.words);
       }
 
-      cleanupOnlineListener = setupOnlineSyncListener(db.words);
+      cleanupOnlineListener = setupOnlineSyncListener(db.words, db.missedWords);
 
       if (isMounted) {
         setIsLoading(false);
@@ -289,7 +330,8 @@ export default function HomePage() {
 
     return () => {
       isMounted = false;
-      subscription?.unsubscribe();
+      wordSubscription?.unsubscribe();
+      missedSubscription?.unsubscribe();
       cleanupOnlineListener?.();
     };
   }, []);
@@ -305,7 +347,9 @@ export default function HomePage() {
         console.log('Page came into focus: Performing fresh sync...');
         try {
           await pullRemoteWords(database.words);
+          await pullRemoteMissedWords(database.missedWords);
           await pushAllLocalWords(database.words);
+          await pushAllLocalMissedWords(database.missedWords);
           await fetchMissingMeanings(database.words);
           console.log('Sync completed successfully');
         } catch (error) {
@@ -318,7 +362,9 @@ export default function HomePage() {
       console.log('Page show event: Performing fresh sync...');
       try {
         await pullRemoteWords(database.words);
+        await pullRemoteMissedWords(database.missedWords);
         await pushAllLocalWords(database.words);
+        await pushAllLocalMissedWords(database.missedWords);
         await fetchMissingMeanings(database.words);
         console.log('Sync completed after page show');
       } catch (error) {
@@ -336,6 +382,12 @@ export default function HomePage() {
   }, [database]);
 
   const currentQuizItem = quizQueue[quizIndex] ?? null;
+  const isCurrentMarkedMissed = useMemo(() => {
+    if (!currentQuizItem) {
+      return false;
+    }
+    return missedWords.some((word) => word.wordId === currentQuizItem.id);
+  }, [currentQuizItem, missedWords]);
 
   const handleAdd = async (word: string, meaning: string) => {
     if (!database) {
@@ -459,6 +511,95 @@ export default function HomePage() {
     setRevealed(true);
   };
 
+  const handleMarkMissed = async () => {
+    if (!database || !currentQuizItem) {
+      return;
+    }
+
+    const timestamp = new Date().toISOString();
+    const existing = await database.missedWords.findOne(currentQuizItem.id).exec();
+
+    if (existing) {
+      const current = existing.toJSON();
+      const updated = {
+        ...current,
+        word: currentQuizItem.word,
+        meaning: currentQuizItem.meaning,
+        missedAt: timestamp,
+        missedCount: current.missedCount + 1,
+        updatedAt: timestamp,
+        isDeleted: false,
+      };
+      await database.missedWords.upsert(updated);
+      await pushMissedWordToRemote(database.missedWords, updated);
+      return;
+    }
+
+    const record: MissedWordRecord = {
+      id: currentQuizItem.id,
+      wordId: currentQuizItem.id,
+      word: currentQuizItem.word,
+      meaning: currentQuizItem.meaning,
+      missedAt: timestamp,
+      missedCount: 1,
+      updatedAt: timestamp,
+      lastSyncedAt: '',
+      isDeleted: false,
+    };
+
+    await database.missedWords.upsert(record);
+    await pushMissedWordToRemote(database.missedWords, record);
+  };
+
+  const handleUnmarkMissed = async (id: string) => {
+    if (!database) {
+      return;
+    }
+
+    const existing = await database.missedWords.findOne(id).exec();
+    if (!existing) {
+      return;
+    }
+
+    const timestamp = new Date().toISOString();
+    const record = {
+      ...existing.toJSON(),
+      isDeleted: true,
+      updatedAt: timestamp,
+    };
+
+    await database.missedWords.upsert(record);
+    await pushMissedWordToRemote(database.missedWords, record);
+  };
+
+  const handleUnmarkAllMissed = async () => {
+    if (!database || missedWords.length === 0) {
+      return;
+    }
+
+    const timestamp = new Date().toISOString();
+    for (const item of missedWords) {
+      const record = {
+        ...item,
+        isDeleted: true,
+        updatedAt: timestamp,
+      };
+      await database.missedWords.upsert(record);
+      await pushMissedWordToRemote(database.missedWords, record);
+    }
+  };
+
+  const handleToggleMissed = async () => {
+    if (!currentQuizItem) {
+      return;
+    }
+    if (isCurrentMarkedMissed) {
+      await handleUnmarkMissed(currentQuizItem.id);
+      return;
+    }
+    await handleMarkMissed();
+  };
+
   const handleNext = () => {
     const nextIndex = quizIndex + 1;
     if (nextIndex >= quizQueue.length) {
@@ -484,7 +625,9 @@ export default function HomePage() {
     console.log('User triggered manual sync...');
     try {
       await pullRemoteWords(database.words);
+      await pullRemoteMissedWords(database.missedWords);
       await pushAllLocalWords(database.words);
+      await pushAllLocalMissedWords(database.missedWords);
       await fetchMissingMeanings(database.words);
     } catch (e) {
       console.error(e);
@@ -716,7 +859,7 @@ export default function HomePage() {
         {mode === 'quiz' && (
           <Stack gap="lg" style={{minHeight: '100vh'}}>
             <Grid align="flex-end" gap="md">
-              <Grid.Col span={{ base: 12, sm: 8 }}>
+              <Grid.Col span={{ base: 12, sm: 6 }}>
                 <Select
                   label={<Text size="xs" fw={700} c="dimmed">QUIZ POOL RANGE</Text>}
                   data={Object.entries(quizRanges).map(([value, label]) => ({
@@ -727,6 +870,21 @@ export default function HomePage() {
                   size="md"
                   radius="md"
                   onChange={(value) => setQuizRange((value as QuizRangeKey) ?? 'all')}
+                  allowDeselect={false}
+                />
+              </Grid.Col>
+
+              <Grid.Col span={{ base: 12, sm: 6 }}>
+                <Select
+                  label={<Text size="xs" fw={700} c="dimmed">QUIZ SOURCE</Text>}
+                  data={Object.entries(quizSources).map(([value, label]) => ({
+                    value,
+                    label,
+                  }))}
+                  value={quizSource}
+                  size="md"
+                  radius="md"
+                  onChange={(value) => setQuizSource((value as QuizSourceKey) ?? 'words')}
                   allowDeselect={false}
                 />
               </Grid.Col>
@@ -751,6 +909,8 @@ export default function HomePage() {
               item={currentQuizItem}
               revealed={revealed}
               onReveal={handleReveal}
+              onMarkMissed={handleToggleMissed}
+              isMarkedMissed={isCurrentMarkedMissed}
               onNext={handleNext}
               onPrevious={handlePrevious}
               completed={completed}
@@ -759,6 +919,60 @@ export default function HomePage() {
               totalCount={quizQueue.length}
               onRestart={resetQuiz}
             />
+
+            <Card className="glass-panel" radius="lg" padding="lg">
+              <Group justify="space-between" align="center">
+                <Group gap="xs">
+                  <IconHistory size={18} style={{ color: '#a855f7' }} />
+                  <Title order={4}>Missed Words</Title>
+                </Group>
+                <Button
+                  variant="light"
+                  color="red"
+                  size="xs"
+                  radius="md"
+                  onClick={handleUnmarkAllMissed}
+                  disabled={missedWords.length === 0}
+                >
+                  Unmark All
+                </Button>
+              </Group>
+
+              <Divider my="sm" />
+
+              {missedWords.length === 0 ? (
+                <Text size="sm" c="dimmed" style={{ fontStyle: 'italic' }}>
+                  No missed words yet. Mark a word as missed to see it here.
+                </Text>
+              ) : (
+                <Stack gap="xs">
+                  {missedWords.map((word) => (
+                    <Card key={word.id} radius="md" padding="sm" withBorder>
+                      <Group justify="space-between" align="center" wrap="wrap">
+                        <Stack gap={2} style={{ flex: 1 }}>
+                          <Text fw={600}>{word.word}</Text>
+                          <Text size="xs" c="dimmed">
+                            {word.meaning || 'No definition available'}
+                          </Text>
+                          <Text size="xs" c="dimmed">
+                            Missed {word.missedCount} time{word.missedCount !== 1 ? 's' : ''}
+                          </Text>
+                        </Stack>
+                        <Button
+                          size="xs"
+                          variant="light"
+                          color="red"
+                          radius="md"
+                          onClick={() => handleUnmarkMissed(word.id)}
+                        >
+                          Unmark
+                        </Button>
+                      </Group>
+                    </Card>
+                  ))}
+                </Stack>
+              )}
+            </Card>
           </Stack>
         )}
       </Stack>

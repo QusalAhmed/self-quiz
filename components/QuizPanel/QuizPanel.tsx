@@ -1,6 +1,6 @@
-import { ActionIcon, Button, Card, Group, Progress, Stack, Text, Title, RingProgress } from '@mantine/core';
-import { IconAward, IconCopy, IconRotateClockwise, IconVolume, IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
-import { useEffect, useState } from 'react';
+import { ActionIcon, Button, Card, Group, Progress, Stack, Text, Title, RingProgress, Tooltip } from '@mantine/core';
+import { IconAward, IconCopy, IconRotateClockwise, IconVolume, IconChevronLeft, IconChevronRight, IconBookmarkOff, IconBookmark } from '@tabler/icons-react';
+import { useState } from 'react';
 
 export type QuizItem = {
   id: string;
@@ -12,6 +12,8 @@ type QuizPanelProps = {
   item: QuizItem | null;
   revealed: boolean;
   onReveal: () => void;
+  onMarkMissed: () => void;
+  isMarkedMissed: boolean;
   onNext: () => void;
   onPrevious: () => void;
   completed: boolean;
@@ -25,6 +27,8 @@ export function QuizPanel({
   item,
   revealed,
   onReveal,
+  onMarkMissed,
+  isMarkedMissed,
   onNext,
   onPrevious,
   completed,
@@ -183,6 +187,18 @@ export function QuizPanel({
               >
                 <IconCopy size={20} />
               </ActionIcon>
+              <Tooltip label={isMarkedMissed ? 'Unmark missed' : 'Mark as missed'}>
+                <ActionIcon
+                  aria-label={isMarkedMissed ? 'Unmark missed' : 'Mark as missed'}
+                  variant="subtle"
+                  color={isMarkedMissed ? 'teal' : 'red'}
+                  size="lg"
+                  radius="md"
+                  onClick={onMarkMissed}
+                >
+                  {isMarkedMissed ? <IconBookmark size={20} /> : <IconBookmarkOff size={20} />}
+                </ActionIcon>
+              </Tooltip>
             </Group>
           </Group>
 
