@@ -59,7 +59,7 @@ const quizRanges = {
 } as const;
 
 const quizSources = {
-  words: 'All Words',
+  words: 'Regular',
   missed: 'Missed Words',
 } as const;
 
@@ -197,18 +197,29 @@ export default function HomePage() {
   const quizCandidates = useMemo(() => {
     const start = getRangeStart(quizRange);
     const end = getRangeEnd(quizRange);
-    const source = quizSource === 'missed' ? missedWords : words;
 
     if (!start && quizRange !== 'all') {
       return [];
     }
 
-    return source.filter((word) => {
+    if (quizSource === 'missed') {
+      return missedWords.filter((word) => {
+        if (quizRange === 'all') {
+          return true;
+        }
+        const createdAt = new Date(word.missedAt);
+        if (end) {
+          return createdAt >= (start as Date) && createdAt <= end;
+        }
+        return createdAt >= (start as Date);
+      });
+    }
+
+    return words.filter((word) => {
       if (quizRange === 'all') {
         return true;
       }
-      const dateField = quizSource === 'missed' ? word.missedAt : word.createdAt;
-      const createdAt = new Date(dateField);
+      const createdAt = new Date(word.createdAt);
       if (end) {
         return createdAt >= (start as Date) && createdAt <= end;
       }
