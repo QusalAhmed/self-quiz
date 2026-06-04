@@ -11,7 +11,7 @@ import {
   Textarea,
   Tooltip,
 } from '@mantine/core';
-import { IconEdit, IconTrash } from '@tabler/icons-react';
+import { IconEdit, IconTrash, IconRotateClockwise } from '@tabler/icons-react';
 import { useState } from 'react';
 import type { WordRecord } from '@/lib/db';
 import { formatDate, formatRelativeShort } from '@/lib/dateUtils';
@@ -20,9 +20,10 @@ type WordListProps = {
   words: WordRecord[];
   onDelete: (id: string) => Promise<void> | void;
   onEdit: (id: string, word: string, meaning: string) => Promise<void> | void;
+  onRefreshExamples: (id: string) => Promise<void> | void;
 };
 
-export function WordList({ words, onDelete, onEdit }: WordListProps) {
+export function WordList({ words, onDelete, onEdit, onRefreshExamples }: WordListProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftWord, setDraftWord] = useState('');
   const [draftMeaning, setDraftMeaning] = useState('');
@@ -102,6 +103,7 @@ export function WordList({ words, onDelete, onEdit }: WordListProps) {
         {words.map((item) => {
           const isEditing = editingId === item.id;
           const hasMeaning = Boolean(item.meaning);
+          const hasExamples = Array.isArray(item.examples) && item.examples.length > 0;
 
           return (
             <Card
@@ -165,18 +167,40 @@ export function WordList({ words, onDelete, onEdit }: WordListProps) {
 
                   {/* Meaning (always visible) */}
                   {!isEditing && (
-                    <Text
-                      size="sm"
-                      style={{
-                        marginTop: 6,
-                        color: hasMeaning ? 'var(--text-secondary)' : 'var(--text-muted)',
-                        fontStyle: hasMeaning ? 'normal' : 'italic',
-                        lineHeight: 1.6,
-                        wordBreak: 'break-word',
-                      }}
-                    >
-                      {hasMeaning ? item.meaning : 'Fetching definition…'}
-                    </Text>
+                    <>
+                      <Text
+                        size="sm"
+                        style={{
+                          marginTop: 6,
+                          color: hasMeaning ? 'var(--text-secondary)' : 'var(--text-muted)',
+                          fontStyle: hasMeaning ? 'normal' : 'italic',
+                          lineHeight: 1.6,
+                          wordBreak: 'break-word',
+                        }}
+                      >
+                        {hasMeaning ? item.meaning : 'Fetching definition…'}
+                      </Text>
+                      {hasExamples && (
+                        <Stack gap={2} mt={6}>
+                          <Text size="xs" fw={600} c="dimmed">
+                            Examples
+                          </Text>
+                          {item.examples.map((example, index) => (
+                            <Text
+                              key={`${item.id}-example-${index}`}
+                              size="sm"
+                              style={{
+                                color: 'var(--text-secondary)',
+                                lineHeight: 1.5,
+                                wordBreak: 'break-word',
+                              }}
+                            >
+                              {`• ${example}`}
+                            </Text>
+                          ))}
+                        </Stack>
+                      )}
+                    </>
                   )}
                 </div>
 
@@ -184,6 +208,19 @@ export function WordList({ words, onDelete, onEdit }: WordListProps) {
                 <Group gap={4} style={{ flexShrink: 0, marginLeft: 8 }}>
                   {!isEditing && (
                     <>
+                      <Tooltip label="Generate new examples" withArrow>
+                        <ActionIcon
+                          aria-label={`Generate new examples for ${item.word}`}
+                          variant="subtle"
+                          color="indigo"
+                          size="sm"
+                          radius="md"
+                          onClick={() => onRefreshExamples(item.id)}
+                          style={{ transition: 'all 0.2s ease' }}
+                        >
+                          <IconRotateClockwise size={15} />
+                        </ActionIcon>
+                      </Tooltip>
                       <ActionIcon
                         aria-label={`Edit ${item.word}`}
                         variant="subtle"

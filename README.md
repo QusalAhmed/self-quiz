@@ -22,6 +22,7 @@ Create a `words` table with the following columns:
 - `id` text primary key
 - `word` text
 - `meaning` text
+- `examples` jsonb
 - `created_at` timestamptz
 - `updated_at` timestamptz
 - `deleted` boolean default false

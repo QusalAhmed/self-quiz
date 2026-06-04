@@ -162,6 +162,27 @@ function capitalizeWord(value: string): string {
   return `${trimmed.charAt(0).toUpperCase()}${trimmed.slice(1)}`;
 }
 
+async function requestExamples(word: string, meaning: string): Promise<string[]> {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    return [];
+  }
+
+  const response = await fetch('/api/examples', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ word, meaning }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.warn('Examples API error:', response.status, errorText);
+    return [];
+  }
+
+  const data = await response.json();
+  return Array.isArray(data?.examples) ? data.examples.map((item: string) => String(item).trim()).filter(Boolean) : [];
+}
+
 export default function HomePage() {
   const [database, setDatabase] = useState<AppDatabase | null>(null);
   const [words, setWords] = useState<WordRecord[]>([]);
@@ -212,6 +233,21 @@ export default function HomePage() {
     }
     return words.filter((word) => word.word.toLowerCase().includes(query));
   }, [words, searchQuery]);
+
+  const examplesById = useMemo(() => {
+    return new Map(words.map((word) => [word.id, word.examples]));
+  }, [words]);
+
+  const getExamplesForId = useCallback(
+    (id: string) => {
+      return examplesById.get(id) ?? [];
+    },
+    [examplesById]
+  );
+
+  const updateQuizQueueExamples = useCallback((id: string, examples: string[]) => {
+    setQuizQueue((prev) => prev.map((item) => (item.id === id ? { ...item, examples } : item)));
+  }, []);
 
   const totalPages = Math.max(1, Math.ceil(filteredWords.length / pageSize));
 
@@ -270,13 +306,14 @@ export default function HomePage() {
         id: word.id,
         word: word.word,
         meaning: word.meaning,
+        examples: getExamplesForId(word.id),
       }))
     );
     setQuizQueue(queue);
     setQuizIndex(0);
     setRevealed(false);
     setCompleted(queue.length === 0);
-  }, [quizCandidates]);
+  }, [quizCandidates, getExamplesForId]);
 
   // Initialize quiz when candidates are available, only if quiz is empty
   useEffect(() => {
@@ -315,13 +352,14 @@ export default function HomePage() {
         id: word.id,
         word: word.word,
         meaning: word.meaning,
+        examples: getExamplesForId(word.id),
       }))
     );
     setQuizQueue(queue);
     setQuizIndex(0);
     setRevealed(false);
     setCompleted(queue.length === 0);
-  }, [quizRange, quizSource, quizCandidates, quizQueue.length, customStart, customEnd]);
+  }, [quizRange, quizSource, quizCandidates, quizQueue.length, customStart, customEnd, getExamplesForId]);
 
   useEffect(() => {
     let isMounted = true;
@@ -447,6 +485,8 @@ export default function HomePage() {
 
     const handleWindowFocus = async () => {
       console.log('Window focus event: Re-checking database for missed status...');
+      await pullRemoteMissedWords(database.missedWords);
+      await pushAllLocalMissedWords(database.missedWords);
       await checkCurrentWordMissedStatus();
     };
 
@@ -471,6 +511,7 @@ export default function HomePage() {
       id: crypto.randomUUID(),
       word: capitalizeWord(word),
       meaning,
+      examples: [],
       createdAt: timestamp,
       updatedAt: timestamp,
       isDeleted: false,
@@ -479,6 +520,33 @@ export default function HomePage() {
 
     await database.words.upsert(record);
     await pushWordToRemote(database.words, record);
+
+    if (meaning) {
+      void (async () => {
+        try {
+          const examples = await requestExamples(record.word, meaning);
+          if (examples.length === 0) {
+            return;
+          }
+
+          const doc = await database.words.findOne(record.id).exec();
+          if (!doc) {
+            return;
+          }
+
+          const updated = {
+            ...doc.toJSON(),
+            examples,
+            updatedAt: new Date().toISOString(),
+          };
+
+          await database.words.upsert(updated);
+          await pushWordToRemote(database.words, updated);
+        } catch (error) {
+          console.error('Error fetching examples:', error);
+        }
+      })();
+    }
 
     if (!meaning) {
       void (async () => {
@@ -528,6 +596,18 @@ export default function HomePage() {
 
           await database.words.upsert(updated);
           await pushWordToRemote(database.words, updated);
+
+          const examples = await requestExamples(updated.word, aiMeaning);
+          if (examples.length > 0) {
+            const withExamples = {
+              ...updated,
+              examples,
+              updatedAt: new Date().toISOString(),
+            };
+            await database.words.upsert(withExamples);
+            await pushWordToRemote(database.words, withExamples);
+          }
+
           console.log('Definition updated for word:', record.word, '-', aiMeaning);
         } catch (error) {
           console.error('Error fetching definition:', error);
@@ -577,6 +657,71 @@ export default function HomePage() {
 
     await database.words.upsert(record);
     await pushWordToRemote(database.words, record);
+  };
+
+  const handleRefreshExamples = async (id: string) => {
+    if (!database) {
+      return;
+    }
+
+    const doc = await database.words.findOne(id).exec();
+    if (!doc) {
+      return;
+    }
+
+    const record = doc.toJSON();
+    let meaning = record.meaning.trim();
+
+    if (!meaning) {
+      if (!navigator.onLine) {
+        console.warn('Device is offline, skipping examples fetch for:', record.word);
+        return;
+      }
+
+      const response = await fetch('/api/meaning', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ word: record.word }),
+      });
+
+      if (!response.ok) {
+        console.warn('Failed to fetch meaning for examples:', record.word);
+        return;
+      }
+
+      const data = await response.json();
+      meaning = String(data?.meaning ?? '').trim();
+
+      if (meaning) {
+        const updated = {
+          ...record,
+          meaning,
+          updatedAt: new Date().toISOString(),
+        };
+        await database.words.upsert(updated);
+        await pushWordToRemote(database.words, updated);
+      }
+    }
+
+    if (!meaning) {
+      return;
+    }
+
+    const examples = await requestExamples(record.word, meaning);
+    if (examples.length === 0) {
+      return;
+    }
+
+    const updated = {
+      ...record,
+      meaning,
+      examples,
+      updatedAt: new Date().toISOString(),
+    };
+
+    await database.words.upsert(updated);
+    await pushWordToRemote(database.words, updated);
+    updateQuizQueueExamples(id, examples);
   };
 
   const handleReveal = () => {
@@ -880,7 +1025,7 @@ export default function HomePage() {
               </Stack>
             </Card>
 
-            <WordList words={pagedWords} onDelete={handleDelete} onEdit={handleEdit} />
+            <WordList words={pagedWords} onDelete={handleDelete} onEdit={handleEdit} onRefreshExamples={handleRefreshExamples} />
 
             {totalPages > 1 && (
               <Group justify="center" mt="sm">
@@ -1066,6 +1211,7 @@ export default function HomePage() {
               currentIndex={quizIndex}
               totalCount={quizQueue.length}
               onRestart={resetQuiz}
+              onRefreshExamples={handleRefreshExamples}
             />
 
             <Card
@@ -1207,6 +1353,8 @@ export default function HomePage() {
                       window.speechSynthesis.speak(utterance);
                     };
 
+                    const missedExamples = getExamplesForId(word.id);
+
                     return (
                       <div
                         key={word.id}
@@ -1248,16 +1396,38 @@ export default function HomePage() {
                             </Badge>
                           </Group>
                           {!hideMissedMeanings || revealedMissedWordIds[word.id] ? (
-                            <Text
-                              size="sm"
-                              style={{
-                                color: 'var(--text-secondary)',
-                                lineHeight: 1.5,
-                                wordBreak: 'break-word',
-                              }}
-                            >
-                              {word.meaning || <span style={{ fontStyle: 'italic', opacity: 0.55 }}>No definition available</span>}
-                            </Text>
+                            <>
+                              <Text
+                                size="sm"
+                                style={{
+                                  color: 'var(--text-secondary)',
+                                  lineHeight: 1.5,
+                                  wordBreak: 'break-word',
+                                }}
+                              >
+                                {word.meaning || <span style={{ fontStyle: 'italic', opacity: 0.55 }}>No definition available</span>}
+                              </Text>
+                              {missedExamples.length > 0 && (
+                                <Stack gap={2} mt={6}>
+                                  <Text size="xs" fw={600} c="dimmed">
+                                    Examples
+                                  </Text>
+                                  {missedExamples.map((example, index) => (
+                                    <Text
+                                      key={`${word.id}-missed-example-${index}`}
+                                      size="sm"
+                                      style={{
+                                        color: 'var(--text-secondary)',
+                                        lineHeight: 1.5,
+                                        wordBreak: 'break-word',
+                                      }}
+                                    >
+                                      {`• ${example}`}
+                                    </Text>
+                                  ))}
+                                </Stack>
+                              )}
+                            </>
                           ) : (
                             <Button
                               variant="subtle"
@@ -1283,6 +1453,18 @@ export default function HomePage() {
                         </div>
 
                         <Group gap={4} style={{ flexShrink: 0 }}>
+                          <Tooltip label="Regenerate examples" withArrow>
+                            <ActionIcon
+                              variant="subtle"
+                              color="indigo"
+                              size="md"
+                              radius="md"
+                              onClick={() => handleRefreshExamples(word.id)}
+                              style={{ transition: 'all 0.2s ease' }}
+                            >
+                              <IconRotateClockwise size={16} />
+                            </ActionIcon>
+                          </Tooltip>
                           <Tooltip label="Listen to pronunciation" withArrow>
                             <ActionIcon
                               variant="subtle"

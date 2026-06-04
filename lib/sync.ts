@@ -4,6 +4,7 @@ export type RemoteWordRow = {
   id: string;
   word: string;
   meaning: string;
+  examples?: string[] | null;
   created_at: string;
   updated_at: string;
   deleted: boolean;
@@ -25,6 +26,7 @@ function mapRowToRecord(row: RemoteWordRow): WordRecord {
     id: row.id,
     word: row.word,
     meaning: row.meaning,
+    examples: Array.isArray(row.examples) ? row.examples : [],
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     isDeleted: row.deleted,
@@ -148,6 +150,7 @@ export async function pushWordToRemote(
       id: record.id,
       word: record.word,
       meaning: record.meaning,
+      examples: record.examples,
       created_at: record.createdAt,
       updated_at: record.updatedAt,
       deleted: record.isDeleted,
