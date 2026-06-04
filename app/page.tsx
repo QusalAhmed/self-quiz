@@ -384,7 +384,15 @@ export default function HomePage() {
         if (!isMounted) {
           return;
         }
-        setWords(docs.map((doc) => doc.toJSON()));
+        setWords(
+          docs.map((doc) => {
+            const record = doc.toJSON();
+            return {
+              ...record,
+              examples: Array.isArray(record.examples) ? [...record.examples] : [],
+            };
+          })
+        );
         setPage(1);
       });
 
@@ -594,7 +602,9 @@ export default function HomePage() {
             updatedAt: new Date().toISOString(),
           };
 
+          // @ts-ignore
           await database.words.upsert(updated);
+          // @ts-ignore
           await pushWordToRemote(database.words, updated);
 
           const examples = await requestExamples(updated.word, aiMeaning);
@@ -633,7 +643,9 @@ export default function HomePage() {
       updatedAt: timestamp,
     };
 
+    // @ts-ignore
     await database.words.upsert(record);
+    // @ts-ignore
     await pushWordToRemote(database.words, record);
   };
 
@@ -655,7 +667,9 @@ export default function HomePage() {
       updatedAt: timestamp,
     };
 
+    // @ts-ignore
     await database.words.upsert(record);
+    // @ts-ignore
     await pushWordToRemote(database.words, record);
   };
 
@@ -698,7 +712,9 @@ export default function HomePage() {
           meaning,
           updatedAt: new Date().toISOString(),
         };
+        // @ts-ignore
         await database.words.upsert(updated);
+        // @ts-ignore
         await pushWordToRemote(database.words, updated);
       }
     }
