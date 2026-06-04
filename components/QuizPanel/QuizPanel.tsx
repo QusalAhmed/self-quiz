@@ -1,40 +1,17 @@
-import {
-  ActionIcon,
-  Button,
-  Card,
-  Group,
-  Progress,
-  Stack,
-  Text,
-  Title,
-  RingProgress,
-  Tooltip,
-} from '@mantine/core';
-import {
-  IconAward,
-  IconCopy,
-  IconRotateClockwise,
-  IconVolume,
-  IconChevronLeft,
-  IconChevronRight,
-  IconBookmarkOff,
-  IconBookmark,
-} from '@tabler/icons-react';
-import { useState } from 'react';
+import { ActionIcon, Button, Card, Group, Progress, Stack, Text, Title, RingProgress } from '@mantine/core';
+import { IconAward, IconCopy, IconRotateClockwise, IconVolume, IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
+import { useEffect, useState } from 'react';
 
 export type QuizItem = {
   id: string;
   word: string;
   meaning: string;
-  examples?: string[];
 };
 
 type QuizPanelProps = {
   item: QuizItem | null;
   revealed: boolean;
   onReveal: () => void;
-  onMarkMissed: () => void;
-  isMarkedMissed: boolean;
   onNext: () => void;
   onPrevious: () => void;
   completed: boolean;
@@ -42,15 +19,12 @@ type QuizPanelProps = {
   currentIndex?: number;
   totalCount?: number;
   onRestart?: () => void;
-  onRefreshExamples?: (id: string) => void;
 };
 
 export function QuizPanel({
   item,
   revealed,
   onReveal,
-  onMarkMissed,
-  isMarkedMissed,
   onNext,
   onPrevious,
   completed,
@@ -58,7 +32,6 @@ export function QuizPanel({
   currentIndex = 0,
   totalCount = 0,
   onRestart,
-  onRefreshExamples,
 }: QuizPanelProps) {
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
 
@@ -111,8 +84,7 @@ export function QuizPanel({
               Quiz Completed!
             </Title>
             <Text c="dimmed" size="sm" max-width="360px" mx="auto" style={{ lineHeight: 1.6 }}>
-              Fantastic effort! You've mastered all {totalCount} words selected for this session.
-              Repetition is key to long-term memory.
+              Fantastic effort! You've mastered all {totalCount} words selected for this session. Repetition is key to long-term memory.
             </Text>
           </Stack>
 
@@ -145,9 +117,7 @@ export function QuizPanel({
   }
 
   // Calculate visual progress percentage
-  const progressPercent =
-    totalCount > 0 ? ((currentIndex + (revealed ? 1 : 0)) / totalCount) * 100 : 0;
-  const examples = Array.isArray(item?.examples) ? item.examples : [];
+  const progressPercent = totalCount > 0 ? ((currentIndex + (revealed ? 1 : 0)) / totalCount) * 100 : 0;
 
   return (
     <Card className="glass-panel" radius="lg" padding="xl">
@@ -213,18 +183,6 @@ export function QuizPanel({
               >
                 <IconCopy size={20} />
               </ActionIcon>
-              <Tooltip label={isMarkedMissed ? 'Unmark missed' : 'Mark as missed'}>
-                <ActionIcon
-                  aria-label={isMarkedMissed ? 'Unmark missed' : 'Mark as missed'}
-                  variant="subtle"
-                  color={isMarkedMissed ? 'teal' : 'red'}
-                  size="lg"
-                  radius="md"
-                  onClick={onMarkMissed}
-                >
-                  {isMarkedMissed ? <IconBookmark size={20} /> : <IconBookmarkOff size={20} />}
-                </ActionIcon>
-              </Tooltip>
             </Group>
           </Group>
 
@@ -244,39 +202,17 @@ export function QuizPanel({
                   animation: 'pulse 0.3s ease-out',
                 }}
               >
-                <Stack gap="sm" style={{ width: '100%' }}>
-                  <Text
-                    size="md"
-                    fw={500}
-                    style={{
-                      color: 'var(--text-secondary)',
-                      textAlign: 'center',
-                      lineHeight: 1.6,
-                    }}
-                  >
-                    {item.meaning ? item.meaning : 'No definition available.'}
-                  </Text>
-                  {examples.length > 0 && (
-                    <Stack gap={2}>
-                      <Text size="xs" fw={600} c="dimmed" style={{ textAlign: 'center' }}>
-                        Examples
-                      </Text>
-                      {examples.map((example, index) => (
-                        <Text
-                          key={`${item.id}-quiz-example-${index}`}
-                          size="sm"
-                          style={{
-                            color: 'var(--text-secondary)',
-                            lineHeight: 1.5,
-                            wordBreak: 'break-word',
-                          }}
-                        >
-                          {`• ${example}`}
-                        </Text>
-                      ))}
-                    </Stack>
-                  )}
-                </Stack>
+                <Text
+                  size="md"
+                  fw={500}
+                  style={{
+                    color: 'var(--text-secondary)',
+                    textAlign: 'center',
+                    lineHeight: 1.6,
+                  }}
+                >
+                  {item.meaning ? item.meaning : 'No definition available.'}
+                </Text>
               </Card>
             ) : (
               <Button
@@ -297,20 +233,6 @@ export function QuizPanel({
               </Button>
             )}
           </Stack>
-
-          {revealed && onRefreshExamples && (
-            <Group justify="center" mt="xs">
-              <Button
-                variant="subtle"
-                size="xs"
-                radius="md"
-                leftSection={<IconRotateClockwise size={14} />}
-                onClick={() => onRefreshExamples(item.id)}
-              >
-                Regenerate Examples
-              </Button>
-            </Group>
-          )}
         </Stack>
 
         {/* Navigation Action Buttons */}
