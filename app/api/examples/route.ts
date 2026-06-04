@@ -58,7 +58,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'GEMINI_KEY is not configured' }, { status: 500 });
   }
 
-  const model = process.env.GEMINI_MODEL ?? 'gemini-3.5-flash';
+  const model = process.env.GEMINI_MODEL ?? 'gemini-2.0-flash';
   const prompt = [
     'Generate 3 to 5 short example sentences that use the word correctly.',
     `Word: ${word}`,
@@ -67,22 +67,35 @@ export async function POST(request: Request) {
     '{"examples": ["Sentence 1.", "Sentence 2."]}',
   ].join('\n');
 
-  try {
-    const response = await fetch(
+  async function callGemini(useJsonMode: boolean): Promise<Response> {
+    const generationConfig: Record<string, unknown> = {
+      temperature: 0.4,
+      maxOutputTokens: 256,
+    };
+    if (useJsonMode) {
+      generationConfig.responseMimeType = 'application/json';
+    }
+    return fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.4,
-            maxOutputTokens: 256,
-            responseMimeType: 'application/json',
-          },
+          generationConfig,
         }),
       }
     );
+  }
+
+  try {
+    // Try with JSON mode first; fall back without it if the model doesn't support it.
+    let response = await callGemini(true);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.warn('Gemini JSON-mode failed, retrying without it:', response.status, errorText);
+      response = await callGemini(false);
+    }
 
     if (!response.ok) {
       const errorText = await response.text();
