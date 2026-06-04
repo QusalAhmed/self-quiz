@@ -13,7 +13,16 @@ type ExamplesPayload = {
   meaning?: string;
 };
 
-function extractJson(text: string): string | null {
+function stripMarkdownFences(text: string): string {
+  // Remove ```json ... ``` or ``` ... ``` wrappers that models sometimes add
+  return text
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```\s*$/, '')
+    .trim();
+}
+
+function extractJson(raw: string): string | null {
+  const text = stripMarkdownFences(raw);
   const start = text.indexOf('{');
   const end = text.lastIndexOf('}');
   if (start === -1 || end === -1 || end <= start) {
@@ -69,6 +78,7 @@ export async function POST(request: Request) {
           generationConfig: {
             temperature: 0.4,
             maxOutputTokens: 256,
+            responseMimeType: 'application/json',
           },
         }),
       }
@@ -81,8 +91,10 @@ export async function POST(request: Request) {
     }
 
     const data = (await response.json()) as GeminiResponse;
+    // Join parts with '' (not '\n') — in production Gemini may return fragmented
+    // JSON parts like ["{" , "\"examples\":", "["] that must be concatenated directly.
     const text =
-      data?.candidates?.[0]?.content?.parts?.map((part) => part.text ?? '').join('\n') ?? '';
+      data?.candidates?.[0]?.content?.parts?.map((part) => part.text ?? '').join('') ?? '';
     const jsonText = extractJson(text);
 
     let examples: string[] = [];
