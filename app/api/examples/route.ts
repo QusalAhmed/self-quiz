@@ -13,16 +13,7 @@ type ExamplesPayload = {
   meaning?: string;
 };
 
-function stripMarkdownFences(text: string): string {
-  // Remove ```json ... ``` or ``` ... ``` wrappers that models sometimes add
-  return text
-    .replace(/^```(?:json)?\s*/i, '')
-    .replace(/\s*```\s*$/, '')
-    .trim();
-}
-
-function extractJson(raw: string): string | null {
-  const text = stripMarkdownFences(raw);
+function extractJson(text: string): string | null {
   const start = text.indexOf('{');
   const end = text.lastIndexOf('}');
   if (start === -1 || end === -1 || end <= start) {
@@ -58,7 +49,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'GEMINI_KEY is not configured' }, { status: 500 });
   }
 
-  const model = process.env.GEMINI_MODEL ?? 'gemini-2.0-flash';
+  const model = process.env.GEMINI_MODEL ?? 'gemini-2.5-flash-lite';
   const prompt = [
     'Generate 3 to 5 short example sentences that use the word correctly.',
     `Word: ${word}`,
@@ -67,35 +58,21 @@ export async function POST(request: Request) {
     '{"examples": ["Sentence 1.", "Sentence 2."]}',
   ].join('\n');
 
-  async function callGemini(key: string, mdl: string, useJsonMode: boolean): Promise<Response> {
-    const generationConfig: Record<string, unknown> = {
-      temperature: 0.4,
-      maxOutputTokens: 256,
-    };
-    if (useJsonMode) {
-      generationConfig.responseMimeType = 'application/json';
-    }
-    return fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(mdl)}:generateContent?key=${encodeURIComponent(key)}`,
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          generationConfig,
+          generationConfig: {
+            temperature: 0.4,
+            maxOutputTokens: 256,
+          },
         }),
       }
     );
-  }
-
-  try {
-    // Try with JSON mode first; fall back without it if the model doesn't support it.
-    let response = await callGemini(apiKey, model, true);
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.warn('Gemini JSON-mode failed, retrying without it:', response.status, errorText);
-      response = await callGemini(apiKey, model, false);
-    }
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -104,10 +81,8 @@ export async function POST(request: Request) {
     }
 
     const data = (await response.json()) as GeminiResponse;
-    // Join parts with '' (not '\n') — in production Gemini may return fragmented
-    // JSON parts like ["{" , "\"examples\":", "["] that must be concatenated directly.
     const text =
-      data?.candidates?.[0]?.content?.parts?.map((part) => part.text ?? '').join('') ?? '';
+      data?.candidates?.[0]?.content?.parts?.map((part) => part.text ?? '').join('\n') ?? '';
     const jsonText = extractJson(text);
 
     let examples: string[] = [];
