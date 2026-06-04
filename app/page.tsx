@@ -932,52 +932,126 @@ export default function HomePage() {
         {/* --- QUIZ MODE --- */}
         {mode === 'quiz' && (
           <Stack gap="lg" style={{ minHeight: '100vh' }}>
-            <Grid align="flex-end" gap="md">
-              <Grid.Col span={{ base: 12, sm: 6 }}>
-                <Select
-                  label={<Text size="xs" fw={700} c="dimmed">QUIZ POOL RANGE</Text>}
-                  data={Object.entries(quizRanges).map(([value, label]) => ({
-                    value,
-                    label,
-                  }))}
-                  value={quizRange}
-                  size="md"
-                  radius="md"
-                  onChange={(value) => setQuizRange((value as QuizRangeKey) ?? 'all')}
-                  allowDeselect={false}
-                />
-              </Grid.Col>
+            <Card className="glass-panel" radius="lg" padding="lg" style={{ borderLeft: '4px solid #6366f1' }}>
+              <Stack gap="md">
+                <Grid align="flex-end" gap="md">
+                  <Grid.Col span={{ base: 12, sm: 6 }}>
+                    <Select
+                      label={<Text size="xs" fw={700} c="dimmed">QUIZ POOL RANGE</Text>}
+                      data={Object.entries(quizRanges).map(([value, label]) => ({
+                        value,
+                        label,
+                      }))}
+                      value={quizRange}
+                      size="md"
+                      radius="md"
+                      onChange={(value) => setQuizRange((value as QuizRangeKey) ?? 'all')}
+                      allowDeselect={false}
+                    />
+                  </Grid.Col>
 
-              <Grid.Col span={{ base: 12, sm: 6 }}>
-                <Select
-                  label={<Text size="xs" fw={700} c="dimmed">QUIZ SOURCE</Text>}
-                  data={Object.entries(quizSources).map(([value, label]) => ({
-                    value,
-                    label,
-                  }))}
-                  value={quizSource}
-                  size="md"
-                  radius="md"
-                  onChange={(value) => setQuizSource((value as QuizSourceKey) ?? 'words')}
-                  allowDeselect={false}
-                />
-              </Grid.Col>
+                  <Grid.Col span={{ base: 12, sm: 6 }}>
+                    <Select
+                      label={<Text size="xs" fw={700} c="dimmed">QUIZ SOURCE</Text>}
+                      data={Object.entries(quizSources).map(([value, label]) => ({
+                        value,
+                        label,
+                      }))}
+                      value={quizSource}
+                      size="md"
+                      radius="md"
+                      onChange={(value) => setQuizSource((value as QuizSourceKey) ?? 'words')}
+                      allowDeselect={false}
+                    />
+                  </Grid.Col>
 
-              <Grid.Col span={{ base: 12, sm: 4 }}>
-                <Button
-                  variant="light"
-                  color="indigo"
-                  fullWidth
-                  size="md"
-                  radius="md"
-                  onClick={resetQuiz}
-                  disabled={quizQueue.length === 0}
-                  leftSection={<IconRotateClockwise size={18} />}
-                >
-                  Restart Quiz
-                </Button>
-              </Grid.Col>
-            </Grid>
+                  {quizRange !== 'custom' && (
+                    <Grid.Col span={{ base: 12, sm: 4 }}>
+                      <Button
+                        variant="light"
+                        color="indigo"
+                        fullWidth
+                        size="md"
+                        radius="md"
+                        onClick={resetQuiz}
+                        disabled={quizQueue.length === 0}
+                        leftSection={<IconRotateClockwise size={18} />}
+                      >
+                        Restart Quiz
+                      </Button>
+                    </Grid.Col>
+                  )}
+                </Grid>
+
+                {/* Custom Range date-time pickers */}
+                {quizRange === 'custom' && (
+                  <div
+                    style={{
+                      borderRadius: '12px',
+                      border: '1px solid rgba(99,102,241,0.2)',
+                      background: 'rgba(99,102,241,0.04)',
+                      padding: '16px',
+                    }}
+                  >
+                    <Stack gap="sm">
+                      <Group gap="xs" align="center" mb={4}>
+                        <div
+                          style={{
+                            width: 6,
+                            height: 6,
+                            borderRadius: '50%',
+                            background: 'linear-gradient(135deg, #6366f1, #a855f7)',
+                          }}
+                        />
+                        <Text size="xs" fw={700} c="indigo" style={{ letterSpacing: '0.05em' }}>
+                          CUSTOM DATE RANGE
+                        </Text>
+                      </Group>
+                      <Grid gap="md">
+                        <Grid.Col span={{ base: 12, sm: 6 }}>
+                          <TextInput
+                            label={<Text size="xs" fw={600} c="dimmed">From</Text>}
+                            type="datetime-local"
+                            value={customStart}
+                            onChange={(e) => setCustomStart(e.currentTarget.value)}
+                            size="md"
+                            radius="md"
+                            max={customEnd}
+                          />
+                        </Grid.Col>
+                        <Grid.Col span={{ base: 12, sm: 6 }}>
+                          <TextInput
+                            label={<Text size="xs" fw={600} c="dimmed">To</Text>}
+                            type="datetime-local"
+                            value={customEnd}
+                            onChange={(e) => setCustomEnd(e.currentTarget.value)}
+                            size="md"
+                            radius="md"
+                            min={customStart}
+                          />
+                        </Grid.Col>
+                      </Grid>
+                      <Group justify="space-between" align="center" mt={4}>
+                        <Text size="xs" c="dimmed">
+                          {quizCandidates.length} word{quizCandidates.length !== 1 ? 's' : ''} in this range
+                        </Text>
+                        <Button
+                          variant="light"
+                          color="indigo"
+                          size="sm"
+                          radius="md"
+                          onClick={resetQuiz}
+                          disabled={quizQueue.length === 0}
+                          leftSection={<IconRotateClockwise size={16} />}
+                        >
+                          Restart Quiz
+                        </Button>
+                      </Group>
+                    </Stack>
+                  </div>
+                )}
+              </Stack>
+            </Card>
 
             <QuizPanel
               item={currentQuizItem}
