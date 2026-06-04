@@ -30,6 +30,12 @@ import {
   IconBook,
   IconHistory,
   IconRotateClockwise,
+  IconBookmarkOff,
+  IconFlame,
+  IconTarget,
+  IconVolume,
+  IconEye,
+  IconEyeOff,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AppDatabase, MissedWordRecord, WordRecord } from '@/lib/db';
@@ -56,6 +62,7 @@ const quizRanges = {
   week: 'Last 7 days',
   month: 'Last 30 days',
   year: 'This year',
+  custom: 'Custom Range',
 } as const;
 
 const quizSources = {
@@ -76,7 +83,10 @@ function shuffle<T>(items: T[]): T[] {
   return result;
 }
 
-function getRangeStart(range: QuizRangeKey): Date | null {
+function getRangeStart(range: QuizRangeKey, customStart?: string | null): Date | null {
+  if (range === 'custom') {
+    return customStart ? new Date(customStart) : null;
+  }
   const now = new Date();
   if (range === 'all') {
     return null;
@@ -101,7 +111,10 @@ function getRangeStart(range: QuizRangeKey): Date | null {
   return start;
 }
 
-function getRangeEnd(range: QuizRangeKey): Date | null {
+function getRangeEnd(range: QuizRangeKey, customEnd?: string | null): Date | null {
+  if (range === 'custom') {
+    return customEnd ? new Date(customEnd) : null;
+  }
   const now = new Date();
   if (range === 'all') {
     return null;
@@ -121,6 +134,26 @@ function getRangeEnd(range: QuizRangeKey): Date | null {
   return now;
 }
 
+function formatDateTimeLocal(date: Date): string {
+  const pad = (num: number) => String(num).padStart(2, '0');
+  const year = date.getFullYear();
+  const month = pad(date.getMonth() + 1);
+  const day = pad(date.getDate());
+  const hours = pad(date.getHours());
+  const minutes = pad(date.getMinutes());
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+function getInitialCustomStart(): string {
+  const date = new Date();
+  date.setDate(date.getDate() - 7);
+  return formatDateTimeLocal(date);
+}
+
+function getInitialCustomEnd(): string {
+  return formatDateTimeLocal(new Date());
+}
+
 function capitalizeWord(value: string): string {
   const trimmed = value.trim();
   if (!trimmed) {
@@ -137,6 +170,8 @@ export default function HomePage() {
   const [mode, setMode] = useState<'study' | 'quiz'>('study');
   const [quizRange, setQuizRange] = useState<QuizRangeKey>('all');
   const [quizSource, setQuizSource] = useState<QuizSourceKey>('words');
+  const [customStart, setCustomStart] = useState<string>(() => getInitialCustomStart());
+  const [customEnd, setCustomEnd] = useState<string>(() => getInitialCustomEnd());
   const [quizQueue, setQuizQueue] = useState<QuizItem[]>([]);
   const [quizIndex, setQuizIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
@@ -151,6 +186,8 @@ export default function HomePage() {
   const pageSize = 15; // Enhanced list density
   const prevQuizRangeRef = useRef<QuizRangeKey>('all');
   const prevQuizSourceRef = useRef<QuizSourceKey>('words');
+  const prevCustomStartRef = useRef<string>(customStart);
+  const prevCustomEndRef = useRef<string>(customEnd);
 
   // Track Network Status dynamically
   useEffect(() => {
@@ -195,8 +232,8 @@ export default function HomePage() {
   }, [words]);
 
   const quizCandidates = useMemo(() => {
-    const start = getRangeStart(quizRange);
-    const end = getRangeEnd(quizRange);
+    const start = getRangeStart(quizRange, customStart);
+    const end = getRangeEnd(quizRange, customEnd);
 
     if (!start && quizRange !== 'all') {
       return [];
@@ -225,7 +262,7 @@ export default function HomePage() {
       }
       return createdAt >= (start as Date);
     });
-  }, [words, missedWords, quizRange, quizSource]);
+  }, [words, missedWords, quizRange, quizSource, customStart, customEnd]);
 
   const resetQuiz = useCallback(() => {
     const queue = shuffle(
@@ -249,14 +286,19 @@ export default function HomePage() {
     }
   }, [quizCandidates.length, resetQuiz, quizQueue.length]);
 
-  // Reset quiz ONLY when quiz range/source changes (not when words change)
+  // Reset quiz ONLY when quiz range/source or custom range dates change
   useEffect(() => {
     const rangeChanged = prevQuizRangeRef.current !== quizRange;
     const sourceChanged = prevQuizSourceRef.current !== quizSource;
+    const customStartChanged = prevCustomStartRef.current !== customStart;
+    const customEndChanged = prevCustomEndRef.current !== customEnd;
+
     prevQuizRangeRef.current = quizRange;
     prevQuizSourceRef.current = quizSource;
+    prevCustomStartRef.current = customStart;
+    prevCustomEndRef.current = customEnd;
 
-    if ((!rangeChanged && !sourceChanged) || quizQueue.length === 0) {
+    if ((!rangeChanged && !sourceChanged && !customStartChanged && !customEndChanged) || quizQueue.length === 0) {
       return;
     }
 
@@ -279,7 +321,7 @@ export default function HomePage() {
     setQuizIndex(0);
     setRevealed(false);
     setCompleted(queue.length === 0);
-  }, [quizRange, quizSource, quizCandidates, quizQueue.length]);
+  }, [quizRange, quizSource, quizCandidates, quizQueue.length, customStart, customEnd]);
 
   useEffect(() => {
     let isMounted = true;
@@ -347,58 +389,77 @@ export default function HomePage() {
     };
   }, []);
 
-  // Sync when page comes into focus
+  const currentQuizItem = quizQueue[quizIndex] ?? null;
+  const [isCurrentMarkedMissed, setIsCurrentMarkedMissed] = useState(false);
+  const [hideMissedMeanings, setHideMissedMeanings] = useState(false);
+  const [revealedMissedWordIds, setRevealedMissedWordIds] = useState<Record<string, boolean>>({});
+
+  const checkCurrentWordMissedStatus = useCallback(async () => {
+    if (!database || !currentQuizItem) {
+      setIsCurrentMarkedMissed(false);
+      return;
+    }
+    try {
+      const doc = await database.missedWords.findOne(currentQuizItem.id).exec();
+      const isMissed = !!doc && !doc.isDeleted;
+      setIsCurrentMarkedMissed(isMissed);
+      console.log(`[Check Missed Status] Word "${currentQuizItem.word}" is missed: ${isMissed}`);
+    } catch (error) {
+      console.error('Error checking missed status in DB:', error);
+    }
+  }, [database, currentQuizItem]);
+
+  // Run check when word, database, or missedWords list changes
+  useEffect(() => {
+    checkCurrentWordMissedStatus();
+  }, [currentQuizItem, database, missedWords, checkCurrentWordMissedStatus]);
+
+  // Sync when page comes into focus, loads, or refreshes
   useEffect(() => {
     if (!database) {
       return;
     }
 
-    const handleVisibilityChange = async () => {
-      if (!document.hidden) {
-        console.log('Page came into focus: Performing fresh sync...');
-        try {
-          await pullRemoteWords(database.words);
-          await pullRemoteMissedWords(database.missedWords);
-          await pushAllLocalWords(database.words);
-          await pushAllLocalMissedWords(database.missedWords);
-          await fetchMissingMeanings(database.words);
-          console.log('Sync completed successfully');
-        } catch (error) {
-          console.error('Error during visibility change sync:', error);
-        }
-      }
-    };
-
-    const handlePageShow = async () => {
-      console.log('Page show event: Performing fresh sync...');
+    const handleSyncAndRecheck = async () => {
       try {
         await pullRemoteWords(database.words);
         await pullRemoteMissedWords(database.missedWords);
         await pushAllLocalWords(database.words);
         await pushAllLocalMissedWords(database.missedWords);
         await fetchMissingMeanings(database.words);
-        console.log('Sync completed after page show');
+        await checkCurrentWordMissedStatus();
       } catch (error) {
-        console.error('Error during page show sync:', error);
+        console.error('Error during focus sync:', error);
       }
+    };
+
+    const handleVisibilityChange = async () => {
+      if (!document.hidden) {
+        console.log('Page came into focus (visibilitychange): Performing sync and checking database...');
+        await handleSyncAndRecheck();
+      }
+    };
+
+    const handlePageShow = async () => {
+      console.log('Page show event: Performing sync and checking database...');
+      await handleSyncAndRecheck();
+    };
+
+    const handleWindowFocus = async () => {
+      console.log('Window focus event: Re-checking database for missed status...');
+      await checkCurrentWordMissedStatus();
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('pageshow', handlePageShow);
+    window.addEventListener('focus', handleWindowFocus);
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('pageshow', handlePageShow);
+      window.removeEventListener('focus', handleWindowFocus);
     };
-  }, [database]);
-
-  const currentQuizItem = quizQueue[quizIndex] ?? null;
-  const isCurrentMarkedMissed = useMemo(() => {
-    if (!currentQuizItem) {
-      return false;
-    }
-    return missedWords.some((word) => word.wordId === currentQuizItem.id);
-  }, [currentQuizItem, missedWords]);
+  }, [database, checkCurrentWordMissedStatus]);
 
   const handleAdd = async (word: string, meaning: string) => {
     if (!database) {
@@ -606,9 +667,10 @@ export default function HomePage() {
     }
     if (isCurrentMarkedMissed) {
       await handleUnmarkMissed(currentQuizItem.id);
-      return;
+    } else {
+      await handleMarkMissed();
     }
-    await handleMarkMissed();
+    await checkCurrentWordMissedStatus();
   };
 
   const handleNext = () => {
@@ -640,6 +702,7 @@ export default function HomePage() {
       await pushAllLocalWords(database.words);
       await pushAllLocalMissedWords(database.missedWords);
       await fetchMissingMeanings(database.words);
+      await checkCurrentWordMissedStatus();
     } catch (e) {
       console.error(e);
     }
@@ -868,7 +931,7 @@ export default function HomePage() {
 
         {/* --- QUIZ MODE --- */}
         {mode === 'quiz' && (
-          <Stack gap="lg" style={{minHeight: '100vh'}}>
+          <Stack gap="lg" style={{ minHeight: '100vh' }}>
             <Grid align="flex-end" gap="md">
               <Grid.Col span={{ base: 12, sm: 6 }}>
                 <Select
@@ -931,56 +994,249 @@ export default function HomePage() {
               onRestart={resetQuiz}
             />
 
-            <Card className="glass-panel" radius="lg" padding="lg">
-              <Group justify="space-between" align="center">
-                <Group gap="xs">
-                  <IconHistory size={18} style={{ color: '#a855f7' }} />
-                  <Title order={4}>Missed Words</Title>
+            <Card
+              className="glass-panel"
+              radius="lg"
+              padding="lg"
+              style={{ borderLeft: '4px solid #ef4444', overflow: 'hidden' }}
+            >
+              {/* Header */}
+              <Group justify="space-between" align="center" mb="md">
+                <Group gap="sm">
+                  <div
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 10,
+                      background: 'linear-gradient(135deg, #ef4444 0%, #f97316 100%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: '0 4px 12px rgba(239,68,68,0.35)',
+                    }}
+                  >
+                    <IconFlame size={18} color="white" />
+                  </div>
+                  <div>
+                    <Title order={4} style={{ fontFamily: 'var(--font-title)', lineHeight: 1.2 }}>
+                      Missed Words
+                    </Title>
+                    <Text size="xs" c="dimmed" style={{ lineHeight: 1 }}>
+                      Words that need more practice
+                    </Text>
+                  </div>
+                  {missedWords.length > 0 && (
+                    <Badge
+                      variant="gradient"
+                      gradient={{ from: 'red', to: 'orange' }}
+                      size="md"
+                      radius="md"
+                      style={{ fontWeight: 800 }}
+                    >
+                      {missedWords.length}
+                    </Badge>
+                  )}
                 </Group>
-                <Button
-                  variant="light"
-                  color="red"
-                  size="xs"
-                  radius="md"
-                  onClick={handleUnmarkAllMissed}
-                  disabled={missedWords.length === 0}
-                >
-                  Unmark All
-                </Button>
+
+                {missedWords.length > 0 && (
+                  <Group gap="xs">
+                    <Tooltip label={hideMissedMeanings ? 'Show all meanings' : 'Hide all meanings'} withArrow>
+                      <ActionIcon
+                        variant="subtle"
+                        color="gray"
+                        size="md"
+                        radius="md"
+                        onClick={() => {
+                          const nextVal = !hideMissedMeanings;
+                          setHideMissedMeanings(nextVal);
+                          if (nextVal) {
+                            setRevealedMissedWordIds({});
+                          }
+                        }}
+                      >
+                        {hideMissedMeanings ? <IconEyeOff size={16} /> : <IconEye size={16} />}
+                      </ActionIcon>
+                    </Tooltip>
+                    <Button
+                      variant="subtle"
+                      color="red"
+                      size="xs"
+                      radius="md"
+                      leftSection={<IconBookmarkOff size={14} />}
+                      onClick={handleUnmarkAllMissed}
+                      style={{ opacity: 0.8 }}
+                    >
+                      Clear All
+                    </Button>
+                  </Group>
+                )}
               </Group>
 
-              <Divider my="sm" />
+              <Divider
+                style={{
+                  borderColor: 'rgba(239,68,68,0.15)',
+                  marginBottom: '16px',
+                }}
+              />
 
               {missedWords.length === 0 ? (
-                <Text size="sm" c="dimmed" style={{ fontStyle: 'italic' }}>
-                  No missed words yet. Mark a word as missed to see it here.
-                </Text>
+                <div
+                  style={{
+                    textAlign: 'center',
+                    padding: '36px 24px',
+                    borderRadius: '12px',
+                    border: '1.5px dashed rgba(239,68,68,0.2)',
+                    background: 'rgba(239,68,68,0.03)',
+                  }}
+                >
+                  <Stack gap="sm" align="center">
+                    <div
+                      style={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: '50%',
+                        background: 'rgba(239,68,68,0.08)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <IconTarget size={24} style={{ color: '#ef4444', opacity: 0.5 }} />
+                    </div>
+                    <Text fw={600} size="sm" style={{ color: 'var(--text-secondary)' }}>
+                      No missed words yet
+                    </Text>
+                    <Text size="xs" c="dimmed" style={{ lineHeight: 1.5, maxWidth: 280, margin: '0 auto' }}>
+                      When you bookmark a word as missed during a quiz, it will appear here for targeted practice.
+                    </Text>
+                  </Stack>
+                </div>
               ) : (
-                <Stack gap="xs">
-                  {missedWords.map((word) => (
-                    <Card key={word.id} radius="md" padding="sm" withBorder>
-                      <Group justify="space-between" align="center" wrap="wrap">
-                        <Stack gap={2} style={{ flex: 1 }}>
-                          <Text fw={600}>{word.word}</Text>
-                          <Text size="xs" c="dimmed">
-                            {word.meaning || 'No definition available'}
-                          </Text>
-                          <Text size="xs" c="dimmed">
-                            Missed {word.missedCount} time{word.missedCount !== 1 ? 's' : ''}
-                          </Text>
-                        </Stack>
-                        <Button
-                          size="xs"
-                          variant="light"
-                          color="red"
-                          radius="md"
-                          onClick={() => handleUnmarkMissed(word.id)}
-                        >
-                          Unmark
-                        </Button>
-                      </Group>
-                    </Card>
-                  ))}
+                <Stack gap="sm">
+                  {missedWords.map((word) => {
+                    const count = word.missedCount;
+                    const severity =
+                      count >= 5
+                        ? { color: '#ef4444', bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.25)', label: 'Hot', badgeColor: 'red' as const }
+                        : count >= 3
+                          ? { color: '#f97316', bg: 'rgba(249,115,22,0.07)', border: 'rgba(249,115,22,0.2)', label: 'Warm', badgeColor: 'orange' as const }
+                          : { color: '#22c55e', bg: 'rgba(34,197,94,0.06)', border: 'rgba(34,197,94,0.18)', label: 'New', badgeColor: 'teal' as const };
+
+                    const speakWord = (text: string) => {
+                      if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+                        return;
+                      }
+                      window.speechSynthesis.cancel();
+                      const utterance = new SpeechSynthesisUtterance(text);
+                      utterance.lang = 'en-US';
+                      utterance.rate = 0.9;
+                      window.speechSynthesis.speak(utterance);
+                    };
+
+                    return (
+                      <div
+                        key={word.id}
+                        style={{
+                          borderRadius: '12px',
+                          border: `1px solid ${severity.border}`,
+                          borderLeft: `4px solid ${severity.color}`,
+                          background: severity.bg,
+                          padding: '12px 16px',
+                          transition: 'all 0.2s cubic-bezier(0.4,0,0.2,1)',
+                          display: 'grid',
+                          gridTemplateColumns: '1fr auto',
+                          alignItems: 'center',
+                          gap: '12px',
+                        }}
+                        className="hover-lift"
+                      >
+                        <div style={{ minWidth: 0 }}>
+                          <Group gap={8} align="center" wrap="wrap" mb={4}>
+                            <Text
+                              fw={700}
+                              size="md"
+                              style={{
+                                fontFamily: 'var(--font-title)',
+                                color: 'var(--text-primary)',
+                                letterSpacing: '-0.01em',
+                              }}
+                            >
+                              {word.word}
+                            </Text>
+                            <Badge
+                              color={severity.badgeColor}
+                              variant="light"
+                              size="xs"
+                              radius="sm"
+                              style={{ fontWeight: 700, fontSize: '10px' }}
+                            >
+                              ×{count} missed
+                            </Badge>
+                          </Group>
+                          {!hideMissedMeanings || revealedMissedWordIds[word.id] ? (
+                            <Text
+                              size="sm"
+                              style={{
+                                color: 'var(--text-secondary)',
+                                lineHeight: 1.5,
+                                wordBreak: 'break-word',
+                              }}
+                            >
+                              {word.meaning || <span style={{ fontStyle: 'italic', opacity: 0.55 }}>No definition available</span>}
+                            </Text>
+                          ) : (
+                            <Button
+                              variant="subtle"
+                              color="indigo"
+                              size="xs"
+                              radius="sm"
+                              onClick={() =>
+                                setRevealedMissedWordIds((prev) => ({ ...prev, [word.id]: true }))
+                              }
+                              leftSection={<IconEye size={12} />}
+                              style={{
+                                fontSize: '11px',
+                                height: '22px',
+                                paddingLeft: '8px',
+                                paddingRight: '8px',
+                                display: 'inline-flex',
+                                marginTop: '4px',
+                              }}
+                            >
+                              Show Definition
+                            </Button>
+                          )}
+                        </div>
+
+                        <Group gap={4} style={{ flexShrink: 0 }}>
+                          <Tooltip label="Listen to pronunciation" withArrow>
+                            <ActionIcon
+                              variant="subtle"
+                              color="gray"
+                              size="md"
+                              radius="md"
+                              onClick={() => speakWord(word.word)}
+                              style={{ transition: 'all 0.2s ease' }}
+                            >
+                              <IconVolume size={16} />
+                            </ActionIcon>
+                          </Tooltip>
+                          <Tooltip label="Remove from missed list" withArrow>
+                            <ActionIcon
+                              variant="subtle"
+                              color="red"
+                              size="md"
+                              radius="md"
+                              onClick={() => handleUnmarkMissed(word.id)}
+                              style={{ transition: 'all 0.2s ease' }}
+                            >
+                              <IconBookmarkOff size={16} />
+                            </ActionIcon>
+                          </Tooltip>
+                        </Group>
+                      </div>
+                    );
+                  })}
                 </Stack>
               )}
             </Card>
