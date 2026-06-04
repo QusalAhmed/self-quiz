@@ -1503,36 +1503,77 @@ export default function HomePage() {
                           background: severity.bg,
                           padding: '12px 16px',
                           transition: 'all 0.2s cubic-bezier(0.4,0,0.2,1)',
-                          display: 'grid',
-                          gridTemplateColumns: '1fr auto',
-                          alignItems: 'center',
-                          gap: '12px',
                         }}
                         className="hover-lift"
                       >
                         <div style={{ minWidth: 0 }}>
-                          <Group gap={8} align="center" wrap="wrap" mb={4}>
-                            <Text
-                              fw={700}
-                              size="md"
-                              style={{
-                                fontFamily: 'var(--font-title)',
-                                color: 'var(--text-primary)',
-                                letterSpacing: '-0.01em',
-                              }}
-                            >
-                              {word.word}
-                            </Text>
-                            <Badge
-                              color={severity.badgeColor}
-                              variant="light"
-                              size="xs"
-                              radius="sm"
-                              style={{ fontWeight: 700, fontSize: '10px' }}
-                            >
-                              ×{count} missed
-                            </Badge>
-                          </Group>
+                            <div style={{
+                                display: 'grid',
+                                gridTemplateColumns: '1fr auto',
+                                alignItems: 'center',
+                                gap: '12px',
+                            }}>
+                                <Group gap={8} align="center" wrap="wrap" mb={4}>
+                                    <Text
+                                        fw={700}
+                                        size="md"
+                                        style={{
+                                            fontFamily: 'var(--font-title)',
+                                            color: 'var(--text-primary)',
+                                            letterSpacing: '-0.01em',
+                                        }}
+                                    >
+                                        {word.word}
+                                    </Text>
+                                    <Badge
+                                        color={severity.badgeColor}
+                                        variant="light"
+                                        size="xs"
+                                        radius="sm"
+                                        style={{ fontWeight: 700, fontSize: '10px' }}
+                                    >
+                                        ×{count} missed
+                                    </Badge>
+                                </Group>
+                                <Group gap={4} style={{ flexShrink: 0 }}>
+                                    <Tooltip label="Regenerate examples" withArrow>
+                                        <ActionIcon
+                                            variant="subtle"
+                                            color="indigo"
+                                            size="md"
+                                            radius="md"
+                                            onClick={() => handleRefreshExamples(word.id)}
+                                            style={{ transition: 'all 0.2s ease' }}
+                                        >
+                                            <IconRotateClockwise size={16} />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                    <Tooltip label="Listen to pronunciation" withArrow>
+                                        <ActionIcon
+                                            variant="subtle"
+                                            color="gray"
+                                            size="md"
+                                            radius="md"
+                                            onClick={() => speakWord(word.word)}
+                                            style={{ transition: 'all 0.2s ease' }}
+                                        >
+                                            <IconVolume size={16} />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                    <Tooltip label="Remove from missed list" withArrow>
+                                        <ActionIcon
+                                            variant="subtle"
+                                            color="red"
+                                            size="md"
+                                            radius="md"
+                                            onClick={() => handleUnmarkMissed(word.id)}
+                                            style={{ transition: 'all 0.2s ease' }}
+                                        >
+                                            <IconBookmarkOff size={16} />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                </Group>
+                            </div>
                           {!hideMissedMeanings || revealedMissedWordIds[word.id] ? (
                             <>
                               <Text
@@ -1594,44 +1635,6 @@ export default function HomePage() {
                           )}
                         </div>
 
-                        <Group gap={4} style={{ flexShrink: 0 }}>
-                          <Tooltip label="Regenerate examples" withArrow>
-                            <ActionIcon
-                              variant="subtle"
-                              color="indigo"
-                              size="md"
-                              radius="md"
-                              onClick={() => handleRefreshExamples(word.id)}
-                              style={{ transition: 'all 0.2s ease' }}
-                            >
-                              <IconRotateClockwise size={16} />
-                            </ActionIcon>
-                          </Tooltip>
-                          <Tooltip label="Listen to pronunciation" withArrow>
-                            <ActionIcon
-                              variant="subtle"
-                              color="gray"
-                              size="md"
-                              radius="md"
-                              onClick={() => speakWord(word.word)}
-                              style={{ transition: 'all 0.2s ease' }}
-                            >
-                              <IconVolume size={16} />
-                            </ActionIcon>
-                          </Tooltip>
-                          <Tooltip label="Remove from missed list" withArrow>
-                            <ActionIcon
-                              variant="subtle"
-                              color="red"
-                              size="md"
-                              radius="md"
-                              onClick={() => handleUnmarkMissed(word.id)}
-                              style={{ transition: 'all 0.2s ease' }}
-                            >
-                              <IconBookmarkOff size={16} />
-                            </ActionIcon>
-                          </Tooltip>
-                        </Group>
                       </div>
                     );
                   })}
