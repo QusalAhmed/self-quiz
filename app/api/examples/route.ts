@@ -51,7 +51,7 @@ export async function POST(request: Request) {
 
   const model = process.env.GEMINI_MODEL ?? 'gemini-2.5-flash-lite';
   const prompt = [
-    'Generate 3 to 5 short example sentences that use the word correctly.',
+    'Generate 3 to 5 short example sentences in English that use the word correctly.',
     `Word: ${word}`,
     `Meaning: ${meaning}`,
     'Return JSON only in this shape:',
