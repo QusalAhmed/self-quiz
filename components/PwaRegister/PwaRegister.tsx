@@ -80,6 +80,7 @@ export function PwaRegister() {
     >
       Install our app for offline access, instant loading, and a better experience!{' '}
       <button
+        type="button"
         onClick={handleInstall}
         style={{
           background: 'var(--mantine-color-blue-6)',
@@ -97,4 +98,3 @@ export function PwaRegister() {
     </Notification>
   );
 }
-

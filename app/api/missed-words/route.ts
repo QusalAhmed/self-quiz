@@ -1,5 +1,5 @@
-import { supabase } from '@/lib/supabase';
 import { NextRequest, NextResponse } from 'next/server';
+import { supabase } from '@/lib/supabase';
 
 export const revalidate = 0;
 
@@ -51,43 +51,42 @@ export async function GET(request: NextRequest) {
     const id = searchParams.get('id');
 
     if (id) {
-      const { data, error } = await supabase
-        .from('missed_words')
-        .select('*')
-        .eq('id', id)
-        .single();
+      const { data, error } = await supabase.from('missed_words').select('*').eq('id', id).single();
 
       if (error) {
         console.error('Supabase error:', error);
         return NextResponse.json({ error: error.message }, { status: 500 });
       }
 
-      return NextResponse.json({ data }, {
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0',
-        },
-      });
+      return NextResponse.json(
+        { data },
+        {
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            Pragma: 'no-cache',
+            Expires: '0',
+          },
+        }
+      );
     }
 
-    const { data, error } = await supabase
-      .from('missed_words')
-      .select('*')
-      .eq('deleted', false);
+    const { data, error } = await supabase.from('missed_words').select('*').eq('deleted', false);
 
     if (error) {
       console.error('Supabase error:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ data }, {
-      headers: {
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0',
-      },
-    });
+    return NextResponse.json(
+      { data },
+      {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          Pragma: 'no-cache',
+          Expires: '0',
+        },
+      }
+    );
   } catch (error) {
     console.error('API error:', error);
     return NextResponse.json(
@@ -96,4 +95,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

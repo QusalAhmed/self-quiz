@@ -3,10 +3,12 @@
 /* --- Premium CSS Variables & Theming --- */
 :root {
   --font-title: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-body:
+    'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 
   /* Modern Colors - Light Mode default */
-  --bg-gradient: radial-gradient(circle at 0% 0%, rgb(243, 244, 246, 0.6) 0%, rgb(255, 255, 255, 0.9) 100%),
+  --bg-gradient:
+    radial-gradient(circle at 0% 0%, rgb(243, 244, 246, 0.6) 0%, rgb(255, 255, 255, 0.9) 100%),
     radial-gradient(circle at 100% 100%, rgb(224, 231, 255, 0.3) 0%, rgb(255, 255, 255, 0.9) 100%);
   --grid-color: rgb(99, 102, 241, 0.03);
 
@@ -17,15 +19,17 @@
   --card-bg: rgb(255, 255, 255, 0.7);
   --card-border: rgb(229, 231, 235, 0.8);
   --card-shadow: 0 4px 20px -2px rgb(156, 163, 175, 0.15), 0 2px 10px -1px rgb(156, 163, 175, 0.1);
-  --card-shadow-hover: 0 12px 30px -4px rgb(99, 102, 241, 0.2), 0 4px 15px -2px rgb(156, 163, 175, 0.15);
+  --card-shadow-hover:
+    0 12px 30px -4px rgb(99, 102, 241, 0.2), 0 4px 15px -2px rgb(156, 163, 175, 0.15);
 
   --text-primary: #111827;
   --text-secondary: #4b5563;
   --text-muted: #9ca3af;
 }
 
-[data-mantine-color-scheme="dark"] {
-  --bg-gradient: radial-gradient(circle at 0% 0%, rgb(17, 24, 39, 0.95) 0%, rgb(10, 10, 12, 1) 100%),
+[data-mantine-color-scheme='dark'] {
+  --bg-gradient:
+    radial-gradient(circle at 0% 0%, rgb(17, 24, 39, 0.95) 0%, rgb(10, 10, 12, 1) 100%),
     radial-gradient(circle at 100% 100%, rgb(49, 46, 129, 0.25) 0%, rgb(10, 10, 12, 1) 100%);
   --grid-color: rgb(99, 102, 241, 0.05);
 
@@ -56,7 +60,7 @@ body {
 
 /* Elegant grid overlay background pattern */
 body::before {
-  content: "";
+  content: '';
   position: fixed;
   top: 0;
   left: 0;
@@ -72,7 +76,7 @@ body::before {
 
 /* Soft glowing radial lights */
 body::after {
-  content: "";
+  content: '';
   position: fixed;
   top: -10%;
   right: -10%;
@@ -118,7 +122,7 @@ h6 {
     background: #fff !important;
   }
 
-  [data-mantine-color-scheme="dark"] .glass-panel {
+  [data-mantine-color-scheme='dark'] .glass-panel {
     background: #141419 !important;
   }
 }
@@ -184,9 +188,9 @@ h6 {
 }
 
 /* Dark mode overrides for inputs inside mantine */
-[data-mantine-color-scheme="dark"] .mantine-TextInput-input,
-[data-mantine-color-scheme="dark"] .mantine-Textarea-input,
-[data-mantine-color-scheme="dark"] .mantine-Select-input {
+[data-mantine-color-scheme='dark'] .mantine-TextInput-input,
+[data-mantine-color-scheme='dark'] .mantine-Textarea-input,
+[data-mantine-color-scheme='dark'] .mantine-Select-input {
   background-color: rgb(0, 0, 0, 0.2) !important;
   color: #f9fafb !important;
 }
@@ -265,15 +269,19 @@ h6 {
   background: var(--card-bg) !important;
   border: 1px solid var(--card-border) !important;
   box-shadow: var(--card-shadow) !important;
-  transition: border-color 0.2s ease, border-left-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease !important;
+  transition:
+    border-color 0.2s ease,
+    border-left-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease !important;
 }
 
 @media (max-width: 48em) {
   .word-card {
     background: #fff !important;
   }
-  
-  [data-mantine-color-scheme="dark"] .word-card {
+
+  [data-mantine-color-scheme='dark'] .word-card {
     background: #141419 !important;
   }
 }

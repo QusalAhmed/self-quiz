@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "npm run oxlint && npm run stylelint",
     "oxlint": "oxlint .",
-    "stylelint": "stylelint '**/*.css' --cache",
+    "stylelint": "stylelint '**/*.css' --cache --allow-empty-input",
     "jest": "jest",
     "jest:watch": "jest --watch",
     "format:test": "oxfmt --check \"**/*.{ts,tsx,css}\"",

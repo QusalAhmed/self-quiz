@@ -19,4 +19,3 @@ export function useOnlineStatus(): boolean {
   }
   return navigator.onLine;
 }
-

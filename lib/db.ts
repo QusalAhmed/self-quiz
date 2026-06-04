@@ -1,5 +1,10 @@
-import { addRxPlugin, createRxDatabase } from 'rxdb';
-import type { RxCollection, RxDatabase, RxJsonSchema } from 'rxdb';
+import {
+  addRxPlugin,
+  createRxDatabase,
+  type RxCollection,
+  type RxDatabase,
+  type RxJsonSchema,
+} from 'rxdb';
 import { RxDBDevModePlugin, disableWarnings } from 'rxdb/plugins/dev-mode';
 import { RxDBMigrationSchemaPlugin } from 'rxdb/plugins/migration-schema';
 import { RxDBQueryBuilderPlugin } from 'rxdb/plugins/query-builder';

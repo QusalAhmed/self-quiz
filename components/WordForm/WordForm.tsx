@@ -57,14 +57,24 @@ export function WordForm({ onAdd, disabled }: WordFormProps) {
       <form onSubmit={handleSubmit}>
         <Stack gap="lg">
           <div>
-            <Text fw={700} size="lg" className="text-gradient" mb={2} style={{ fontFamily: 'var(--font-title)' }}>
+            <Text
+              fw={700}
+              size="lg"
+              className="text-gradient"
+              mb={2}
+              style={{ fontFamily: 'var(--font-title)' }}
+            >
               Add New Vocabulary Word
             </Text>
           </div>
 
           <TextInput
             ref={wordInputRef}
-            label={<Text size="xs" fw={600} c="dimmed" span>English Word</Text>}
+            label={
+              <Text size="xs" fw={600} c="dimmed" span>
+                English Word
+              </Text>
+            }
             placeholder="e.g. eloquent, pragmatic, nebulous"
             value={word}
             onChange={(event) => setWord(event.currentTarget.value)}
@@ -75,7 +85,11 @@ export function WordForm({ onAdd, disabled }: WordFormProps) {
           />
 
           <Textarea
-            label={<Text size="xs" fw={600} c="dimmed">Definition (optional)</Text>}
+            label={
+              <Text size="xs" fw={600} c="dimmed">
+                Definition (optional)
+              </Text>
+            }
             placeholder="Type your own definition here, or leave it blank to auto-fetch..."
             value={meaning}
             onChange={(event) => setMeaning(event.currentTarget.value)}

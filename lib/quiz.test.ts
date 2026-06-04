@@ -25,4 +25,3 @@ describe('buildQuizQuestion', () => {
     expect(question?.options).toContain(question?.answer);
   });
 });
-

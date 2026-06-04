@@ -23,9 +23,7 @@ function extractJson(text: string): string | null {
 }
 
 function normalizeExamples(examples: string[]): string[] {
-  const cleaned = examples
-    .map((value) => value.replace(/^[-*\d.\s]+/, '').trim())
-    .filter(Boolean);
+  const cleaned = examples.map((value) => value.replace(/^[-*\d.\s]+/, '').trim()).filter(Boolean);
 
   const unique = Array.from(new Set(cleaned));
   return unique.slice(0, 5);
@@ -83,7 +81,8 @@ export async function POST(request: Request) {
     }
 
     const data = (await response.json()) as GeminiResponse;
-    const text = data?.candidates?.[0]?.content?.parts?.map((part) => part.text ?? '').join('\n') ?? '';
+    const text =
+      data?.candidates?.[0]?.content?.parts?.map((part) => part.text ?? '').join('\n') ?? '';
     const jsonText = extractJson(text);
 
     let examples: string[] = [];
@@ -99,7 +98,10 @@ export async function POST(request: Request) {
     }
 
     if (examples.length === 0) {
-      examples = text.split(/\n+/).map((line) => line.trim()).filter(Boolean);
+      examples = text
+        .split(/\n+/)
+        .map((line) => line.trim())
+        .filter(Boolean);
     }
 
     const normalized = normalizeExamples(examples);
@@ -117,4 +119,3 @@ export async function POST(request: Request) {
     );
   }
 }
-

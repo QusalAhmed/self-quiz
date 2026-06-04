@@ -38,8 +38,11 @@ import {
   IconEyeOff,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { AppDatabase, MissedWordRecord, WordRecord } from '@/lib/db';
-import { getDatabase } from '@/lib/db';
+import { PwaRegister } from '@/components/PwaRegister/PwaRegister';
+import { QuizPanel, type QuizItem } from '@/components/QuizPanel/QuizPanel';
+import { WordForm } from '@/components/WordForm/WordForm';
+import { WordList } from '@/components/WordList/WordList';
+import { getDatabase, type AppDatabase, type MissedWordRecord, type WordRecord } from '@/lib/db';
 import {
   fetchMissingMeanings,
   pullRemoteMissedWords,
@@ -50,10 +53,6 @@ import {
   pushWordToRemote,
   setupOnlineSyncListener,
 } from '@/lib/sync';
-import { PwaRegister } from '@/components/PwaRegister/PwaRegister';
-import { QuizPanel, type QuizItem } from '@/components/QuizPanel/QuizPanel';
-import { WordForm } from '@/components/WordForm/WordForm';
-import { WordList } from '@/components/WordList/WordList';
 
 const quizRanges = {
   all: 'All Words',
@@ -154,6 +153,13 @@ function getInitialCustomEnd(): string {
   return formatDateTimeLocal(new Date());
 }
 
+function toMutableWordRecord(record: any): WordRecord {
+  return {
+    ...record,
+    examples: Array.isArray(record.examples) ? [...record.examples] : [],
+  } as WordRecord;
+}
+
 function capitalizeWord(value: string): string {
   const trimmed = value.trim();
   if (!trimmed) {
@@ -180,7 +186,9 @@ async function requestExamples(word: string, meaning: string): Promise<string[]>
   }
 
   const data = await response.json();
-  return Array.isArray(data?.examples) ? data.examples.map((item: string) => String(item).trim()).filter(Boolean) : [];
+  return Array.isArray(data?.examples)
+    ? data.examples.map((item: string) => String(item).trim()).filter(Boolean)
+    : [];
 }
 
 export default function HomePage() {
@@ -335,7 +343,10 @@ export default function HomePage() {
     prevCustomStartRef.current = customStart;
     prevCustomEndRef.current = customEnd;
 
-    if ((!rangeChanged && !sourceChanged && !customStartChanged && !customEndChanged) || quizQueue.length === 0) {
+    if (
+      (!rangeChanged && !sourceChanged && !customStartChanged && !customEndChanged) ||
+      quizQueue.length === 0
+    ) {
       return;
     }
 
@@ -359,7 +370,15 @@ export default function HomePage() {
     setQuizIndex(0);
     setRevealed(false);
     setCompleted(queue.length === 0);
-  }, [quizRange, quizSource, quizCandidates, quizQueue.length, customStart, customEnd, getExamplesForId]);
+  }, [
+    quizRange,
+    quizSource,
+    quizCandidates,
+    quizQueue.length,
+    customStart,
+    customEnd,
+    getExamplesForId,
+  ]);
 
   useEffect(() => {
     let isMounted = true;
@@ -481,7 +500,9 @@ export default function HomePage() {
 
     const handleVisibilityChange = async () => {
       if (!document.hidden) {
-        console.log('Page came into focus (visibilitychange): Performing sync and checking database...');
+        console.log(
+          'Page came into focus (visibilitychange): Performing sync and checking database...'
+        );
         await handleSyncAndRecheck();
       }
     };
@@ -543,7 +564,7 @@ export default function HomePage() {
           }
 
           const updated = {
-            ...doc.toJSON(),
+            ...toMutableWordRecord(doc.toJSON()),
             examples,
             updatedAt: new Date().toISOString(),
           };
@@ -572,7 +593,13 @@ export default function HomePage() {
 
           if (!response.ok) {
             const errorText = await response.text();
-            console.warn('Definition API error for word:', record.word, 'Status:', response.status, errorText);
+            console.warn(
+              'Definition API error for word:',
+              record.word,
+              'Status:',
+              response.status,
+              errorText
+            );
             return;
           }
 
@@ -590,7 +617,7 @@ export default function HomePage() {
             return;
           }
 
-          const current = doc.toJSON();
+          const current = toMutableWordRecord(doc.toJSON());
           if (current.meaning) {
             console.log('Meaning already exists, skipping update');
             return;
@@ -602,9 +629,7 @@ export default function HomePage() {
             updatedAt: new Date().toISOString(),
           };
 
-          // @ts-ignore
           await database.words.upsert(updated);
-          // @ts-ignore
           await pushWordToRemote(database.words, updated);
 
           const examples = await requestExamples(updated.word, aiMeaning);
@@ -638,14 +663,12 @@ export default function HomePage() {
 
     const timestamp = new Date().toISOString();
     const record = {
-      ...doc.toJSON(),
+      ...toMutableWordRecord(doc.toJSON()),
       isDeleted: true,
       updatedAt: timestamp,
     };
 
-    // @ts-ignore
     await database.words.upsert(record);
-    // @ts-ignore
     await pushWordToRemote(database.words, record);
   };
 
@@ -661,15 +684,13 @@ export default function HomePage() {
 
     const timestamp = new Date().toISOString();
     const record = {
-      ...doc.toJSON(),
+      ...toMutableWordRecord(doc.toJSON()),
       word,
       meaning,
       updatedAt: timestamp,
     };
 
-    // @ts-ignore
     await database.words.upsert(record);
-    // @ts-ignore
     await pushWordToRemote(database.words, record);
   };
 
@@ -683,7 +704,7 @@ export default function HomePage() {
       return;
     }
 
-    const record = doc.toJSON();
+    const record = toMutableWordRecord(doc.toJSON());
     let meaning = record.meaning.trim();
 
     if (!meaning) {
@@ -712,9 +733,7 @@ export default function HomePage() {
           meaning,
           updatedAt: new Date().toISOString(),
         };
-        // @ts-ignore
         await database.words.upsert(updated);
-        // @ts-ignore
         await pushWordToRemote(database.words, updated);
       }
     }
@@ -881,11 +900,15 @@ export default function HomePage() {
         <Card className="glass-panel header-panel" padding="xl" radius="lg">
           <Group className="header-inner" justify="space-between" align="flex-start" wrap="wrap">
             <Stack className="header-left" gap="xs" style={{ flex: 1 }}>
-              <Title order={1} style={{ fontSize: '2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Title
+                order={1}
+                style={{ fontSize: '2rem', display: 'flex', alignItems: 'center', gap: '8px' }}
+              >
                 <span className="text-gradient">English Word Memorizer</span>
               </Title>
               <Text c="dimmed" size="sm" style={{ lineHeight: 1.5, maxWidth: '480px' }}>
-                A modern local-first vocabulary companion. Learn new definitions, sync with Supabase Cloud, and practice dynamically offline.
+                A modern local-first vocabulary companion. Learn new definitions, sync with Supabase
+                Cloud, and practice dynamically offline.
               </Text>
             </Stack>
 
@@ -920,16 +943,25 @@ export default function HomePage() {
         </Card>
 
         {/* --- Interactive Statistics Dashboard Row --- */}
-        <Grid gap="md" align={'center'}>
+        <Grid gap="md" align="center">
           {/* Card 1: Total Words */}
           <Grid.Col span={{ base: 12, sm: 4 }}>
-            <Card className="glass-panel" radius="lg" padding="md" style={{ borderLeft: '4px solid #6366f1' }}>
+            <Card
+              className="glass-panel"
+              radius="lg"
+              padding="md"
+              style={{ borderLeft: '4px solid #6366f1' }}
+            >
               <Group justify="space-between" align="center">
                 <div>
                   <Text size="xs" fw={700} c="dimmed" style={{ letterSpacing: '0.05em' }}>
                     TOTAL WORDS
                   </Text>
-                  <Text size="xl" fw={800} style={{ fontFamily: 'var(--font-title)', marginTop: '4px' }}>
+                  <Text
+                    size="xl"
+                    fw={800}
+                    style={{ fontFamily: 'var(--font-title)', marginTop: '4px' }}
+                  >
                     {words.length}
                   </Text>
                 </div>
@@ -940,13 +972,22 @@ export default function HomePage() {
 
           {/* Card 2: Today's Additions */}
           <Grid.Col span={{ base: 12, sm: 4 }}>
-            <Card className="glass-panel" radius="lg" padding="md" style={{ borderLeft: '4px solid #a855f7' }}>
+            <Card
+              className="glass-panel"
+              radius="lg"
+              padding="md"
+              style={{ borderLeft: '4px solid #a855f7' }}
+            >
               <Group justify="space-between" align="center">
                 <div>
                   <Text size="xs" fw={700} c="dimmed" style={{ letterSpacing: '0.05em' }}>
                     ADDED TODAY
                   </Text>
-                  <Text size="xl" fw={800} style={{ fontFamily: 'var(--font-title)', marginTop: '4px' }}>
+                  <Text
+                    size="xl"
+                    fw={800}
+                    style={{ fontFamily: 'var(--font-title)', marginTop: '4px' }}
+                  >
                     {todayCount}
                   </Text>
                 </div>
@@ -957,7 +998,12 @@ export default function HomePage() {
 
           {/* Card 3: Cloud Synchronization Status */}
           <Grid.Col span={{ base: 12, sm: 4 }}>
-            <Card className="glass-panel" radius="lg" padding="md" style={{ borderLeft: '4px solid #10b981' }}>
+            <Card
+              className="glass-panel"
+              radius="lg"
+              padding="md"
+              style={{ borderLeft: '4px solid #10b981' }}
+            >
               <Group justify="space-between" align="center">
                 <div>
                   <Text size="xs" fw={700} c="dimmed" style={{ letterSpacing: '0.05em' }}>
@@ -968,7 +1014,12 @@ export default function HomePage() {
                       {unsyncedCount === 0 ? 'Fully Synced' : `${unsyncedCount} Sync Pending`}
                     </Text>
                     {onlineStatus && (
-                      <ActionIcon size="sm" variant="subtle" color="teal" onClick={handleManualSync}>
+                      <ActionIcon
+                        size="sm"
+                        variant="subtle"
+                        color="teal"
+                        onClick={handleManualSync}
+                      >
                         <IconRotateClockwise size={16} />
                       </ActionIcon>
                     )}
@@ -1018,11 +1069,24 @@ export default function HomePage() {
                 <Group justify="space-between" align="center">
                   <Group gap="xs">
                     <IconBook size={22} style={{ color: '#a855f7' }} />
-                    <Title order={3} style={{ fontFamily: 'var(--font-title)', fontSize: '1.25rem', color: 'var(--text-primary)' }}>
+                    <Title
+                      order={3}
+                      style={{
+                        fontFamily: 'var(--font-title)',
+                        fontSize: '1.25rem',
+                        color: 'var(--text-primary)',
+                      }}
+                    >
                       Your Workspace
                     </Title>
                   </Group>
-                  <Badge variant="gradient" gradient={{ from: 'indigo', to: 'purple' }} size="md" radius="md" style={{ fontWeight: 700 }}>
+                  <Badge
+                    variant="gradient"
+                    gradient={{ from: 'indigo', to: 'purple' }}
+                    size="md"
+                    radius="md"
+                    style={{ fontWeight: 700 }}
+                  >
                     {filteredWords.length} word{filteredWords.length !== 1 ? 's' : ''}
                   </Badge>
                 </Group>
@@ -1041,7 +1105,12 @@ export default function HomePage() {
               </Stack>
             </Card>
 
-            <WordList words={pagedWords} onDelete={handleDelete} onEdit={handleEdit} onRefreshExamples={handleRefreshExamples} />
+            <WordList
+              words={pagedWords}
+              onDelete={handleDelete}
+              onEdit={handleEdit}
+              onRefreshExamples={handleRefreshExamples}
+            />
 
             {totalPages > 1 && (
               <Group justify="center" mt="sm">
@@ -1070,7 +1139,12 @@ export default function HomePage() {
                     >
                       Prev
                     </Button>
-                    <Text size="xs" fw={700} c="dimmed" style={{ minWidth: 60, textAlign: 'center' }}>
+                    <Text
+                      size="xs"
+                      fw={700}
+                      c="dimmed"
+                      style={{ minWidth: 60, textAlign: 'center' }}
+                    >
                       {page} / {totalPages}
                     </Text>
                     <Button
@@ -1093,12 +1167,21 @@ export default function HomePage() {
         {/* --- QUIZ MODE --- */}
         {mode === 'quiz' && (
           <Stack gap="lg" style={{ minHeight: '100vh' }}>
-            <Card className="glass-panel" radius="lg" padding="lg" style={{ borderLeft: '4px solid #6366f1' }}>
+            <Card
+              className="glass-panel"
+              radius="lg"
+              padding="lg"
+              style={{ borderLeft: '4px solid #6366f1' }}
+            >
               <Stack gap="md">
                 <Grid align="flex-end" gap="md">
                   <Grid.Col span={{ base: 12, sm: 6 }}>
                     <Select
-                      label={<Text size="xs" fw={700} c="dimmed">QUIZ POOL RANGE</Text>}
+                      label={
+                        <Text size="xs" fw={700} c="dimmed">
+                          QUIZ POOL RANGE
+                        </Text>
+                      }
                       data={Object.entries(quizRanges).map(([value, label]) => ({
                         value,
                         label,
@@ -1113,7 +1196,11 @@ export default function HomePage() {
 
                   <Grid.Col span={{ base: 12, sm: 6 }}>
                     <Select
-                      label={<Text size="xs" fw={700} c="dimmed">QUIZ SOURCE</Text>}
+                      label={
+                        <Text size="xs" fw={700} c="dimmed">
+                          QUIZ SOURCE
+                        </Text>
+                      }
                       data={Object.entries(quizSources).map(([value, label]) => ({
                         value,
                         label,
@@ -1171,7 +1258,11 @@ export default function HomePage() {
                       <Grid gap="md">
                         <Grid.Col span={{ base: 12, sm: 6 }}>
                           <TextInput
-                            label={<Text size="xs" fw={600} c="dimmed">From</Text>}
+                            label={
+                              <Text size="xs" fw={600} c="dimmed">
+                                From
+                              </Text>
+                            }
                             type="datetime-local"
                             value={customStart}
                             onChange={(e) => setCustomStart(e.currentTarget.value)}
@@ -1182,7 +1273,11 @@ export default function HomePage() {
                         </Grid.Col>
                         <Grid.Col span={{ base: 12, sm: 6 }}>
                           <TextInput
-                            label={<Text size="xs" fw={600} c="dimmed">To</Text>}
+                            label={
+                              <Text size="xs" fw={600} c="dimmed">
+                                To
+                              </Text>
+                            }
                             type="datetime-local"
                             value={customEnd}
                             onChange={(e) => setCustomEnd(e.currentTarget.value)}
@@ -1194,7 +1289,8 @@ export default function HomePage() {
                       </Grid>
                       <Group justify="space-between" align="center" mt={4}>
                         <Text size="xs" c="dimmed">
-                          {quizCandidates.length} word{quizCandidates.length !== 1 ? 's' : ''} in this range
+                          {quizCandidates.length} word{quizCandidates.length !== 1 ? 's' : ''} in
+                          this range
                         </Text>
                         <Button
                           variant="light"
@@ -1276,7 +1372,10 @@ export default function HomePage() {
 
                 {missedWords.length > 0 && (
                   <Group gap="xs">
-                    <Tooltip label={hideMissedMeanings ? 'Show all meanings' : 'Hide all meanings'} withArrow>
+                    <Tooltip
+                      label={hideMissedMeanings ? 'Show all meanings' : 'Hide all meanings'}
+                      withArrow
+                    >
                       <ActionIcon
                         variant="subtle"
                         color="gray"
@@ -1342,8 +1441,13 @@ export default function HomePage() {
                     <Text fw={600} size="sm" style={{ color: 'var(--text-secondary)' }}>
                       No missed words yet
                     </Text>
-                    <Text size="xs" c="dimmed" style={{ lineHeight: 1.5, maxWidth: 280, margin: '0 auto' }}>
-                      When you bookmark a word as missed during a quiz, it will appear here for targeted practice.
+                    <Text
+                      size="xs"
+                      c="dimmed"
+                      style={{ lineHeight: 1.5, maxWidth: 280, margin: '0 auto' }}
+                    >
+                      When you bookmark a word as missed during a quiz, it will appear here for
+                      targeted practice.
                     </Text>
                   </Stack>
                 </div>
@@ -1353,10 +1457,28 @@ export default function HomePage() {
                     const count = word.missedCount;
                     const severity =
                       count >= 5
-                        ? { color: '#ef4444', bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.25)', label: 'Hot', badgeColor: 'red' as const }
+                        ? {
+                            color: '#ef4444',
+                            bg: 'rgba(239,68,68,0.08)',
+                            border: 'rgba(239,68,68,0.25)',
+                            label: 'Hot',
+                            badgeColor: 'red' as const,
+                          }
                         : count >= 3
-                          ? { color: '#f97316', bg: 'rgba(249,115,22,0.07)', border: 'rgba(249,115,22,0.2)', label: 'Warm', badgeColor: 'orange' as const }
-                          : { color: '#22c55e', bg: 'rgba(34,197,94,0.06)', border: 'rgba(34,197,94,0.18)', label: 'New', badgeColor: 'teal' as const };
+                          ? {
+                              color: '#f97316',
+                              bg: 'rgba(249,115,22,0.07)',
+                              border: 'rgba(249,115,22,0.2)',
+                              label: 'Warm',
+                              badgeColor: 'orange' as const,
+                            }
+                          : {
+                              color: '#22c55e',
+                              bg: 'rgba(34,197,94,0.06)',
+                              border: 'rgba(34,197,94,0.18)',
+                              label: 'New',
+                              badgeColor: 'teal' as const,
+                            };
 
                     const speakWord = (text: string) => {
                       if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
@@ -1421,7 +1543,11 @@ export default function HomePage() {
                                   wordBreak: 'break-word',
                                 }}
                               >
-                                {word.meaning || <span style={{ fontStyle: 'italic', opacity: 0.55 }}>No definition available</span>}
+                                {word.meaning || (
+                                  <span style={{ fontStyle: 'italic', opacity: 0.55 }}>
+                                    No definition available
+                                  </span>
+                                )}
                               </Text>
                               {missedExamples.length > 0 && (
                                 <Stack gap={2} mt={6}>

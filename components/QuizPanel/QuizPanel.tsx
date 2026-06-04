@@ -1,5 +1,25 @@
-import { ActionIcon, Button, Card, Group, Progress, Stack, Text, Title, RingProgress, Tooltip } from '@mantine/core';
-import { IconAward, IconCopy, IconRotateClockwise, IconVolume, IconChevronLeft, IconChevronRight, IconBookmarkOff, IconBookmark } from '@tabler/icons-react';
+import {
+  ActionIcon,
+  Button,
+  Card,
+  Group,
+  Progress,
+  Stack,
+  Text,
+  Title,
+  RingProgress,
+  Tooltip,
+} from '@mantine/core';
+import {
+  IconAward,
+  IconCopy,
+  IconRotateClockwise,
+  IconVolume,
+  IconChevronLeft,
+  IconChevronRight,
+  IconBookmarkOff,
+  IconBookmark,
+} from '@tabler/icons-react';
 import { useState } from 'react';
 
 export type QuizItem = {
@@ -46,18 +66,18 @@ export function QuizPanel({
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
       return;
     }
-    
+
     // Cancel currently speaking voices
     window.speechSynthesis.cancel();
-    
+
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'en-US';
     utterance.rate = 0.9;
-    
+
     utterance.onstart = () => setIsPlayingAudio(true);
     utterance.onend = () => setIsPlayingAudio(false);
     utterance.onerror = () => setIsPlayingAudio(false);
-    
+
     window.speechSynthesis.speak(utterance);
   };
 
@@ -85,13 +105,14 @@ export function QuizPanel({
               </Group>
             }
           />
-          
+
           <Stack gap="xs">
             <Title order={2} className="text-gradient" style={{ fontFamily: 'var(--font-title)' }}>
               Quiz Completed!
             </Title>
             <Text c="dimmed" size="sm" max-width="360px" mx="auto" style={{ lineHeight: 1.6 }}>
-              Fantastic effort! You've mastered all {totalCount} words selected for this session. Repetition is key to long-term memory.
+              Fantastic effort! You've mastered all {totalCount} words selected for this session.
+              Repetition is key to long-term memory.
             </Text>
           </Stack>
 
@@ -124,7 +145,8 @@ export function QuizPanel({
   }
 
   // Calculate visual progress percentage
-  const progressPercent = totalCount > 0 ? ((currentIndex + (revealed ? 1 : 0)) / totalCount) * 100 : 0;
+  const progressPercent =
+    totalCount > 0 ? ((currentIndex + (revealed ? 1 : 0)) / totalCount) * 100 : 0;
   const examples = Array.isArray(item?.examples) ? item.examples : [];
 
   return (
@@ -303,7 +325,7 @@ export function QuizPanel({
           >
             Back
           </Button>
-          
+
           <Button
             onClick={onNext}
             className="btn-premium"

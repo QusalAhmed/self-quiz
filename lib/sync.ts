@@ -1,5 +1,12 @@
 import type { MissedWordCollection, MissedWordRecord, WordCollection, WordRecord } from './db';
 
+function toWritableWord(record: any): WordRecord {
+  return {
+    ...record,
+    examples: Array.isArray(record.examples) ? [...record.examples] : [],
+  };
+}
+
 export type RemoteWordRow = {
   id: string;
   word: string;
@@ -68,11 +75,11 @@ export async function pullRemoteWords(collection: WordCollection): Promise<void>
   try {
     console.log('Pulling remote words from Supabase...');
     // Add cache buster to force fresh fetch from server
-    const response = await fetch('/api/words?t=' + Date.now(), {
+    const response = await fetch(`/api/words?t=${Date.now()}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache, no-store, must-revalidate'
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
       },
     });
     if (!response.ok) {
@@ -106,7 +113,7 @@ export async function pullRemoteMissedWords(collection: MissedWordCollection): P
 
   try {
     console.log('Pulling missed words from Supabase...');
-    const response = await fetch('/api/missed-words?t=' + Date.now(), {
+    const response = await fetch(`/api/missed-words?t=${Date.now()}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -183,7 +190,10 @@ export async function pushMissedWordToRemote(
   record: MissedWordRecord
 ): Promise<void> {
   if (!isOnline()) {
-    console.log('Device is offline, missed word saved locally. Will sync when online:', record.word);
+    console.log(
+      'Device is offline, missed word saved locally. Will sync when online:',
+      record.word
+    );
     return;
   }
 
@@ -233,10 +243,9 @@ export async function pushAllLocalWords(collection: WordCollection): Promise<voi
     let syncedCount = 0;
 
     for (const word of localWords) {
-      const record = word.toJSON();
+      const record = toWritableWord(word.toJSON());
       const shouldSync = !record.lastSyncedAt || record.lastSyncedAt < record.updatedAt;
       if (shouldSync) {
-        // @ts-ignore
         await pushWordToRemote(collection, record);
         syncedCount++;
       }
@@ -290,7 +299,7 @@ export async function fetchMissingMeanings(collection: WordCollection): Promise<
     let fetchedCount = 0;
 
     for (const doc of allWords) {
-      const record = doc.toJSON();
+      const record = toWritableWord(doc.toJSON());
       // Skip if word has meaning or is deleted
       if (record.meaning && record.meaning.trim().length > 0) {
         continue;
@@ -326,9 +335,7 @@ export async function fetchMissingMeanings(collection: WordCollection): Promise<
           updatedAt: new Date().toISOString(),
         };
 
-        // @ts-ignore
         await collection.upsert(updated);
-        // @ts-ignore
         await pushWordToRemote(collection, updated);
         fetchedCount++;
         console.log('Fetched meaning for:', record.word);

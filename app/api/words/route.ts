@@ -1,5 +1,5 @@
-import { supabase } from '@/lib/supabase';
 import { NextRequest, NextResponse } from 'next/server';
+import { supabase } from '@/lib/supabase';
 
 export const revalidate = 0; // Disable caching for this route
 
@@ -9,10 +9,7 @@ export async function POST(request: NextRequest) {
     const { id, word, meaning, examples, created_at, updated_at, deleted } = body;
 
     if (!id || !word) {
-      return NextResponse.json(
-        { error: 'Missing required fields: id and word' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Missing required fields: id and word' }, { status: 400 });
     }
 
     const payload = {
@@ -55,13 +52,16 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: error.message }, { status: 500 });
       }
 
-      return NextResponse.json({ data }, {
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0',
+      return NextResponse.json(
+        { data },
+        {
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            Pragma: 'no-cache',
+            Expires: '0',
+          },
         }
-      });
+      );
     }
 
     const { data, error } = await supabase.from('words').select('*').eq('deleted', false);
@@ -71,13 +71,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ data }, {
-      headers: {
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0',
+    return NextResponse.json(
+      { data },
+      {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          Pragma: 'no-cache',
+          Expires: '0',
+        },
       }
-    });
+    );
   } catch (error) {
     console.error('API error:', error);
     return NextResponse.json(

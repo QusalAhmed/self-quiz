@@ -13,8 +13,8 @@ import {
 } from '@mantine/core';
 import { IconEdit, IconTrash, IconRotateClockwise } from '@tabler/icons-react';
 import { useState } from 'react';
-import type { WordRecord } from '@/lib/db';
 import { formatDate, formatRelativeShort } from '@/lib/dateUtils';
+import type { WordRecord } from '@/lib/db';
 
 type WordListProps = {
   words: WordRecord[];
@@ -43,11 +43,17 @@ export function WordList({ words, onDelete, onEdit, onRefreshExamples }: WordLis
         }}
       >
         <Stack gap="sm" align="center">
-          <Text fw={700} size="lg" className="text-gradient" style={{ fontFamily: 'var(--font-title)' }}>
+          <Text
+            fw={700}
+            size="lg"
+            className="text-gradient"
+            style={{ fontFamily: 'var(--font-title)' }}
+          >
             Your Vocabulary is Empty
           </Text>
           <Text size="sm" c="dimmed" style={{ lineHeight: 1.6, maxWidth: 360, margin: '0 auto' }}>
-            Add your first word using the panel above. When online, definitions will be automatically fetched.
+            Add your first word using the panel above. When online, definitions will be
+            automatically fetched.
           </Text>
         </Stack>
       </div>
@@ -67,10 +73,14 @@ export function WordList({ words, onDelete, onEdit, onRefreshExamples }: WordLis
   };
 
   const saveEditing = async () => {
-    if (!editingId) return;
+    if (!editingId) {
+      return;
+    }
     const nextWord = draftWord.trim();
     const nextMeaning = draftMeaning.trim();
-    if (!nextWord) return;
+    if (!nextWord) {
+      return;
+    }
     await onEdit(editingId, nextWord, nextMeaning);
     cancelEditing();
   };
@@ -87,7 +97,9 @@ export function WordList({ words, onDelete, onEdit, onRefreshExamples }: WordLis
   };
 
   const confirmDelete = async () => {
-    if (!deleteConfirmId) return;
+    if (!deleteConfirmId) {
+      return;
+    }
     setIsDeleting(true);
     try {
       await onDelete(deleteConfirmId);
@@ -258,7 +270,11 @@ export function WordList({ words, onDelete, onEdit, onRefreshExamples }: WordLis
                 >
                   <Stack gap="md">
                     <TextInput
-                      label={<Text size="xs" fw={600} c="dimmed" span>Word</Text>}
+                      label={
+                        <Text size="xs" fw={600} c="dimmed" span>
+                          Word
+                        </Text>
+                      }
                       value={draftWord}
                       onChange={(e) => setDraftWord(e.currentTarget.value)}
                       required
@@ -266,7 +282,11 @@ export function WordList({ words, onDelete, onEdit, onRefreshExamples }: WordLis
                       size="sm"
                     />
                     <Textarea
-                      label={<Text size="xs" fw={600} c="dimmed">Definition</Text>}
+                      label={
+                        <Text size="xs" fw={600} c="dimmed">
+                          Definition
+                        </Text>
+                      }
                       value={draftMeaning}
                       onChange={(e) => setDraftMeaning(e.currentTarget.value)}
                       minRows={2}
@@ -283,12 +303,7 @@ export function WordList({ words, onDelete, onEdit, onRefreshExamples }: WordLis
                       >
                         Cancel
                       </Button>
-                      <Button
-                        className="btn-premium"
-                        size="xs"
-                        radius="md"
-                        onClick={saveEditing}
-                      >
+                      <Button className="btn-premium" size="xs" radius="md" onClick={saveEditing}>
                         Save Changes
                       </Button>
                     </Group>
@@ -322,11 +337,18 @@ export function WordList({ words, onDelete, onEdit, onRefreshExamples }: WordLis
       >
         <Stack gap="lg">
           <Text size="sm" c="dimmed" style={{ lineHeight: 1.6 }}>
-            Are you sure you want to delete <strong style={{ color: 'var(--text-primary)' }}>{deleteConfirmWord}</strong>?
-            This will be removed from your local database and synced to Supabase.
+            Are you sure you want to delete{' '}
+            <strong style={{ color: 'var(--text-primary)' }}>{deleteConfirmWord}</strong>? This will
+            be removed from your local database and synced to Supabase.
           </Text>
           <Group justify="flex-end" gap="sm">
-            <Button variant="default" size="sm" radius="md" onClick={closeDeleteConfirm} disabled={isDeleting}>
+            <Button
+              variant="default"
+              size="sm"
+              radius="md"
+              onClick={closeDeleteConfirm}
+              disabled={isDeleting}
+            >
               Cancel
             </Button>
             <Button color="red" size="sm" radius="md" onClick={confirmDelete} loading={isDeleting}>

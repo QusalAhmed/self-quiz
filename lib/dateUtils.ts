@@ -26,9 +26,15 @@ export function formatRelativeShort(dateString: string | Date): string {
   const msPerDay = 24 * 60 * 60 * 1000;
   const dayDiff = Math.round((startOfToday.getTime() - startOfGiven.getTime()) / msPerDay);
 
-  if (dayDiff === 0) return 'Today';
-  if (dayDiff === 1) return 'Yesterday';
-  if (dayDiff > 1 && dayDiff <= 6) return `${dayDiff}d ago`;
+  if (dayDiff === 0) {
+    return 'Today';
+  }
+  if (dayDiff === 1) {
+    return 'Yesterday';
+  }
+  if (dayDiff > 1 && dayDiff <= 6) {
+    return `${dayDiff}d ago`;
+  }
 
   // For dates older than a week, show day + short month; omit the year when it's the same year
   const day = date.getDate();
@@ -40,4 +46,3 @@ export function formatRelativeShort(dateString: string | Date): string {
   }
   return `${day} ${month} ${year}`;
 }
-
