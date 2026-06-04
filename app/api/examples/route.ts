@@ -67,7 +67,7 @@ export async function POST(request: Request) {
     '{"examples": ["Sentence 1.", "Sentence 2."]}',
   ].join('\n');
 
-  async function callGemini(useJsonMode: boolean): Promise<Response> {
+  async function callGemini(key: string, mdl: string, useJsonMode: boolean): Promise<Response> {
     const generationConfig: Record<string, unknown> = {
       temperature: 0.4,
       maxOutputTokens: 256,
@@ -76,7 +76,7 @@ export async function POST(request: Request) {
       generationConfig.responseMimeType = 'application/json';
     }
     return fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(mdl)}:generateContent?key=${encodeURIComponent(key)}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -90,11 +90,11 @@ export async function POST(request: Request) {
 
   try {
     // Try with JSON mode first; fall back without it if the model doesn't support it.
-    let response = await callGemini(true);
+    let response = await callGemini(apiKey, model, true);
     if (!response.ok) {
       const errorText = await response.text();
       console.warn('Gemini JSON-mode failed, retrying without it:', response.status, errorText);
-      response = await callGemini(false);
+      response = await callGemini(apiKey, model, false);
     }
 
     if (!response.ok) {
