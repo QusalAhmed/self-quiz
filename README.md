@@ -11,9 +11,11 @@ Local-first English word memorization app with quiz practice. Words are stored i
 - Basic PWA setup with offline caching
 - Optional AI Bangla meaning backfill when meaning is left blank
 
-## Gemini setup
+## Cloudflare Worker AI setup
 
-Add `GEMINI_KEY` to `.env.local`. You can optionally set `GEMINI_MODEL` (default: `gemini-3.5-flash`).
+Add `CF_ACCOUNT_ID` and `CF_API_TOKEN` to `.env.local`. You can optionally set `CF_AI_MODEL` (default: `@cf/meta/llama-3.1-8b-instruct`).
+
+Get your Account ID from the [Cloudflare Dashboard](https://dash.cloudflare.com/) and generate an API Token with **Workers AI** permissions.
 
 ## Supabase setup
 
@@ -35,8 +37,9 @@ Create `.env.local` with:
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `GEMINI_KEY`
-- `GEMINI_MODEL` (optional)
+- `CF_ACCOUNT_ID`
+- `CF_API_TOKEN`
+- `CF_AI_MODEL` (optional, default: `@cf/meta/llama-3.1-8b-instruct`)
 
 ## Scripts
 

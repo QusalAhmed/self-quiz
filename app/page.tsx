@@ -485,49 +485,6 @@ export default function HomePage() {
       return;
     }
 
-    const handleSyncAndRecheck = async () => {
-      try {
-        await pullRemoteWords(database.words);
-        await pullRemoteMissedWords(database.missedWords);
-        await pushAllLocalWords(database.words);
-        await pushAllLocalMissedWords(database.missedWords);
-        await fetchMissingMeanings(database.words);
-        await checkCurrentWordMissedStatus();
-      } catch (error) {
-        console.error('Error during focus sync:', error);
-      }
-    };
-
-    const handleVisibilityChange = async () => {
-      if (!document.hidden) {
-        console.log(
-          'Page came into focus (visibilitychange): Performing sync and checking database...'
-        );
-        await handleSyncAndRecheck();
-      }
-    };
-
-    const handlePageShow = async () => {
-      console.log('Page show event: Performing sync and checking database...');
-      await handleSyncAndRecheck();
-    };
-
-    const handleWindowFocus = async () => {
-      console.log('Window focus event: Re-checking database for missed status...');
-      await pullRemoteMissedWords(database.missedWords);
-      await pushAllLocalMissedWords(database.missedWords);
-      await checkCurrentWordMissedStatus();
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('pageshow', handlePageShow);
-    window.addEventListener('focus', handleWindowFocus);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('pageshow', handlePageShow);
-      window.removeEventListener('focus', handleWindowFocus);
-    };
   }, [database, checkCurrentWordMissedStatus]);
 
   const handleAdd = async (word: string, meaning: string) => {
@@ -1389,7 +1346,7 @@ export default function HomePage() {
                           }
                         }}
                       >
-                        {hideMissedMeanings ? <IconEyeOff size={16} /> : <IconEye size={16} />}
+                        {hideMissedMeanings ? <IconEyeOff size={24} /> : <IconEye size={24} />}
                       </ActionIcon>
                     </Tooltip>
                     <Button
