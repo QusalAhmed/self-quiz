@@ -87,7 +87,7 @@ export async function POST(request: Request) {
         );
     }
 
-    const model = process.env.CF_AI_MODEL ?? '@cf/meta/llama-3.1-8b-instruct';
+    const model = process.env.CF_AI_MODEL ?? '@cf/moonshotai/kimi-k2.6';
 
     const messages: CloudflareMessage[] = [
         {
@@ -104,7 +104,6 @@ export async function POST(request: Request) {
     ];
 
     try {
-        // Use the native Cloudflare Workers AI endpoint — model goes in the URL path
         const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${model}`;
 
         const response = await fetch(
