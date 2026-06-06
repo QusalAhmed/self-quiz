@@ -16,6 +16,7 @@ export type WordRecord = {
   word: string;
   meaning: string;
   examples: string[];
+  userExamples: string[];
   createdAt: string;
   updatedAt: string;
   isDeleted: boolean;
@@ -40,7 +41,7 @@ export type AppDatabase = RxDatabase<{ words: WordCollection; missedWords: Misse
 
 const wordSchema: RxJsonSchema<WordRecord> = {
   title: 'word schema',
-  version: 2,
+  version: 3,
   description: 'English word memorization entries',
   primaryKey: 'id',
   type: 'object',
@@ -49,6 +50,11 @@ const wordSchema: RxJsonSchema<WordRecord> = {
     word: { type: 'string', maxLength: 128 },
     meaning: { type: 'string' },
     examples: {
+      type: 'array',
+      items: { type: 'string' },
+      default: [],
+    },
+    userExamples: {
       type: 'array',
       items: { type: 'string' },
       default: [],
@@ -63,6 +69,7 @@ const wordSchema: RxJsonSchema<WordRecord> = {
     'word',
     'meaning',
     'examples',
+    'userExamples',
     'createdAt',
     'updatedAt',
     'isDeleted',
@@ -132,6 +139,10 @@ async function createDatabase(): Promise<AppDatabase> {
         2: (oldDoc) => ({
           ...oldDoc,
           examples: Array.isArray(oldDoc.examples) ? oldDoc.examples : [],
+        }),
+        3: (oldDoc) => ({
+          ...oldDoc,
+          userExamples: Array.isArray(oldDoc.userExamples) ? oldDoc.userExamples : [],
         }),
       },
     },

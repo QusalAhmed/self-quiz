@@ -15,11 +15,17 @@ import { IconEdit, IconTrash, IconRotateClockwise } from '@tabler/icons-react';
 import { useState } from 'react';
 import { formatDate, formatRelativeShort } from '@/lib/dateUtils';
 import type { WordRecord } from '@/lib/db';
+import { getDisplayExamples, parseExampleLines } from '@/lib/examples';
 
 type WordListProps = {
     words: WordRecord[];
     onDelete: (id: string) => Promise<void> | void;
-    onEdit: (id: string, word: string, meaning: string) => Promise<void> | void;
+    onEdit: (
+        id: string,
+        word: string,
+        meaning: string,
+        userExamples: string[]
+    ) => Promise<void> | void;
     onRefreshExamples: (id: string) => Promise<void> | void;
 };
 
@@ -27,6 +33,7 @@ export function WordList({words, onDelete, onEdit, onRefreshExamples}: WordListP
     const [editingId, setEditingId] = useState<string | null>(null);
     const [draftWord, setDraftWord] = useState('');
     const [draftMeaning, setDraftMeaning] = useState('');
+    const [draftUserExamples, setDraftUserExamples] = useState('');
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
     const [deleteConfirmWord, setDeleteConfirmWord] = useState('');
     const [isDeleting, setIsDeleting] = useState(false);
@@ -64,12 +71,16 @@ export function WordList({words, onDelete, onEdit, onRefreshExamples}: WordListP
         setEditingId(item.id);
         setDraftWord(item.word);
         setDraftMeaning(item.meaning);
+        setDraftUserExamples(
+            Array.isArray(item.userExamples) ? item.userExamples.join('\n') : ''
+        );
     };
 
     const cancelEditing = () => {
         setEditingId(null);
         setDraftWord('');
         setDraftMeaning('');
+        setDraftUserExamples('');
     };
 
     const saveEditing = async () => {
@@ -81,7 +92,7 @@ export function WordList({words, onDelete, onEdit, onRefreshExamples}: WordListP
         if (!nextWord) {
             return;
         }
-        await onEdit(editingId, nextWord, nextMeaning);
+        await onEdit(editingId, nextWord, nextMeaning, parseExampleLines(draftUserExamples));
         cancelEditing();
     };
 
@@ -115,7 +126,8 @@ export function WordList({words, onDelete, onEdit, onRefreshExamples}: WordListP
                 {words.map((item) => {
                     const isEditing = editingId === item.id;
                     const hasMeaning = Boolean(item.meaning);
-                    const hasExamples = Array.isArray(item.examples) && item.examples.length > 0;
+                    const displayExamples = getDisplayExamples(item);
+                    const hasExamples = displayExamples.length > 0;
 
                     return (
                         <Card
@@ -246,7 +258,7 @@ export function WordList({words, onDelete, onEdit, onRefreshExamples}: WordListP
                                     <Text size="xs" fw={600} c="dimmed">
                                         Examples
                                     </Text>
-                                    {item.examples.map((example, index) => (
+                                    {displayExamples.map((example, index) => (
                                         <Text
                                             key={`${item.id}-example-${index}`}
                                             size="sm"
@@ -294,6 +306,21 @@ export function WordList({words, onDelete, onEdit, onRefreshExamples}: WordListP
                                             minRows={2}
                                             radius="md"
                                             size="sm"
+                                        />
+                                        <Textarea
+                                            label={
+                                                <Text size="xs" fw={600} c="dimmed">
+                                                    Your examples (one per line)
+                                                </Text>
+                                            }
+                                            value={draftUserExamples}
+                                            onChange={(e) =>
+                                                setDraftUserExamples(e.currentTarget.value)
+                                            }
+                                            minRows={2}
+                                            radius="md"
+                                            size="sm"
+                                            placeholder="Add your own example sentences..."
                                         />
                                         <Group justify="flex-end" gap="xs">
                                             <Button

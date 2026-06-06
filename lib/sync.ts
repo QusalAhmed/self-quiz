@@ -4,6 +4,7 @@ function toWritableWord(record: any): WordRecord {
   return {
     ...record,
     examples: Array.isArray(record.examples) ? [...record.examples] : [],
+    userExamples: Array.isArray(record.userExamples) ? [...record.userExamples] : [],
   };
 }
 
@@ -12,6 +13,7 @@ export type RemoteWordRow = {
   word: string;
   meaning: string;
   examples?: string[] | null;
+  user_examples?: string[] | null;
   created_at: string;
   updated_at: string;
   deleted: boolean;
@@ -34,6 +36,7 @@ function mapRowToRecord(row: RemoteWordRow): WordRecord {
     word: row.word,
     meaning: row.meaning,
     examples: Array.isArray(row.examples) ? row.examples : [],
+    userExamples: Array.isArray(row.user_examples) ? row.user_examples : [],
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     isDeleted: row.deleted,
@@ -158,6 +161,7 @@ export async function pushWordToRemote(
       word: record.word,
       meaning: record.meaning,
       examples: record.examples,
+      user_examples: record.userExamples,
       created_at: record.createdAt,
       updated_at: record.updatedAt,
       deleted: record.isDeleted,

@@ -43,6 +43,7 @@ import { QuizPanel, type QuizItem } from '@/components/QuizPanel/QuizPanel';
 import { WordForm } from '@/components/WordForm/WordForm';
 import { WordList } from '@/components/WordList/WordList';
 import { getDatabase, type AppDatabase, type MissedWordRecord, type WordRecord } from '@/lib/db';
+import { getDisplayExamples } from '@/lib/examples';
 import {
   fetchMissingMeanings,
   pullRemoteMissedWords,
@@ -157,6 +158,7 @@ function toMutableWordRecord(record: any): WordRecord {
   return {
     ...record,
     examples: Array.isArray(record.examples) ? [...record.examples] : [],
+    userExamples: Array.isArray(record.userExamples) ? [...record.userExamples] : [],
   } as WordRecord;
 }
 
@@ -243,7 +245,7 @@ export default function HomePage() {
   }, [words, searchQuery]);
 
   const examplesById = useMemo(() => {
-    return new Map(words.map((word) => [word.id, word.examples]));
+    return new Map(words.map((word) => [word.id, getDisplayExamples(word)]));
   }, [words]);
 
   const getExamplesForId = useCallback(
@@ -409,6 +411,7 @@ export default function HomePage() {
             return {
               ...record,
               examples: Array.isArray(record.examples) ? [...record.examples] : [],
+              userExamples: Array.isArray(record.userExamples) ? [...record.userExamples] : [],
             };
           })
         );
@@ -487,17 +490,19 @@ export default function HomePage() {
 
   }, [database, checkCurrentWordMissedStatus]);
 
-  const handleAdd = async (word: string, meaning: string) => {
+  const handleAdd = async (word: string, meaning: string, example: string) => {
     if (!database) {
       return;
     }
 
     const timestamp = new Date().toISOString();
+    const userExamples = example ? [example] : [];
     const record: WordRecord = {
       id: crypto.randomUUID(),
       word: capitalizeWord(word),
       meaning,
       examples: [],
+      userExamples,
       createdAt: timestamp,
       updatedAt: timestamp,
       isDeleted: false,
@@ -629,7 +634,12 @@ export default function HomePage() {
     await pushWordToRemote(database.words, record);
   };
 
-  const handleEdit = async (id: string, word: string, meaning: string) => {
+  const handleEdit = async (
+    id: string,
+    word: string,
+    meaning: string,
+    userExamples: string[]
+  ) => {
     if (!database) {
       return;
     }
@@ -640,15 +650,18 @@ export default function HomePage() {
     }
 
     const timestamp = new Date().toISOString();
+    const current = toMutableWordRecord(doc.toJSON());
     const record = {
-      ...toMutableWordRecord(doc.toJSON()),
+      ...current,
       word,
       meaning,
+      userExamples,
       updatedAt: timestamp,
     };
 
     await database.words.upsert(record);
     await pushWordToRemote(database.words, record);
+    updateQuizQueueExamples(id, getDisplayExamples(record));
   };
 
   const handleRefreshExamples = async (id: string) => {
@@ -708,12 +721,13 @@ export default function HomePage() {
       ...record,
       meaning,
       examples,
+      userExamples: record.userExamples,
       updatedAt: new Date().toISOString(),
     };
 
     await database.words.upsert(updated);
     await pushWordToRemote(database.words, updated);
-    updateQuizQueueExamples(id, examples);
+    updateQuizQueueExamples(id, getDisplayExamples(updated));
   };
 
   const handleReveal = () => {

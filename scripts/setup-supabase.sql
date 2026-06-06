@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS public.words (
   word TEXT NOT NULL,
   meaning TEXT,
   examples JSONB,
+  user_examples JSONB DEFAULT '[]'::jsonb,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   deleted BOOLEAN DEFAULT FALSE
@@ -37,3 +38,6 @@ CREATE POLICY "Allow anonymous update" ON public.words
 CREATE POLICY "Allow anonymous delete" ON public.words
   FOR DELETE
   USING (true);
+
+-- Migration for existing databases
+ALTER TABLE public.words ADD COLUMN IF NOT EXISTS user_examples JSONB DEFAULT '[]'::jsonb;

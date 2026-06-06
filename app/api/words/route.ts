@@ -6,7 +6,7 @@ export const revalidate = 0; // Disable caching for this route
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, word, meaning, examples, created_at, updated_at, deleted } = body;
+    const { id, word, meaning, examples, user_examples, created_at, updated_at, deleted } = body;
 
     if (!id || !word) {
       return NextResponse.json({ error: 'Missing required fields: id and word' }, { status: 400 });
@@ -17,6 +17,7 @@ export async function POST(request: NextRequest) {
       word,
       meaning: meaning || '',
       examples: Array.isArray(examples) ? examples : [],
+      user_examples: Array.isArray(user_examples) ? user_examples : [],
       created_at: created_at || new Date().toISOString(),
       updated_at: updated_at || new Date().toISOString(),
       deleted: deleted || false,

@@ -3,13 +3,14 @@ import { IconPlus } from '@tabler/icons-react';
 import { useRef, useState } from 'react';
 
 type WordFormProps = {
-  onAdd: (word: string, meaning: string) => Promise<void> | void;
+  onAdd: (word: string, meaning: string, example: string) => Promise<void> | void;
   disabled?: boolean;
 };
 
 export function WordForm({ onAdd, disabled }: WordFormProps) {
   const [word, setWord] = useState('');
   const [meaning, setMeaning] = useState('');
+  const [example, setExample] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const wordInputRef = useRef<HTMLInputElement>(null);
 
@@ -25,9 +26,10 @@ export function WordForm({ onAdd, disabled }: WordFormProps) {
 
     setIsSaving(true);
     try {
-      await onAdd(word.trim(), meaning.trim());
+      await onAdd(word.trim(), meaning.trim(), example.trim());
       setWord('');
       setMeaning('');
+      setExample('');
       // Auto-focus the word input after successful submission
       setTimeout(() => {
         wordInputRef.current?.focus();
@@ -96,6 +98,21 @@ export function WordForm({ onAdd, disabled }: WordFormProps) {
             onKeyDown={handleMeaningKeyDown}
             disabled={disabled || isSaving}
             minRows={2.5}
+            size="md"
+            radius="md"
+          />
+
+          <Textarea
+            label={
+              <Text size="xs" fw={600} c="dimmed">
+                Example sentence (optional)
+              </Text>
+            }
+            placeholder="Add your own example using this word..."
+            value={example}
+            onChange={(event) => setExample(event.currentTarget.value)}
+            disabled={disabled || isSaving}
+            minRows={2}
             size="md"
             radius="md"
           />
