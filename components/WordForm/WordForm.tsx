@@ -98,8 +98,9 @@ export function WordForm({ onAdd, disabled }: WordFormProps) {
             onKeyDown={handleMeaningKeyDown}
             disabled={disabled || isSaving}
             minRows={2.5}
-            size="md"
+            size="sm"
             radius="md"
+            autosize
           />
 
           <Textarea
@@ -109,12 +110,14 @@ export function WordForm({ onAdd, disabled }: WordFormProps) {
               </Text>
             }
             placeholder="Add your own example using this word..."
+            autosize
             value={example}
-            onChange={(event) => setExample(event.currentTarget.value)}
+            onChange={(event) => setExample(event.currentTarget.value.replace(/\s+/g, ' ').trim())}
             disabled={disabled || isSaving}
             minRows={2}
-            size="md"
+            size="sm"
             radius="md"
+            onKeyDown={handleMeaningKeyDown}
           />
 
           <Group justify="flex-end" mt="xs">
