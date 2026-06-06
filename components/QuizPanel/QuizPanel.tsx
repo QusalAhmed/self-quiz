@@ -20,7 +20,7 @@ import {
   IconBookmark,
   IconBookmarkOff,
 } from '@tabler/icons-react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 
 export type QuizItem = {
   id: string;
@@ -29,8 +29,11 @@ export type QuizItem = {
   examples?: string[];
 };
 
+export type QuizDirection = 'wordToMeaning' | 'meaningToWord';
+
 type QuizPanelProps = {
   item: QuizItem | null;
+  quizDirection: QuizDirection;
   revealed: boolean;
   onReveal: () => void;
   onMarkMissed: () => void;
@@ -47,6 +50,7 @@ type QuizPanelProps = {
 
 export function QuizPanel({
   item,
+  quizDirection,
   revealed,
   onReveal,
   onMarkMissed,
@@ -67,7 +71,6 @@ export function QuizPanel({
       return;
     }
 
-    // Cancel currently speaking voices
     window.speechSynthesis.cancel();
 
     const utterance = new SpeechSynthesisUtterance(text);
@@ -144,15 +147,145 @@ export function QuizPanel({
     );
   }
 
-  // Calculate visual progress percentage
   const progressPercent =
     totalCount > 0 ? ((currentIndex + (revealed ? 1 : 0)) / totalCount) * 100 : 0;
   const examples = Array.isArray(item?.examples) ? item.examples : [];
+  const isWordToMeaning = quizDirection === 'wordToMeaning';
+
+  const examplesBlock =
+    examples.length > 0 ? (
+      <Stack gap={2}>
+        <Text size="xs" fw={600} c="dimmed" style={{ textAlign: 'center' }}>
+          Examples
+        </Text>
+        {examples.map((example, index) => (
+          <Text
+            key={`${item.id}-quiz-example-${index}`}
+            size="sm"
+            style={{
+              color: 'var(--text-secondary)',
+              lineHeight: 1.5,
+              wordBreak: 'break-word',
+            }}
+          >
+            {`• ${example}`}
+          </Text>
+        ))}
+      </Stack>
+    ) : null;
+
+  const markMissedAction = (
+    <Tooltip label={isMarkedMissed ? 'Unmark missed' : 'Mark as missed'}>
+      <ActionIcon
+        aria-label={isMarkedMissed ? 'Unmark missed' : 'Mark as missed'}
+        variant="subtle"
+        color={isMarkedMissed ? 'teal' : 'red'}
+        size="lg"
+        radius="md"
+        onClick={onMarkMissed}
+      >
+        {isMarkedMissed ? <IconBookmark size={20} /> : <IconBookmarkOff size={20} />}
+      </ActionIcon>
+    </Tooltip>
+  );
+
+  const wordWithActions = (includeMissed: boolean) => (
+    <Group gap="sm" align="center" justify="center">
+      <Title
+        order={1}
+        style={{
+          fontFamily: 'var(--font-title)',
+          fontSize: '2.5rem',
+          fontWeight: 800,
+          letterSpacing: '-0.02em',
+          textAlign: 'center',
+        }}
+      >
+        {item.word}
+      </Title>
+      <Group gap={6}>
+        <ActionIcon
+          aria-label="Speak pronunciation"
+          variant="subtle"
+          color={isPlayingAudio ? 'indigo' : 'gray'}
+          size="lg"
+          radius="md"
+          onClick={() => handleSpeak(item.word)}
+        >
+          <IconVolume size={20} />
+        </ActionIcon>
+        <ActionIcon
+          aria-label="Copy word"
+          variant="subtle"
+          color="gray"
+          size="lg"
+          radius="md"
+          onClick={() => navigator.clipboard.writeText(item.word)}
+        >
+          <IconCopy size={20} />
+        </ActionIcon>
+        {includeMissed && markMissedAction}
+      </Group>
+    </Group>
+  );
+
+  const meaningPrompt = (
+    <Text
+      size="lg"
+      fw={500}
+      style={{
+        color: 'var(--text-secondary)',
+        textAlign: 'center',
+        lineHeight: 1.7,
+        maxWidth: 520,
+        fontSize: '1.35rem',
+      }}
+    >
+      {item.meaning || 'No definition available.'}
+    </Text>
+  );
+
+  const revealButton = (
+    <Button
+      variant="light"
+      color="indigo"
+      onClick={onReveal}
+      size="lg"
+      radius="md"
+      className="btn-pulse"
+      disabled={!isWordToMeaning && !item.meaning}
+      style={{
+        height: '60px',
+        fontSize: '1rem',
+        fontWeight: 600,
+        transition: 'all 0.2s ease',
+      }}
+    >
+      {isWordToMeaning ? 'Show Definition' : 'Show Word'}
+    </Button>
+  );
+
+  const answerCard = (children: ReactNode) => (
+    <Card
+      radius="md"
+      padding="md"
+      style={{
+        background: 'rgba(99, 102, 241, 0.05)',
+        border: '1px solid rgba(99, 102, 241, 0.15)',
+        minHeight: '60px',
+        width: '100%',
+        animation: 'pulse 0.3s ease-out',
+      }}
+    >
+      <Stack gap="sm" style={{ width: '100%' }} align="center">
+        {children}
+      </Stack>
+    </Card>
+  );
 
   return (
     <Card className="glass-panel" radius="lg" padding="xl">
       <Stack gap="xl">
-        {/* Progress Bar Header */}
         {totalCount > 0 && (
           <Stack gap="xs">
             <Group justify="space-between">
@@ -174,129 +307,44 @@ export function QuizPanel({
           </Stack>
         )}
 
-        {/* Word Display Section */}
         <Stack gap="md" align="center" style={{ minHeight: '160px', justify: 'center' }}>
-          <Group gap="sm" align="center">
-            <Title
-              order={1}
-              style={{
-                fontFamily: 'var(--font-title)',
-                fontSize: '2.5rem',
-                fontWeight: 800,
-                letterSpacing: '-0.02em',
-                textAlign: 'center',
-              }}
-            >
-              {item.word}
-            </Title>
-            <Group gap={6}>
-              <ActionIcon
-                aria-label="Speak pronunciation"
-                variant="subtle"
-                color={isPlayingAudio ? 'indigo' : 'gray'}
-                size="lg"
-                radius="md"
-                onClick={() => handleSpeak(item.word)}
-                style={{
-                  transition: 'all 0.2s ease',
-                }}
-              >
-                <IconVolume size={20} />
-              </ActionIcon>
-              <ActionIcon
-                aria-label="Copy word"
-                variant="subtle"
-                color="gray"
-                size="lg"
-                radius="md"
-                onClick={() => navigator.clipboard.writeText(item.word)}
-              >
-                <IconCopy size={20} />
-              </ActionIcon>
-              <Tooltip label={isMarkedMissed ? 'Unmark missed' : 'Mark as missed'}>
-                <ActionIcon
-                  aria-label={isMarkedMissed ? 'Unmark missed' : 'Mark as missed'}
-                  variant="subtle"
-                  color={isMarkedMissed ? 'teal' : 'red'}
-                  size="lg"
-                  radius="md"
-                  onClick={onMarkMissed}
-                >
-                  {isMarkedMissed ? <IconBookmark size={20} /> : <IconBookmarkOff size={20} />}
-                </ActionIcon>
-              </Tooltip>
-            </Group>
-          </Group>
-
-          {/* Meaning Block */}
-          <Stack style={{ width: '100%' }} mt="xs">
-            {revealed ? (
-              <Card
-                radius="md"
-                padding="md"
-                style={{
-                  background: 'rgba(99, 102, 241, 0.05)',
-                  border: '1px solid rgba(99, 102, 241, 0.15)',
-                  minHeight: '60px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  animation: 'pulse 0.3s ease-out',
-                }}
-              >
-                <Stack gap="sm" style={{ width: '100%' }}>
-                  <Text
-                    size="md"
-                    fw={500}
-                    style={{
-                      color: 'var(--text-secondary)',
-                      textAlign: 'center',
-                      lineHeight: 1.6,
-                    }}
-                  >
-                    {item.meaning ? item.meaning : 'No definition available.'}
-                  </Text>
-                  {examples.length > 0 && (
-                    <Stack gap={2}>
-                      <Text size="xs" fw={600} c="dimmed" style={{ textAlign: 'center' }}>
-                        Examples
-                      </Text>
-                      {examples.map((example, index) => (
-                        <Text
-                          key={`${item.id}-quiz-example-${index}`}
-                          size="sm"
-                          style={{
-                            color: 'var(--text-secondary)',
-                            lineHeight: 1.5,
-                            wordBreak: 'break-word',
-                          }}
-                        >
-                          {`• ${example}`}
-                        </Text>
-                      ))}
-                    </Stack>
-                  )}
+          {isWordToMeaning ? (
+            <>
+              {wordWithActions(true)}
+              {!revealed ? (
+                revealButton
+              ) : (
+                answerCard(
+                  <>
+                    <Text
+                      size="md"
+                      fw={500}
+                      style={{
+                        color: 'var(--text-secondary)',
+                        textAlign: 'center',
+                        lineHeight: 1.6,
+                      }}
+                    >
+                      {item.meaning ? item.meaning : 'No definition available.'}
+                    </Text>
+                    {examplesBlock}
+                  </>
+                )
+              )}
+            </>
+          ) : (
+            <>
+              {meaningPrompt}
+              {!revealed ? (
+                revealButton
+              ) : (
+                <Stack gap="md" align="center" style={{ width: '100%' }}>
+                  {wordWithActions(true)}
+                  {examplesBlock}
                 </Stack>
-              </Card>
-            ) : (
-              <Button
-                variant="light"
-                color="indigo"
-                onClick={onReveal}
-                size="lg"
-                radius="md"
-                className="btn-pulse"
-                style={{
-                  height: '60px',
-                  fontSize: '1rem',
-                  fontWeight: 600,
-                  transition: 'all 0.2s ease',
-                }}
-              >
-                Show Definition
-              </Button>
-            )}
-          </Stack>
+              )}
+            </>
+          )}
 
           {revealed && onRefreshExamples && (
             <Group justify="center" mt="xs">
@@ -313,7 +361,6 @@ export function QuizPanel({
           )}
         </Stack>
 
-        {/* Navigation Action Buttons */}
         <Group justify="space-between" mt="lg">
           <Button
             variant="subtle"

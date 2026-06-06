@@ -9,6 +9,7 @@ import {
   Select,
   SegmentedControl,
   Stack,
+  Switch,
   Text,
   TextInput,
   Title,
@@ -40,7 +41,11 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PwaRegister } from '@/components/PwaRegister/PwaRegister';
-import { QuizPanel, type QuizItem } from '@/components/QuizPanel/QuizPanel';
+import {
+  QuizPanel,
+  type QuizDirection,
+  type QuizItem,
+} from '@/components/QuizPanel/QuizPanel';
 import { WordForm } from '@/components/WordForm/WordForm';
 import { WordList } from '@/components/WordList/WordList';
 import { getDatabase, type AppDatabase, type MissedWordRecord, type WordRecord } from '@/lib/db';
@@ -71,9 +76,16 @@ const quizSources = {
   missed: 'Missed Words',
 } as const;
 
+const quizDirections = {
+  wordToMeaning: 'Word → Meaning',
+  meaningToWord: 'Meaning → Word',
+} as const;
+
 type QuizRangeKey = keyof typeof quizRanges;
 
 type QuizSourceKey = keyof typeof quizSources;
+
+type QuizDirectionKey = keyof typeof quizDirections;
 
 function shuffle<T>(items: T[]): T[] {
   const result = [...items];
@@ -202,6 +214,7 @@ export default function HomePage() {
   const [mode, setMode] = useState<'study' | 'quiz'>('study');
   const [quizRange, setQuizRange] = useState<QuizRangeKey>('all');
   const [quizSource, setQuizSource] = useState<QuizSourceKey>('words');
+  const [quizDirection, setQuizDirection] = useState<QuizDirectionKey>('wordToMeaning');
   const [customStart, setCustomStart] = useState<string>(() => getInitialCustomStart());
   const [customEnd, setCustomEnd] = useState<string>(() => getInitialCustomEnd());
   const [quizQueue, setQuizQueue] = useState<QuizItem[]>([]);
@@ -218,6 +231,7 @@ export default function HomePage() {
   const pageSize = 15; // Enhanced list density
   const prevQuizRangeRef = useRef<QuizRangeKey>('all');
   const prevQuizSourceRef = useRef<QuizSourceKey>('words');
+  const prevQuizDirectionRef = useRef<QuizDirectionKey>('wordToMeaning');
   const prevCustomStartRef = useRef<string>(customStart);
   const prevCustomEndRef = useRef<string>(customEnd);
 
@@ -333,6 +347,14 @@ export default function HomePage() {
       resetQuiz();
     }
   }, [quizCandidates.length, resetQuiz, quizQueue.length]);
+
+  useEffect(() => {
+    if (prevQuizDirectionRef.current === quizDirection) {
+      return;
+    }
+    prevQuizDirectionRef.current = quizDirection;
+    setRevealed(false);
+  }, [quizDirection]);
 
   // Reset quiz ONLY when quiz range/source or custom range dates change
   useEffect(() => {
@@ -1198,19 +1220,30 @@ export default function HomePage() {
                   </Grid.Col>
 
                   {quizRange !== 'custom' && (
-                    <Grid.Col span={{ base: 12, sm: 4 }}>
-                      <Button
-                        variant="light"
-                        color="indigo"
-                        fullWidth
-                        size="md"
-                        radius="md"
-                        onClick={resetQuiz}
-                        disabled={quizQueue.length === 0}
-                        leftSection={<IconRotateClockwise size={18} />}
-                      >
-                        Restart Quiz
-                      </Button>
+                    <Grid.Col span={{ base: 12, sm: 12 }}>
+                      <Group gap="lg" align="center" wrap="wrap">
+                        <Button
+                          variant="light"
+                          color="indigo"
+                          size="md"
+                          radius="md"
+                          onClick={resetQuiz}
+                          disabled={quizQueue.length === 0}
+                          leftSection={<IconRotateClockwise size={18} />}
+                        >
+                          Restart Quiz
+                        </Button>
+                        <Switch
+                          label={quizDirections.meaningToWord}
+                          checked={quizDirection === 'meaningToWord'}
+                          onChange={(event) =>
+                            setQuizDirection(
+                              event.currentTarget.checked ? 'meaningToWord' : 'wordToMeaning'
+                            )
+                          }
+                          size="md"
+                        />
+                      </Group>
                     </Grid.Col>
                   )}
                 </Grid>
@@ -1276,17 +1309,29 @@ export default function HomePage() {
                           {quizCandidates.length} word{quizCandidates.length !== 1 ? 's' : ''} in
                           this range
                         </Text>
-                        <Button
-                          variant="light"
-                          color="indigo"
-                          size="sm"
-                          radius="md"
-                          onClick={resetQuiz}
-                          disabled={quizQueue.length === 0}
-                          leftSection={<IconRotateClockwise size={16} />}
-                        >
-                          Restart Quiz
-                        </Button>
+                        <Group gap="md" align="center" wrap="wrap">
+                          <Button
+                            variant="light"
+                            color="indigo"
+                            size="sm"
+                            radius="md"
+                            onClick={resetQuiz}
+                            disabled={quizQueue.length === 0}
+                            leftSection={<IconRotateClockwise size={16} />}
+                          >
+                            Restart Quiz
+                          </Button>
+                          <Switch
+                            label={quizDirections.meaningToWord}
+                            checked={quizDirection === 'meaningToWord'}
+                            onChange={(event) =>
+                              setQuizDirection(
+                                event.currentTarget.checked ? 'meaningToWord' : 'wordToMeaning'
+                              )
+                            }
+                            size="sm"
+                          />
+                        </Group>
                       </Group>
                     </Stack>
                   </div>
@@ -1296,6 +1341,7 @@ export default function HomePage() {
 
             <QuizPanel
               item={currentQuizItem}
+              quizDirection={quizDirection as QuizDirection}
               revealed={revealed}
               onReveal={handleReveal}
               onMarkMissed={handleToggleMissed}
