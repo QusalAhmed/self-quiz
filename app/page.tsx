@@ -1234,14 +1234,15 @@ export default function HomePage() {
                           Restart Quiz
                         </Button>
                         <Switch
-                          label={quizDirections.meaningToWord}
+                            onLabel={<Text size='md' style={{padding: '10px'}}>{quizDirections.meaningToWord}</Text>}
+                            offLabel={<Text size='md' style={{padding: '10px'}}>{quizDirections.wordToMeaning}</Text>}
+                          size="xl"
                           checked={quizDirection === 'meaningToWord'}
                           onChange={(event) =>
                             setQuizDirection(
                               event.currentTarget.checked ? 'meaningToWord' : 'wordToMeaning'
                             )
                           }
-                          size="md"
                         />
                       </Group>
                     </Grid.Col>
