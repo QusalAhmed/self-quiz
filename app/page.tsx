@@ -1221,7 +1221,7 @@ export default function HomePage() {
 
                   {quizRange !== 'custom' && (
                     <Grid.Col span={{ base: 12, sm: 12 }}>
-                      <Group gap="lg" align="center" wrap="wrap">
+                      <Group gap="lg" wrap="wrap" justify={'center'}>
                         <Button
                           variant="light"
                           color="indigo"
@@ -1234,14 +1234,15 @@ export default function HomePage() {
                           Restart Quiz
                         </Button>
                         <Switch
-                          label={quizDirections.meaningToWord}
+                            onLabel={<Text size='md' style={{padding: '10px'}}>{quizDirections.meaningToWord}</Text>}
+                            offLabel={<Text size='md' style={{padding: '10px'}}>{quizDirections.wordToMeaning}</Text>}
+                          size="xl"
                           checked={quizDirection === 'meaningToWord'}
                           onChange={(event) =>
                             setQuizDirection(
                               event.currentTarget.checked ? 'meaningToWord' : 'wordToMeaning'
                             )
                           }
-                          size="md"
                         />
                       </Group>
                     </Grid.Col>
