@@ -2,6 +2,7 @@
 
 import {
   Button,
+  CloseButton,
   Container,
   Group,
   Pagination,
@@ -431,10 +432,10 @@ export default function HomePage() {
       });
 
       console.log('App started: Syncing with remote...');
-      await pullRemoteWords(db.words);
-      await pullRemoteMissedWords(db.missedWords);
-      await pushAllLocalWords(db.words);
       await pushAllLocalMissedWords(db.missedWords);
+      await pullRemoteMissedWords(db.missedWords);
+      await pullRemoteWords(db.words);
+      await pushAllLocalWords(db.words);
 
       if (navigator.onLine) {
         await fetchMissingMeanings(db.words);
@@ -848,10 +849,10 @@ export default function HomePage() {
     }
     console.log('User triggered manual sync...');
     try {
-      await pullRemoteWords(database.words);
-      await pullRemoteMissedWords(database.missedWords);
-      await pushAllLocalWords(database.words);
       await pushAllLocalMissedWords(database.missedWords);
+      await pullRemoteMissedWords(database.missedWords);
+      await pullRemoteWords(database.words);
+      await pushAllLocalWords(database.words);
       await fetchMissingMeanings(database.words);
       await checkCurrentWordMissedStatus();
     } catch (e) {
@@ -1065,6 +1066,18 @@ export default function HomePage() {
                 <TextInput
                   placeholder="Search vocabulary by keyword..."
                   leftSection={<IconSearch size={18} style={{ opacity: 0.55, color: '#a855f7' }} />}
+                  rightSection={
+                    searchQuery ? (
+                      <CloseButton
+                        size="sm"
+                        aria-label="Clear search"
+                        onClick={() => {
+                          setSearchQuery('');
+                          setPage(1);
+                        }}
+                      />
+                    ) : null
+                  }
                   value={searchQuery}
                   size="md"
                   radius="md"

@@ -68,6 +68,114 @@ function isOnline(): boolean {
   return navigator.onLine;
 }
 
+function hasPendingLocalSync(record: { lastSyncedAt: string; updatedAt: string }): boolean {
+  return !record.lastSyncedAt || record.lastSyncedAt < record.updatedAt;
+}
+
+const MISSED_WORD_OUTBOX_KEY = 'self_quiz_missed_word_outbox';
+
+type MissedWordSyncPayload = {
+  id: string;
+  word_id: string;
+  word: string;
+  meaning: string;
+  missed_at: string;
+  missed_count: number;
+  updated_at: string;
+  deleted: boolean;
+};
+
+function missedRecordToPayload(record: MissedWordRecord): MissedWordSyncPayload {
+  return {
+    id: record.id,
+    word_id: record.wordId,
+    word: record.word,
+    meaning: record.meaning,
+    missed_at: record.missedAt,
+    missed_count: record.missedCount,
+    updated_at: record.updatedAt,
+    deleted: record.isDeleted,
+  };
+}
+
+function readMissedWordOutbox(): MissedWordSyncPayload[] {
+  if (typeof window === 'undefined') {
+    return [];
+  }
+  try {
+    const raw = localStorage.getItem(MISSED_WORD_OUTBOX_KEY);
+    if (!raw) {
+      return [];
+    }
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeMissedWordOutbox(items: MissedWordSyncPayload[]): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  localStorage.setItem(MISSED_WORD_OUTBOX_KEY, JSON.stringify(items));
+}
+
+function enqueueMissedWordOutbox(record: MissedWordRecord): void {
+  const payload = missedRecordToPayload(record);
+  const outbox = readMissedWordOutbox().filter((item) => item.id !== payload.id);
+  outbox.push(payload);
+  writeMissedWordOutbox(outbox);
+}
+
+function removeFromMissedWordOutbox(id: string): void {
+  writeMissedWordOutbox(readMissedWordOutbox().filter((item) => item.id !== id));
+}
+
+export async function flushMissedWordOutbox(
+  collection: MissedWordCollection
+): Promise<void> {
+  if (!isOnline()) {
+    return;
+  }
+
+  const outbox = readMissedWordOutbox();
+  if (outbox.length === 0) {
+    return;
+  }
+
+  const failed: MissedWordSyncPayload[] = [];
+  for (const payload of outbox) {
+    try {
+      const response = await fetch('/api/missed-words', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        failed.push(payload);
+        continue;
+      }
+
+      removeFromMissedWordOutbox(payload.id);
+      const existing = await collection.findOne(payload.id).exec();
+      if (existing) {
+        await collection.upsert({
+          ...existing.toJSON(),
+          lastSyncedAt: payload.updated_at,
+        });
+      }
+    } catch {
+      failed.push(payload);
+    }
+  }
+
+  if (failed.length > 0) {
+    writeMissedWordOutbox(failed);
+  }
+}
+
 export async function pullRemoteWords(collection: WordCollection): Promise<void> {
   // Skip if offline
   if (!isOnline()) {
@@ -138,6 +246,16 @@ export async function pullRemoteMissedWords(collection: MissedWordCollection): P
     console.log('Successfully pulled', data.length, 'missed words from remote');
     for (const row of data as RemoteMissedWordRow[]) {
       const mapped = mapMissedRowToRecord(row);
+      const local = await collection.findOne(mapped.id).exec();
+      if (local) {
+        const localRecord = local.toJSON();
+        if (hasPendingLocalSync(localRecord)) {
+          continue;
+        }
+        if (localRecord.updatedAt >= mapped.updatedAt) {
+          continue;
+        }
+      }
       await collection.upsert(mapped);
     }
   } catch (error) {
@@ -194,24 +312,16 @@ export async function pushMissedWordToRemote(
   record: MissedWordRecord
 ): Promise<void> {
   if (!isOnline()) {
+    enqueueMissedWordOutbox(record);
     console.log(
-      'Device is offline, missed word saved locally. Will sync when online:',
+      'Device is offline, missed word queued locally. Will sync when online:',
       record.word
     );
     return;
   }
 
   try {
-    const payload = {
-      id: record.id,
-      word_id: record.wordId,
-      word: record.word,
-      meaning: record.meaning,
-      missed_at: record.missedAt,
-      missed_count: record.missedCount,
-      updated_at: record.updatedAt,
-      deleted: record.isDeleted,
-    };
+    const payload = missedRecordToPayload(record);
 
     console.log('Pushing missed word to remote:', record.word);
     const response = await fetch('/api/missed-words', {
@@ -221,15 +331,18 @@ export async function pushMissedWordToRemote(
     });
 
     if (!response.ok) {
+      enqueueMissedWordOutbox(record);
       console.error('Failed to push missed word to remote:', response.statusText);
       return;
     }
 
+    removeFromMissedWordOutbox(record.id);
     await collection.upsert({
       ...record,
-      lastSyncedAt: new Date().toISOString(),
+      lastSyncedAt: record.updatedAt,
     });
   } catch (error) {
+    enqueueMissedWordOutbox(record);
     console.error('Error pushing missed word to remote:', error);
   }
 }
@@ -268,14 +381,15 @@ export async function pushAllLocalMissedWords(collection: MissedWordCollection):
   }
 
   try {
+    await flushMissedWordOutbox(collection);
+
     console.log('Pushing all missed words to remote...');
     const localWords = await collection.find().exec();
     let syncedCount = 0;
 
     for (const word of localWords) {
       const record = word.toJSON();
-      const shouldSync = !record.lastSyncedAt || record.lastSyncedAt < record.updatedAt;
-      if (shouldSync) {
+      if (hasPendingLocalSync(record)) {
         await pushMissedWordToRemote(collection, record);
         syncedCount++;
       }
@@ -366,10 +480,10 @@ export function setupOnlineSyncListener(
 ): () => void {
   const handleOnline = async () => {
     console.log('Device is back online! Starting sync...');
-    await pullRemoteWords(wordsCollection);
-    await pullRemoteMissedWords(missedCollection);
-    await pushAllLocalWords(wordsCollection);
     await pushAllLocalMissedWords(missedCollection);
+    await pullRemoteMissedWords(missedCollection);
+    await pullRemoteWords(wordsCollection);
+    await pushAllLocalWords(wordsCollection);
     await fetchMissingMeanings(wordsCollection);
     console.log('Sync completed');
   };
