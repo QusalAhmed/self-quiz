@@ -19,50 +19,50 @@ type ExamplesPayload = {
     meaning?: string;
 };
 
-function extractJson(raw: string): string | null {
-    // Strip Markdown code fences if present
-    const text = raw
-        .replace(/^```[a-z]*\s*/i, '')
-        .replace(/\s*```$/i, '')
-        .trim();
-
-    // Try JSON object
-    const objStart = text.indexOf('{');
-    const objEnd = text.lastIndexOf('}');
-    if (objStart !== -1 && objEnd > objStart) {
-        return text.slice(objStart, objEnd + 1);
-    }
-
-    // Try bare JSON array → wrap into object
-    const arrStart = text.indexOf('[');
-    const arrEnd = text.lastIndexOf(']');
-    if (arrStart !== -1 && arrEnd > arrStart) {
-        return `{"examples":${text.slice(arrStart, arrEnd + 1)}}`;
-    }
-
-    return null;
-}
-
-function extractFromLines(text: string): string[] {
-    return text
-        .split(/\n+/)
-        .map((line) =>
-            line
-                .replace(/^```[a-z]*/i, '')
-                .replace(/```/g, '')
-                .replace(/^[-*•]\s*/, '')
-                .replace(/^\d+[.)]\s*/, '')
-                .trim()
-        )
-        .filter((line) => line.length > 4 && !line.startsWith('{') && !line.startsWith('['));
-}
-
-function normalizeExamples(examples: string[]): string[] {
-    const cleaned = examples
-        .map((v) => v.replace(/^[-*\d.\s]+/, '').trim())
-        .filter((v) => v.length > 4);
-    return Array.from(new Set(cleaned)).slice(0, 5);
-}
+// function extractJson(raw: string): string | null {
+//     // Strip Markdown code fences if present
+//     const text = raw
+//         .replace(/^```[a-z]*\s*/i, '')
+//         .replace(/\s*```$/i, '')
+//         .trim();
+//
+//     // Try JSON object
+//     const objStart = text.indexOf('{');
+//     const objEnd = text.lastIndexOf('}');
+//     if (objStart !== -1 && objEnd > objStart) {
+//         return text.slice(objStart, objEnd + 1);
+//     }
+//
+//     // Try bare JSON array → wrap into object
+//     const arrStart = text.indexOf('[');
+//     const arrEnd = text.lastIndexOf(']');
+//     if (arrStart !== -1 && arrEnd > arrStart) {
+//         return `{"examples":${text.slice(arrStart, arrEnd + 1)}}`;
+//     }
+//
+//     return null;
+// }
+//
+// function extractFromLines(text: string): string[] {
+//     return text
+//         .split(/\n+/)
+//         .map((line) =>
+//             line
+//                 .replace(/^```[a-z]*/i, '')
+//                 .replace(/```/g, '')
+//                 .replace(/^[-*•]\s*/, '')
+//                 .replace(/^\d+[.)]\s*/, '')
+//                 .trim()
+//         )
+//         .filter((line) => line.length > 4 && !line.startsWith('{') && !line.startsWith('['));
+// }
+//
+// function normalizeExamples(examples: string[]): string[] {
+//     const cleaned = examples
+//         .map((v) => v.replace(/^[-*\d.\s]+/, '').trim())
+//         .filter((v) => v.length > 4);
+//     return Array.from(new Set(cleaned)).slice(0, 5);
+// }
 
 export async function POST(request: Request) {
     let body: ExamplesPayload | null;
@@ -131,38 +131,39 @@ export async function POST(request: Request) {
 
         // Native endpoint returns the text directly in result.response
         const rawText = data?.result?.response ?? '';
-        console.log('Raw AI response:', JSON.stringify(rawText));
+        console.log('Raw AI response:', NextResponse.json(rawText));
+        return NextResponse.json(rawText)
 
-        let examples: string[] = [];
-
-        // 1. Try JSON extraction
-        const jsonText = extractJson(rawText);
-        if (jsonText) {
-            try {
-                const parsed = JSON.parse(jsonText) as { examples?: unknown };
-                if (Array.isArray(parsed.examples) && parsed.examples.length > 0) {
-                    examples = (parsed.examples as unknown[]).filter(
-                        (s): s is string => typeof s === 'string'
-                    );
-                }
-            } catch {
-                // fall through to line-based extraction
-            }
-        }
-
-        // 2. Line-based fallback
-        if (examples.length === 0 && rawText) {
-            examples = extractFromLines(rawText);
-        }
-
-        const normalized = normalizeExamples(examples);
-
-        if (normalized.length < 1) {
-            console.warn('No usable examples. Raw text was:', JSON.stringify(rawText));
-            return NextResponse.json({error: 'Insufficient examples returned'}, {status: 502});
-        }
-
-        return NextResponse.json({examples: normalized});
+        // let examples: string[] = [];
+        //
+        // // 1. Try JSON extraction
+        // const jsonText = extractJson(rawText);
+        // if (jsonText) {
+        //     try {
+        //         const parsed = JSON.parse(jsonText) as { examples?: unknown };
+        //         if (Array.isArray(parsed.examples) && parsed.examples.length > 0) {
+        //             examples = (parsed.examples as unknown[]).filter(
+        //                 (s): s is string => typeof s === 'string'
+        //             );
+        //         }
+        //     } catch {
+        //         // fall through to line-based extraction
+        //     }
+        // }
+        //
+        // // 2. Line-based fallback
+        // if (examples.length === 0 && rawText) {
+        //     examples = extractFromLines(rawText);
+        // }
+        //
+        // const normalized = normalizeExamples(examples);
+        //
+        // if (normalized.length < 1) {
+        //     console.warn('No usable examples. Raw text was:', JSON.stringify(rawText));
+        //     return NextResponse.json({error: 'Insufficient examples returned'}, {status: 502});
+        // }
+        //
+        // return NextResponse.json({examples: normalized});
     } catch (error) {
         console.error('Error in examples API:', error);
         return NextResponse.json(
