@@ -21,7 +21,7 @@ import {
     IconBookmark,
     IconBookmarkOff,
 } from '@tabler/icons-react';
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 
 export type QuizItem = {
     id: string;
@@ -269,23 +269,23 @@ export function QuizPanel({
         </Button>
     );
 
-    const answerCard = (children: ReactNode) => (
-        <Card
-            radius="md"
-            padding="md"
-            style={{
-                // background: 'rgba(99, 102, 241, 0.05)',
-                // border: '1px solid rgba(99, 102, 241, 0.15)',
-                minHeight: '60px',
-                width: '100%',
-                animation: 'pulse 0.3s ease-out',
-            }}
-        >
-            <Stack gap="sm" style={{width: '100%'}} align="center">
-                {children}
-            </Stack>
-        </Card>
-    );
+    // const answerCard = (children: ReactNode) => (
+    //     <Card
+    //         radius="md"
+    //         padding="md"
+    //         style={{
+    //             background: 'rgba(99, 102, 241, 0.05)',
+    //             border: '1px solid rgba(99, 102, 241, 0.15)',
+    //             minHeight: '60px',
+    //             width: '100%',
+    //             animation: 'pulse 0.3s ease-out',
+    //         }}
+    //     >
+    //         <Stack gap="sm" style={{width: '100%'}} align="center">
+    //             {children}
+    //         </Stack>
+    //     </Card>
+    // );
 
     return (
         <Card className="glass-panel" radius="lg" padding="xl">
@@ -318,7 +318,7 @@ export function QuizPanel({
                             {!revealed ? (
                                 revealButton
                             ) : (
-                                answerCard(
+                                // answerCard(
                                     <>
                                         <Text
                                             size="md"
@@ -333,7 +333,7 @@ export function QuizPanel({
                                         </Text>
                                         {examplesBlock}
                                     </>
-                                )
+                                // )
                             )}
                         </>
                     ) : (
