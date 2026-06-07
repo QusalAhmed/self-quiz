@@ -159,7 +159,7 @@ export function QuizPanel({
                 <Text size="xs" fw={600} c="dimmed" style={{textAlign: 'center'}}>
                     Examples
                 </Text>
-                <ScrollArea.Autosize mah={250} offsetScrollbars scrollbarSize={8} scrollHideDelay={0}>
+                <ScrollArea.Autosize mah={250} offsetScrollbars scrollbarSize={8} scrollHideDelay={500}>
                 {examples.map((example, index) => (
                     <Text
                         key={`${item.id}-quiz-example-${index}`}
@@ -168,9 +168,10 @@ export function QuizPanel({
                             color: 'var(--text-secondary)',
                             lineHeight: 1.5,
                             wordBreak: 'break-word',
+                            display: 'flex'
                         }}
                     >
-                        {`• ${example}`}
+                        {'•'} {example}
                     </Text>
                 ))}
                 </ScrollArea.Autosize>
@@ -273,8 +274,8 @@ export function QuizPanel({
             radius="md"
             padding="md"
             style={{
-                background: 'rgba(99, 102, 241, 0.05)',
-                border: '1px solid rgba(99, 102, 241, 0.15)',
+                // background: 'rgba(99, 102, 241, 0.05)',
+                // border: '1px solid rgba(99, 102, 241, 0.15)',
                 minHeight: '60px',
                 width: '100%',
                 animation: 'pulse 0.3s ease-out',
@@ -364,7 +365,7 @@ export function QuizPanel({
                     )}
                 </Stack>
 
-                <Group justify="space-between" mt="lg">
+                <Group justify="space-between" mt="sm">
                     <Button
                         variant="subtle"
                         color="gray"

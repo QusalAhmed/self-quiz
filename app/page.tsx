@@ -159,7 +159,8 @@ function formatDateTimeLocal(date: Date): string {
 
 function getInitialCustomStart(): string {
   const date = new Date();
-  date.setDate(date.getDate() - 7);
+  date.setDate(date.getDate() - 2);
+  date.setHours(0, 0, 0, 0)
   return formatDateTimeLocal(date);
 }
 
@@ -1323,14 +1324,15 @@ export default function HomePage() {
                             Restart Quiz
                           </Button>
                           <Switch
-                            label={quizDirections.meaningToWord}
-                            checked={quizDirection === 'meaningToWord'}
-                            onChange={(event) =>
-                              setQuizDirection(
-                                event.currentTarget.checked ? 'meaningToWord' : 'wordToMeaning'
-                              )
-                            }
-                            size="sm"
+                              onLabel={<Text size='md' style={{padding: '10px'}}>{quizDirections.meaningToWord}</Text>}
+                              offLabel={<Text size='md' style={{padding: '10px'}}>{quizDirections.wordToMeaning}</Text>}
+                              size="xl"
+                              checked={quizDirection === 'meaningToWord'}
+                              onChange={(event) =>
+                                  setQuizDirection(
+                                      event.currentTarget.checked ? 'meaningToWord' : 'wordToMeaning'
+                                  )
+                              }
                           />
                         </Group>
                       </Group>
