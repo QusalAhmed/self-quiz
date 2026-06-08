@@ -9,7 +9,9 @@ import {
     Title,
     RingProgress,
     Tooltip,
-    ScrollArea
+    ScrollArea,
+    TextInput,
+    Divider
 } from '@mantine/core';
 import {
     IconAward,
@@ -21,7 +23,7 @@ import {
     IconBookmark,
     IconBookmarkOff,
 } from '@tabler/icons-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export type QuizItem = {
     id: string;
@@ -30,7 +32,7 @@ export type QuizItem = {
     examples?: string[];
 };
 
-export type QuizDirection = 'wordToMeaning' | 'meaningToWord';
+export type QuizDirection = 'wordToMeaning' | 'meaningToWord' | 'spelling';
 
 type QuizPanelProps = {
     item: QuizItem | null;
@@ -65,7 +67,9 @@ export function QuizPanel({
                               onRestart,
                               onRefreshExamples,
                           }: QuizPanelProps) {
-    const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+        const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+    const [typedWord, setTypedWord] = useState('');
+    const [spellingState, setSpellingState] = useState<'idle' | 'correct' | 'incorrect'>('idle');
 
     const handleSpeak = (text: string) => {
         if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
@@ -84,6 +88,93 @@ export function QuizPanel({
 
         window.speechSynthesis.speak(utterance);
     };
+
+    // Pronounce word when it loads or direction changes to spelling
+    useEffect(() => {
+        if (quizDirection === 'spelling' && item && !completed && !revealed) {
+            const timer = setTimeout(() => {
+                handleSpeak(item.word);
+            }, 300);
+            return () => clearTimeout(timer);
+        }
+    }, [item?.id, quizDirection]);
+
+    // Reset spelling state on new item or direction change
+    useEffect(() => {
+        setSpellingState('idle');
+        setTypedWord('');
+    }, [item?.id, quizDirection]);
+
+    const handleKeyPress = (key: string) => {
+        if (revealed || completed) return;
+
+        if (key === 'Backspace') {
+            setTypedWord(prev => prev.slice(0, -1));
+        } else if (key === 'Clear') {
+            setTypedWord('');
+        } else if (key === 'Space') {
+            setTypedWord(prev => prev + ' ');
+        } else if (key === 'Enter') {
+            handleCheckSpelling();
+        } else if (key.length === 1 && /^[a-zA-Z]$/.test(key)) {
+            if (typedWord.length < 30) {
+                setTypedWord(prev => prev + key.toLowerCase());
+            }
+        }
+    };
+
+    const handleCheckSpelling = () => {
+        if (!item) return;
+        const isCorrect = typedWord.trim().toLowerCase() === item.word.trim().toLowerCase();
+        setSpellingState(isCorrect ? 'correct' : 'incorrect');
+        if (!isCorrect && !isMarkedMissed) {
+            onMarkMissed();
+        }
+        onReveal();
+    };
+
+    // Keyboard listener for PC users
+    useEffect(() => {
+        if (quizDirection !== 'spelling' || revealed || completed) {
+            return;
+        }
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            const activeEl = document.activeElement;
+            if (activeEl) {
+                const tagName = activeEl.tagName.toLowerCase();
+                if (tagName === 'input' || tagName === 'textarea' || activeEl.hasAttribute('contenteditable')) {
+                    return;
+                }
+            }
+
+            const key = event.key;
+            if (key === 'Backspace') {
+                event.preventDefault();
+                handleKeyPress('Backspace');
+            } else if (key === ' ') {
+                event.preventDefault();
+                handleKeyPress('Space');
+            } else if (key === 'Enter') {
+                event.preventDefault();
+                handleKeyPress('Enter');
+            } else if (/^[a-zA-Z]$/.test(key)) {
+                event.preventDefault();
+                handleKeyPress(key);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [quizDirection, revealed, completed, typedWord]);
+
+    const KEYBOARD_ROWS = [
+        ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
+        ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'],
+        ['z', 'x', 'c', 'v', 'b', 'n', 'm']
+    ];
 
     if (completed) {
         return (
@@ -311,15 +402,230 @@ export function QuizPanel({
                     </Stack>
                 )}
 
-                <Stack gap="md" align="center" style={{minHeight: '160px', justify: 'center'}}>
-                    {isWordToMeaning ? (
+                <Stack gap="md" align="center" style={{minHeight: '160px', justify: 'center', width: '100%'}}>
+                    {quizDirection === 'wordToMeaning' && (
                         <>
                             {wordWithActions(true)}
                             {!revealed ? (
                                 revealButton
                             ) : (
-                                // answerCard(
-                                    <>
+                                <>
+                                    <Text
+                                        size="md"
+                                        fw={500}
+                                        style={{
+                                            color: 'var(--text-secondary)',
+                                            textAlign: 'center',
+                                            lineHeight: 1.6,
+                                        }}
+                                    >
+                                        {item.meaning ? item.meaning : 'No definition available.'}
+                                    </Text>
+                                    {examplesBlock}
+                                </>
+                            )}
+                        </>
+                    )}
+
+                    {quizDirection === 'meaningToWord' && (
+                        <>
+                            {meaningPrompt}
+                            {!revealed ? (
+                                revealButton
+                            ) : (
+                                <Stack gap="md" align="center" style={{width: '100%'}}>
+                                    {wordWithActions(true)}
+                                    {examplesBlock}
+                                </Stack>
+                            )}
+                        </>
+                    )}
+
+                    {quizDirection === 'spelling' && (
+                        <>
+                            {!revealed ? (
+                                <Stack gap="md" align="center" style={{ width: '100%' }}>
+                                    <Card
+                                        radius="md"
+                                        padding="md"
+                                        style={{
+                                            background: 'rgba(99, 102, 241, 0.05)',
+                                            border: '1px solid rgba(99, 102, 241, 0.15)',
+                                            width: '100%',
+                                            maxWidth: '300px',
+                                            cursor: 'pointer',
+                                        }}
+                                        onClick={() => handleSpeak(item.word)}
+                                        className="hover-lift"
+                                    >
+                                        <Group gap="sm" justify="center">
+                                            <ActionIcon
+                                                aria-label="Speak pronunciation"
+                                                variant="gradient"
+                                                gradient={{ from: 'indigo', to: 'purple' }}
+                                                color={isPlayingAudio ? 'indigo' : 'gray'}
+                                                size="lg"
+                                                radius="md"
+                                            >
+                                                <IconVolume size={20}/>
+                                            </ActionIcon>
+                                            <Text fw={600} size="sm" c="indigo">
+                                                {isPlayingAudio ? 'Speaking...' : 'Listen to Word'}
+                                            </Text>
+                                        </Group>
+                                    </Card>
+
+                                    <TextInput
+                                        value={typedWord}
+                                        readOnly
+                                        placeholder="Listen and type..."
+                                        size="lg"
+                                        radius="md"
+                                        style={{ width: '100%', maxWidth: '300px' }}
+                                        styles={{
+                                            input: {
+                                                textAlign: 'center',
+                                                fontSize: '1.5rem',
+                                                fontWeight: 700,
+                                                letterSpacing: '0.05em',
+                                                backgroundColor: 'rgba(0, 0, 0, 0.03)',
+                                                color: 'var(--text-primary)',
+                                                cursor: 'default',
+                                                borderColor: '#6366f1',
+                                                borderStyle: 'dashed',
+                                            }
+                                        }}
+                                    />
+                                    
+                                    <Text size="xs" c="dimmed" style={{ textAlign: 'center' }}>
+                                        Type using physical keyboard or screen keys below.
+                                    </Text>
+
+                                    <Stack gap="xs" style={{ width: '100%', maxWidth: '500px', margin: '0 auto' }} mt="xs">
+                                        {KEYBOARD_ROWS.map((row, rowIndex) => (
+                                            <Group key={rowIndex} gap="xs" justify="center" wrap="nowrap">
+                                                {row.map(key => (
+                                                    <Button
+                                                        key={key}
+                                                        variant="light"
+                                                        color="gray"
+                                                        onClick={() => handleKeyPress(key)}
+                                                        style={{
+                                                            flex: 1,
+                                                            minWidth: '24px',
+                                                            maxWidth: '40px',
+                                                            height: '40px',
+                                                            padding: 0,
+                                                            fontSize: '1.1rem',
+                                                            fontWeight: 600,
+                                                            textTransform: 'uppercase',
+                                                            borderRadius: '6px',
+                                                            border: '1px solid var(--card-border)',
+                                                            background: 'rgba(255, 255, 255, 0.05)',
+                                                            transition: 'all 0.1s ease',
+                                                        }}
+                                                        className="hover-lift"
+                                                    >
+                                                        {key}
+                                                    </Button>
+                                                ))}
+                                            </Group>
+                                        ))}
+                                        <Group gap="xs" justify="center" wrap="nowrap">
+                                            <Button
+                                                variant="light"
+                                                color="red"
+                                                onClick={() => handleKeyPress('Clear')}
+                                                style={{
+                                                    flex: 1.5,
+                                                    height: '40px',
+                                                    fontSize: '0.85rem',
+                                                    fontWeight: 600,
+                                                    borderRadius: '6px',
+                                                }}
+                                            >
+                                                Clear
+                                            </Button>
+                                            <Button
+                                                variant="light"
+                                                color="gray"
+                                                onClick={() => handleKeyPress('Space')}
+                                                style={{
+                                                    flex: 3,
+                                                    height: '40px',
+                                                    fontSize: '0.9rem',
+                                                    fontWeight: 600,
+                                                    borderRadius: '6px',
+                                                }}
+                                            >
+                                                Space
+                                            </Button>
+                                            <Button
+                                                variant="light"
+                                                color="orange"
+                                                onClick={() => handleKeyPress('Backspace')}
+                                                style={{
+                                                    flex: 1.5,
+                                                    height: '40px',
+                                                    fontSize: '0.85rem',
+                                                    fontWeight: 600,
+                                                    borderRadius: '6px',
+                                                }}
+                                            >
+                                                Delete
+                                            </Button>
+                                        </Group>
+                                    </Stack>
+
+                                    <Button
+                                        variant="gradient"
+                                        gradient={{ from: 'indigo', to: 'purple' }}
+                                        onClick={handleCheckSpelling}
+                                        size="lg"
+                                        radius="md"
+                                        className="btn-pulse btn-premium"
+                                        disabled={typedWord.trim().length === 0}
+                                        style={{
+                                            height: '50px',
+                                            fontSize: '1rem',
+                                            fontWeight: 600,
+                                            width: '100%',
+                                            maxWidth: '300px',
+                                            transition: 'all 0.2s ease',
+                                        }}
+                                    >
+                                        Check Spelling
+                                    </Button>
+                                </Stack>
+                            ) : (
+                                <Stack gap="md" align="center" style={{ width: '100%' }}>
+                                    {spellingState === 'correct' ? (
+                                        <Stack gap="xs" align="center" style={{ width: '100%' }}>
+                                            <Text fw={800} c="green.6" size="xl" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.5rem' }}>
+                                                Correct! 🎉
+                                            </Text>
+                                            <Text size="md" c="dimmed" style={{ textAlign: 'center' }}>
+                                                You spelled <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{item.word}</span> correctly.
+                                            </Text>
+                                        </Stack>
+                                    ) : (
+                                        <Stack gap="xs" align="center" style={{ width: '100%' }}>
+                                            <Text fw={800} c="red.6" size="xl" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.5rem' }}>
+                                                Incorrect ❌
+                                            </Text>
+                                            <Text size="md" c="dimmed" style={{ textAlign: 'center' }}>
+                                                Your spelling: <span style={{ color: 'var(--text-primary)', textDecoration: 'line-through', fontWeight: 600 }}>{typedWord || '(empty)'}</span>
+                                            </Text>
+                                            <Text size="md" c="dimmed" style={{ textAlign: 'center' }}>
+                                                Correct spelling: <span style={{ color: '#22c55e', fontWeight: 800, fontSize: '1.25rem' }}>{item.word}</span>
+                                            </Text>
+                                        </Stack>
+                                    )}
+
+                                    <Divider style={{ width: '100%', borderColor: 'var(--card-border)' }} />
+
+                                    <Stack gap="md" align="center" style={{ width: '100%' }}>
+                                        {wordWithActions(true)}
                                         <Text
                                             size="md"
                                             fw={500}
@@ -332,19 +638,7 @@ export function QuizPanel({
                                             {item.meaning ? item.meaning : 'No definition available.'}
                                         </Text>
                                         {examplesBlock}
-                                    </>
-                                // )
-                            )}
-                        </>
-                    ) : (
-                        <>
-                            {meaningPrompt}
-                            {!revealed ? (
-                                revealButton
-                            ) : (
-                                <Stack gap="md" align="center" style={{width: '100%'}}>
-                                    {wordWithActions(true)}
-                                    {examplesBlock}
+                                    </Stack>
                                 </Stack>
                             )}
                         </>
