@@ -79,6 +79,7 @@ const quizSources = {
 const quizDirections = {
   wordToMeaning: 'Word → Meaning',
   meaningToWord: 'Meaning → Word',
+  spelling: 'Spelling Mode',
 } as const;
 
 type QuizRangeKey = keyof typeof quizRanges;
@@ -1182,7 +1183,7 @@ export default function HomePage() {
             >
               <Stack gap="md">
                 <Grid align="flex-end" gap="md">
-                  <Grid.Col span={{ base: 12, sm: 6 }}>
+                  <Grid.Col span={{ base: 12, sm: 4 }}>
                     <Select
                       label={
                         <Text size="xs" fw={700} c="dimmed">
@@ -1201,7 +1202,7 @@ export default function HomePage() {
                     />
                   </Grid.Col>
 
-                  <Grid.Col span={{ base: 12, sm: 6 }}>
+                  <Grid.Col span={{ base: 12, sm: 4 }}>
                     <Select
                       label={
                         <Text size="xs" fw={700} c="dimmed">
@@ -1220,37 +1221,27 @@ export default function HomePage() {
                     />
                   </Grid.Col>
 
-                  {quizRange !== 'custom' && (
-                    <Grid.Col span={{ base: 12, sm: 12 }}>
-                      <Group gap="lg" wrap="wrap" justify={'center'}>
-                        <Button
-                          variant="light"
-                          color="indigo"
-                          size="md"
-                          radius="md"
-                          onClick={resetQuiz}
-                          disabled={quizQueue.length === 0}
-                          leftSection={<IconRotateClockwise size={18} />}
-                        >
-                          Restart Quiz
-                        </Button>
-                        <Switch
-                            onLabel={<Text size='md' style={{padding: '10px'}}>{quizDirections.meaningToWord}</Text>}
-                            offLabel={<Text size='md' style={{padding: '10px'}}>{quizDirections.wordToMeaning}</Text>}
-                          size="xl"
-                          checked={quizDirection === 'meaningToWord'}
-                          onChange={(event) =>
-                            setQuizDirection(
-                              event.currentTarget.checked ? 'meaningToWord' : 'wordToMeaning'
-                            )
-                          }
-                        />
-                      </Group>
-                    </Grid.Col>
-                  )}
+                  <Grid.Col span={{ base: 12, sm: 4 }}>
+                    <Select
+                      label={
+                        <Text size="xs" fw={700} c="dimmed">
+                          QUIZ MODE
+                        </Text>
+                      }
+                      data={Object.entries(quizDirections).map(([value, label]) => ({
+                        value,
+                        label,
+                      }))}
+                      value={quizDirection}
+                      size="md"
+                      radius="md"
+                      onChange={(value) => setQuizDirection((value as QuizDirectionKey) ?? 'wordToMeaning')}
+                      allowDeselect={false}
+                    />
+                  </Grid.Col>
                 </Grid>
 
-                {/* Custom Range date-time pickers */}
+                {/* Custom Date Range pickers */}
                 {quizRange === 'custom' && (
                   <div
                     style={{
@@ -1306,39 +1297,27 @@ export default function HomePage() {
                           />
                         </Grid.Col>
                       </Grid>
-                      <Group justify="space-between" align="center" mt={4}>
-                        <Text size="xs" c="dimmed">
-                          {quizCandidates.length} word{quizCandidates.length !== 1 ? 's' : ''} in
-                          this range
-                        </Text>
-                        <Group gap="md" justify="center" wrap="wrap">
-                          <Button
-                            variant="light"
-                            color="indigo"
-                            size="sm"
-                            radius="md"
-                            onClick={resetQuiz}
-                            disabled={quizQueue.length === 0}
-                            leftSection={<IconRotateClockwise size={16} />}
-                          >
-                            Restart Quiz
-                          </Button>
-                          <Switch
-                              onLabel={<Text size='md' style={{padding: '10px'}}>{quizDirections.meaningToWord}</Text>}
-                              offLabel={<Text size='md' style={{padding: '10px'}}>{quizDirections.wordToMeaning}</Text>}
-                              size="xl"
-                              checked={quizDirection === 'meaningToWord'}
-                              onChange={(event) =>
-                                  setQuizDirection(
-                                      event.currentTarget.checked ? 'meaningToWord' : 'wordToMeaning'
-                                  )
-                              }
-                          />
-                        </Group>
-                      </Group>
                     </Stack>
                   </div>
                 )}
+
+                {/* Restart Quiz and Candidates count info row */}
+                <Group justify="space-between" align="center" mt="xs">
+                  <Text size="xs" c="dimmed">
+                    {quizCandidates.length} word{quizCandidates.length !== 1 ? 's' : ''} in this selection
+                  </Text>
+                  <Button
+                    variant="light"
+                    color="indigo"
+                    size="md"
+                    radius="md"
+                    onClick={resetQuiz}
+                    disabled={quizQueue.length === 0}
+                    leftSection={<IconRotateClockwise size={18} />}
+                  >
+                    Restart Quiz
+                  </Button>
+                </Group>
               </Stack>
             </Card>
 

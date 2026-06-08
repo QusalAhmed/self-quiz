@@ -1,0 +1,14 @@
+Add spelling quize 
+
+In the quize section add button to select quiz mode. 
+
+quize modes are:
+  - word to meaning 
+  - meaning to word
+  - spelling 
+
+
+what is spelling mode:
+Pronunce the word and show disabled input field to write the word.
+Add fully featured keyboard to type the word.
+User can use keyboard to type in pc only, but in mobile phone use soft keyboard. 
