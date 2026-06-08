@@ -87,7 +87,7 @@ export async function POST(request: Request) {
         );
     }
 
-    const model = process.env.CF_AI_MODEL ?? '@cf/moonshotai/kimi-k2.6';
+    const model = '@cf/meta/llama-3.1-8b-instruct';
 
     const messages: CloudflareMessage[] = [
         {

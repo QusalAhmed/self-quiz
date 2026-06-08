@@ -1,5 +1,15 @@
-// Auto-generated at build time — do not edit manually.
-const CACHE_VERSION = 'mq4lnd3j';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const rootDir = path.dirname(fileURLToPath(import.meta.url));
+const buildId =
+  process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 12) ||
+  process.env.GITHUB_SHA?.slice(0, 12) ||
+  Date.now().toString(36);
+
+const swContent = `// Auto-generated at build time — do not edit manually.
+const CACHE_VERSION = '${buildId}';
 const STATIC_CACHE = 'self-quiz-static-' + CACHE_VERSION;
 const RUNTIME_CACHE = 'self-quiz-runtime-' + CACHE_VERSION;
 const PRECACHE_ASSETS = ['/manifest.webmanifest', '/icon.svg', '/favicon.svg'];
@@ -102,3 +112,8 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+`;
+
+const outputPath = path.join(rootDir, '../public/sw.js');
+fs.writeFileSync(outputPath, swContent);
+console.log('Generated service worker with cache version:', buildId);

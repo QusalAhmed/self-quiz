@@ -15,18 +15,22 @@ declare global {
   }
 }
 
+const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
+
+function activateWaitingWorker(registration: ServiceWorkerRegistration) {
+  registration.waiting?.postMessage({ type: 'SKIP_WAITING' });
+}
+
 export function PwaRegister() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
 
   useEffect(() => {
-    // Check if app is already installed
     if (window.matchMedia('(display-mode: standalone)').matches) {
       setIsInstalled(true);
     }
 
-    // Listen for the beforeinstallprompt event
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
@@ -35,20 +39,92 @@ export function PwaRegister() {
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
-    // Register service worker only in production
-    if (process.env.NODE_ENV === 'production' && 'serviceWorker' in navigator) {
-      const register = async () => {
-        try {
-          await navigator.serviceWorker.register('/sw.js');
-        } catch {
-          // Registration failures are non-critical for core app usage.
-        }
-      };
-      register();
-    }
-
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'production' || !('serviceWorker' in navigator)) {
+      return;
+    }
+
+    let registration: ServiceWorkerRegistration | undefined;
+    let updateInterval: number | undefined;
+    let isReloading = false;
+
+    const reloadForUpdate = () => {
+      if (isReloading) {
+        return;
+      }
+      isReloading = true;
+      window.location.reload();
+    };
+
+    const checkForUpdates = () => {
+      void registration?.update().catch(() => {});
+    };
+
+    const onControllerChange = () => {
+      reloadForUpdate();
+    };
+
+    const onFocus = () => {
+      checkForUpdates();
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkForUpdates();
+      }
+    };
+
+    const register = async () => {
+      try {
+        registration = await navigator.serviceWorker.register('/sw.js', {
+          updateViaCache: 'none',
+        });
+
+        if (registration.waiting) {
+          activateWaitingWorker(registration);
+        }
+
+        registration.addEventListener('updatefound', () => {
+          const newWorker = registration?.installing;
+          if (!newWorker) {
+            return;
+          }
+
+          newWorker.addEventListener('statechange', () => {
+            if (
+              newWorker.state === 'installed' &&
+              navigator.serviceWorker.controller &&
+              registration
+            ) {
+              activateWaitingWorker(registration);
+            }
+          });
+        });
+
+        checkForUpdates();
+        updateInterval = window.setInterval(checkForUpdates, UPDATE_CHECK_INTERVAL_MS);
+        navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
+        window.addEventListener('focus', onFocus);
+        document.addEventListener('visibilitychange', onVisibilityChange);
+      } catch {
+        // Registration failures are non-critical for core app usage.
+      }
+    };
+
+    void register();
+
+    return () => {
+      if (updateInterval) {
+        window.clearInterval(updateInterval);
+      }
+      navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
     };
   }, []);
 
