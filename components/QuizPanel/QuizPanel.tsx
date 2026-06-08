@@ -501,7 +501,7 @@ export function QuizPanel({
                                         Type using physical keyboard or screen keys below.
                                     </Text>
 
-                                    <Stack gap="xs" style={{ width: '100%', maxWidth: '500px', margin: '5px' }} mt="xs">
+                                    <Stack gap="xs" style={{ width: '100%', maxWidth: '500px', margin: '0 auto' }} mt="xs">
                                         {KEYBOARD_ROWS.map((row, rowIndex) => (
                                             <Group key={rowIndex} gap="xs" justify="center" wrap="nowrap">
                                                 {row.map(key => (
@@ -512,7 +512,7 @@ export function QuizPanel({
                                                         onClick={() => handleKeyPress(key)}
                                                         style={{
                                                             flex: 1,
-                                                            minWidth: '24px',
+                                                            minWidth: '22px',
                                                             maxWidth: '40px',
                                                             height: '40px',
                                                             padding: 0,
