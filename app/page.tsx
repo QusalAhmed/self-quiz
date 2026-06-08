@@ -1311,7 +1311,7 @@ export default function HomePage() {
                           {quizCandidates.length} word{quizCandidates.length !== 1 ? 's' : ''} in
                           this range
                         </Text>
-                        <Group gap="md" align="center" wrap="wrap">
+                        <Group gap="md" justify="center" wrap="wrap">
                           <Button
                             variant="light"
                             color="indigo"
