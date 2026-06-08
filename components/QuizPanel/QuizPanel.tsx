@@ -23,7 +23,7 @@ import {
     IconBookmark,
     IconBookmarkOff,
 } from '@tabler/icons-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 export type QuizItem = {
     id: string;
@@ -70,6 +70,13 @@ export function QuizPanel({
         const [isPlayingAudio, setIsPlayingAudio] = useState(false);
     const [typedWord, setTypedWord] = useState('');
     const [spellingState, setSpellingState] = useState<'idle' | 'correct' | 'incorrect'>('idle');
+    const quizPanelRef = useRef<HTMLDivElement>(null);
+
+    const scrollToCenter = () => {
+        if (quizPanelRef.current) {
+            quizPanelRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    };
 
     const handleSpeak = (text: string) => {
         if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
@@ -344,7 +351,10 @@ export function QuizPanel({
         <Button
             variant="light"
             color="indigo"
-            onClick={onReveal}
+            onClick={() => {
+                onReveal();
+                scrollToCenter();
+            }}
             size="lg"
             radius="md"
             className="btn-pulse"
@@ -379,7 +389,7 @@ export function QuizPanel({
     // );
 
     return (
-        <Card className="glass-panel" radius="lg" padding="xl">
+        <Card ref={quizPanelRef} className="glass-panel" radius="lg" padding="xl">
             <Stack gap="xl">
                 {totalCount > 0 && (
                     <Stack gap="xs">
@@ -512,7 +522,7 @@ export function QuizPanel({
                                                         onClick={() => handleKeyPress(key)}
                                                         style={{
                                                             flex: 1,
-                                                            minWidth: '22px',
+                                                            minWidth: '24px',
                                                             maxWidth: '40px',
                                                             height: '40px',
                                                             padding: 0,
@@ -580,7 +590,10 @@ export function QuizPanel({
                                     <Button
                                         variant="gradient"
                                         gradient={{ from: 'indigo', to: 'purple' }}
-                                        onClick={handleCheckSpelling}
+                                        onClick={() => {
+                                            handleCheckSpelling();
+                                            scrollToCenter();
+                                        }}
                                         size="lg"
                                         radius="md"
                                         className="btn-pulse btn-premium"
@@ -672,7 +685,10 @@ export function QuizPanel({
                     </Button>
 
                     <Button
-                        onClick={onNext}
+                        onClick={() => {
+                            onNext();
+                            scrollToCenter();
+                        }}
                         className="btn-premium"
                         radius="md"
                         rightSection={<IconChevronRight size={18}/>}
