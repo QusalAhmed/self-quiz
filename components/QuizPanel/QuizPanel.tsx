@@ -501,7 +501,7 @@ export function QuizPanel({
                                         Type using physical keyboard or screen keys below.
                                     </Text>
 
-                                    <Stack gap="xs" style={{ width: '100%', maxWidth: '500px', margin: '0 auto' }} mt="xs">
+                                    <Stack gap="xs" style={{ width: '100%', maxWidth: '500px', margin: '4px auto' }} mt="xs">
                                         {KEYBOARD_ROWS.map((row, rowIndex) => (
                                             <Group key={rowIndex} gap="xs" justify="center" wrap="nowrap">
                                                 {row.map(key => (
@@ -537,7 +537,7 @@ export function QuizPanel({
                                                 color="red"
                                                 onClick={() => handleKeyPress('Clear')}
                                                 style={{
-                                                    flex: 1.5,
+                                                    // flex: 1.5,
                                                     height: '40px',
                                                     fontSize: '0.85rem',
                                                     fontWeight: 600,
@@ -551,7 +551,7 @@ export function QuizPanel({
                                                 color="gray"
                                                 onClick={() => handleKeyPress('Space')}
                                                 style={{
-                                                    flex: 3,
+                                                    // flex: 3,
                                                     height: '40px',
                                                     fontSize: '0.9rem',
                                                     fontWeight: 600,
@@ -565,7 +565,7 @@ export function QuizPanel({
                                                 color="orange"
                                                 onClick={() => handleKeyPress('Backspace')}
                                                 style={{
-                                                    flex: 1.5,
+                                                    // flex: 1.5,
                                                     height: '40px',
                                                     fontSize: '0.85rem',
                                                     fontWeight: 600,
