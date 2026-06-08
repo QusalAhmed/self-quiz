@@ -512,7 +512,7 @@ export function QuizPanel({
                                                         onClick={() => handleKeyPress(key)}
                                                         style={{
                                                             flex: 1,
-                                                            minWidth: '24px',
+                                                            minWidth: '22px',
                                                             maxWidth: '40px',
                                                             height: '40px',
                                                             padding: 0,
