@@ -24,7 +24,6 @@ import {
     IconBookmarkOff,
 } from '@tabler/icons-react';
 import { useState, useEffect, useRef } from 'react';
-// import KeyboardWrapper from "@/components/keyboard/KeyboardWrapper";
 
 export type QuizItem = {
     id: string;
@@ -68,15 +67,14 @@ export function QuizPanel({
                               onRestart,
                               onRefreshExamples,
                           }: QuizPanelProps) {
-    const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+        const [isPlayingAudio, setIsPlayingAudio] = useState(false);
     const [typedWord, setTypedWord] = useState('');
     const [spellingState, setSpellingState] = useState<'idle' | 'correct' | 'incorrect'>('idle');
     const quizPanelRef = useRef<HTMLDivElement>(null);
-    // const keyboard = useRef(null);
 
     const scrollToCenter = () => {
         if (quizPanelRef.current) {
-            quizPanelRef.current.scrollIntoView({behavior: 'smooth', block: 'start'});
+            quizPanelRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
     };
 
@@ -260,20 +258,20 @@ export function QuizPanel({
                     Examples
                 </Text>
                 <ScrollArea.Autosize mah={250} offsetScrollbars scrollbarSize={8} scrollHideDelay={500}>
-                    {examples.map((example, index) => (
-                        <Text
-                            key={`${item.id}-quiz-example-${index}`}
-                            size="sm"
-                            style={{
-                                color: 'var(--text-secondary)',
-                                lineHeight: 1.5,
-                                wordBreak: 'break-word',
-                                display: 'flex'
-                            }}
-                        >
-                            {'•'} {example}
-                        </Text>
-                    ))}
+                {examples.map((example, index) => (
+                    <Text
+                        key={`${item.id}-quiz-example-${index}`}
+                        size="sm"
+                        style={{
+                            color: 'var(--text-secondary)',
+                            lineHeight: 1.5,
+                            wordBreak: 'break-word',
+                            display: 'flex'
+                        }}
+                    >
+                        {'•'} {example}
+                    </Text>
+                ))}
                 </ScrollArea.Autosize>
             </Stack>
         ) : null;
@@ -456,7 +454,7 @@ export function QuizPanel({
                     {quizDirection === 'spelling' && (
                         <>
                             {!revealed ? (
-                                <Stack gap="md" align="center" style={{width: '100%'}}>
+                                <Stack gap="md" align="center" style={{ width: '100%' }}>
                                     <Card
                                         radius="md"
                                         padding="md"
@@ -474,7 +472,7 @@ export function QuizPanel({
                                             <ActionIcon
                                                 aria-label="Speak pronunciation"
                                                 variant="gradient"
-                                                gradient={{from: 'indigo', to: 'purple'}}
+                                                gradient={{ from: 'indigo', to: 'purple' }}
                                                 color={isPlayingAudio ? 'indigo' : 'gray'}
                                                 size="lg"
                                                 radius="md"
@@ -493,7 +491,7 @@ export function QuizPanel({
                                         placeholder="Listen and type..."
                                         size="lg"
                                         radius="md"
-                                        style={{width: '100%', maxWidth: '300px'}}
+                                        style={{ width: '100%', maxWidth: '300px' }}
                                         styles={{
                                             input: {
                                                 textAlign: 'center',
@@ -508,17 +506,12 @@ export function QuizPanel({
                                             }
                                         }}
                                     />
-
-                                    <Text size="xs" c="dimmed" style={{textAlign: 'center'}}>
+                                    
+                                    <Text size="xs" c="dimmed" style={{ textAlign: 'center' }}>
                                         Type using physical keyboard or screen keys below.
                                     </Text>
 
-                                    {/*<KeyboardWrapper*/}
-                                    {/*    keyboardRef={keyboard}*/}
-                                    {/*    onChange={setTypedWord}*/}
-                                    {/*/>*/}
-
-                                    <Stack gap="xs" style={{width: '100%', maxWidth: '500px', margin: '0 auto'}} mt="xs">
+                                    <Stack gap="xs" style={{ width: '100%', maxWidth: '500px', margin: '0 auto' }} mt="xs">
                                         {KEYBOARD_ROWS.map((row, rowIndex) => (
                                             <Group key={rowIndex} gap="xs" justify="center" wrap="nowrap">
                                                 {row.map(key => (
@@ -596,7 +589,7 @@ export function QuizPanel({
 
                                     <Button
                                         variant="gradient"
-                                        gradient={{from: 'indigo', to: 'purple'}}
+                                        gradient={{ from: 'indigo', to: 'purple' }}
                                         onClick={() => {
                                             handleCheckSpelling();
                                             scrollToCenter();
@@ -618,41 +611,33 @@ export function QuizPanel({
                                     </Button>
                                 </Stack>
                             ) : (
-                                <Stack gap="md" align="center" style={{width: '100%'}}>
+                                <Stack gap="md" align="center" style={{ width: '100%' }}>
                                     {spellingState === 'correct' ? (
-                                        <Stack gap="xs" align="center" style={{width: '100%'}}>
-                                            <Text fw={800} c="green.6" size="xl"
-                                                  style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.5rem'}}>
+                                        <Stack gap="xs" align="center" style={{ width: '100%' }}>
+                                            <Text fw={800} c="green.6" size="xl" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.5rem' }}>
                                                 Correct! 🎉
                                             </Text>
-                                            <Text size="md" c="dimmed" style={{textAlign: 'center'}}>
-                                                You spelled <span
-                                                style={{color: 'var(--text-primary)', fontWeight: 700}}>{item.word}</span> correctly.
+                                            <Text size="md" c="dimmed" style={{ textAlign: 'center' }}>
+                                                You spelled <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{item.word}</span> correctly.
                                             </Text>
                                         </Stack>
                                     ) : (
-                                        <Stack gap="xs" align="center" style={{width: '100%'}}>
-                                            <Text fw={800} c="red.6" size="xl"
-                                                  style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.5rem'}}>
+                                        <Stack gap="xs" align="center" style={{ width: '100%' }}>
+                                            <Text fw={800} c="red.6" size="xl" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.5rem' }}>
                                                 Incorrect ❌
                                             </Text>
-                                            <Text size="md" c="dimmed" style={{textAlign: 'center'}}>
-                                                Your spelling: <span style={{
-                                                color: 'var(--text-primary)',
-                                                textDecoration: 'line-through',
-                                                fontWeight: 600
-                                            }}>{typedWord || '(empty)'}</span>
+                                            <Text size="md" c="dimmed" style={{ textAlign: 'center' }}>
+                                                Your spelling: <span style={{ color: 'var(--text-primary)', textDecoration: 'line-through', fontWeight: 600 }}>{typedWord || '(empty)'}</span>
                                             </Text>
-                                            <Text size="md" c="dimmed" style={{textAlign: 'center'}}>
-                                                Correct spelling: <span
-                                                style={{color: '#22c55e', fontWeight: 800, fontSize: '1.25rem'}}>{item.word}</span>
+                                            <Text size="md" c="dimmed" style={{ textAlign: 'center' }}>
+                                                Correct spelling: <span style={{ color: '#22c55e', fontWeight: 800, fontSize: '1.25rem' }}>{item.word}</span>
                                             </Text>
                                         </Stack>
                                     )}
 
-                                    <Divider style={{width: '100%', borderColor: 'var(--card-border)'}}/>
+                                    <Divider style={{ width: '100%', borderColor: 'var(--card-border)' }} />
 
-                                    <Stack gap="md" align="center" style={{width: '100%'}}>
+                                    <Stack gap="md" align="center" style={{ width: '100%' }}>
                                         {wordWithActions(true)}
                                         <Text
                                             size="md"

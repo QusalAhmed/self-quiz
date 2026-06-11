@@ -2,12 +2,14 @@
 
 import {
   Button,
+  CloseButton,
   Container,
   Group,
   Pagination,
   Select,
   SegmentedControl,
   Stack,
+  Switch,
   Text,
   TextInput,
   Title,
@@ -39,10 +41,15 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PwaRegister } from '@/components/PwaRegister/PwaRegister';
-import { QuizPanel, type QuizItem } from '@/components/QuizPanel/QuizPanel';
+import {
+  QuizPanel,
+  type QuizDirection,
+  type QuizItem,
+} from '@/components/QuizPanel/QuizPanel';
 import { WordForm } from '@/components/WordForm/WordForm';
 import { WordList } from '@/components/WordList/WordList';
 import { getDatabase, type AppDatabase, type MissedWordRecord, type WordRecord } from '@/lib/db';
+import { getDisplayExamples } from '@/lib/examples';
 import {
   fetchMissingMeanings,
   pullRemoteMissedWords,
@@ -69,15 +76,15 @@ const quizSources = {
   missed: 'Missed Words',
 } as const;
 
-type QuizRangeKey = keyof typeof quizRanges;
-
-type QuizSourceKey = keyof typeof quizSources;
-
 const quizDirections = {
   wordToMeaning: 'Word → Meaning',
   meaningToWord: 'Meaning → Word',
   spelling: 'Spelling Mode',
 } as const;
+
+type QuizRangeKey = keyof typeof quizRanges;
+
+type QuizSourceKey = keyof typeof quizSources;
 
 type QuizDirectionKey = keyof typeof quizDirections;
 
@@ -153,7 +160,8 @@ function formatDateTimeLocal(date: Date): string {
 
 function getInitialCustomStart(): string {
   const date = new Date();
-  date.setDate(date.getDate() - 7);
+  date.setDate(date.getDate() - 2);
+  date.setHours(0, 0, 0, 0)
   return formatDateTimeLocal(date);
 }
 
@@ -165,6 +173,7 @@ function toMutableWordRecord(record: any): WordRecord {
   return {
     ...record,
     examples: Array.isArray(record.examples) ? [...record.examples] : [],
+    userExamples: Array.isArray(record.userExamples) ? [...record.userExamples] : [],
   } as WordRecord;
 }
 
@@ -208,7 +217,6 @@ export default function HomePage() {
   const [quizRange, setQuizRange] = useState<QuizRangeKey>('all');
   const [quizSource, setQuizSource] = useState<QuizSourceKey>('words');
   const [quizDirection, setQuizDirection] = useState<QuizDirectionKey>('wordToMeaning');
-  const prevQuizDirectionRef = useRef<QuizDirectionKey>('wordToMeaning');
   const [customStart, setCustomStart] = useState<string>(() => getInitialCustomStart());
   const [customEnd, setCustomEnd] = useState<string>(() => getInitialCustomEnd());
   const [quizQueue, setQuizQueue] = useState<QuizItem[]>([]);
@@ -225,6 +233,7 @@ export default function HomePage() {
   const pageSize = 15; // Enhanced list density
   const prevQuizRangeRef = useRef<QuizRangeKey>('all');
   const prevQuizSourceRef = useRef<QuizSourceKey>('words');
+  const prevQuizDirectionRef = useRef<QuizDirectionKey>('wordToMeaning');
   const prevCustomStartRef = useRef<string>(customStart);
   const prevCustomEndRef = useRef<string>(customEnd);
 
@@ -253,7 +262,7 @@ export default function HomePage() {
   }, [words, searchQuery]);
 
   const examplesById = useMemo(() => {
-    return new Map(words.map((word) => [word.id, word.examples]));
+    return new Map(words.map((word) => [word.id, getDisplayExamples(word)]));
   }, [words]);
 
   const getExamplesForId = useCallback(
@@ -341,6 +350,14 @@ export default function HomePage() {
     }
   }, [quizCandidates.length, resetQuiz, quizQueue.length]);
 
+  useEffect(() => {
+    if (prevQuizDirectionRef.current === quizDirection) {
+      return;
+    }
+    prevQuizDirectionRef.current = quizDirection;
+    setRevealed(false);
+  }, [quizDirection]);
+
   // Reset quiz ONLY when quiz range/source or custom range dates change
   useEffect(() => {
     const rangeChanged = prevQuizRangeRef.current !== quizRange;
@@ -391,14 +408,6 @@ export default function HomePage() {
   ]);
 
   useEffect(() => {
-    if (prevQuizDirectionRef.current === quizDirection) {
-      return;
-    }
-    prevQuizDirectionRef.current = quizDirection;
-    setRevealed(false);
-  }, [quizDirection]);
-
-  useEffect(() => {
     let isMounted = true;
     let wordSubscription: { unsubscribe: () => void } | null = null;
     let missedSubscription: { unsubscribe: () => void } | null = null;
@@ -428,7 +437,7 @@ export default function HomePage() {
               ...record,
               examples: Array.isArray(record.examples) ? [...record.examples] : [],
               userExamples: Array.isArray(record.userExamples) ? [...record.userExamples] : [],
-            } as WordRecord;
+            };
           })
         );
         setPage(1);
@@ -447,10 +456,10 @@ export default function HomePage() {
       });
 
       console.log('App started: Syncing with remote...');
-      await pullRemoteWords(db.words);
-      await pullRemoteMissedWords(db.missedWords);
-      await pushAllLocalWords(db.words);
       await pushAllLocalMissedWords(db.missedWords);
+      await pullRemoteMissedWords(db.missedWords);
+      await pullRemoteWords(db.words);
+      await pushAllLocalWords(db.words);
 
       if (navigator.onLine) {
         await fetchMissingMeanings(db.words);
@@ -504,63 +513,21 @@ export default function HomePage() {
       return;
     }
 
-    const handleSyncAndRecheck = async () => {
-      try {
-        await pullRemoteWords(database.words);
-        await pullRemoteMissedWords(database.missedWords);
-        await pushAllLocalWords(database.words);
-        await pushAllLocalMissedWords(database.missedWords);
-        await fetchMissingMeanings(database.words);
-        await checkCurrentWordMissedStatus();
-      } catch (error) {
-        console.error('Error during focus sync:', error);
-      }
-    };
-
-    const handleVisibilityChange = async () => {
-      if (!document.hidden) {
-        console.log(
-          'Page came into focus (visibilitychange): Performing sync and checking database...'
-        );
-        await handleSyncAndRecheck();
-      }
-    };
-
-    const handlePageShow = async () => {
-      console.log('Page show event: Performing sync and checking database...');
-      await handleSyncAndRecheck();
-    };
-
-    const handleWindowFocus = async () => {
-      console.log('Window focus event: Re-checking database for missed status...');
-      await pullRemoteMissedWords(database.missedWords);
-      await pushAllLocalMissedWords(database.missedWords);
-      await checkCurrentWordMissedStatus();
-    };
-
-    // document.addEventListener('visibilitychange', handleVisibilityChange);
-    // window.addEventListener('pageshow', handlePageShow);
-    // window.addEventListener('focus', handleWindowFocus);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('pageshow', handlePageShow);
-      window.removeEventListener('focus', handleWindowFocus);
-    };
   }, [database, checkCurrentWordMissedStatus]);
 
-  const handleAdd = async (word: string, meaning: string) => {
+  const handleAdd = async (word: string, meaning: string, example: string) => {
     if (!database) {
       return;
     }
 
     const timestamp = new Date().toISOString();
+    const userExamples = example ? [example] : [];
     const record: WordRecord = {
       id: crypto.randomUUID(),
       word: capitalizeWord(word),
       meaning,
       examples: [],
-      userExamples: [],
+      userExamples,
       createdAt: timestamp,
       updatedAt: timestamp,
       isDeleted: false,
@@ -692,7 +659,12 @@ export default function HomePage() {
     await pushWordToRemote(database.words, record);
   };
 
-  const handleEdit = async (id: string, word: string, meaning: string) => {
+  const handleEdit = async (
+    id: string,
+    word: string,
+    meaning: string,
+    userExamples: string[]
+  ) => {
     if (!database) {
       return;
     }
@@ -703,15 +675,18 @@ export default function HomePage() {
     }
 
     const timestamp = new Date().toISOString();
+    const current = toMutableWordRecord(doc.toJSON());
     const record = {
-      ...toMutableWordRecord(doc.toJSON()),
+      ...current,
       word,
       meaning,
+      userExamples,
       updatedAt: timestamp,
     };
 
     await database.words.upsert(record);
     await pushWordToRemote(database.words, record);
+    updateQuizQueueExamples(id, getDisplayExamples(record));
   };
 
   const handleRefreshExamples = async (id: string) => {
@@ -771,12 +746,13 @@ export default function HomePage() {
       ...record,
       meaning,
       examples,
+      userExamples: record.userExamples,
       updatedAt: new Date().toISOString(),
     };
 
     await database.words.upsert(updated);
     await pushWordToRemote(database.words, updated);
-    updateQuizQueueExamples(id, examples);
+    updateQuizQueueExamples(id, getDisplayExamples(updated));
   };
 
   const handleReveal = () => {
@@ -897,10 +873,10 @@ export default function HomePage() {
     }
     console.log('User triggered manual sync...');
     try {
-      await pullRemoteWords(database.words);
-      await pullRemoteMissedWords(database.missedWords);
-      await pushAllLocalWords(database.words);
       await pushAllLocalMissedWords(database.missedWords);
+      await pullRemoteMissedWords(database.missedWords);
+      await pullRemoteWords(database.words);
+      await pushAllLocalWords(database.words);
       await fetchMissingMeanings(database.words);
       await checkCurrentWordMissedStatus();
     } catch (e) {
@@ -1114,6 +1090,18 @@ export default function HomePage() {
                 <TextInput
                   placeholder="Search vocabulary by keyword..."
                   leftSection={<IconSearch size={18} style={{ opacity: 0.55, color: '#a855f7' }} />}
+                  rightSection={
+                    searchQuery ? (
+                      <CloseButton
+                        size="sm"
+                        aria-label="Clear search"
+                        onClick={() => {
+                          setSearchQuery('');
+                          setPage(1);
+                        }}
+                      />
+                    ) : null
+                  }
                   value={searchQuery}
                   size="md"
                   radius="md"
@@ -1253,26 +1241,7 @@ export default function HomePage() {
                   </Grid.Col>
                 </Grid>
 
-                {quizRange !== 'custom' && (
-                  <Group justify="space-between" align="center" mt="xs">
-                    <Text size="xs" c="dimmed">
-                      {quizCandidates.length} word{quizCandidates.length !== 1 ? 's' : ''} in this selection
-                    </Text>
-                    <Button
-                      variant="light"
-                      color="indigo"
-                      size="md"
-                      radius="md"
-                      onClick={resetQuiz}
-                      disabled={quizQueue.length === 0}
-                      leftSection={<IconRotateClockwise size={18} />}
-                    >
-                      Restart Quiz
-                    </Button>
-                  </Group>
-                )}
-
-                {/* Custom Range date-time pickers */}
+                {/* Custom Date Range pickers */}
                 {quizRange === 'custom' && (
                   <div
                     style={{
@@ -1328,31 +1297,33 @@ export default function HomePage() {
                           />
                         </Grid.Col>
                       </Grid>
-                      <Group justify="space-between" align="center" mt={4}>
-                        <Text size="xs" c="dimmed">
-                          {quizCandidates.length} word{quizCandidates.length !== 1 ? 's' : ''} in
-                          this range
-                        </Text>
-                        <Button
-                          variant="light"
-                          color="indigo"
-                          size="sm"
-                          radius="md"
-                          onClick={resetQuiz}
-                          disabled={quizQueue.length === 0}
-                          leftSection={<IconRotateClockwise size={16} />}
-                        >
-                          Restart Quiz
-                        </Button>
-                      </Group>
                     </Stack>
                   </div>
                 )}
+
+                {/* Restart Quiz and Candidates count info row */}
+                <Group justify="space-between" align="center" mt="xs">
+                  <Text size="xs" c="dimmed">
+                    {quizCandidates.length} word{quizCandidates.length !== 1 ? 's' : ''} in this selection
+                  </Text>
+                  <Button
+                    variant="light"
+                    color="indigo"
+                    size="md"
+                    radius="md"
+                    onClick={resetQuiz}
+                    disabled={quizQueue.length === 0}
+                    leftSection={<IconRotateClockwise size={18} />}
+                  >
+                    Restart Quiz
+                  </Button>
+                </Group>
               </Stack>
             </Card>
 
             <QuizPanel
               item={currentQuizItem}
+              quizDirection={quizDirection as QuizDirection}
               revealed={revealed}
               onReveal={handleReveal}
               onMarkMissed={handleToggleMissed}
@@ -1365,7 +1336,6 @@ export default function HomePage() {
               totalCount={quizQueue.length}
               onRestart={resetQuiz}
               onRefreshExamples={handleRefreshExamples}
-              quizDirection={quizDirection}
             />
 
             <Card
@@ -1500,27 +1470,27 @@ export default function HomePage() {
                     const severity =
                       count >= 5
                         ? {
-                          color: '#ef4444',
-                          bg: 'rgba(239,68,68,0.08)',
-                          border: 'rgba(239,68,68,0.25)',
-                          label: 'Hot',
-                          badgeColor: 'red' as const,
-                        }
+                            color: '#ef4444',
+                            bg: 'rgba(239,68,68,0.08)',
+                            border: 'rgba(239,68,68,0.25)',
+                            label: 'Hot',
+                            badgeColor: 'red' as const,
+                          }
                         : count >= 3
                           ? {
-                            color: '#f97316',
-                            bg: 'rgba(249,115,22,0.07)',
-                            border: 'rgba(249,115,22,0.2)',
-                            label: 'Warm',
-                            badgeColor: 'orange' as const,
-                          }
+                              color: '#f97316',
+                              bg: 'rgba(249,115,22,0.07)',
+                              border: 'rgba(249,115,22,0.2)',
+                              label: 'Warm',
+                              badgeColor: 'orange' as const,
+                            }
                           : {
-                            color: '#22c55e',
-                            bg: 'rgba(34,197,94,0.06)',
-                            border: 'rgba(34,197,94,0.18)',
-                            label: 'New',
-                            badgeColor: 'teal' as const,
-                          };
+                              color: '#22c55e',
+                              bg: 'rgba(34,197,94,0.06)',
+                              border: 'rgba(34,197,94,0.18)',
+                              label: 'New',
+                              badgeColor: 'teal' as const,
+                            };
 
                     const speakWord = (text: string) => {
                       if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
@@ -1549,73 +1519,73 @@ export default function HomePage() {
                         className="hover-lift"
                       >
                         <div style={{ minWidth: 0 }}>
-                          <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: '1fr auto',
-                            alignItems: 'center',
-                            gap: '12px',
-                          }}>
-                            <Group gap={8} align="center" wrap="wrap" mb={4}>
-                              <Text
-                                fw={700}
-                                size="md"
-                                style={{
-                                  fontFamily: 'var(--font-title)',
-                                  color: 'var(--text-primary)',
-                                  letterSpacing: '-0.01em',
-                                }}
-                              >
-                                {word.word}
-                              </Text>
-                              <Badge
-                                color={severity.badgeColor}
-                                variant="light"
-                                size="xs"
-                                radius="sm"
-                                style={{ fontWeight: 700, fontSize: '10px' }}
-                              >
-                                ×{count} missed
-                              </Badge>
-                            </Group>
-                            <Group gap={4} style={{ flexShrink: 0 }}>
-                              <Tooltip label="Regenerate examples" withArrow>
-                                <ActionIcon
-                                  variant="subtle"
-                                  color="indigo"
-                                  size="md"
-                                  radius="md"
-                                  onClick={() => handleRefreshExamples(word.id)}
-                                  style={{ transition: 'all 0.2s ease' }}
-                                >
-                                  <IconRotateClockwise size={16} />
-                                </ActionIcon>
-                              </Tooltip>
-                              <Tooltip label="Listen to pronunciation" withArrow>
-                                <ActionIcon
-                                  variant="subtle"
-                                  color="gray"
-                                  size="md"
-                                  radius="md"
-                                  onClick={() => speakWord(word.word)}
-                                  style={{ transition: 'all 0.2s ease' }}
-                                >
-                                  <IconVolume size={16} />
-                                </ActionIcon>
-                              </Tooltip>
-                              <Tooltip label="Remove from missed list" withArrow>
-                                <ActionIcon
-                                  variant="subtle"
-                                  color="red"
-                                  size="md"
-                                  radius="md"
-                                  onClick={() => handleUnmarkMissed(word.id)}
-                                  style={{ transition: 'all 0.2s ease' }}
-                                >
-                                  <IconBookmarkOff size={16} />
-                                </ActionIcon>
-                              </Tooltip>
-                            </Group>
-                          </div>
+                            <div style={{
+                                display: 'grid',
+                                gridTemplateColumns: '1fr auto',
+                                alignItems: 'center',
+                                gap: '12px',
+                            }}>
+                                <Group gap={8} align="center" wrap="wrap" mb={4}>
+                                    <Text
+                                        fw={700}
+                                        size="md"
+                                        style={{
+                                            fontFamily: 'var(--font-title)',
+                                            color: 'var(--text-primary)',
+                                            letterSpacing: '-0.01em',
+                                        }}
+                                    >
+                                        {word.word}
+                                    </Text>
+                                    <Badge
+                                        color={severity.badgeColor}
+                                        variant="light"
+                                        size="xs"
+                                        radius="sm"
+                                        style={{ fontWeight: 700, fontSize: '10px' }}
+                                    >
+                                        ×{count} missed
+                                    </Badge>
+                                </Group>
+                                <Group gap={4} style={{ flexShrink: 0 }}>
+                                    <Tooltip label="Regenerate examples" withArrow>
+                                        <ActionIcon
+                                            variant="subtle"
+                                            color="indigo"
+                                            size="md"
+                                            radius="md"
+                                            onClick={() => handleRefreshExamples(word.id)}
+                                            style={{ transition: 'all 0.2s ease' }}
+                                        >
+                                            <IconRotateClockwise size={16} />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                    <Tooltip label="Listen to pronunciation" withArrow>
+                                        <ActionIcon
+                                            variant="subtle"
+                                            color="gray"
+                                            size="md"
+                                            radius="md"
+                                            onClick={() => speakWord(word.word)}
+                                            style={{ transition: 'all 0.2s ease' }}
+                                        >
+                                            <IconVolume size={16} />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                    <Tooltip label="Remove from missed list" withArrow>
+                                        <ActionIcon
+                                            variant="subtle"
+                                            color="red"
+                                            size="md"
+                                            radius="md"
+                                            onClick={() => handleUnmarkMissed(word.id)}
+                                            style={{ transition: 'all 0.2s ease' }}
+                                        >
+                                            <IconBookmarkOff size={16} />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                </Group>
+                            </div>
                           {!hideMissedMeanings || revealedMissedWordIds[word.id] ? (
                             <>
                               <Text

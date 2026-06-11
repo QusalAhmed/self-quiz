@@ -1,8 +1,8 @@
 // Auto-generated at build time — do not edit manually.
-const CACHE_VERSION = 'mq9rkuvc';
+const CACHE_VERSION = 'mq4lnd3j';
 const STATIC_CACHE = 'self-quiz-static-' + CACHE_VERSION;
 const RUNTIME_CACHE = 'self-quiz-runtime-' + CACHE_VERSION;
-const PRECACHE_ASSETS = ['/', '/manifest.webmanifest', '/icon.svg', '/favicon.svg'];
+const PRECACHE_ASSETS = ['/manifest.webmanifest', '/icon.svg', '/favicon.svg'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -66,15 +66,7 @@ self.addEventListener('fetch', (event) => {
 
   if (isNavigationRequest(event.request)) {
     event.respondWith(
-      fetch(event.request)
-        .then((response) => {
-          if (response.ok) {
-            const clone = response.clone();
-            caches.open(STATIC_CACHE).then((cache) => cache.put('/', clone));
-          }
-          return response;
-        })
-        .catch(() => caches.match('/') || caches.match(event.request))
+      fetch(event.request).catch(() => caches.match(event.request))
     );
     return;
   }

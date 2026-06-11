@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { data, error } = await supabase.from('words').select('*');
+    const { data, error } = await supabase.from('words').select('*').eq('deleted', false);
 
     if (error) {
       console.error('Supabase error:', error);
