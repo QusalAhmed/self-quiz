@@ -9,7 +9,6 @@ import {
   Select,
   SegmentedControl,
   Stack,
-  Switch,
   Text,
   TextInput,
   Title,
@@ -1041,7 +1040,7 @@ export default function HomePage() {
           ]}
           fullWidth
           size="md"
-          radius="md"
+          radius="lg"
           className="glass-panel"
           style={{ padding: '4px' }}
         />
