@@ -1,7 +1,7 @@
 'use client';
 
 import { Notification } from '@mantine/core';
-import { IconDownload } from '@tabler/icons-react';
+import { IconDownload, IconRefresh } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 
 interface BeforeInstallPromptEvent extends Event {
@@ -25,6 +25,8 @@ export function PwaRegister() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [showUpdateNotification, setShowUpdateNotification] = useState(false);
+  const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null);
 
   useEffect(() => {
     if (window.matchMedia('(display-mode: standalone)').matches) {
@@ -86,7 +88,8 @@ export function PwaRegister() {
         });
 
         if (registration.waiting) {
-          activateWaitingWorker(registration);
+          setWaitingWorker(registration.waiting);
+          setShowUpdateNotification(true);
         }
 
         registration.addEventListener('updatefound', () => {
@@ -101,7 +104,8 @@ export function PwaRegister() {
               navigator.serviceWorker.controller &&
               registration
             ) {
-              activateWaitingWorker(registration);
+              setWaitingWorker(newWorker);
+              setShowUpdateNotification(true);
             }
           });
         });
@@ -128,6 +132,13 @@ export function PwaRegister() {
     };
   }, []);
 
+  const handleUpdate = () => {
+    if (waitingWorker) {
+      waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+    }
+    setShowUpdateNotification(false);
+  };
+
   const handleInstall = async () => {
     if (!deferredPrompt) {
       return;
@@ -142,35 +153,63 @@ export function PwaRegister() {
     }
   };
 
-  if (isInstalled || !showPrompt) {
-    return null;
-  }
-
   return (
-    <Notification
-      icon={<IconDownload size={18} />}
-      title="Install App"
-      color="blue"
-      onClose={() => setShowPrompt(false)}
-      style={{ position: 'fixed', top: 20, right: 20, zIndex: 1000, maxWidth: 350 }}
-    >
-      Install our app for offline access, instant loading, and a better experience!{' '}
-      <button
-        type="button"
-        onClick={handleInstall}
-        style={{
-          background: 'var(--mantine-color-blue-6)',
-          color: 'white',
-          border: 'none',
-          borderRadius: '4px',
-          padding: '4px 12px',
-          cursor: 'pointer',
-          fontWeight: 500,
-          marginLeft: '8px',
-        }}
-      >
-        Install Now
-      </button>
-    </Notification>
+    <>
+      {showPrompt && !isInstalled && (
+        <Notification
+          icon={<IconDownload size={18} />}
+          title="Install App"
+          color="blue"
+          onClose={() => setShowPrompt(false)}
+          style={{ position: 'fixed', top: 20, right: 20, zIndex: 1000, maxWidth: 350 }}
+        >
+          Install our app for offline access, instant loading, and a better experience!{' '}
+          <button
+            type="button"
+            onClick={handleInstall}
+            style={{
+              background: 'var(--mantine-color-blue-6)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              padding: '4px 12px',
+              cursor: 'pointer',
+              fontWeight: 500,
+              marginLeft: '8px',
+            }}
+          >
+            Install Now
+          </button>
+        </Notification>
+      )}
+
+      {showUpdateNotification && (
+        <Notification
+          icon={<IconRefresh size={18} />}
+          title="Update Available"
+          color="teal"
+          onClose={() => setShowUpdateNotification(false)}
+          style={{ position: 'fixed', bottom: 20, right: 20, zIndex: 1000, maxWidth: 350 }}
+        >
+          A new version is available! Reload now to update.{' '}
+          <button
+            type="button"
+            onClick={handleUpdate}
+            style={{
+              background: 'var(--mantine-color-teal-6)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              padding: '4px 12px',
+              cursor: 'pointer',
+              fontWeight: 500,
+              marginLeft: '8px',
+            }}
+          >
+            Update Now
+          </button>
+        </Notification>
+      )}
+    </>
   );
 }

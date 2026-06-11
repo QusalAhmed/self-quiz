@@ -207,7 +207,16 @@ export async function pullRemoteWords(collection: WordCollection): Promise<void>
     console.log('Successfully pulled', data.length, 'words from remote');
     for (const row of data as RemoteWordRow[]) {
       const mapped = mapRowToRecord(row);
-      // Always upsert to ensure we get latest data from remote
+      const local = await collection.findOne(mapped.id).exec();
+      if (local) {
+        const localRecord = local.toJSON();
+        if (hasPendingLocalSync(localRecord)) {
+          continue;
+        }
+        if (localRecord.updatedAt >= mapped.updatedAt) {
+          continue;
+        }
+      }
       await collection.upsert(mapped);
       console.log('Synced from remote:', mapped.word, '- Meaning:', mapped.meaning);
     }
@@ -505,3 +514,28 @@ export function setupOnlineSyncListener(
 
   return () => {};
 }
+
+/**
+ * Perform a full database synchronization cycle
+ */
+export async function syncData(
+  wordsCollection: WordCollection,
+  missedCollection: MissedWordCollection
+): Promise<void> {
+  if (!isOnline()) {
+    console.log('[Sync] Device is offline, skipping sync');
+    return;
+  }
+  try {
+    console.log('[Sync] Starting manual/focus sync...');
+    await pushAllLocalMissedWords(missedCollection);
+    await pullRemoteMissedWords(missedCollection);
+    await pullRemoteWords(wordsCollection);
+    await pushAllLocalWords(wordsCollection);
+    await fetchMissingMeanings(wordsCollection);
+    console.log('[Sync] Manual/focus sync completed');
+  } catch (error) {
+    console.error('[Sync] Error during manual/focus sync:', error);
+  }
+}
+
