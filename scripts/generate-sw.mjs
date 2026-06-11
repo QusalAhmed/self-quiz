@@ -12,7 +12,8 @@ const swContent = `// Auto-generated at build time — do not edit manually.
 const CACHE_VERSION = '${buildId}';
 const STATIC_CACHE = 'self-quiz-static-' + CACHE_VERSION;
 const RUNTIME_CACHE = 'self-quiz-runtime-' + CACHE_VERSION;
-const PRECACHE_ASSETS = ['/manifest.webmanifest', '/icon.svg', '/favicon.svg'];
+// App shell and critical static assets to precache on install
+const PRECACHE_ASSETS = ['/', '/manifest.webmanifest', '/icon.svg', '/favicon.svg'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -69,18 +70,41 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Let API requests fall through — they will fail gracefully when offline
+  // because the app code already checks navigator.onLine before calling them.
   if (isApiRequest(url)) {
-    event.respondWith(fetch(event.request));
-    return;
-  }
-
-  if (isNavigationRequest(event.request)) {
     event.respondWith(
-      fetch(event.request).catch(() => caches.match(event.request))
+      fetch(event.request).catch(() =>
+        new Response(JSON.stringify({ error: 'offline' }), {
+          status: 503,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      )
     );
     return;
   }
 
+  // Navigation requests (HTML pages): network-first, fall back to cached app shell
+  if (isNavigationRequest(event.request)) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          // Cache the fresh HTML for future offline use
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(STATIC_CACHE).then((cache) => cache.put(event.request, clone));
+          }
+          return response;
+        })
+        .catch(() =>
+          // Try the exact URL first, then fall back to the precached app shell
+          caches.match(event.request).then((cached) => cached || caches.match('/'))
+        )
+    );
+    return;
+  }
+
+  // Next.js static chunks: cache-first (immutable assets with content-hash filenames)
   if (isNextStaticAsset(url)) {
     event.respondWith(
       caches.match(event.request).then((cached) => {
@@ -99,6 +123,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // All other assets: stale-while-revalidate
   event.respondWith(
     caches.match(event.request).then((cached) => {
       const networkFetch = fetch(event.request).then((response) => {
