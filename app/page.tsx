@@ -1392,7 +1392,7 @@ export default function HomePage() {
                       Missed Words
                     </Title>
                     <Text size="xs" c="dimmed" style={{ lineHeight: 1 }}>
-                      {quizDirections[quizDirection]} — words that need more practice
+                      {quizDirections[quizDirection]}
                     </Text>
                   </div>
                   {missedWordsForMode.length > 0 && (
