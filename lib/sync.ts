@@ -1,4 +1,5 @@
-import type { MissedWordCollection, MissedWordRecord, WordCollection, WordRecord } from './db';
+import type { MissedWordCollection, MissedWordRecord, QuizMode, WordCollection, WordRecord } from './db';
+import { buildMissedWordId } from './db';
 
 function toWritableWord(record: any): WordRecord {
   return {
@@ -22,6 +23,7 @@ export type RemoteWordRow = {
 export type RemoteMissedWordRow = {
   id: string;
   word_id: string;
+  quiz_mode?: string | null;
   word: string;
   meaning: string;
   missed_at: string;
@@ -44,10 +46,14 @@ function mapRowToRecord(row: RemoteWordRow): WordRecord {
   };
 }
 
-function mapMissedRowToRecord(row: RemoteMissedWordRow) {
+function mapMissedRowToRecord(row: RemoteMissedWordRow): MissedWordRecord {
+  const quizMode = (row.quiz_mode || 'wordToMeaning') as QuizMode;
+  const wordId = row.word_id;
+  const id = row.id.includes(':') ? row.id : buildMissedWordId(wordId, quizMode);
   return {
-    id: row.id,
-    wordId: row.word_id,
+    id,
+    wordId,
+    quizMode,
     word: row.word,
     meaning: row.meaning,
     missedAt: row.missed_at,
@@ -77,6 +83,7 @@ const MISSED_WORD_OUTBOX_KEY = 'self_quiz_missed_word_outbox';
 type MissedWordSyncPayload = {
   id: string;
   word_id: string;
+  quiz_mode: string;
   word: string;
   meaning: string;
   missed_at: string;
@@ -89,6 +96,7 @@ function missedRecordToPayload(record: MissedWordRecord): MissedWordSyncPayload 
   return {
     id: record.id,
     word_id: record.wordId,
+    quiz_mode: record.quizMode,
     word: record.word,
     meaning: record.meaning,
     missed_at: record.missedAt,
@@ -503,5 +511,5 @@ export function setupOnlineSyncListener(
     };
   }
 
-  return () => {};
+  return () => { };
 }

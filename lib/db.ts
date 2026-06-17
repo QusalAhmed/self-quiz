@@ -23,9 +23,12 @@ export type WordRecord = {
   lastSyncedAt: string;
 };
 
+export type QuizMode = 'wordToMeaning' | 'meaningToWord' | 'spelling';
+
 export type MissedWordRecord = {
   id: string;
   wordId: string;
+  quizMode: QuizMode;
   word: string;
   meaning: string;
   missedAt: string;
@@ -34,6 +37,10 @@ export type MissedWordRecord = {
   lastSyncedAt: string;
   isDeleted: boolean;
 };
+
+export function buildMissedWordId(wordId: string, quizMode: QuizMode): string {
+  return `${wordId}:${quizMode}`;
+}
 
 export type WordCollection = RxCollection<WordRecord>;
 export type MissedWordCollection = RxCollection<MissedWordRecord>;
@@ -80,13 +87,14 @@ const wordSchema: RxJsonSchema<WordRecord> = {
 
 const missedWordSchema: RxJsonSchema<MissedWordRecord> = {
   title: 'missed words schema',
-  version: 0,
+  version: 1,
   description: 'Words the user could not answer in quiz sessions',
   primaryKey: 'id',
   type: 'object',
   properties: {
-    id: { type: 'string', maxLength: 64 },
+    id: { type: 'string', maxLength: 96 },
     wordId: { type: 'string', maxLength: 64 },
+    quizMode: { type: 'string', maxLength: 16 },
     word: { type: 'string', maxLength: 128 },
     meaning: { type: 'string' },
     missedAt: { type: 'string', maxLength: 32 },
@@ -98,6 +106,7 @@ const missedWordSchema: RxJsonSchema<MissedWordRecord> = {
   required: [
     'id',
     'wordId',
+    'quizMode',
     'word',
     'meaning',
     'missedAt',
@@ -106,7 +115,7 @@ const missedWordSchema: RxJsonSchema<MissedWordRecord> = {
     'lastSyncedAt',
     'isDeleted',
   ],
-  indexes: ['word', 'wordId', 'missedAt', 'updatedAt', 'isDeleted'],
+  indexes: ['word', 'wordId', 'quizMode', 'missedAt', 'updatedAt', 'isDeleted'],
 };
 
 if (process.env.NODE_ENV === 'development') {
@@ -148,6 +157,21 @@ async function createDatabase(): Promise<AppDatabase> {
     },
     missedWords: {
       schema: missedWordSchema,
+      migrationStrategies: {
+        1: (oldDoc) => {
+          const wordId = oldDoc.wordId || oldDoc.id;
+          const quizMode = oldDoc.quizMode || 'wordToMeaning';
+          const id = String(oldDoc.id).includes(':')
+            ? oldDoc.id
+            : buildMissedWordId(wordId, quizMode);
+          return {
+            ...oldDoc,
+            id,
+            wordId,
+            quizMode,
+          };
+        },
+      },
     },
   });
 

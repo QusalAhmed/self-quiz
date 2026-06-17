@@ -47,7 +47,7 @@ import {
 } from '@/components/QuizPanel/QuizPanel';
 import { WordForm } from '@/components/WordForm/WordForm';
 import { WordList } from '@/components/WordList/WordList';
-import { getDatabase, type AppDatabase, type MissedWordRecord, type WordRecord } from '@/lib/db';
+import { getDatabase, buildMissedWordId, type AppDatabase, type MissedWordRecord, type WordRecord } from '@/lib/db';
 import { getDisplayExamples } from '@/lib/examples';
 import {
   fetchMissingMeanings,
@@ -293,6 +293,17 @@ export default function HomePage() {
     return words.filter((word) => new Date(word.createdAt) >= todayStart).length;
   }, [words]);
 
+  const missedWordsForMode = useMemo(
+    () => missedWords.filter((word) => word.quizMode === quizDirection),
+    [missedWords, quizDirection]
+  );
+
+  const getCandidateWordId = useCallback(
+    (word: WordRecord | MissedWordRecord) =>
+      quizSource === 'missed' ? (word as MissedWordRecord).wordId : word.id,
+    [quizSource]
+  );
+
   const quizCandidates = useMemo(() => {
     const start = getRangeStart(quizRange, customStart);
     const end = getRangeEnd(quizRange, customEnd);
@@ -302,7 +313,7 @@ export default function HomePage() {
     }
 
     if (quizSource === 'missed') {
-      return missedWords.filter((word) => {
+      return missedWordsForMode.filter((word) => {
         if (quizRange === 'all') {
           return true;
         }
@@ -324,22 +335,25 @@ export default function HomePage() {
       }
       return createdAt >= (start as Date);
     });
-  }, [words, missedWords, quizRange, quizSource, customStart, customEnd]);
+  }, [words, missedWordsForMode, quizRange, quizSource, customStart, customEnd]);
 
   const resetQuiz = useCallback(() => {
     const queue = shuffle(
-      quizCandidates.map((word) => ({
-        id: word.id,
-        word: word.word,
-        meaning: word.meaning,
-        examples: getExamplesForId(word.id),
-      }))
+      quizCandidates.map((word) => {
+        const wordId = getCandidateWordId(word);
+        return {
+          id: wordId,
+          word: word.word,
+          meaning: word.meaning,
+          examples: getExamplesForId(wordId),
+        };
+      })
     );
     setQuizQueue(queue);
     setQuizIndex(0);
     setRevealed(false);
     setCompleted(queue.length === 0);
-  }, [quizCandidates, getExamplesForId]);
+  }, [quizCandidates, getExamplesForId, getCandidateWordId]);
 
   // Initialize quiz when candidates are available, only if quiz is empty
   useEffect(() => {
@@ -353,26 +367,31 @@ export default function HomePage() {
     if (prevQuizDirectionRef.current === quizDirection) {
       return;
     }
-    prevQuizDirectionRef.current = quizDirection;
     setRevealed(false);
   }, [quizDirection]);
 
-  // Reset quiz ONLY when quiz range/source or custom range dates change
+  // Reset quiz when quiz range/source, custom range dates, or quiz mode (for missed source) change
   useEffect(() => {
     const rangeChanged = prevQuizRangeRef.current !== quizRange;
     const sourceChanged = prevQuizSourceRef.current !== quizSource;
     const customStartChanged = prevCustomStartRef.current !== customStart;
     const customEndChanged = prevCustomEndRef.current !== customEnd;
+    const directionChanged = prevQuizDirectionRef.current !== quizDirection;
 
     prevQuizRangeRef.current = quizRange;
     prevQuizSourceRef.current = quizSource;
     prevCustomStartRef.current = customStart;
     prevCustomEndRef.current = customEnd;
+    prevQuizDirectionRef.current = quizDirection;
 
-    if (
-      (!rangeChanged && !sourceChanged && !customStartChanged && !customEndChanged) ||
-      quizQueue.length === 0
-    ) {
+    const poolChanged =
+      rangeChanged ||
+      sourceChanged ||
+      customStartChanged ||
+      customEndChanged ||
+      (directionChanged && quizSource === 'missed');
+
+    if (!poolChanged || quizQueue.length === 0) {
       return;
     }
 
@@ -385,12 +404,15 @@ export default function HomePage() {
 
     console.log('Quiz pool changed, resetting quiz with', quizCandidates.length, 'candidates');
     const queue = shuffle(
-      quizCandidates.map((word) => ({
-        id: word.id,
-        word: word.word,
-        meaning: word.meaning,
-        examples: getExamplesForId(word.id),
-      }))
+      quizCandidates.map((word) => {
+        const wordId = getCandidateWordId(word);
+        return {
+          id: wordId,
+          word: word.word,
+          meaning: word.meaning,
+          examples: getExamplesForId(wordId),
+        };
+      })
     );
     setQuizQueue(queue);
     setQuizIndex(0);
@@ -404,6 +426,8 @@ export default function HomePage() {
     customStart,
     customEnd,
     getExamplesForId,
+    getCandidateWordId,
+    quizDirection,
   ]);
 
   useEffect(() => {
@@ -492,14 +516,15 @@ export default function HomePage() {
       return;
     }
     try {
-      const doc = await database.missedWords.findOne(currentQuizItem.id).exec();
+      const missedId = buildMissedWordId(currentQuizItem.id, quizDirection);
+      const doc = await database.missedWords.findOne(missedId).exec();
       const isMissed = !!doc && !doc.isDeleted;
       setIsCurrentMarkedMissed(isMissed);
       console.log(`[Check Missed Status] Word "${currentQuizItem.word}" is missed: ${isMissed}`);
     } catch (error) {
       console.error('Error checking missed status in DB:', error);
     }
-  }, [database, currentQuizItem]);
+  }, [database, currentQuizItem, quizDirection]);
 
   // Run check when word, database, or missedWords list changes
   useEffect(() => {
@@ -764,7 +789,8 @@ export default function HomePage() {
     }
 
     const timestamp = new Date().toISOString();
-    const existing = await database.missedWords.findOne(currentQuizItem.id).exec();
+    const missedId = buildMissedWordId(currentQuizItem.id, quizDirection);
+    const existing = await database.missedWords.findOne(missedId).exec();
 
     if (existing) {
       const current = existing.toJSON();
@@ -783,8 +809,9 @@ export default function HomePage() {
     }
 
     const record: MissedWordRecord = {
-      id: currentQuizItem.id,
+      id: missedId,
       wordId: currentQuizItem.id,
+      quizMode: quizDirection,
       word: currentQuizItem.word,
       meaning: currentQuizItem.meaning,
       missedAt: timestamp,
@@ -820,12 +847,12 @@ export default function HomePage() {
   };
 
   const handleUnmarkAllMissed = async () => {
-    if (!database || missedWords.length === 0) {
+    if (!database || missedWordsForMode.length === 0) {
       return;
     }
 
     const timestamp = new Date().toISOString();
-    for (const item of missedWords) {
+    for (const item of missedWordsForMode) {
       const record = {
         ...item,
         isDeleted: true,
@@ -841,7 +868,7 @@ export default function HomePage() {
       return;
     }
     if (isCurrentMarkedMissed) {
-      await handleUnmarkMissed(currentQuizItem.id);
+      await handleUnmarkMissed(buildMissedWordId(currentQuizItem.id, quizDirection));
     } else {
       await handleMarkMissed();
     }
@@ -1365,10 +1392,10 @@ export default function HomePage() {
                       Missed Words
                     </Title>
                     <Text size="xs" c="dimmed" style={{ lineHeight: 1 }}>
-                      Words that need more practice
+                      {quizDirections[quizDirection]} — words that need more practice
                     </Text>
                   </div>
-                  {missedWords.length > 0 && (
+                  {missedWordsForMode.length > 0 && (
                     <Badge
                       variant="gradient"
                       gradient={{ from: 'red', to: 'orange' }}
@@ -1376,12 +1403,12 @@ export default function HomePage() {
                       radius="md"
                       style={{ fontWeight: 800 }}
                     >
-                      {missedWords.length}
+                      {missedWordsForMode.length}
                     </Badge>
                   )}
                 </Group>
 
-                {missedWords.length > 0 && (
+                {missedWordsForMode.length > 0 && (
                   <Group gap="xs">
                     <Tooltip
                       label={hideMissedMeanings ? 'Show all meanings' : 'Hide all meanings'}
@@ -1425,7 +1452,7 @@ export default function HomePage() {
                 }}
               />
 
-              {missedWords.length === 0 ? (
+              {missedWordsForMode.length === 0 ? (
                 <div
                   style={{
                     textAlign: 'center',
@@ -1457,39 +1484,39 @@ export default function HomePage() {
                       c="dimmed"
                       style={{ lineHeight: 1.5, maxWidth: 280, margin: '0 auto' }}
                     >
-                      When you bookmark a word as missed during a quiz, it will appear here for
-                      targeted practice.
+                      When you bookmark a word as missed during a quiz in{' '}
+                      {quizDirections[quizDirection]}, it will appear here for targeted practice.
                     </Text>
                   </Stack>
                 </div>
               ) : (
                 <Stack gap="sm">
-                  {missedWords.map((word) => {
+                  {missedWordsForMode.map((word) => {
                     const count = word.missedCount;
                     const severity =
                       count >= 5
                         ? {
-                            color: '#ef4444',
-                            bg: 'rgba(239,68,68,0.08)',
-                            border: 'rgba(239,68,68,0.25)',
-                            label: 'Hot',
-                            badgeColor: 'red' as const,
-                          }
+                          color: '#ef4444',
+                          bg: 'rgba(239,68,68,0.08)',
+                          border: 'rgba(239,68,68,0.25)',
+                          label: 'Hot',
+                          badgeColor: 'red' as const,
+                        }
                         : count >= 3
                           ? {
-                              color: '#f97316',
-                              bg: 'rgba(249,115,22,0.07)',
-                              border: 'rgba(249,115,22,0.2)',
-                              label: 'Warm',
-                              badgeColor: 'orange' as const,
-                            }
+                            color: '#f97316',
+                            bg: 'rgba(249,115,22,0.07)',
+                            border: 'rgba(249,115,22,0.2)',
+                            label: 'Warm',
+                            badgeColor: 'orange' as const,
+                          }
                           : {
-                              color: '#22c55e',
-                              bg: 'rgba(34,197,94,0.06)',
-                              border: 'rgba(34,197,94,0.18)',
-                              label: 'New',
-                              badgeColor: 'teal' as const,
-                            };
+                            color: '#22c55e',
+                            bg: 'rgba(34,197,94,0.06)',
+                            border: 'rgba(34,197,94,0.18)',
+                            label: 'New',
+                            badgeColor: 'teal' as const,
+                          };
 
                     const speakWord = (text: string) => {
                       if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
@@ -1502,7 +1529,7 @@ export default function HomePage() {
                       window.speechSynthesis.speak(utterance);
                     };
 
-                    const missedExamples = getExamplesForId(word.id);
+                    const missedExamples = getExamplesForId(word.wordId);
 
                     return (
                       <div
@@ -1518,73 +1545,73 @@ export default function HomePage() {
                         className="hover-lift"
                       >
                         <div style={{ minWidth: 0 }}>
-                            <div style={{
-                                display: 'grid',
-                                gridTemplateColumns: '1fr auto',
-                                alignItems: 'center',
-                                gap: '12px',
-                            }}>
-                                <Group gap={8} align="center" wrap="wrap" mb={4}>
-                                    <Text
-                                        fw={700}
-                                        size="md"
-                                        style={{
-                                            fontFamily: 'var(--font-title)',
-                                            color: 'var(--text-primary)',
-                                            letterSpacing: '-0.01em',
-                                        }}
-                                    >
-                                        {word.word}
-                                    </Text>
-                                    <Badge
-                                        color={severity.badgeColor}
-                                        variant="light"
-                                        size="xs"
-                                        radius="sm"
-                                        style={{ fontWeight: 700, fontSize: '10px' }}
-                                    >
-                                        ×{count} missed
-                                    </Badge>
-                                </Group>
-                                <Group gap={4} style={{ flexShrink: 0 }}>
-                                    <Tooltip label="Regenerate examples" withArrow>
-                                        <ActionIcon
-                                            variant="subtle"
-                                            color="indigo"
-                                            size="md"
-                                            radius="md"
-                                            onClick={() => handleRefreshExamples(word.id)}
-                                            style={{ transition: 'all 0.2s ease' }}
-                                        >
-                                            <IconRotateClockwise size={16} />
-                                        </ActionIcon>
-                                    </Tooltip>
-                                    <Tooltip label="Listen to pronunciation" withArrow>
-                                        <ActionIcon
-                                            variant="subtle"
-                                            color="gray"
-                                            size="md"
-                                            radius="md"
-                                            onClick={() => speakWord(word.word)}
-                                            style={{ transition: 'all 0.2s ease' }}
-                                        >
-                                            <IconVolume size={16} />
-                                        </ActionIcon>
-                                    </Tooltip>
-                                    <Tooltip label="Remove from missed list" withArrow>
-                                        <ActionIcon
-                                            variant="subtle"
-                                            color="red"
-                                            size="md"
-                                            radius="md"
-                                            onClick={() => handleUnmarkMissed(word.id)}
-                                            style={{ transition: 'all 0.2s ease' }}
-                                        >
-                                            <IconBookmarkOff size={16} />
-                                        </ActionIcon>
-                                    </Tooltip>
-                                </Group>
-                            </div>
+                          <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: '1fr auto',
+                            alignItems: 'center',
+                            gap: '12px',
+                          }}>
+                            <Group gap={8} align="center" wrap="wrap" mb={4}>
+                              <Text
+                                fw={700}
+                                size="md"
+                                style={{
+                                  fontFamily: 'var(--font-title)',
+                                  color: 'var(--text-primary)',
+                                  letterSpacing: '-0.01em',
+                                }}
+                              >
+                                {word.word}
+                              </Text>
+                              <Badge
+                                color={severity.badgeColor}
+                                variant="light"
+                                size="xs"
+                                radius="sm"
+                                style={{ fontWeight: 700, fontSize: '10px' }}
+                              >
+                                ×{count} missed
+                              </Badge>
+                            </Group>
+                            <Group gap={4} style={{ flexShrink: 0 }}>
+                              <Tooltip label="Regenerate examples" withArrow>
+                                <ActionIcon
+                                  variant="subtle"
+                                  color="indigo"
+                                  size="md"
+                                  radius="md"
+                                  onClick={() => handleRefreshExamples(word.id)}
+                                  style={{ transition: 'all 0.2s ease' }}
+                                >
+                                  <IconRotateClockwise size={16} />
+                                </ActionIcon>
+                              </Tooltip>
+                              <Tooltip label="Listen to pronunciation" withArrow>
+                                <ActionIcon
+                                  variant="subtle"
+                                  color="gray"
+                                  size="md"
+                                  radius="md"
+                                  onClick={() => speakWord(word.word)}
+                                  style={{ transition: 'all 0.2s ease' }}
+                                >
+                                  <IconVolume size={16} />
+                                </ActionIcon>
+                              </Tooltip>
+                              <Tooltip label="Remove from missed list" withArrow>
+                                <ActionIcon
+                                  variant="subtle"
+                                  color="red"
+                                  size="md"
+                                  radius="md"
+                                  onClick={() => handleUnmarkMissed(word.id)}
+                                  style={{ transition: 'all 0.2s ease' }}
+                                >
+                                  <IconBookmarkOff size={16} />
+                                </ActionIcon>
+                              </Tooltip>
+                            </Group>
+                          </div>
                           {!hideMissedMeanings || revealedMissedWordIds[word.id] ? (
                             <>
                               <Text
