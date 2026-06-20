@@ -21,6 +21,16 @@ export type WordRecord = {
   updatedAt: string;
   isDeleted: boolean;
   lastSyncedAt: string;
+  customGroups: string[];
+};
+
+export type GroupRecord = {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+  isDeleted: boolean;
+  lastSyncedAt: string;
 };
 
 export type QuizMode = 'wordToMeaning' | 'meaningToWord' | 'spelling';
@@ -44,11 +54,16 @@ export function buildMissedWordId(wordId: string, quizMode: QuizMode): string {
 
 export type WordCollection = RxCollection<WordRecord>;
 export type MissedWordCollection = RxCollection<MissedWordRecord>;
-export type AppDatabase = RxDatabase<{ words: WordCollection; missedWords: MissedWordCollection }>;
+export type GroupCollection = RxCollection<GroupRecord>;
+export type AppDatabase = RxDatabase<{
+  words: WordCollection;
+  missedWords: MissedWordCollection;
+  groups: GroupCollection;
+}>;
 
 const wordSchema: RxJsonSchema<WordRecord> = {
   title: 'word schema',
-  version: 3,
+  version: 5,
   description: 'English word memorization entries',
   primaryKey: 'id',
   type: 'object',
@@ -70,6 +85,11 @@ const wordSchema: RxJsonSchema<WordRecord> = {
     updatedAt: { type: 'string', maxLength: 32 },
     isDeleted: { type: 'boolean', default: false },
     lastSyncedAt: { type: 'string', default: '' },
+    customGroups: {
+      type: 'array',
+      items: { type: 'string' },
+      default: [],
+    },
   },
   required: [
     'id',
@@ -81,8 +101,27 @@ const wordSchema: RxJsonSchema<WordRecord> = {
     'updatedAt',
     'isDeleted',
     'lastSyncedAt',
+    'customGroups',
   ],
   indexes: ['word', 'updatedAt', 'isDeleted'],
+};
+
+const groupSchema: RxJsonSchema<GroupRecord> = {
+  title: 'group schema',
+  version: 1,
+  description: 'Vocabulary word groups',
+  primaryKey: 'id',
+  type: 'object',
+  properties: {
+    id: { type: 'string', maxLength: 64 },
+    name: { type: 'string', maxLength: 128 },
+    createdAt: { type: 'string' },
+    updatedAt: { type: 'string', maxLength: 32 },
+    isDeleted: { type: 'boolean', default: false },
+    lastSyncedAt: { type: 'string', default: '' },
+  },
+  required: ['id', 'name', 'createdAt', 'updatedAt', 'isDeleted', 'lastSyncedAt'],
+  indexes: ['name', 'updatedAt', 'isDeleted'],
 };
 
 const missedWordSchema: RxJsonSchema<MissedWordRecord> = {
@@ -153,6 +192,32 @@ async function createDatabase(): Promise<AppDatabase> {
           ...oldDoc,
           userExamples: Array.isArray(oldDoc.userExamples) ? oldDoc.userExamples : [],
         }),
+        4: (oldDoc) => ({
+          ...oldDoc,
+          customGroup: oldDoc.customGroup || '',
+        }),
+        5: (oldDoc) => {
+          const legacyGroup =
+            typeof oldDoc.customGroup === 'string' ? oldDoc.customGroup.trim() : '';
+          const existingGroups = Array.isArray(oldDoc.customGroups)
+            ? oldDoc.customGroups.filter(
+                (g: unknown) => typeof g === 'string' && g.trim().length > 0
+              )
+            : legacyGroup
+              ? [legacyGroup]
+              : [];
+          const { customGroup: _removed, ...rest } = oldDoc;
+          return {
+            ...rest,
+            customGroups: Array.from(new Set(existingGroups)),
+          };
+        },
+      },
+    },
+    groups: {
+      schema: groupSchema,
+      migrationStrategies: {
+        1: (oldDoc) => ({ ...oldDoc }),
       },
     },
     missedWords: {

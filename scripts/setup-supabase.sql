@@ -41,6 +41,35 @@ CREATE POLICY "Allow anonymous delete" ON public.words
 
 -- Migration for existing databases
 ALTER TABLE public.words ADD COLUMN IF NOT EXISTS user_examples JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.words ADD COLUMN IF NOT EXISTS custom_group TEXT DEFAULT '';
+ALTER TABLE public.words ADD COLUMN IF NOT EXISTS custom_groups JSONB DEFAULT '[]'::jsonb;
+
+-- Create the groups table
+CREATE TABLE IF NOT EXISTS public.groups (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  deleted BOOLEAN DEFAULT FALSE
+);
+
+CREATE INDEX IF NOT EXISTS idx_groups_name ON public.groups(name);
+CREATE INDEX IF NOT EXISTS idx_groups_deleted ON public.groups(deleted);
+CREATE INDEX IF NOT EXISTS idx_groups_updated_at ON public.groups(updated_at);
+
+ALTER TABLE public.groups ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow anonymous select groups" ON public.groups
+  FOR SELECT USING (true);
+
+CREATE POLICY "Allow anonymous insert groups" ON public.groups
+  FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Allow anonymous update groups" ON public.groups
+  FOR UPDATE USING (true);
+
+CREATE POLICY "Allow anonymous delete groups" ON public.groups
+  FOR DELETE USING (true);
 
 -- Create the missed_words table
 CREATE TABLE IF NOT EXISTS public.missed_words (

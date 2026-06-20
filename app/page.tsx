@@ -37,24 +37,41 @@ import {
   IconVolume,
   IconEye,
   IconEyeOff,
+  IconTags,
 } from '@tabler/icons-react';
+import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { GroupManager } from '@/components/GroupManager/GroupManager';
 import { PwaRegister } from '@/components/PwaRegister/PwaRegister';
-import {
-  QuizPanel,
-  type QuizDirection,
-  type QuizItem,
-} from '@/components/QuizPanel/QuizPanel';
+import { QuizPanel, type QuizDirection, type QuizItem } from '@/components/QuizPanel/QuizPanel';
 import { WordForm } from '@/components/WordForm/WordForm';
 import { WordList } from '@/components/WordList/WordList';
-import { getDatabase, buildMissedWordId, type AppDatabase, type MissedWordRecord, type WordRecord } from '@/lib/db';
+import {
+  getDatabase,
+  buildMissedWordId,
+  type AppDatabase,
+  type GroupRecord,
+  type MissedWordRecord,
+  type WordRecord,
+} from '@/lib/db';
 import { getDisplayExamples } from '@/lib/examples';
 import {
+  getActiveGroupNames,
+  getWordGroups,
+  removeGroupFromWordGroups,
+  replaceGroupInWordGroups,
+  wordHasAnyGroup,
+  wordHasGroup,
+} from '@/lib/groups';
+import {
   fetchMissingMeanings,
+  pullRemoteGroups,
   pullRemoteMissedWords,
   pullRemoteWords,
+  pushAllLocalGroups,
   pushAllLocalMissedWords,
   pushAllLocalWords,
+  pushGroupToRemote,
   pushMissedWordToRemote,
   pushWordToRemote,
   setupOnlineSyncListener,
@@ -160,7 +177,7 @@ function formatDateTimeLocal(date: Date): string {
 function getInitialCustomStart(): string {
   const date = new Date();
   date.setDate(date.getDate() - 2);
-  date.setHours(0, 0, 0, 0)
+  date.setHours(0, 0, 0, 0);
   return formatDateTimeLocal(date);
 }
 
@@ -173,6 +190,7 @@ function toMutableWordRecord(record: any): WordRecord {
     ...record,
     examples: Array.isArray(record.examples) ? [...record.examples] : [],
     userExamples: Array.isArray(record.userExamples) ? [...record.userExamples] : [],
+    customGroups: getWordGroups(record),
   } as WordRecord;
 }
 
@@ -207,9 +225,197 @@ async function requestExamples(word: string, meaning: string): Promise<string[]>
     : [];
 }
 
+// ---------------------------------------------------------------------------
+// Virtualized missed-word list
+// ---------------------------------------------------------------------------
+
+interface MissedWordVirtualListProps {
+  words: MissedWordRecord[];
+  hideMissedMeanings: boolean;
+  revealedMissedWordIds: Record<string, boolean>;
+  onRevealMissedWord: (id: string) => void;
+  getExamplesForId: (id: string) => string[];
+  onRefreshExamples: (id: string) => void;
+  onUnmarkMissed: (id: string) => void;
+}
+
+function MissedWordVirtualList({
+  words,
+  hideMissedMeanings,
+  revealedMissedWordIds,
+  onRevealMissedWord,
+  getExamplesForId,
+  onRefreshExamples,
+  onUnmarkMissed,
+}: MissedWordVirtualListProps) {
+  const listRef = useRef<HTMLDivElement>(null);
+
+  const rowVirtualizer = useWindowVirtualizer({
+    count: words.length,
+    estimateSize: () => 108, // estimated row height + 8px gap
+    overscan: 5,
+    scrollMargin: listRef.current?.offsetTop ?? 0,
+  });
+
+  const speakWord = (text: string) => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'en-US';
+    utterance.rate = 0.9;
+    window.speechSynthesis.speak(utterance);
+  };
+
+  return (
+    <div ref={listRef}>
+      <div
+        style={{
+          height: `${rowVirtualizer.getTotalSize()}px`,
+          position: 'relative',
+        }}
+      >
+        {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+          const word = words[virtualRow.index];
+          const count = word.missedCount;
+          const severity =
+            count >= 5
+              ? { color: '#ef4444', bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.25)', badgeColor: 'red' as const }
+              : count >= 3
+                ? { color: '#f97316', bg: 'rgba(249,115,22,0.07)', border: 'rgba(249,115,22,0.2)', badgeColor: 'orange' as const }
+                : { color: '#22c55e', bg: 'rgba(34,197,94,0.06)', border: 'rgba(34,197,94,0.18)', badgeColor: 'teal' as const };
+
+          const missedExamples = getExamplesForId(word.wordId);
+          const isRevealed = !hideMissedMeanings || revealedMissedWordIds[word.id];
+
+          return (
+            <div
+              key={word.id}
+              data-index={virtualRow.index}
+              ref={rowVirtualizer.measureElement}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                // subtract scrollMargin so items are positioned relative to listRef, not window top
+                transform: `translateY(${virtualRow.start - rowVirtualizer.options.scrollMargin}px)`,
+                paddingBottom: '8px',
+              }}
+            >
+              <div
+                style={{
+                  borderRadius: '12px',
+                  border: `1px solid ${severity.border}`,
+                  borderLeft: `4px solid ${severity.color}`,
+                  background: severity.bg,
+                  padding: '12px 16px',
+                  transition: 'all 0.2s cubic-bezier(0.4,0,0.2,1)',
+                }}
+                className="hover-lift"
+              >
+                <div style={{ minWidth: 0 }}>
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1fr auto',
+                      alignItems: 'center',
+                      gap: '12px',
+                    }}
+                  >
+                    <Group gap={8} align="center" wrap="wrap" mb={4}>
+                      <Text
+                        fw={700}
+                        size="md"
+                        style={{
+                          fontFamily: 'var(--font-title)',
+                          color: 'var(--text-primary)',
+                          letterSpacing: '-0.01em',
+                        }}
+                      >
+                        {word.word}
+                      </Text>
+                      <Badge
+                        color={severity.badgeColor}
+                        variant="light"
+                        size="xs"
+                        radius="sm"
+                        style={{ fontWeight: 700, fontSize: '10px' }}
+                      >
+                        ×{count} missed
+                      </Badge>
+                    </Group>
+
+                    <Group gap={4} style={{ flexShrink: 0 }}>
+                      <Tooltip label="Regenerate examples" withArrow>
+                        <ActionIcon variant="subtle" color="indigo" size="md" radius="md"
+                          onClick={() => onRefreshExamples(word.wordId)}
+                          style={{ transition: 'all 0.2s ease' }}>
+                          <IconRotateClockwise size={16} />
+                        </ActionIcon>
+                      </Tooltip>
+                      <Tooltip label="Listen to pronunciation" withArrow>
+                        <ActionIcon variant="subtle" color="gray" size="md" radius="md"
+                          onClick={() => speakWord(word.word)}
+                          style={{ transition: 'all 0.2s ease' }}>
+                          <IconVolume size={16} />
+                        </ActionIcon>
+                      </Tooltip>
+                      <Tooltip label="Remove from missed list" withArrow>
+                        <ActionIcon variant="subtle" color="red" size="md" radius="md"
+                          onClick={() => onUnmarkMissed(word.id)}
+                          style={{ transition: 'all 0.2s ease' }}>
+                          <IconBookmarkOff size={16} />
+                        </ActionIcon>
+                      </Tooltip>
+                    </Group>
+                  </div>
+
+                  {isRevealed ? (
+                    <>
+                      <Text size="sm" style={{ color: 'var(--text-secondary)', lineHeight: 1.5, wordBreak: 'break-word' }}>
+                        {word.meaning || (
+                          <span style={{ fontStyle: 'italic', opacity: 0.55 }}>No definition available</span>
+                        )}
+                      </Text>
+                      {missedExamples.length > 0 && (
+                        <Stack gap={2} mt={6}>
+                          <Text size="xs" fw={600} c="dimmed">Examples</Text>
+                          {missedExamples.map((example, index) => (
+                            <Text
+                              key={`${word.id}-virt-ex-${index}`}
+                              size="sm"
+                              style={{ color: 'var(--text-secondary)', lineHeight: 1.5, wordBreak: 'break-word' }}
+                            >
+                              {`• ${example}`}
+                            </Text>
+                          ))}
+                        </Stack>
+                      )}
+                    </>
+                  ) : (
+                    <Button
+                      variant="subtle" color="indigo" size="xs" radius="sm"
+                      onClick={() => onRevealMissedWord(word.id)}
+                      leftSection={<IconEye size={12} />}
+                      style={{ fontSize: '11px', height: '22px', paddingLeft: '8px', paddingRight: '8px', display: 'inline-flex', marginTop: '4px' }}
+                    >
+                      Show Definition
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function HomePage() {
   const [database, setDatabase] = useState<AppDatabase | null>(null);
   const [words, setWords] = useState<WordRecord[]>([]);
+  const [groups, setGroups] = useState<GroupRecord[]>([]);
   const [missedWords, setMissedWords] = useState<MissedWordRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [mode, setMode] = useState<'study' | 'quiz'>('study');
@@ -225,6 +431,13 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
 
+  // Custom Groups states
+  const [groupManagerOpen, setGroupManagerOpen] = useState(false);
+  const [groupFilter, setGroupFilter] = useState<string>('all');
+  const [quizGroupFilter, setQuizGroupFilter] = useState<string>('all');
+
+  const customGroups = useMemo(() => getActiveGroupNames(groups), [groups]);
+
   // Custom states for UI Enhancements
   const { colorScheme, setColorScheme } = useMantineColorScheme();
   const [onlineStatus, setOnlineStatus] = useState(true);
@@ -235,6 +448,147 @@ export default function HomePage() {
   const prevQuizDirectionRef = useRef<QuizDirectionKey>('wordToMeaning');
   const prevCustomStartRef = useRef<string>(customStart);
   const prevCustomEndRef = useRef<string>(customEnd);
+  const prevQuizGroupFilterRef = useRef<string>('all');
+
+  const ensureGroupExists = useCallback(
+    async (groupName: string) => {
+      if (!database) {
+        return;
+      }
+
+      const trimmed = groupName.trim();
+      if (!trimmed) {
+        return;
+      }
+
+      const existing = groups.find((g) => !g.isDeleted && g.name === trimmed);
+      if (existing) {
+        return;
+      }
+
+      const timestamp = new Date().toISOString();
+      const record: GroupRecord = {
+        id: crypto.randomUUID(),
+        name: trimmed,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        isDeleted: false,
+        lastSyncedAt: '',
+      };
+
+      await database.groups.upsert(record);
+      await pushGroupToRemote(database.groups, record);
+    },
+    [database, groups]
+  );
+
+  const handleAddCustomGroup = useCallback(
+    (newGroup: string) => {
+      void ensureGroupExists(newGroup);
+    },
+    [ensureGroupExists]
+  );
+
+  const handleRenameGroup = useCallback(
+    async (id: string, newName: string) => {
+      if (!database) {
+        return;
+      }
+
+      const trimmed = newName.trim();
+      if (!trimmed) {
+        return;
+      }
+
+      const groupDoc = await database.groups.findOne(id).exec();
+      if (!groupDoc || groupDoc.isDeleted) {
+        return;
+      }
+
+      const oldName = groupDoc.name;
+      if (oldName === trimmed) {
+        return;
+      }
+
+      const duplicate = groups.some((g) => !g.isDeleted && g.id !== id && g.name === trimmed);
+      if (duplicate) {
+        return;
+      }
+
+      const timestamp = new Date().toISOString();
+      const updatedGroup: GroupRecord = {
+        ...groupDoc.toJSON(),
+        name: trimmed,
+        updatedAt: timestamp,
+      };
+      await database.groups.upsert(updatedGroup);
+      await pushGroupToRemote(database.groups, updatedGroup);
+
+      const allWords = await database.words.find().exec();
+      for (const wordDoc of allWords) {
+        const record = toMutableWordRecord(wordDoc.toJSON());
+        if (!wordHasGroup(record, oldName)) {
+          continue;
+        }
+
+        const nextRecord = {
+          ...record,
+          customGroups: replaceGroupInWordGroups(getWordGroups(record), oldName, trimmed),
+          updatedAt: timestamp,
+        };
+        await database.words.upsert(nextRecord);
+        await pushWordToRemote(database.words, nextRecord);
+      }
+    },
+    [database, groups]
+  );
+
+  const handleDeleteGroup = useCallback(
+    async (id: string) => {
+      if (!database) {
+        return;
+      }
+
+      const groupDoc = await database.groups.findOne(id).exec();
+      if (!groupDoc || groupDoc.isDeleted) {
+        return;
+      }
+
+      const groupName = groupDoc.name;
+      const timestamp = new Date().toISOString();
+      const deletedGroup: GroupRecord = {
+        ...groupDoc.toJSON(),
+        isDeleted: true,
+        updatedAt: timestamp,
+      };
+      await database.groups.upsert(deletedGroup);
+      await pushGroupToRemote(database.groups, deletedGroup);
+
+      const allWords = await database.words.find().exec();
+      for (const wordDoc of allWords) {
+        const record = toMutableWordRecord(wordDoc.toJSON());
+        if (!wordHasGroup(record, groupName)) {
+          continue;
+        }
+
+        const nextRecord = {
+          ...record,
+          customGroups: removeGroupFromWordGroups(getWordGroups(record), groupName),
+          updatedAt: timestamp,
+        };
+        await database.words.upsert(nextRecord);
+        await pushWordToRemote(database.words, nextRecord);
+      }
+    },
+    [database]
+  );
+
+  const handleCreateGroup = useCallback(
+    async (name: string) => {
+      await ensureGroupExists(name);
+    },
+    [ensureGroupExists]
+  );
 
   // Track Network Status dynamically
   useEffect(() => {
@@ -253,12 +607,20 @@ export default function HomePage() {
   }, []);
 
   const filteredWords = useMemo(() => {
+    let list = words;
+    if (groupFilter !== 'all') {
+      if (groupFilter === 'none') {
+        list = list.filter((w) => !wordHasAnyGroup(w));
+      } else {
+        list = list.filter((w) => wordHasGroup(w, groupFilter));
+      }
+    }
     const query = searchQuery.trim().toLowerCase();
     if (!query) {
-      return words;
+      return list;
     }
-    return words.filter((word) => word.word.toLowerCase().includes(query));
-  }, [words, searchQuery]);
+    return list.filter((word) => word.word.toLowerCase().includes(query));
+  }, [words, searchQuery, groupFilter]);
 
   const examplesById = useMemo(() => {
     return new Map(words.map((word) => [word.id, getDisplayExamples(word)]));
@@ -312,8 +674,10 @@ export default function HomePage() {
       return [];
     }
 
+    let candidates: (WordRecord | MissedWordRecord)[] = [];
+
     if (quizSource === 'missed') {
-      return missedWordsForMode.filter((word) => {
+      candidates = missedWordsForMode.filter((word) => {
         if (quizRange === 'all') {
           return true;
         }
@@ -323,19 +687,43 @@ export default function HomePage() {
         }
         return createdAt >= (start as Date);
       });
+    } else {
+      candidates = words.filter((word) => {
+        if (quizRange === 'all') {
+          return true;
+        }
+        const createdAt = new Date(word.createdAt);
+        if (end) {
+          return createdAt >= (start as Date) && createdAt <= end;
+        }
+        return createdAt >= (start as Date);
+      });
     }
 
-    return words.filter((word) => {
-      if (quizRange === 'all') {
-        return true;
+    // Apply quiz group filter
+    if (quizGroupFilter !== 'all') {
+      if (quizSource === 'missed') {
+        candidates = candidates.filter((item) => {
+          const correspondingWord = words.find((w) => w.id === (item as MissedWordRecord).wordId);
+          if (!correspondingWord) {
+            return quizGroupFilter === 'none';
+          }
+          return quizGroupFilter === 'none'
+            ? !wordHasAnyGroup(correspondingWord)
+            : wordHasGroup(correspondingWord, quizGroupFilter);
+        });
+      } else {
+        candidates = candidates.filter((word) => {
+          const record = word as WordRecord;
+          return quizGroupFilter === 'none'
+            ? !wordHasAnyGroup(record)
+            : wordHasGroup(record, quizGroupFilter);
+        });
       }
-      const createdAt = new Date(word.createdAt);
-      if (end) {
-        return createdAt >= (start as Date) && createdAt <= end;
-      }
-      return createdAt >= (start as Date);
-    });
-  }, [words, missedWordsForMode, quizRange, quizSource, customStart, customEnd]);
+    }
+
+    return candidates;
+  }, [words, missedWordsForMode, quizRange, quizSource, customStart, customEnd, quizGroupFilter]);
 
   const resetQuiz = useCallback(() => {
     const queue = shuffle(
@@ -370,25 +758,28 @@ export default function HomePage() {
     setRevealed(false);
   }, [quizDirection]);
 
-  // Reset quiz when quiz range/source, custom range dates, or quiz mode (for missed source) change
+  // Reset quiz when quiz range/source, custom range dates, group, or quiz mode (for missed source) change
   useEffect(() => {
     const rangeChanged = prevQuizRangeRef.current !== quizRange;
     const sourceChanged = prevQuizSourceRef.current !== quizSource;
     const customStartChanged = prevCustomStartRef.current !== customStart;
     const customEndChanged = prevCustomEndRef.current !== customEnd;
     const directionChanged = prevQuizDirectionRef.current !== quizDirection;
+    const groupChanged = prevQuizGroupFilterRef.current !== quizGroupFilter;
 
     prevQuizRangeRef.current = quizRange;
     prevQuizSourceRef.current = quizSource;
     prevCustomStartRef.current = customStart;
     prevCustomEndRef.current = customEnd;
     prevQuizDirectionRef.current = quizDirection;
+    prevQuizGroupFilterRef.current = quizGroupFilter;
 
     const poolChanged =
       rangeChanged ||
       sourceChanged ||
       customStartChanged ||
       customEndChanged ||
+      groupChanged ||
       (directionChanged && quizSource === 'missed');
 
     if (!poolChanged || quizQueue.length === 0) {
@@ -428,11 +819,13 @@ export default function HomePage() {
     getExamplesForId,
     getCandidateWordId,
     quizDirection,
+    quizGroupFilter,
   ]);
 
   useEffect(() => {
     let isMounted = true;
     let wordSubscription: { unsubscribe: () => void } | null = null;
+    let groupSubscription: { unsubscribe: () => void } | null = null;
     let missedSubscription: { unsubscribe: () => void } | null = null;
     let cleanupOnlineListener: (() => void) | null = null;
 
@@ -453,17 +846,20 @@ export default function HomePage() {
         if (!isMounted) {
           return;
         }
-        setWords(
-          docs.map((doc) => {
-            const record = doc.toJSON();
-            return {
-              ...record,
-              examples: Array.isArray(record.examples) ? [...record.examples] : [],
-              userExamples: Array.isArray(record.userExamples) ? [...record.userExamples] : [],
-            };
-          })
-        );
+        setWords(docs.map((doc) => toMutableWordRecord(doc.toJSON())));
         setPage(1);
+      });
+
+      const groupQuery = db.groups.find({
+        selector: { isDeleted: { $ne: true } },
+        sort: [{ name: 'asc' }],
+      });
+
+      groupSubscription = groupQuery.$.subscribe((docs) => {
+        if (!isMounted) {
+          return;
+        }
+        setGroups(docs.map((doc) => doc.toJSON()));
       });
 
       const missedQuery = db.missedWords.find({
@@ -481,14 +877,16 @@ export default function HomePage() {
       console.log('App started: Syncing with remote...');
       await pushAllLocalMissedWords(db.missedWords);
       await pullRemoteMissedWords(db.missedWords);
+      await pullRemoteGroups(db.groups);
       await pullRemoteWords(db.words);
+      await pushAllLocalGroups(db.groups);
       await pushAllLocalWords(db.words);
 
       if (navigator.onLine) {
         await fetchMissingMeanings(db.words);
       }
 
-      cleanupOnlineListener = setupOnlineSyncListener(db.words, db.missedWords);
+      cleanupOnlineListener = setupOnlineSyncListener(db.words, db.missedWords, db.groups);
 
       if (isMounted) {
         setIsLoading(false);
@@ -500,6 +898,7 @@ export default function HomePage() {
     return () => {
       isMounted = false;
       wordSubscription?.unsubscribe();
+      groupSubscription?.unsubscribe();
       missedSubscription?.unsubscribe();
       cleanupOnlineListener?.();
     };
@@ -531,17 +930,82 @@ export default function HomePage() {
     checkCurrentWordMissedStatus();
   }, [currentQuizItem, database, missedWords, checkCurrentWordMissedStatus]);
 
-  // Sync when page comes into focus, loads, or refreshes
   useEffect(() => {
+    if (!database || isLoading) {
+      return;
+    }
+
+    const migrateGroups = async () => {
+      const legacyNames = new Set<string>();
+
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('self_quiz_custom_groups');
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed)) {
+              for (const name of parsed) {
+                if (typeof name === 'string' && name.trim()) {
+                  legacyNames.add(name.trim());
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Failed to parse stored groups', error);
+          }
+        }
+      }
+
+      const allWords = await database.words.find().exec();
+      for (const wordDoc of allWords) {
+        for (const groupName of getWordGroups(toMutableWordRecord(wordDoc.toJSON()))) {
+          legacyNames.add(groupName);
+        }
+      }
+
+      const existingGroups = await database.groups.find().exec();
+      const existingNames = new Set(existingGroups.filter((g) => !g.isDeleted).map((g) => g.name));
+
+      for (const name of legacyNames) {
+        if (existingNames.has(name)) {
+          continue;
+        }
+        const timestamp = new Date().toISOString();
+        const record: GroupRecord = {
+          id: crypto.randomUUID(),
+          name,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+          isDeleted: false,
+          lastSyncedAt: '',
+        };
+        await database.groups.upsert(record);
+        await pushGroupToRemote(database.groups, record);
+      }
+
+      if (typeof window !== 'undefined' && legacyNames.size > 0) {
+        localStorage.removeItem('self_quiz_custom_groups');
+      }
+    };
+
+    void migrateGroups();
+  }, [database, isLoading]);
+
+  const handleAdd = async (
+    word: string,
+    meaning: string,
+    example: string,
+    selectedGroups: string[]
+  ) => {
     if (!database) {
       return;
     }
 
-  }, [database, checkCurrentWordMissedStatus]);
-
-  const handleAdd = async (word: string, meaning: string, example: string) => {
-    if (!database) {
-      return;
+    const normalizedGroups = Array.from(
+      new Set(selectedGroups.map((g) => g.trim()).filter((g) => g.length > 0))
+    );
+    for (const groupName of normalizedGroups) {
+      await ensureGroupExists(groupName);
     }
 
     const timestamp = new Date().toISOString();
@@ -556,6 +1020,7 @@ export default function HomePage() {
       updatedAt: timestamp,
       isDeleted: false,
       lastSyncedAt: '',
+      customGroups: normalizedGroups,
     };
 
     await database.words.upsert(record);
@@ -687,7 +1152,8 @@ export default function HomePage() {
     id: string,
     word: string,
     meaning: string,
-    userExamples: string[]
+    userExamples: string[],
+    customGroups: string[]
   ) => {
     if (!database) {
       return;
@@ -698,6 +1164,13 @@ export default function HomePage() {
       return;
     }
 
+    const normalizedGroups = Array.from(
+      new Set(customGroups.map((g) => g.trim()).filter((g) => g.length > 0))
+    );
+    for (const groupName of normalizedGroups) {
+      await ensureGroupExists(groupName);
+    }
+
     const timestamp = new Date().toISOString();
     const current = toMutableWordRecord(doc.toJSON());
     const record = {
@@ -705,6 +1178,7 @@ export default function HomePage() {
       word,
       meaning,
       userExamples,
+      customGroups: normalizedGroups,
       updatedAt: timestamp,
     };
 
@@ -1075,7 +1549,12 @@ export default function HomePage() {
         {/* --- STUDY MODE --- */}
         {mode === 'study' && (
           <Stack gap="lg">
-            <WordForm onAdd={handleAdd} disabled={isLoading} />
+            <WordForm
+              onAdd={handleAdd}
+              disabled={isLoading}
+              customGroups={customGroups}
+              onAddCustomGroup={handleAddCustomGroup}
+            />
 
             {/* Redesigned Glassmorphic Workspace Control Center */}
             <Card
@@ -1102,40 +1581,76 @@ export default function HomePage() {
                       Your Workspace
                     </Title>
                   </Group>
-                  <Badge
-                    variant="gradient"
-                    gradient={{ from: 'indigo', to: 'purple' }}
-                    size="md"
-                    radius="md"
-                    style={{ fontWeight: 700 }}
-                  >
-                    {filteredWords.length} word{filteredWords.length !== 1 ? 's' : ''}
-                  </Badge>
+                  <Group gap="xs">
+                    <Button
+                      variant="light"
+                      color="grape"
+                      size="xs"
+                      radius="md"
+                      leftSection={<IconTags size={16} />}
+                      onClick={() => setGroupManagerOpen(true)}
+                    >
+                      Manage Groups
+                    </Button>
+                    <Badge
+                      variant="gradient"
+                      gradient={{ from: 'indigo', to: 'purple' }}
+                      size="md"
+                      radius="md"
+                      style={{ fontWeight: 700 }}
+                    >
+                      {filteredWords.length} word{filteredWords.length !== 1 ? 's' : ''}
+                    </Badge>
+                  </Group>
                 </Group>
 
-                <TextInput
-                  placeholder="Search vocabulary by keyword..."
-                  leftSection={<IconSearch size={18} style={{ opacity: 0.55, color: '#a855f7' }} />}
-                  rightSection={
-                    searchQuery ? (
-                      <CloseButton
-                        size="sm"
-                        aria-label="Clear search"
-                        onClick={() => {
-                          setSearchQuery('');
-                          setPage(1);
-                        }}
-                      />
-                    ) : null
-                  }
-                  value={searchQuery}
-                  size="md"
-                  radius="md"
-                  onChange={(event) => {
-                    setSearchQuery(event.currentTarget.value);
-                    setPage(1);
-                  }}
-                />
+                <Grid gap="sm">
+                  <Grid.Col span={{ base: 12, sm: 8 }}>
+                    <TextInput
+                      placeholder="Search vocabulary by keyword..."
+                      leftSection={
+                        <IconSearch size={18} style={{ opacity: 0.55, color: '#a855f7' }} />
+                      }
+                      rightSection={
+                        searchQuery ? (
+                          <CloseButton
+                            size="sm"
+                            aria-label="Clear search"
+                            onClick={() => {
+                              setSearchQuery('');
+                              setPage(1);
+                            }}
+                          />
+                        ) : null
+                      }
+                      value={searchQuery}
+                      size="md"
+                      radius="md"
+                      onChange={(event) => {
+                        setSearchQuery(event.currentTarget.value);
+                        setPage(1);
+                      }}
+                    />
+                  </Grid.Col>
+                  <Grid.Col span={{ base: 12, sm: 4 }}>
+                    <Select
+                      placeholder="Filter by Group"
+                      value={groupFilter}
+                      onChange={(value) => {
+                        setGroupFilter(value ?? 'all');
+                        setPage(1);
+                      }}
+                      data={[
+                        { value: 'all', label: 'All Groups' },
+                        { value: 'none', label: 'No Group' },
+                        ...customGroups.map((g) => ({ value: g, label: g })),
+                      ]}
+                      size="md"
+                      radius="md"
+                      allowDeselect={false}
+                    />
+                  </Grid.Col>
+                </Grid>
               </Stack>
             </Card>
 
@@ -1144,6 +1659,17 @@ export default function HomePage() {
               onDelete={handleDelete}
               onEdit={handleEdit}
               onRefreshExamples={handleRefreshExamples}
+              customGroups={customGroups}
+              onAddCustomGroup={handleAddCustomGroup}
+            />
+
+            <GroupManager
+              opened={groupManagerOpen}
+              onClose={() => setGroupManagerOpen(false)}
+              groups={groups}
+              onRename={handleRenameGroup}
+              onDelete={handleDeleteGroup}
+              onAdd={handleCreateGroup}
             />
 
             {totalPages > 1 && (
@@ -1209,7 +1735,7 @@ export default function HomePage() {
             >
               <Stack gap="md">
                 <Grid align="flex-end" gap="md">
-                  <Grid.Col span={{ base: 12, sm: 4 }}>
+                  <Grid.Col span={{ base: 12, sm: 3 }}>
                     <Select
                       label={
                         <Text size="xs" fw={700} c="dimmed">
@@ -1228,7 +1754,7 @@ export default function HomePage() {
                     />
                   </Grid.Col>
 
-                  <Grid.Col span={{ base: 12, sm: 4 }}>
+                  <Grid.Col span={{ base: 12, sm: 3 }}>
                     <Select
                       label={
                         <Text size="xs" fw={700} c="dimmed">
@@ -1247,7 +1773,7 @@ export default function HomePage() {
                     />
                   </Grid.Col>
 
-                  <Grid.Col span={{ base: 12, sm: 4 }}>
+                  <Grid.Col span={{ base: 12, sm: 3 }}>
                     <Select
                       label={
                         <Text size="xs" fw={700} c="dimmed">
@@ -1261,7 +1787,29 @@ export default function HomePage() {
                       value={quizDirection}
                       size="md"
                       radius="md"
-                      onChange={(value) => setQuizDirection((value as QuizDirectionKey) ?? 'wordToMeaning')}
+                      onChange={(value) =>
+                        setQuizDirection((value as QuizDirectionKey) ?? 'wordToMeaning')
+                      }
+                      allowDeselect={false}
+                    />
+                  </Grid.Col>
+
+                  <Grid.Col span={{ base: 12, sm: 3 }}>
+                    <Select
+                      label={
+                        <Text size="xs" fw={700} c="dimmed">
+                          QUIZ GROUP
+                        </Text>
+                      }
+                      data={[
+                        { value: 'all', label: 'All Groups' },
+                        { value: 'none', label: 'No Group' },
+                        ...customGroups.map((g) => ({ value: g, label: g })),
+                      ]}
+                      value={quizGroupFilter}
+                      size="md"
+                      radius="md"
+                      onChange={(value) => setQuizGroupFilter(value ?? 'all')}
                       allowDeselect={false}
                     />
                   </Grid.Col>
@@ -1330,7 +1878,8 @@ export default function HomePage() {
                 {/* Restart Quiz and Candidates count info row */}
                 <Group justify="space-between" align="center" mt="xs">
                   <Text size="xs" c="dimmed">
-                    {quizCandidates.length} word{quizCandidates.length !== 1 ? 's' : ''} in this selection
+                    {quizCandidates.length} word{quizCandidates.length !== 1 ? 's' : ''} in this
+                    selection
                   </Text>
                   <Button
                     variant="light"
@@ -1490,193 +2039,17 @@ export default function HomePage() {
                   </Stack>
                 </div>
               ) : (
-                <Stack gap="sm">
-                  {missedWordsForMode.map((word) => {
-                    const count = word.missedCount;
-                    const severity =
-                      count >= 5
-                        ? {
-                          color: '#ef4444',
-                          bg: 'rgba(239,68,68,0.08)',
-                          border: 'rgba(239,68,68,0.25)',
-                          label: 'Hot',
-                          badgeColor: 'red' as const,
-                        }
-                        : count >= 3
-                          ? {
-                            color: '#f97316',
-                            bg: 'rgba(249,115,22,0.07)',
-                            border: 'rgba(249,115,22,0.2)',
-                            label: 'Warm',
-                            badgeColor: 'orange' as const,
-                          }
-                          : {
-                            color: '#22c55e',
-                            bg: 'rgba(34,197,94,0.06)',
-                            border: 'rgba(34,197,94,0.18)',
-                            label: 'New',
-                            badgeColor: 'teal' as const,
-                          };
-
-                    const speakWord = (text: string) => {
-                      if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
-                        return;
-                      }
-                      window.speechSynthesis.cancel();
-                      const utterance = new SpeechSynthesisUtterance(text);
-                      utterance.lang = 'en-US';
-                      utterance.rate = 0.9;
-                      window.speechSynthesis.speak(utterance);
-                    };
-
-                    const missedExamples = getExamplesForId(word.wordId);
-
-                    return (
-                      <div
-                        key={word.id}
-                        style={{
-                          borderRadius: '12px',
-                          border: `1px solid ${severity.border}`,
-                          borderLeft: `4px solid ${severity.color}`,
-                          background: severity.bg,
-                          padding: '12px 16px',
-                          transition: 'all 0.2s cubic-bezier(0.4,0,0.2,1)',
-                        }}
-                        className="hover-lift"
-                      >
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: '1fr auto',
-                            alignItems: 'center',
-                            gap: '12px',
-                          }}>
-                            <Group gap={8} align="center" wrap="wrap" mb={4}>
-                              <Text
-                                fw={700}
-                                size="md"
-                                style={{
-                                  fontFamily: 'var(--font-title)',
-                                  color: 'var(--text-primary)',
-                                  letterSpacing: '-0.01em',
-                                }}
-                              >
-                                {word.word}
-                              </Text>
-                              <Badge
-                                color={severity.badgeColor}
-                                variant="light"
-                                size="xs"
-                                radius="sm"
-                                style={{ fontWeight: 700, fontSize: '10px' }}
-                              >
-                                ×{count} missed
-                              </Badge>
-                            </Group>
-                            <Group gap={4} style={{ flexShrink: 0 }}>
-                              <Tooltip label="Regenerate examples" withArrow>
-                                <ActionIcon
-                                  variant="subtle"
-                                  color="indigo"
-                                  size="md"
-                                  radius="md"
-                                  onClick={() => handleRefreshExamples(word.id)}
-                                  style={{ transition: 'all 0.2s ease' }}
-                                >
-                                  <IconRotateClockwise size={16} />
-                                </ActionIcon>
-                              </Tooltip>
-                              <Tooltip label="Listen to pronunciation" withArrow>
-                                <ActionIcon
-                                  variant="subtle"
-                                  color="gray"
-                                  size="md"
-                                  radius="md"
-                                  onClick={() => speakWord(word.word)}
-                                  style={{ transition: 'all 0.2s ease' }}
-                                >
-                                  <IconVolume size={16} />
-                                </ActionIcon>
-                              </Tooltip>
-                              <Tooltip label="Remove from missed list" withArrow>
-                                <ActionIcon
-                                  variant="subtle"
-                                  color="red"
-                                  size="md"
-                                  radius="md"
-                                  onClick={() => handleUnmarkMissed(word.id)}
-                                  style={{ transition: 'all 0.2s ease' }}
-                                >
-                                  <IconBookmarkOff size={16} />
-                                </ActionIcon>
-                              </Tooltip>
-                            </Group>
-                          </div>
-                          {!hideMissedMeanings || revealedMissedWordIds[word.id] ? (
-                            <>
-                              <Text
-                                size="sm"
-                                style={{
-                                  color: 'var(--text-secondary)',
-                                  lineHeight: 1.5,
-                                  wordBreak: 'break-word',
-                                }}
-                              >
-                                {word.meaning || (
-                                  <span style={{ fontStyle: 'italic', opacity: 0.55 }}>
-                                    No definition available
-                                  </span>
-                                )}
-                              </Text>
-                              {missedExamples.length > 0 && (
-                                <Stack gap={2} mt={6}>
-                                  <Text size="xs" fw={600} c="dimmed">
-                                    Examples
-                                  </Text>
-                                  {missedExamples.map((example, index) => (
-                                    <Text
-                                      key={`${word.id}-missed-example-${index}`}
-                                      size="sm"
-                                      style={{
-                                        color: 'var(--text-secondary)',
-                                        lineHeight: 1.5,
-                                        wordBreak: 'break-word',
-                                      }}
-                                    >
-                                      {`• ${example}`}
-                                    </Text>
-                                  ))}
-                                </Stack>
-                              )}
-                            </>
-                          ) : (
-                            <Button
-                              variant="subtle"
-                              color="indigo"
-                              size="xs"
-                              radius="sm"
-                              onClick={() =>
-                                setRevealedMissedWordIds((prev) => ({ ...prev, [word.id]: true }))
-                              }
-                              leftSection={<IconEye size={12} />}
-                              style={{
-                                fontSize: '11px',
-                                height: '22px',
-                                paddingLeft: '8px',
-                                paddingRight: '8px',
-                                display: 'inline-flex',
-                                marginTop: '4px',
-                              }}
-                            >
-                              Show Definition
-                            </Button>
-                          )}
-                        </div>
-
-                      </div>
-                    );
-                  })}
-                </Stack>
+                <MissedWordVirtualList
+                  words={missedWordsForMode}
+                  hideMissedMeanings={hideMissedMeanings}
+                  revealedMissedWordIds={revealedMissedWordIds}
+                  onRevealMissedWord={(id) =>
+                    setRevealedMissedWordIds((prev) => ({ ...prev, [id]: true }))
+                  }
+                  getExamplesForId={getExamplesForId}
+                  onRefreshExamples={handleRefreshExamples}
+                  onUnmarkMissed={handleUnmarkMissed}
+                />
               )}
             </Card>
           </Stack>

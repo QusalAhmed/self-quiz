@@ -6,7 +6,8 @@ export const revalidate = 0;
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, word_id, quiz_mode, word, meaning, missed_at, missed_count, updated_at, deleted } = body;
+    const { id, word_id, quiz_mode, word, meaning, missed_at, missed_count, updated_at, deleted } =
+      body;
 
     if (!id || !word_id || !word) {
       return NextResponse.json(

@@ -25,6 +25,7 @@
     "@next/bundle-analyzer": "^16.0.0",
     "@supabase/supabase-js": "^2.106.2",
     "@tabler/icons-react": "^3.35.0",
+    "@tanstack/react-virtual": "^3.14.3",
     "dexie": "^4.4.3",
     "next": "16.2.6",
     "react": "19.2.6",
@@ -34,6 +35,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.28.4",
+    "@faker-js/faker": "^10.5.0",
     "@storybook/addon-themes": "^10.0.0",
     "@storybook/nextjs": "^10.0.0",
     "@storybook/react": "^10.0.0",

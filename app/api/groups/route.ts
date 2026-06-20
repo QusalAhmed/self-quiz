@@ -1,48 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
-export const revalidate = 0; // Disable caching for this route
+export const revalidate = 0;
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const {
-      id,
-      word,
-      meaning,
-      examples,
-      user_examples,
-      created_at,
-      updated_at,
-      deleted,
-      custom_group,
-      custom_groups,
-    } = body;
+    const { id, name, created_at, updated_at, deleted } = body;
 
-    if (!id || !word) {
-      return NextResponse.json({ error: 'Missing required fields: id and word' }, { status: 400 });
+    if (!id || !name) {
+      return NextResponse.json({ error: 'Missing required fields: id and name' }, { status: 400 });
     }
-
-    const normalizedGroups = Array.isArray(custom_groups)
-      ? custom_groups.filter((g: unknown) => typeof g === 'string' && g.trim().length > 0)
-      : custom_group?.trim()
-        ? [custom_group.trim()]
-        : [];
 
     const payload = {
       id,
-      word,
-      meaning: meaning || '',
-      examples: Array.isArray(examples) ? examples : [],
-      user_examples: Array.isArray(user_examples) ? user_examples : [],
+      name: String(name).trim(),
       created_at: created_at || new Date().toISOString(),
       updated_at: updated_at || new Date().toISOString(),
       deleted: deleted || false,
-      custom_groups: normalizedGroups,
-      custom_group: normalizedGroups[0] || '',
     };
 
-    const { data, error } = await supabase.from('words').upsert(payload, { onConflict: 'id' });
+    const { data, error } = await supabase.from('groups').upsert(payload, { onConflict: 'id' });
 
     if (error) {
       console.error('Supabase error:', error);
@@ -65,7 +43,7 @@ export async function GET(request: NextRequest) {
     const id = searchParams.get('id');
 
     if (id) {
-      const { data, error } = await supabase.from('words').select('*').eq('id', id).single();
+      const { data, error } = await supabase.from('groups').select('*').eq('id', id).single();
 
       if (error) {
         console.error('Supabase error:', error);
@@ -84,7 +62,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { data, error } = await supabase.from('words').select('*').eq('deleted', false);
+    const { data, error } = await supabase.from('groups').select('*').eq('deleted', false);
 
     if (error) {
       console.error('Supabase error:', error);
