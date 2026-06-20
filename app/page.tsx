@@ -39,7 +39,7 @@ import {
   IconEyeOff,
   IconTags,
 } from '@tabler/icons-react';
-import { useWindowVirtualizer } from '@tanstack/react-virtual';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { GroupManager } from '@/components/GroupManager/GroupManager';
 import { PwaRegister } from '@/components/PwaRegister/PwaRegister';
@@ -248,17 +248,19 @@ function MissedWordVirtualList({
   onRefreshExamples,
   onUnmarkMissed,
 }: MissedWordVirtualListProps) {
-  const listRef = useRef<HTMLDivElement>(null);
+  const parentRef = useRef<HTMLDivElement>(null);
 
-  const rowVirtualizer = useWindowVirtualizer({
+  const rowVirtualizer = useVirtualizer({
     count: words.length,
-    estimateSize: () => 108, // estimated row height + 8px gap
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 100,
     overscan: 5,
-    scrollMargin: listRef.current?.offsetTop ?? 0,
   });
 
   const speakWord = (text: string) => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+      return;
+    }
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'en-US';
@@ -267,7 +269,17 @@ function MissedWordVirtualList({
   };
 
   return (
-    <div ref={listRef}>
+    <div
+      ref={parentRef}
+      style={{
+        height: '480px',
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        scrollbarWidth: 'thin',
+        borderRadius: '8px',
+        padding: '8px',
+      }}
+    >
       <div
         style={{
           height: `${rowVirtualizer.getTotalSize()}px`,
@@ -279,10 +291,25 @@ function MissedWordVirtualList({
           const count = word.missedCount;
           const severity =
             count >= 5
-              ? { color: '#ef4444', bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.25)', badgeColor: 'red' as const }
+              ? {
+                color: '#ef4444',
+                bg: 'rgba(239,68,68,0.08)',
+                border: 'rgba(239,68,68,0.25)',
+                badgeColor: 'red' as const,
+              }
               : count >= 3
-                ? { color: '#f97316', bg: 'rgba(249,115,22,0.07)', border: 'rgba(249,115,22,0.2)', badgeColor: 'orange' as const }
-                : { color: '#22c55e', bg: 'rgba(34,197,94,0.06)', border: 'rgba(34,197,94,0.18)', badgeColor: 'teal' as const };
+                ? {
+                  color: '#f97316',
+                  bg: 'rgba(249,115,22,0.07)',
+                  border: 'rgba(249,115,22,0.2)',
+                  badgeColor: 'orange' as const,
+                }
+                : {
+                  color: '#22c55e',
+                  bg: 'rgba(34,197,94,0.06)',
+                  border: 'rgba(34,197,94,0.18)',
+                  badgeColor: 'teal' as const,
+                };
 
           const missedExamples = getExamplesForId(word.wordId);
           const isRevealed = !hideMissedMeanings || revealedMissedWordIds[word.id];
@@ -297,8 +324,7 @@ function MissedWordVirtualList({
                 top: 0,
                 left: 0,
                 width: '100%',
-                // subtract scrollMargin so items are positioned relative to listRef, not window top
-                transform: `translateY(${virtualRow.start - rowVirtualizer.options.scrollMargin}px)`,
+                transform: `translateY(${virtualRow.start}px)`,
                 paddingBottom: '8px',
               }}
             >
@@ -347,23 +373,38 @@ function MissedWordVirtualList({
 
                     <Group gap={4} style={{ flexShrink: 0 }}>
                       <Tooltip label="Regenerate examples" withArrow>
-                        <ActionIcon variant="subtle" color="indigo" size="md" radius="md"
+                        <ActionIcon
+                          variant="subtle"
+                          color="indigo"
+                          size="md"
+                          radius="md"
                           onClick={() => onRefreshExamples(word.wordId)}
-                          style={{ transition: 'all 0.2s ease' }}>
+                          style={{ transition: 'all 0.2s ease' }}
+                        >
                           <IconRotateClockwise size={16} />
                         </ActionIcon>
                       </Tooltip>
                       <Tooltip label="Listen to pronunciation" withArrow>
-                        <ActionIcon variant="subtle" color="gray" size="md" radius="md"
+                        <ActionIcon
+                          variant="subtle"
+                          color="gray"
+                          size="md"
+                          radius="md"
                           onClick={() => speakWord(word.word)}
-                          style={{ transition: 'all 0.2s ease' }}>
+                          style={{ transition: 'all 0.2s ease' }}
+                        >
                           <IconVolume size={16} />
                         </ActionIcon>
                       </Tooltip>
                       <Tooltip label="Remove from missed list" withArrow>
-                        <ActionIcon variant="subtle" color="red" size="md" radius="md"
+                        <ActionIcon
+                          variant="subtle"
+                          color="red"
+                          size="md"
+                          radius="md"
                           onClick={() => onUnmarkMissed(word.id)}
-                          style={{ transition: 'all 0.2s ease' }}>
+                          style={{ transition: 'all 0.2s ease' }}
+                        >
                           <IconBookmarkOff size={16} />
                         </ActionIcon>
                       </Tooltip>
@@ -372,19 +413,34 @@ function MissedWordVirtualList({
 
                   {isRevealed ? (
                     <>
-                      <Text size="sm" style={{ color: 'var(--text-secondary)', lineHeight: 1.5, wordBreak: 'break-word' }}>
+                      <Text
+                        size="sm"
+                        style={{
+                          color: 'var(--text-secondary)',
+                          lineHeight: 1.5,
+                          wordBreak: 'break-word',
+                        }}
+                      >
                         {word.meaning || (
-                          <span style={{ fontStyle: 'italic', opacity: 0.55 }}>No definition available</span>
+                          <span style={{ fontStyle: 'italic', opacity: 0.55 }}>
+                            No definition available
+                          </span>
                         )}
                       </Text>
                       {missedExamples.length > 0 && (
                         <Stack gap={2} mt={6}>
-                          <Text size="xs" fw={600} c="dimmed">Examples</Text>
+                          <Text size="xs" fw={600} c="dimmed">
+                            Examples
+                          </Text>
                           {missedExamples.map((example, index) => (
                             <Text
                               key={`${word.id}-virt-ex-${index}`}
                               size="sm"
-                              style={{ color: 'var(--text-secondary)', lineHeight: 1.5, wordBreak: 'break-word' }}
+                              style={{
+                                color: 'var(--text-secondary)',
+                                lineHeight: 1.5,
+                                wordBreak: 'break-word',
+                              }}
                             >
                               {`• ${example}`}
                             </Text>
@@ -394,10 +450,20 @@ function MissedWordVirtualList({
                     </>
                   ) : (
                     <Button
-                      variant="subtle" color="indigo" size="xs" radius="sm"
+                      variant="subtle"
+                      color="indigo"
+                      size="xs"
+                      radius="sm"
                       onClick={() => onRevealMissedWord(word.id)}
                       leftSection={<IconEye size={12} />}
-                      style={{ fontSize: '11px', height: '22px', paddingLeft: '8px', paddingRight: '8px', display: 'inline-flex', marginTop: '4px' }}
+                      style={{
+                        fontSize: '11px',
+                        height: '22px',
+                        paddingLeft: '8px',
+                        paddingRight: '8px',
+                        display: 'inline-flex',
+                        marginTop: '4px',
+                      }}
                     >
                       Show Definition
                     </Button>
