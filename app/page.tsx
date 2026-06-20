@@ -272,7 +272,7 @@ function MissedWordVirtualList({
     <div
       ref={parentRef}
       style={{
-        height: '1024px',
+        height: '100dvh',
         overflowY: 'auto',
         overflowX: 'hidden',
         scrollbarWidth: 'thin',
