@@ -72,7 +72,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { data, error } = await supabase.from('missed_words').select('*').eq('deleted', false);
+    // Return ALL records including deleted ones so other devices can
+    // apply soft-deletes when they pull. The client filters isDeleted locally.
+    const { data, error } = await supabase.from('missed_words').select('*');
 
     if (error) {
       console.error('Supabase error:', error);

@@ -488,23 +488,33 @@ export async function pullRemoteWords(collection: WordCollection): Promise<void>
     for (const row of data as RemoteWordRow[]) {
       const mapped = mapRowToRecord(row);
 
-      // If local record has pending unsynced changes, do NOT overwrite with
-      // potentially older remote data — local wins and will be pushed shortly.
       const local = await collection.findOne(mapped.id).exec();
       if (local) {
         const localRecord = local.toJSON();
-        if (hasPendingLocalSync(localRecord)) {
-          console.log(`Skipping remote overwrite for "${mapped.word}" — local changes pending`);
+
+        // Always apply remote deletions — a delete on another device must
+        // propagate even if local has the same updatedAt.
+        if (mapped.isDeleted && !localRecord.isDeleted) {
+          await collection.upsert(mapped);
+          console.log(`Applied remote deletion for word "${mapped.word}"`);
           continue;
         }
-        // Local is already up-to-date or older — take remote only if newer
+
+        // If local has pending unsynced changes that are strictly newer,
+        // keep local and let push propagate them to remote.
+        if (hasPendingLocalSync(localRecord) && localRecord.updatedAt > mapped.updatedAt) {
+          console.log(`Keeping local pending changes for "${mapped.word}"`);
+          continue;
+        }
+
+        // Skip if local is already at the same version or newer
         if (localRecord.updatedAt >= mapped.updatedAt) {
           continue;
         }
       }
 
       await collection.upsert(mapped);
-      console.log('Synced from remote:', mapped.word, '- Meaning:', mapped.meaning);
+      console.log('Synced from remote:', mapped.word, '- isDeleted:', mapped.isDeleted);
     }
   } catch (error) {
     console.error('Error pulling remote words:', error);
@@ -544,9 +554,18 @@ export async function pullRemoteMissedWords(collection: MissedWordCollection): P
       const local = await collection.findOne(mapped.id).exec();
       if (local) {
         const localRecord = local.toJSON();
-        if (hasPendingLocalSync(localRecord)) {
+
+        // Always apply remote deletions
+        if (mapped.isDeleted && !localRecord.isDeleted) {
+          await collection.upsert(mapped);
           continue;
         }
+
+        // Protect strictly newer local pending changes
+        if (hasPendingLocalSync(localRecord) && localRecord.updatedAt > mapped.updatedAt) {
+          continue;
+        }
+
         if (localRecord.updatedAt >= mapped.updatedAt) {
           continue;
         }
@@ -589,14 +608,23 @@ export async function pullRemoteGroups(collection: GroupCollection): Promise<voi
     for (const row of data as RemoteGroupRow[]) {
       const mapped = mapGroupRowToRecord(row);
 
-      // Preserve pending local changes
       const local = await collection.findOne(mapped.id).exec();
       if (local) {
         const localRecord = local.toJSON();
-        if (hasPendingLocalSync(localRecord)) {
-          console.log(`Skipping remote overwrite for group "${mapped.name}" — local changes pending`);
+
+        // Always apply remote deletions
+        if (mapped.isDeleted && !localRecord.isDeleted) {
+          await collection.upsert(mapped);
+          console.log(`Applied remote deletion for group "${mapped.name}"`);
           continue;
         }
+
+        // Protect strictly newer local pending changes
+        if (hasPendingLocalSync(localRecord) && localRecord.updatedAt > mapped.updatedAt) {
+          console.log(`Keeping local pending changes for group "${mapped.name}"`);
+          continue;
+        }
+
         if (localRecord.updatedAt >= mapped.updatedAt) {
           continue;
         }
