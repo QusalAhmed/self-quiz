@@ -142,6 +142,10 @@ function hasPendingLocalSync(record: { lastSyncedAt: string; updatedAt: string }
   return !record.lastSyncedAt || record.lastSyncedAt < record.updatedAt;
 }
 
+// ---------------------------------------------------------------------------
+// Missed Word outbox (localStorage)
+// ---------------------------------------------------------------------------
+
 const MISSED_WORD_OUTBOX_KEY = 'self_quiz_missed_word_outbox';
 
 type MissedWordSyncPayload = {
@@ -214,6 +218,7 @@ export async function flushMissedWordOutbox(collection: MissedWordCollection): P
     return;
   }
 
+  console.log(`Flushing ${outbox.length} missed word(s) from outbox...`);
   const failed: MissedWordSyncPayload[] = [];
   for (const payload of outbox) {
     try {
@@ -243,8 +248,214 @@ export async function flushMissedWordOutbox(collection: MissedWordCollection): P
 
   if (failed.length > 0) {
     writeMissedWordOutbox(failed);
+    console.warn(`${failed.length} missed word(s) remain in outbox after flush`);
   }
 }
+
+// ---------------------------------------------------------------------------
+// Word outbox (localStorage)
+// ---------------------------------------------------------------------------
+
+const WORD_OUTBOX_KEY = 'self_quiz_word_outbox';
+
+type WordSyncPayload = {
+  id: string;
+  word: string;
+  meaning: string;
+  examples: string[];
+  user_examples: string[];
+  created_at: string;
+  updated_at: string;
+  deleted: boolean;
+  custom_groups: string[];
+  custom_group: string;
+};
+
+function wordRecordToPayload(record: WordRecord): WordSyncPayload {
+  const groups = getWordGroups(record);
+  return {
+    id: record.id,
+    word: record.word,
+    meaning: record.meaning,
+    examples: record.examples,
+    user_examples: record.userExamples,
+    created_at: record.createdAt,
+    updated_at: record.updatedAt,
+    deleted: record.isDeleted,
+    custom_groups: groups,
+    custom_group: groups[0] || '',
+  };
+}
+
+function readWordOutbox(): WordSyncPayload[] {
+  if (typeof window === 'undefined') {
+    return [];
+  }
+  try {
+    const raw = localStorage.getItem(WORD_OUTBOX_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeWordOutbox(items: WordSyncPayload[]): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(WORD_OUTBOX_KEY, JSON.stringify(items));
+}
+
+function enqueueWordOutbox(record: WordRecord): void {
+  const payload = wordRecordToPayload(record);
+  const outbox = readWordOutbox().filter((item) => item.id !== payload.id);
+  outbox.push(payload);
+  writeWordOutbox(outbox);
+}
+
+function removeFromWordOutbox(id: string): void {
+  writeWordOutbox(readWordOutbox().filter((item) => item.id !== id));
+}
+
+export async function flushWordOutbox(collection: WordCollection): Promise<void> {
+  if (!isOnline()) return;
+
+  const outbox = readWordOutbox();
+  if (outbox.length === 0) return;
+
+  console.log(`Flushing ${outbox.length} word(s) from outbox...`);
+  const failed: WordSyncPayload[] = [];
+
+  for (const payload of outbox) {
+    try {
+      const response = await fetch('/api/words', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        await handleSyncResponseError(response, 'flush word outbox');
+        failed.push(payload);
+        continue;
+      }
+
+      removeFromWordOutbox(payload.id);
+      const existing = await collection.findOne(payload.id).exec();
+      if (existing) {
+        await collection.upsert({
+          ...toWritableWord(existing.toJSON()),
+          lastSyncedAt: payload.updated_at,
+        });
+      }
+    } catch {
+      failed.push(payload);
+    }
+  }
+
+  if (failed.length > 0) {
+    writeWordOutbox(failed);
+    console.warn(`${failed.length} word(s) remain in word outbox after flush`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Group outbox (localStorage)
+// ---------------------------------------------------------------------------
+
+const GROUP_OUTBOX_KEY = 'self_quiz_group_outbox';
+
+type GroupSyncPayload = {
+  id: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+  deleted: boolean;
+};
+
+function groupRecordToPayload(record: GroupRecord): GroupSyncPayload {
+  return {
+    id: record.id,
+    name: record.name,
+    created_at: record.createdAt,
+    updated_at: record.updatedAt,
+    deleted: record.isDeleted,
+  };
+}
+
+function readGroupOutbox(): GroupSyncPayload[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(GROUP_OUTBOX_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeGroupOutbox(items: GroupSyncPayload[]): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(GROUP_OUTBOX_KEY, JSON.stringify(items));
+}
+
+function enqueueGroupOutbox(record: GroupRecord): void {
+  const payload = groupRecordToPayload(record);
+  const outbox = readGroupOutbox().filter((item) => item.id !== payload.id);
+  outbox.push(payload);
+  writeGroupOutbox(outbox);
+}
+
+function removeFromGroupOutbox(id: string): void {
+  writeGroupOutbox(readGroupOutbox().filter((item) => item.id !== id));
+}
+
+export async function flushGroupOutbox(collection: GroupCollection): Promise<void> {
+  if (!isOnline()) return;
+
+  const outbox = readGroupOutbox();
+  if (outbox.length === 0) return;
+
+  console.log(`Flushing ${outbox.length} group(s) from outbox...`);
+  const failed: GroupSyncPayload[] = [];
+
+  for (const payload of outbox) {
+    try {
+      const response = await fetch('/api/groups', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        await handleSyncResponseError(response, 'flush group outbox');
+        failed.push(payload);
+        continue;
+      }
+
+      removeFromGroupOutbox(payload.id);
+      const existing = await collection.findOne(payload.id).exec();
+      if (existing) {
+        await collection.upsert({
+          ...existing.toJSON(),
+          lastSyncedAt: payload.updated_at,
+        });
+      }
+    } catch {
+      failed.push(payload);
+    }
+  }
+
+  if (failed.length > 0) {
+    writeGroupOutbox(failed);
+    console.warn(`${failed.length} group(s) remain in group outbox after flush`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Pull from remote
+// ---------------------------------------------------------------------------
 
 export async function pullRemoteWords(collection: WordCollection): Promise<void> {
   // Skip if offline
@@ -255,7 +466,6 @@ export async function pullRemoteWords(collection: WordCollection): Promise<void>
 
   try {
     console.log('Pulling remote words from Supabase...');
-    // Add cache buster to force fresh fetch from server
     const response = await fetch(`/api/words?t=${Date.now()}`, {
       method: 'GET',
       headers: {
@@ -277,7 +487,22 @@ export async function pullRemoteWords(collection: WordCollection): Promise<void>
     console.log('Successfully pulled', data.length, 'words from remote');
     for (const row of data as RemoteWordRow[]) {
       const mapped = mapRowToRecord(row);
-      // Always upsert to ensure we get latest data from remote
+
+      // If local record has pending unsynced changes, do NOT overwrite with
+      // potentially older remote data — local wins and will be pushed shortly.
+      const local = await collection.findOne(mapped.id).exec();
+      if (local) {
+        const localRecord = local.toJSON();
+        if (hasPendingLocalSync(localRecord)) {
+          console.log(`Skipping remote overwrite for "${mapped.word}" — local changes pending`);
+          continue;
+        }
+        // Local is already up-to-date or older — take remote only if newer
+        if (localRecord.updatedAt >= mapped.updatedAt) {
+          continue;
+        }
+      }
+
       await collection.upsert(mapped);
       console.log('Synced from remote:', mapped.word, '- Meaning:', mapped.meaning);
     }
@@ -333,29 +558,74 @@ export async function pullRemoteMissedWords(collection: MissedWordCollection): P
   }
 }
 
-export async function pushWordToRemote(
-  collection: WordCollection,
-  record: WordRecord
-): Promise<void> {
-  // Skip if offline
+export async function pullRemoteGroups(collection: GroupCollection): Promise<void> {
   if (!isOnline()) {
-    console.log('Device is offline, word saved locally. Will sync when online:', record.word);
+    console.log('Device is offline, skipping groups pull from remote');
     return;
   }
 
   try {
-    const payload = {
-      id: record.id,
-      word: record.word,
-      meaning: record.meaning,
-      examples: record.examples,
-      user_examples: record.userExamples,
-      created_at: record.createdAt,
-      updated_at: record.updatedAt,
-      deleted: record.isDeleted,
-      custom_groups: getWordGroups(record),
-      custom_group: getWordGroups(record)[0] || '',
-    };
+    console.log('Pulling groups from Supabase...');
+    const response = await fetch(`/api/groups?t=${Date.now()}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+      },
+    });
+
+    if (!response.ok) {
+      await handleSyncResponseError(response, 'pull remote groups');
+      return;
+    }
+
+    const { data } = await response.json();
+    if (!data || !Array.isArray(data)) {
+      console.log('No remote groups to pull');
+      return;
+    }
+
+    console.log('Successfully pulled', data.length, 'groups from remote');
+    for (const row of data as RemoteGroupRow[]) {
+      const mapped = mapGroupRowToRecord(row);
+
+      // Preserve pending local changes
+      const local = await collection.findOne(mapped.id).exec();
+      if (local) {
+        const localRecord = local.toJSON();
+        if (hasPendingLocalSync(localRecord)) {
+          console.log(`Skipping remote overwrite for group "${mapped.name}" — local changes pending`);
+          continue;
+        }
+        if (localRecord.updatedAt >= mapped.updatedAt) {
+          continue;
+        }
+      }
+
+      await collection.upsert(mapped);
+    }
+  } catch (error) {
+    console.error('Error pulling remote groups:', error);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Push to remote (single record)
+// ---------------------------------------------------------------------------
+
+export async function pushWordToRemote(
+  collection: WordCollection,
+  record: WordRecord
+): Promise<void> {
+  // Offline: save to outbox, will be flushed when online
+  if (!isOnline()) {
+    enqueueWordOutbox(record);
+    console.log('Device is offline, word queued to outbox. Will sync when online:', record.word);
+    return;
+  }
+
+  try {
+    const payload = wordRecordToPayload(record);
 
     console.log('Pushing word to remote:', record.word);
     const response = await fetch('/api/words', {
@@ -365,16 +635,21 @@ export async function pushWordToRemote(
     });
 
     if (!response.ok) {
+      // On failure, enqueue so it can be retried later
+      enqueueWordOutbox(record);
       await handleSyncResponseError(response, 'push word to remote');
       return;
     }
 
+    // Remove from outbox if it was queued previously
+    removeFromWordOutbox(record.id);
     await collection.upsert({
       ...record,
       lastSyncedAt: new Date().toISOString(),
     });
     console.log('Successfully synced word to remote:', record.word);
   } catch (error) {
+    enqueueWordOutbox(record);
     console.error('Error pushing word to remote:', error);
   }
 }
@@ -386,7 +661,7 @@ export async function pushMissedWordToRemote(
   if (!isOnline()) {
     enqueueMissedWordOutbox(record);
     console.log(
-      'Device is offline, missed word queued locally. Will sync when online:',
+      'Device is offline, missed word queued to outbox. Will sync when online:',
       record.word
     );
     return;
@@ -419,60 +694,18 @@ export async function pushMissedWordToRemote(
   }
 }
 
-export async function pullRemoteGroups(collection: GroupCollection): Promise<void> {
-  if (!isOnline()) {
-    console.log('Device is offline, skipping groups pull from remote');
-    return;
-  }
-
-  try {
-    console.log('Pulling groups from Supabase...');
-    const response = await fetch(`/api/groups?t=${Date.now()}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-      },
-    });
-
-    if (!response.ok) {
-      await handleSyncResponseError(response, 'pull remote groups');
-      return;
-    }
-
-    const { data } = await response.json();
-    if (!data || !Array.isArray(data)) {
-      console.log('No remote groups to pull');
-      return;
-    }
-
-    console.log('Successfully pulled', data.length, 'groups from remote');
-    for (const row of data as RemoteGroupRow[]) {
-      const mapped = mapGroupRowToRecord(row);
-      await collection.upsert(mapped);
-    }
-  } catch (error) {
-    console.error('Error pulling remote groups:', error);
-  }
-}
-
 export async function pushGroupToRemote(
   collection: GroupCollection,
   record: GroupRecord
 ): Promise<void> {
   if (!isOnline()) {
-    console.log('Device is offline, group saved locally. Will sync when online:', record.name);
+    enqueueGroupOutbox(record);
+    console.log('Device is offline, group queued to outbox. Will sync when online:', record.name);
     return;
   }
 
   try {
-    const payload = {
-      id: record.id,
-      name: record.name,
-      created_at: record.createdAt,
-      updated_at: record.updatedAt,
-      deleted: record.isDeleted,
-    };
+    const payload = groupRecordToPayload(record);
 
     console.log('Pushing group to remote:', record.name);
     const response = await fetch('/api/groups', {
@@ -482,19 +715,26 @@ export async function pushGroupToRemote(
     });
 
     if (!response.ok) {
+      enqueueGroupOutbox(record);
       await handleSyncResponseError(response, 'push group to remote');
       return;
     }
 
+    removeFromGroupOutbox(record.id);
     await collection.upsert({
       ...record,
       lastSyncedAt: new Date().toISOString(),
     });
     console.log('Successfully synced group to remote:', record.name);
   } catch (error) {
+    enqueueGroupOutbox(record);
     console.error('Error pushing group to remote:', error);
   }
 }
+
+// ---------------------------------------------------------------------------
+// Push all pending local records to remote
+// ---------------------------------------------------------------------------
 
 export async function pushAllLocalGroups(collection: GroupCollection): Promise<void> {
   if (!isOnline()) {
@@ -509,8 +749,7 @@ export async function pushAllLocalGroups(collection: GroupCollection): Promise<v
 
     for (const group of localGroups) {
       const record = group.toJSON();
-      const shouldSync = !record.lastSyncedAt || record.lastSyncedAt < record.updatedAt;
-      if (shouldSync) {
+      if (hasPendingLocalSync(record)) {
         await pushGroupToRemote(collection, record);
         syncedCount++;
       }
@@ -536,8 +775,7 @@ export async function pushAllLocalWords(collection: WordCollection): Promise<voi
 
     for (const word of localWords) {
       const record = toWritableWord(word.toJSON());
-      const shouldSync = !record.lastSyncedAt || record.lastSyncedAt < record.updatedAt;
-      if (shouldSync) {
+      if (hasPendingLocalSync(record)) {
         await pushWordToRemote(collection, record);
         syncedCount++;
       }
@@ -647,6 +885,46 @@ export async function fetchMissingMeanings(collection: WordCollection): Promise<
 }
 
 /**
+ * Perform a full bidirectional sync:
+ *   1. Flush all outboxes (pending offline writes)
+ *   2. Pull from remote (server wins for records not modified locally)
+ *   3. Push remaining local pending records to remote
+ *   4. Fetch any missing meanings
+ */
+export async function performFullSync(
+  wordsCollection: WordCollection,
+  missedCollection: MissedWordCollection,
+  groupsCollection: GroupCollection
+): Promise<void> {
+  if (!isOnline()) {
+    console.log('Device is offline, skipping full sync');
+    return;
+  }
+
+  console.log('Starting full bidirectional sync...');
+
+  // Step 1: Flush outboxes first — send any locally queued writes before pulling
+  await flushWordOutbox(wordsCollection);
+  await flushGroupOutbox(groupsCollection);
+  await flushMissedWordOutbox(missedCollection);
+
+  // Step 2: Pull remote — brings in changes from other devices
+  await pullRemoteGroups(groupsCollection);
+  await pullRemoteWords(wordsCollection);
+  await pullRemoteMissedWords(missedCollection);
+
+  // Step 3: Push any remaining locally pending records
+  await pushAllLocalGroups(groupsCollection);
+  await pushAllLocalWords(wordsCollection);
+  await pushAllLocalMissedWords(missedCollection);
+
+  // Step 4: Fetch meanings for words that are still missing them
+  await fetchMissingMeanings(wordsCollection);
+
+  console.log('Full sync completed');
+}
+
+/**
  * Set up online/offline event listeners for automatic sync
  */
 export function setupOnlineSyncListener(
@@ -655,19 +933,12 @@ export function setupOnlineSyncListener(
   groupsCollection: GroupCollection
 ): () => void {
   const handleOnline = async () => {
-    console.log('Device is back online! Starting sync...');
-    await pushAllLocalMissedWords(missedCollection);
-    await pullRemoteMissedWords(missedCollection);
-    await pullRemoteGroups(groupsCollection);
-    await pullRemoteWords(wordsCollection);
-    await pushAllLocalGroups(groupsCollection);
-    await pushAllLocalWords(wordsCollection);
-    await fetchMissingMeanings(wordsCollection);
-    console.log('Sync completed');
+    console.log('Device is back online! Starting full sync...');
+    await performFullSync(wordsCollection, missedCollection, groupsCollection);
   };
 
   const handleOffline = () => {
-    console.log('Device went offline. Will sync when back online.');
+    console.log('Device went offline. Changes will be queued and synced when back online.');
   };
 
   if (typeof window !== 'undefined') {

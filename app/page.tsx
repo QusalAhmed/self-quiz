@@ -5,6 +5,7 @@ import {
   CloseButton,
   Container,
   Group,
+  Modal,
   Pagination,
   Select,
   SegmentedControl,
@@ -64,7 +65,7 @@ import {
   wordHasGroup,
 } from '@/lib/groups';
 import {
-  fetchMissingMeanings,
+  performFullSync,
   pullRemoteGroups,
   pullRemoteMissedWords,
   pullRemoteWords,
@@ -940,22 +941,25 @@ export default function HomePage() {
         setMissedWords(docs.map((doc) => doc.toJSON()));
       });
 
-      console.log('App started: Syncing with remote...');
-      await pushAllLocalMissedWords(db.missedWords);
-      await pullRemoteMissedWords(db.missedWords);
-      await pullRemoteGroups(db.groups);
-      await pullRemoteWords(db.words);
-      await pushAllLocalGroups(db.groups);
-      await pushAllLocalWords(db.words);
-
-      if (navigator.onLine) {
-        await fetchMissingMeanings(db.words);
-      }
-
-      cleanupOnlineListener = setupOnlineSyncListener(db.words, db.missedWords, db.groups);
-
+      // Mark UI as ready immediately — local DB is available
       if (isMounted) {
         setIsLoading(false);
+      }
+
+      // Set up online listener before kicking off background sync
+      cleanupOnlineListener = setupOnlineSyncListener(db.words, db.missedWords, db.groups);
+
+      // Sync in background — does not block UI rendering
+      // On startup: flush any offline-queued writes, then pull remote updates,
+      // then push any remaining local pending records.
+      if (navigator.onLine) {
+        console.log('App started online: Starting background sync...');
+        void performFullSync(db.words, db.missedWords, db.groups);
+      } else {
+        console.log('App started offline: Using local data. Will sync when online.');
+        // Flush outboxes eagerly when offline — they guard against future
+        // online reconnects. The online listener will trigger the full sync.
+        // Nothing more to do here; local DB is already loaded above.
       }
     };
 
@@ -1386,6 +1390,8 @@ export default function HomePage() {
     await pushMissedWordToRemote(database.missedWords, record);
   };
 
+  const [confirmClearAllOpen, setConfirmClearAllOpen] = useState(false);
+
   const handleUnmarkAllMissed = async () => {
     if (!database || missedWordsForMode.length === 0) {
       return;
@@ -1401,6 +1407,11 @@ export default function HomePage() {
       await database.missedWords.upsert(record);
       await pushMissedWordToRemote(database.missedWords, record);
     }
+  };
+
+  const handleConfirmClearAll = async () => {
+    setConfirmClearAllOpen(false);
+    await handleUnmarkAllMissed();
   };
 
   const handleToggleMissed = async () => {
@@ -1439,11 +1450,7 @@ export default function HomePage() {
     }
     console.log('User triggered manual sync...');
     try {
-      await pushAllLocalMissedWords(database.missedWords);
-      await pullRemoteMissedWords(database.missedWords);
-      await pullRemoteWords(database.words);
-      await pushAllLocalWords(database.words);
-      await fetchMissingMeanings(database.words);
+      await performFullSync(database.words, database.missedWords, database.groups);
       await checkCurrentWordMissedStatus();
     } catch (e) {
       console.error(e);
@@ -1457,6 +1464,50 @@ export default function HomePage() {
   return (
     <Container size="md" py="xl">
       <PwaRegister />
+
+      {/* Confirmation dialog for clearing all missed words */}
+      <Modal
+        opened={confirmClearAllOpen}
+        onClose={() => setConfirmClearAllOpen(false)}
+        title={
+          <Text fw={700} size="md" style={{ fontFamily: 'var(--font-title)' }}>
+            Clear All Missed Words?
+          </Text>
+        }
+        centered
+        radius="lg"
+        size="sm"
+        overlayProps={{ backgroundOpacity: 0.45, blur: 4 }}
+      >
+        <Stack gap="lg">
+          <Text size="sm" c="dimmed" style={{ lineHeight: 1.6 }}>
+            This will permanently remove{' '}
+            <Text component="span" fw={700} c="red">
+              {missedWordsForMode.length} missed word{missedWordsForMode.length !== 1 ? 's' : ''}
+            </Text>{' '}
+            from the <strong>{quizDirections[quizDirection]}</strong> mode list. This action cannot
+            be undone.
+          </Text>
+          <Group justify="flex-end" gap="sm">
+            <Button
+              variant="subtle"
+              color="gray"
+              radius="md"
+              onClick={() => setConfirmClearAllOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              color="red"
+              radius="md"
+              leftSection={<IconBookmarkOff size={16} />}
+              onClick={handleConfirmClearAll}
+            >
+              Clear All
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
       <Stack gap="xl">
         {/* --- Gorgeous Glassmorphic Header Panel --- */}
         <Card className="glass-panel header-panel" padding="xl" radius="lg">
@@ -2051,7 +2102,7 @@ export default function HomePage() {
                       size="xs"
                       radius="md"
                       leftSection={<IconBookmarkOff size={14} />}
-                      onClick={handleUnmarkAllMissed}
+                      onClick={() => setConfirmClearAllOpen(true)}
                       style={{ opacity: 0.8 }}
                     >
                       Clear All
