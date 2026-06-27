@@ -12,9 +12,11 @@ import {
   ScrollArea,
   TextInput,
   Divider,
+  Badge,
 } from '@mantine/core';
 import {
   IconAward,
+  IconBrain,
   IconCopy,
   IconRotateClockwise,
   IconVolume,
@@ -22,14 +24,17 @@ import {
   IconChevronRight,
   IconBookmark,
   IconBookmarkOff,
+  IconEdit,
 } from '@tabler/icons-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
+import type { SrsRating } from '@/lib/srs';
 
 export type QuizItem = {
   id: string;
   word: string;
   meaning: string;
   examples?: string[];
+  tags?: string[];
 };
 
 export type QuizDirection = 'wordToMeaning' | 'meaningToWord' | 'spelling';
@@ -49,6 +54,11 @@ type QuizPanelProps = {
   totalCount?: number;
   onRestart?: () => void;
   onRefreshExamples?: (id: string) => void;
+  /** Enable SRS rating mode — shows Again/Hard/Good/Easy buttons instead of bookmark */
+  srsMode?: boolean;
+  /** Called when user selects a rating in SRS mode */
+  onSrsRate?: (rating: SrsRating) => void;
+  onEditClick?: (id: string) => void;
 };
 
 export function QuizPanel({
@@ -66,6 +76,9 @@ export function QuizPanel({
   totalCount = 0,
   onRestart,
   onRefreshExamples,
+  srsMode = false,
+  onSrsRate,
+  onEditClick,
 }: QuizPanelProps) {
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [typedWord, setTypedWord] = useState('');
@@ -288,6 +301,17 @@ export function QuizPanel({
       </Stack>
     ) : null;
 
+  const tagsBlock =
+    item.tags && item.tags.length > 0 ? (
+      <Group gap="xs" justify="center" mt="sm">
+        {item.tags.map((tag) => (
+          <Badge key={tag} variant="light" color="indigo" radius="sm">
+            {tag}
+          </Badge>
+        ))}
+      </Group>
+    ) : null;
+
   const markMissedAction = (
     <Tooltip label={isMarkedMissed ? 'Unmark missed' : 'Mark as missed'}>
       <ActionIcon
@@ -302,6 +326,68 @@ export function QuizPanel({
       </ActionIcon>
     </Tooltip>
   );
+
+  // SRS rating bar — shown after reveal in srsMode
+  const srsRatingButtons = srsMode && revealed && onSrsRate ? (
+    <Stack gap="xs" align="center" style={{ width: '100%' }}>
+      <Group gap={4} align="center" mb={2}>
+        <IconBrain size={14} style={{ color: '#a855f7', opacity: 0.8 }} />
+        <Text size="xs" fw={700} c="dimmed" style={{ letterSpacing: '0.05em' }}>
+          HOW WELL DID YOU KNOW THIS?
+        </Text>
+      </Group>
+      <Group gap="sm" justify="center" wrap="nowrap">
+        <Tooltip label="Completely forgot — review tomorrow" withArrow>
+          <Button
+            size="sm"
+            radius="md"
+            variant="light"
+            color="red"
+            onClick={() => onSrsRate('again')}
+            style={{ fontWeight: 700, minWidth: 70 }}
+          >
+            Again
+          </Button>
+        </Tooltip>
+        <Tooltip label="Hard — remembered with difficulty" withArrow>
+          <Button
+            size="sm"
+            radius="md"
+            variant="light"
+            color="orange"
+            onClick={() => onSrsRate('hard')}
+            style={{ fontWeight: 700, minWidth: 70 }}
+          >
+            Hard
+          </Button>
+        </Tooltip>
+        <Tooltip label="Good — recalled correctly" withArrow>
+          <Button
+            size="sm"
+            radius="md"
+            variant="light"
+            color="teal"
+            onClick={() => onSrsRate('good')}
+            style={{ fontWeight: 700, minWidth: 70 }}
+          >
+            Good
+          </Button>
+        </Tooltip>
+        <Tooltip label="Easy — recalled instantly" withArrow>
+          <Button
+            size="sm"
+            radius="md"
+            variant="light"
+            color="indigo"
+            onClick={() => onSrsRate('easy')}
+            style={{ fontWeight: 700, minWidth: 70 }}
+          >
+            Easy
+          </Button>
+        </Tooltip>
+      </Group>
+    </Stack>
+  ) : null;
 
   const wordWithActions = (includeMissed: boolean) => (
     <Group gap="sm" align="center" justify="center">
@@ -338,7 +424,19 @@ export function QuizPanel({
         >
           <IconCopy size={20} />
         </ActionIcon>
-        {includeMissed && markMissedAction}
+        {onEditClick && (
+          <ActionIcon
+            aria-label="Edit word"
+            variant="subtle"
+            color="gray"
+            size="lg"
+            radius="md"
+            onClick={() => onEditClick(item.id)}
+          >
+            <IconEdit size={20} />
+          </ActionIcon>
+        )}
+        {includeMissed && !srsMode && markMissedAction}
       </Group>
     </Group>
   );
@@ -447,7 +545,9 @@ export function QuizPanel({
                   >
                     {item.meaning ? item.meaning : 'No definition available.'}
                   </Text>
+                  {tagsBlock}
                   {examplesBlock}
+                  {srsRatingButtons}
                 </>
               )}
             </>
@@ -461,7 +561,9 @@ export function QuizPanel({
               ) : (
                 <Stack gap="md" align="center" style={{ width: '100%' }}>
                   {wordWithActions(true)}
+                  {tagsBlock}
                   {examplesBlock}
+                  {srsRatingButtons}
                 </Stack>
               )}
             </>
@@ -706,7 +808,9 @@ export function QuizPanel({
                     >
                       {item.meaning ? item.meaning : 'No definition available.'}
                     </Text>
+                    {tagsBlock}
                     {examplesBlock}
+                    {srsRatingButtons}
                   </Stack>
                 </Stack>
               )}

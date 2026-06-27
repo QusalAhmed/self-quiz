@@ -5,6 +5,7 @@ import {
   type RxDatabase,
   type RxJsonSchema,
 } from 'rxdb';
+import type { SrsRecord } from './srs';
 import { RxDBDevModePlugin, disableWarnings } from 'rxdb/plugins/dev-mode';
 import { RxDBMigrationSchemaPlugin } from 'rxdb/plugins/migration-schema';
 import { RxDBQueryBuilderPlugin } from 'rxdb/plugins/query-builder';
@@ -35,6 +36,8 @@ export type GroupRecord = {
 
 export type QuizMode = 'wordToMeaning' | 'meaningToWord' | 'spelling';
 
+export type { SrsRecord };
+
 export type MissedWordRecord = {
   id: string;
   wordId: string;
@@ -55,10 +58,12 @@ export function buildMissedWordId(wordId: string, quizMode: QuizMode): string {
 export type WordCollection = RxCollection<WordRecord>;
 export type MissedWordCollection = RxCollection<MissedWordRecord>;
 export type GroupCollection = RxCollection<GroupRecord>;
+export type SrsCollection = RxCollection<SrsRecord>;
 export type AppDatabase = RxDatabase<{
   words: WordCollection;
   missedWords: MissedWordCollection;
   groups: GroupCollection;
+  srsRecords: SrsCollection;
 }>;
 
 const wordSchema: RxJsonSchema<WordRecord> = {
@@ -157,6 +162,45 @@ const missedWordSchema: RxJsonSchema<MissedWordRecord> = {
   indexes: ['word', 'wordId', 'quizMode', 'missedAt', 'updatedAt', 'isDeleted'],
 };
 
+const srsSchema: RxJsonSchema<SrsRecord> = {
+  title: 'srs records schema',
+  version: 1,
+  description: 'Spaced Repetition System scheduling data per word per quiz mode',
+  primaryKey: 'id',
+  type: 'object',
+  properties: {
+    id: { type: 'string', maxLength: 128 },
+    wordId: { type: 'string', maxLength: 64 },
+    quizMode: { type: 'string', maxLength: 16 },
+    word: { type: 'string', maxLength: 128 },
+    meaning: { type: 'string' },
+    easeFactor: { type: 'number', minimum: 1.3, default: 2.5 },
+    interval: { type: 'number', minimum: 0, default: 0 },
+    repetitions: { type: 'number', minimum: 0, default: 0 },
+    nextReviewAt: { type: 'string', maxLength: 32 },
+    lastReviewedAt: { type: 'string', maxLength: 32 },
+    updatedAt: { type: 'string', maxLength: 32 },
+    lastSyncedAt: { type: 'string', default: '' },
+    isDeleted: { type: 'boolean', default: false },
+  },
+  required: [
+    'id',
+    'wordId',
+    'quizMode',
+    'word',
+    'meaning',
+    'easeFactor',
+    'interval',
+    'repetitions',
+    'nextReviewAt',
+    'lastReviewedAt',
+    'updatedAt',
+    'lastSyncedAt',
+    'isDeleted',
+  ],
+  indexes: ['wordId', 'quizMode', 'nextReviewAt', 'updatedAt', 'isDeleted'],
+};
+
 if (process.env.NODE_ENV === 'development') {
   addRxPlugin(RxDBDevModePlugin);
   disableWarnings();
@@ -236,6 +280,12 @@ async function createDatabase(): Promise<AppDatabase> {
             quizMode,
           };
         },
+      },
+    },
+    srsRecords: {
+      schema: srsSchema,
+      migrationStrategies: {
+        1: (oldDoc) => ({ ...oldDoc }),
       },
     },
   });

@@ -17,6 +17,7 @@ import {
   Tooltip,
   useMantineColorScheme,
   Grid,
+  SimpleGrid,
   Card,
   Badge,
   Divider,
@@ -30,6 +31,7 @@ import {
   IconWifi,
   IconWifiOff,
   IconBook,
+  IconBrain,
   IconHistory,
   IconRotateClockwise,
   IconBookmarkOff,
@@ -47,6 +49,7 @@ import { PwaRegister } from '@/components/PwaRegister/PwaRegister';
 import { QuizPanel, type QuizDirection, type QuizItem } from '@/components/QuizPanel/QuizPanel';
 import { WordForm } from '@/components/WordForm/WordForm';
 import { WordList } from '@/components/WordList/WordList';
+import { EditWordModal } from '@/components/EditWordModal/EditWordModal';
 import {
   getDatabase,
   buildMissedWordId,
@@ -75,8 +78,15 @@ import {
   pushGroupToRemote,
   pushMissedWordToRemote,
   pushWordToRemote,
+  pushSrsRecordToRemote,
   setupOnlineSyncListener,
 } from '@/lib/sync';
+import {
+  buildSrsId,
+  computeSm2,
+  createInitialSrsRecord,
+  type SrsRating,
+} from '@/lib/srs';
 
 const quizRanges = {
   all: 'All Words',
@@ -91,6 +101,7 @@ const quizRanges = {
 const quizSources = {
   words: 'Regular',
   missed: 'Missed Words',
+  srs: 'SRS Review',
 } as const;
 
 const quizDirections = {
@@ -484,6 +495,7 @@ export default function HomePage() {
   const [words, setWords] = useState<WordRecord[]>([]);
   const [groups, setGroups] = useState<GroupRecord[]>([]);
   const [missedWords, setMissedWords] = useState<MissedWordRecord[]>([]);
+  const [srsRecords, setSrsRecords] = useState<import('@/lib/db').SrsRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [mode, setMode] = useState<'study' | 'quiz'>('study');
   const [quizRange, setQuizRange] = useState<QuizRangeKey>('all');
@@ -493,6 +505,7 @@ export default function HomePage() {
   const [customEnd, setCustomEnd] = useState<string>(() => getInitialCustomEnd());
   const [quizQueue, setQuizQueue] = useState<QuizItem[]>([]);
   const [quizIndex, setQuizIndex] = useState(0);
+  const [editingQuizWordId, setEditingQuizWordId] = useState<string | null>(null);
   const [revealed, setRevealed] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -727,13 +740,47 @@ export default function HomePage() {
     [missedWords, quizDirection]
   );
 
+  // SRS records due for review (nextReviewAt <= now)
+  const srsDueRecords = useMemo(() => {
+    const now = new Date().toISOString();
+    return srsRecords
+      .filter((r) => !r.isDeleted && r.quizMode === quizDirection && r.nextReviewAt <= now)
+      .sort((a, b) => a.nextReviewAt.localeCompare(b.nextReviewAt));
+  }, [srsRecords, quizDirection]);
+
+  const srsDueTodayCount = useMemo(() => {
+    const now = new Date().toISOString();
+    return srsRecords.filter((r) => !r.isDeleted && r.nextReviewAt <= now).length;
+  }, [srsRecords]);
+
   const getCandidateWordId = useCallback(
-    (word: WordRecord | MissedWordRecord) =>
-      quizSource === 'missed' ? (word as MissedWordRecord).wordId : word.id,
+    (word: WordRecord | MissedWordRecord | import('@/lib/db').SrsRecord) => {
+      if (quizSource === 'missed') return (word as MissedWordRecord).wordId;
+      if (quizSource === 'srs') return (word as import('@/lib/db').SrsRecord).wordId;
+      return word.id;
+    },
     [quizSource]
   );
 
   const quizCandidates = useMemo(() => {
+    // SRS source ignores date range — scheduling is handled by the algorithm
+    if (quizSource === 'srs') {
+      let candidates: (WordRecord | MissedWordRecord | import('@/lib/db').SrsRecord)[] =
+        srsDueRecords;
+      if (quizGroupFilter !== 'all') {
+        candidates = candidates.filter((item) => {
+          const correspondingWord = words.find(
+            (w) => w.id === (item as import('@/lib/db').SrsRecord).wordId
+          );
+          if (!correspondingWord) return quizGroupFilter === 'none';
+          return quizGroupFilter === 'none'
+            ? !wordHasAnyGroup(correspondingWord)
+            : wordHasGroup(correspondingWord, quizGroupFilter);
+        });
+      }
+      return candidates;
+    }
+
     const start = getRangeStart(quizRange, customStart);
     const end = getRangeEnd(quizRange, customEnd);
 
@@ -790,7 +837,7 @@ export default function HomePage() {
     }
 
     return candidates;
-  }, [words, missedWordsForMode, quizRange, quizSource, customStart, customEnd, quizGroupFilter]);
+  }, [words, missedWordsForMode, srsDueRecords, quizRange, quizSource, customStart, customEnd, quizGroupFilter]);
 
   const resetQuiz = useCallback(() => {
     const queue = shuffle(
@@ -801,6 +848,7 @@ export default function HomePage() {
           word: word.word,
           meaning: word.meaning,
           examples: getExamplesForId(wordId),
+          tags: words.find((w) => w.id === wordId)?.customGroups || [],
         };
       })
     );
@@ -808,7 +856,7 @@ export default function HomePage() {
     setQuizIndex(0);
     setRevealed(false);
     setCompleted(queue.length === 0);
-  }, [quizCandidates, getExamplesForId, getCandidateWordId]);
+  }, [quizCandidates, getExamplesForId, getCandidateWordId, words]);
 
   // Initialize quiz when candidates are available, only if quiz is empty
   useEffect(() => {
@@ -869,6 +917,7 @@ export default function HomePage() {
           word: word.word,
           meaning: word.meaning,
           examples: getExamplesForId(wordId),
+          tags: words.find((w) => w.id === wordId)?.customGroups || [],
         };
       })
     );
@@ -887,6 +936,7 @@ export default function HomePage() {
     getCandidateWordId,
     quizDirection,
     quizGroupFilter,
+    words,
   ]);
 
   useEffect(() => {
@@ -894,6 +944,7 @@ export default function HomePage() {
     let wordSubscription: { unsubscribe: () => void } | null = null;
     let groupSubscription: { unsubscribe: () => void } | null = null;
     let missedSubscription: { unsubscribe: () => void } | null = null;
+    let srsSubscription: { unsubscribe: () => void } | null = null;
     let cleanupOnlineListener: (() => void) | null = null;
 
     const load = async () => {
@@ -941,20 +992,35 @@ export default function HomePage() {
         setMissedWords(docs.map((doc) => doc.toJSON()));
       });
 
+      const srsQuery = db.srsRecords.find({
+        selector: { isDeleted: { $ne: true } },
+        sort: [{ nextReviewAt: 'asc' }],
+      });
+
+      srsSubscription = srsQuery.$.subscribe((docs) => {
+        if (!isMounted) {
+          return;
+        }
+        setSrsRecords(docs.map((doc) => doc.toJSON() as import('@/lib/db').SrsRecord));
+      });
+
       // Mark UI as ready immediately — local DB is available
       if (isMounted) {
         setIsLoading(false);
       }
 
       // Set up online listener before kicking off background sync
-      cleanupOnlineListener = setupOnlineSyncListener(db.words, db.missedWords, db.groups);
+      cleanupOnlineListener = setupOnlineSyncListener(
+        db.words,
+        db.missedWords,
+        db.groups,
+        db.srsRecords
+      );
 
       // Sync in background — does not block UI rendering
-      // On startup: flush any offline-queued writes, then pull remote updates,
-      // then push any remaining local pending records.
       if (navigator.onLine) {
         console.log('App started online: Starting background sync...');
-        void performFullSync(db.words, db.missedWords, db.groups);
+        void performFullSync(db.words, db.missedWords, db.groups, db.srsRecords);
       } else {
         console.log('App started offline: Using local data. Will sync when online.');
         // Flush outboxes eagerly when offline — they guard against future
@@ -970,6 +1036,7 @@ export default function HomePage() {
       wordSubscription?.unsubscribe();
       groupSubscription?.unsubscribe();
       missedSubscription?.unsubscribe();
+      srsSubscription?.unsubscribe();
       cleanupOnlineListener?.();
     };
   }, []);
@@ -1095,6 +1162,18 @@ export default function HomePage() {
 
     await database.words.upsert(record);
     await pushWordToRemote(database.words, record);
+
+    // Auto-enqueue word into SRS for all quiz modes
+    const quizModes: import('@/lib/db').QuizMode[] = [
+      'wordToMeaning',
+      // 'meaningToWord',
+      // 'spelling'
+    ];
+    for (const qMode of quizModes) {
+      const srsRecord = createInitialSrsRecord(record.id, qMode, capitalizeWord(word), meaning);
+      await database.srsRecords.upsert(srsRecord);
+      void pushSrsRecordToRemote(database.srsRecords, srsRecord);
+    }
 
     if (meaning) {
       void (async () => {
@@ -1450,7 +1529,7 @@ export default function HomePage() {
     }
     console.log('User triggered manual sync...');
     try {
-      await performFullSync(database.words, database.missedWords, database.groups);
+      await performFullSync(database.words, database.missedWords, database.groups, database.srsRecords);
       await checkCurrentWordMissedStatus();
     } catch (e) {
       console.error(e);
@@ -1460,6 +1539,48 @@ export default function HomePage() {
   const toggleTheme = () => {
     setColorScheme(colorScheme === 'dark' ? 'light' : 'dark');
   };
+
+  const handleSrsRate = useCallback(
+    async (rating: SrsRating) => {
+      if (!database || !currentQuizItem) return;
+
+      const srsId = buildSrsId(currentQuizItem.id, quizDirection);
+      const existingDoc = await database.srsRecords.findOne(srsId).exec();
+
+      const timestamp = new Date().toISOString();
+      const now = new Date();
+
+      let currentState = existingDoc
+        ? (existingDoc.toJSON() as import('@/lib/db').SrsRecord)
+        : createInitialSrsRecord(currentQuizItem.id, quizDirection as import('@/lib/db').QuizMode, currentQuizItem.word, currentQuizItem.meaning);
+
+      const { easeFactor, interval, repetitions, nextReviewAt } = computeSm2(
+        currentState,
+        rating,
+        now
+      );
+
+      const updated: import('@/lib/db').SrsRecord = {
+        ...currentState,
+        word: currentQuizItem.word,
+        meaning: currentQuizItem.meaning,
+        easeFactor,
+        interval,
+        repetitions,
+        nextReviewAt,
+        lastReviewedAt: timestamp,
+        updatedAt: timestamp,
+        isDeleted: false,
+      };
+
+      await database.srsRecords.upsert(updated);
+      void pushSrsRecordToRemote(database.srsRecords, updated);
+
+      // Advance to next card automatically
+      handleNext();
+    },
+    [database, currentQuizItem, quizDirection, handleNext]
+  );
 
   return (
     <Container size="md" py="xl">
@@ -1556,14 +1677,19 @@ export default function HomePage() {
         </Card>
 
         {/* --- Interactive Statistics Dashboard Row --- */}
-        <Grid gap="md" align="center">
+        <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="md" verticalSpacing="md">
           {/* Card 1: Total Words */}
-          <Grid.Col span={{ base: 12, sm: 4 }}>
             <Card
               className="glass-panel"
               radius="lg"
               padding="md"
-              style={{ borderLeft: '4px solid #6366f1' }}
+              style={{ borderLeft: '4px solid #6366f1', cursor: 'pointer' }}
+              onClick={() => {
+                setMode('quiz');
+                setQuizSource('words');
+                setQuizRange('all');
+                setQuizGroupFilter('all');
+              }}
             >
               <Group justify="space-between" align="center">
                 <div>
@@ -1581,15 +1707,19 @@ export default function HomePage() {
                 <IconBook size={28} style={{ opacity: 0.25, color: '#6366f1' }} />
               </Group>
             </Card>
-          </Grid.Col>
 
           {/* Card 2: Today's Additions */}
-          <Grid.Col span={{ base: 12, sm: 4 }}>
             <Card
               className="glass-panel"
               radius="lg"
               padding="md"
-              style={{ borderLeft: '4px solid #a855f7' }}
+              style={{ borderLeft: '4px solid #a855f7', cursor: 'pointer' }}
+              onClick={() => {
+                setMode('quiz');
+                setQuizSource('words');
+                setQuizRange('today');
+                setQuizGroupFilter('all');
+              }}
             >
               <Group justify="space-between" align="center">
                 <div>
@@ -1607,10 +1737,40 @@ export default function HomePage() {
                 <IconHistory size={28} style={{ opacity: 0.25, color: '#a855f7' }} />
               </Group>
             </Card>
-          </Grid.Col>
 
-          {/* Card 3: Cloud Synchronization Status */}
-          <Grid.Col span={{ base: 12, sm: 4 }}>
+          {/* Card 3: SRS Due Today */}
+            <Card
+              className="glass-panel"
+              radius="lg"
+              padding="md"
+              style={{ borderLeft: '4px solid #8b5cf6', cursor: 'pointer' }}
+              onClick={() => {
+                setMode('quiz');
+                setQuizSource('srs');
+              }}
+            >
+              <Group justify="space-between" align="center">
+                <div>
+                  <Text size="xs" fw={700} c="dimmed" style={{ letterSpacing: '0.05em' }}>
+                    SRS DUE TODAY
+                  </Text>
+                  <Text
+                    size="xl"
+                    fw={800}
+                    style={{
+                      fontFamily: 'var(--font-title)',
+                      marginTop: '4px',
+                      color: srsDueTodayCount > 0 ? '#8b5cf6' : undefined,
+                    }}
+                  >
+                    {srsDueTodayCount}
+                  </Text>
+                </div>
+                <IconBrain size={28} style={{ opacity: 0.25, color: '#8b5cf6' }} />
+              </Group>
+            </Card>
+
+          {/* Card 4: Cloud Synchronization Status */}
             <Card
               className="glass-panel"
               radius="lg"
@@ -1623,7 +1783,7 @@ export default function HomePage() {
                     CLOUD SYNC
                   </Text>
                   <Group gap={6} mt={4}>
-                    <Text size="xl" fw={700} c={unsyncedCount === 0 ? 'teal' : 'orange'}>
+                    <Text size="lg" fw={700} c={unsyncedCount === 0 ? 'teal' : 'orange'}>
                       {unsyncedCount === 0 ? 'Fully Synced' : `${unsyncedCount} Sync Pending`}
                     </Text>
                     {onlineStatus && (
@@ -1645,8 +1805,7 @@ export default function HomePage() {
                 )}
               </Group>
             </Card>
-          </Grid.Col>
-        </Grid>
+        </SimpleGrid>
 
         {/* Mode Selector Panel */}
         <SegmentedControl
@@ -2028,6 +2187,9 @@ export default function HomePage() {
               totalCount={quizQueue.length}
               onRestart={resetQuiz}
               onRefreshExamples={handleRefreshExamples}
+              srsMode={quizSource === 'srs'}
+              onSrsRate={quizSource === 'srs' ? handleSrsRate : undefined}
+              onEditClick={(id) => setEditingQuizWordId(id)}
             />
 
             <Card
@@ -2172,6 +2334,26 @@ export default function HomePage() {
           </Stack>
         )}
       </Stack>
+
+      <EditWordModal
+        opened={editingQuizWordId !== null}
+        onClose={() => setEditingQuizWordId(null)}
+        wordRecord={
+          editingQuizWordId ? words.find((w) => w.id === editingQuizWordId) || null : null
+        }
+        customGroups={customGroups}
+        onSave={async (id, word, meaning, userExamples, groups) => {
+          await handleEdit(id, word, meaning, userExamples, groups);
+          setQuizQueue((prev) =>
+            prev.map((item) =>
+              item.id === id
+                ? { ...item, word, meaning, tags: groups, examples: getExamplesForId(id) }
+                : item
+            )
+          );
+        }}
+        onAddCustomGroup={handleAddCustomGroup}
+      />
     </Container>
   );
 }
