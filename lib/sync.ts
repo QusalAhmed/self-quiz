@@ -5,12 +5,15 @@ import {
   type MissedWordCollection,
   type MissedWordRecord,
   type QuizMode,
+  type SrsPracticeCollection,
+  type SrsPracticeRecord,
   type SrsCollection,
   type WordCollection,
   type WordRecord,
 } from './db';
 import { getWordGroups } from './groups';
 import { buildSrsId, type SrsRecord } from './srs';
+import { buildSrsPracticeId } from './srs-practice';
 
 async function handleSyncResponseError(response: Response, actionLabel: string): Promise<void> {
   let errorMessage = response.statusText;
@@ -30,7 +33,7 @@ async function handleSyncResponseError(response: Response, actionLabel: string):
   if (isSchemaMismatch) {
     console.warn(
       `Supabase sync warning: Remote database schema is not updated. ` +
-        `Please run the SQL statements from 'scripts/setup-supabase.sql' or 'scripts/migrate-group.sql' in your Supabase SQL Editor. ` +
+        `Please run the SQL statements from 'scripts/setup-supabase.sql' or the relevant migrate script in your Supabase SQL Editor. ` +
         `Detail: ${errorMessage}`
     );
   } else {
@@ -208,6 +211,107 @@ function enqueueMissedWordOutbox(record: MissedWordRecord): void {
 
 function removeFromMissedWordOutbox(id: string): void {
   writeMissedWordOutbox(readMissedWordOutbox().filter((item) => item.id !== id));
+}
+
+// ---------------------------------------------------------------------------
+// SRS practice outbox (localStorage)
+// ---------------------------------------------------------------------------
+
+const SRS_PRACTICE_OUTBOX_KEY = 'self_quiz_srs_practice_outbox';
+
+type SrsPracticeSyncPayload = {
+  id: string;
+  word_id: string;
+  quiz_mode: string;
+  word: string;
+  meaning: string;
+  difficulty: string;
+  practiced_at: string;
+  updated_at: string;
+  deleted: boolean;
+};
+
+function srsPracticeRecordToPayload(record: SrsPracticeRecord): SrsPracticeSyncPayload {
+  return {
+    id: record.id,
+    word_id: record.wordId,
+    quiz_mode: record.quizMode,
+    word: record.word,
+    meaning: record.meaning,
+    difficulty: record.difficulty,
+    practiced_at: record.practicedAt,
+    updated_at: record.updatedAt,
+    deleted: record.isDeleted,
+  };
+}
+
+function readSrsPracticeOutbox(): SrsPracticeSyncPayload[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(SRS_PRACTICE_OUTBOX_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeSrsPracticeOutbox(items: SrsPracticeSyncPayload[]): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(SRS_PRACTICE_OUTBOX_KEY, JSON.stringify(items));
+}
+
+function enqueueSrsPracticeOutbox(record: SrsPracticeRecord): void {
+  const payload = srsPracticeRecordToPayload(record);
+  const outbox = readSrsPracticeOutbox().filter((item) => item.id !== payload.id);
+  outbox.push(payload);
+  writeSrsPracticeOutbox(outbox);
+}
+
+function removeFromSrsPracticeOutbox(id: string): void {
+  writeSrsPracticeOutbox(readSrsPracticeOutbox().filter((item) => item.id !== id));
+}
+
+export async function flushSrsPracticeOutbox(collection: SrsPracticeCollection): Promise<void> {
+  if (!isOnline()) return;
+
+  const outbox = readSrsPracticeOutbox();
+  if (outbox.length === 0) return;
+
+  console.log(`Flushing ${outbox.length} SRS practice record(s) from outbox...`);
+  const failed: SrsPracticeSyncPayload[] = [];
+
+  for (const payload of outbox) {
+    try {
+      const response = await fetch('/api/srs-practice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        failed.push(payload);
+        continue;
+      }
+
+      removeFromSrsPracticeOutbox(payload.id);
+      const existing = await collection.findOne(payload.id).exec();
+      if (existing) {
+        await collection.upsert({
+          ...existing.toJSON(),
+          lastSyncedAt: payload.updated_at,
+        });
+      }
+    } catch {
+      failed.push(payload);
+    }
+  }
+
+  if (failed.length > 0) {
+    writeSrsPracticeOutbox(failed);
+    console.warn(`${failed.length} SRS practice record(s) remain in outbox after flush`);
+  }
 }
 
 export async function flushMissedWordOutbox(collection: MissedWordCollection): Promise<void> {
@@ -1040,6 +1144,18 @@ export type RemoteSrsRow = {
   deleted: boolean;
 };
 
+export type RemoteSrsPracticeRow = {
+  id: string;
+  word_id: string;
+  quiz_mode: string;
+  word: string;
+  meaning: string;
+  difficulty: string;
+  practiced_at: string;
+  updated_at: string;
+  deleted: boolean;
+};
+
 function mapSrsRowToRecord(row: RemoteSrsRow): SrsRecord {
   const quizMode = (row.quiz_mode || 'wordToMeaning') as SrsRecord['quizMode'];
   const wordId = row.word_id;
@@ -1055,6 +1171,24 @@ function mapSrsRowToRecord(row: RemoteSrsRow): SrsRecord {
     repetitions: row.repetitions ?? 0,
     nextReviewAt: row.next_review_at,
     lastReviewedAt: row.last_reviewed_at,
+    updatedAt: row.updated_at,
+    lastSyncedAt: row.updated_at,
+    isDeleted: row.deleted,
+  };
+}
+
+function mapSrsPracticeRowToRecord(row: RemoteSrsPracticeRow): SrsPracticeRecord {
+  const quizMode = (row.quiz_mode || 'wordToMeaning') as QuizMode;
+  const wordId = row.word_id;
+  const id = row.id.includes(':srs-practice:') ? row.id : buildSrsPracticeId(wordId, quizMode);
+  return {
+    id,
+    wordId,
+    quizMode,
+    word: row.word,
+    meaning: row.meaning ?? '',
+    difficulty: (row.difficulty || 'good') as SrsPracticeRecord['difficulty'],
+    practicedAt: row.practiced_at,
     updatedAt: row.updated_at,
     lastSyncedAt: row.updated_at,
     isDeleted: row.deleted,
@@ -1117,6 +1251,60 @@ export async function pullRemoteSrsRecords(collection: SrsCollection): Promise<v
   }
 }
 
+export async function pullRemoteSrsPracticeWords(collection: SrsPracticeCollection): Promise<void> {
+  if (!isOnline()) {
+    console.log('Device is offline, skipping SRS practice pull from remote');
+    return;
+  }
+
+  try {
+    console.log('Pulling SRS practice words from Supabase...');
+    const response = await fetch(`/api/srs-practice?t=${Date.now()}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+      },
+    });
+
+    if (!response.ok) {
+      await handleSyncResponseError(response, 'pull SRS practice words');
+      return;
+    }
+
+    const { data } = await response.json();
+    if (!data || !Array.isArray(data)) {
+      console.log('No SRS practice words to pull');
+      return;
+    }
+
+    console.log('Successfully pulled', data.length, 'SRS practice word(s) from remote');
+    for (const row of data as RemoteSrsPracticeRow[]) {
+      const mapped = mapSrsPracticeRowToRecord(row);
+      const local = await collection.findOne(mapped.id).exec();
+      if (local) {
+        const localRecord = local.toJSON();
+
+        if (mapped.isDeleted && !localRecord.isDeleted) {
+          await collection.upsert(mapped);
+          continue;
+        }
+
+        if (hasPendingLocalSync(localRecord) && localRecord.updatedAt > mapped.updatedAt) {
+          continue;
+        }
+
+        if (localRecord.updatedAt >= mapped.updatedAt) {
+          continue;
+        }
+      }
+      await collection.upsert(mapped);
+    }
+  } catch (error) {
+    console.error('Error pulling SRS practice words:', error);
+  }
+}
+
 export async function pushSrsRecordToRemote(
   collection: SrsCollection,
   record: SrsRecord
@@ -1158,6 +1346,47 @@ export async function pushSrsRecordToRemote(
   }
 }
 
+export async function pushSrsPracticeWordToRemote(
+  collection: SrsPracticeCollection,
+  record: SrsPracticeRecord
+): Promise<void> {
+  if (!isOnline()) {
+    enqueueSrsPracticeOutbox(record);
+    console.log(
+      'Device is offline, SRS practice record queued to outbox. Will sync when online:',
+      record.word
+    );
+    return;
+  }
+
+  try {
+    const payload = srsPracticeRecordToPayload(record);
+
+    console.log('Pushing SRS practice record to remote:', record.word, record.quizMode);
+    const response = await fetch('/api/srs-practice', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      enqueueSrsPracticeOutbox(record);
+      await handleSyncResponseError(response, 'push SRS practice record to remote');
+      return;
+    }
+
+    removeFromSrsPracticeOutbox(record.id);
+    await collection.upsert({
+      ...record,
+      lastSyncedAt: record.updatedAt,
+    });
+    console.log('Successfully synced SRS practice record to remote:', record.word);
+  } catch (error) {
+    enqueueSrsPracticeOutbox(record);
+    console.error('Error pushing SRS practice record to remote:', error);
+  }
+}
+
 export async function pushAllLocalSrsRecords(collection: SrsCollection): Promise<void> {
   if (!isOnline()) {
     console.log('Device is offline, skipping SRS push. Will sync when online.');
@@ -1185,6 +1414,35 @@ export async function pushAllLocalSrsRecords(collection: SrsCollection): Promise
   }
 }
 
+export async function pushAllLocalSrsPracticeWords(
+  collection: SrsPracticeCollection
+): Promise<void> {
+  if (!isOnline()) {
+    console.log('Device is offline, skipping SRS practice push. Will sync when online.');
+    return;
+  }
+
+  try {
+    await flushSrsPracticeOutbox(collection);
+
+    console.log('Pushing all local SRS practice words to remote...');
+    const localRecords = await collection.find().exec();
+    let syncedCount = 0;
+
+    for (const doc of localRecords) {
+      const record = doc.toJSON();
+      if (hasPendingLocalSync(record)) {
+        await pushSrsPracticeWordToRemote(collection, record as SrsPracticeRecord);
+        syncedCount++;
+      }
+    }
+
+    console.log('Synced', syncedCount, 'SRS practice record(s) to remote');
+  } catch (error) {
+    console.error('Error pushing all local SRS practice records:', error);
+  }
+}
+
 /**
  * Perform a full bidirectional sync:
  *   1. Flush all outboxes (pending offline writes)
@@ -1196,7 +1454,8 @@ export async function performFullSync(
   wordsCollection: WordCollection,
   missedCollection: MissedWordCollection,
   groupsCollection: GroupCollection,
-  srsCollection?: SrsCollection
+  srsCollection?: SrsCollection,
+  srsPracticeCollection?: SrsPracticeCollection
 ): Promise<void> {
   if (!isOnline()) {
     console.log('Device is offline, skipping full sync');
@@ -1210,18 +1469,21 @@ export async function performFullSync(
   await flushGroupOutbox(groupsCollection);
   await flushMissedWordOutbox(missedCollection);
   if (srsCollection) await flushSrsOutbox(srsCollection);
+  if (srsPracticeCollection) await flushSrsPracticeOutbox(srsPracticeCollection);
 
   // Step 2: Pull remote — brings in changes from other devices
   await pullRemoteGroups(groupsCollection);
   await pullRemoteWords(wordsCollection);
   await pullRemoteMissedWords(missedCollection);
   if (srsCollection) await pullRemoteSrsRecords(srsCollection);
+  if (srsPracticeCollection) await pullRemoteSrsPracticeWords(srsPracticeCollection);
 
   // Step 3: Push any remaining locally pending records
   await pushAllLocalGroups(groupsCollection);
   await pushAllLocalWords(wordsCollection);
   await pushAllLocalMissedWords(missedCollection);
   if (srsCollection) await pushAllLocalSrsRecords(srsCollection);
+  if (srsPracticeCollection) await pushAllLocalSrsPracticeWords(srsPracticeCollection);
 
   // Step 4: Fetch meanings for words that are still missing them
   await fetchMissingMeanings(wordsCollection);
@@ -1236,11 +1498,18 @@ export function setupOnlineSyncListener(
   wordsCollection: WordCollection,
   missedCollection: MissedWordCollection,
   groupsCollection: GroupCollection,
-  srsCollection?: SrsCollection
+  srsCollection?: SrsCollection,
+  srsPracticeCollection?: SrsPracticeCollection
 ): () => void {
   const handleOnline = async () => {
     console.log('Device is back online! Starting full sync...');
-    await performFullSync(wordsCollection, missedCollection, groupsCollection, srsCollection);
+    await performFullSync(
+      wordsCollection,
+      missedCollection,
+      groupsCollection,
+      srsCollection,
+      srsPracticeCollection
+    );
   };
 
   const handleOffline = () => {

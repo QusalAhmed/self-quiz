@@ -13,7 +13,7 @@ import {
   TextInput,
   Divider,
   Badge,
-    Scroller
+  Scroller,
 } from '@mantine/core';
 import {
   IconAward,
@@ -329,68 +329,69 @@ export function QuizPanel({
   );
 
   // SRS rating bar — shown after reveal in srsMode
-  const srsRatingButtons = srsMode && revealed && onSrsRate ? (
-    <Stack gap="xs" align="center" style={{ width: '100%' }}>
-      <Group gap={4} align="center" mb={2}>
-        <IconBrain size={14} style={{ color: '#a855f7', opacity: 0.8 }} />
-        <Text size="xs" fw={700} c="dimmed" style={{ letterSpacing: '0.05em' }}>
-          HOW WELL DID YOU KNOW THIS?
-        </Text>
-      </Group>
+  const srsRatingButtons =
+    srsMode && revealed && onSrsRate ? (
+      <Stack gap="xs" align="center" style={{ width: '100%' }}>
+        <Group gap={4} align="center" mb={2}>
+          <IconBrain size={14} style={{ color: '#a855f7', opacity: 0.8 }} />
+          <Text size="xs" fw={700} c="dimmed" style={{ letterSpacing: '0.05em' }}>
+            HOW WELL DID YOU KNOW THIS?
+          </Text>
+        </Group>
         <Scroller>
-      <Group gap="sm" justify="center" wrap="nowrap">
-        <Tooltip label="Completely forgot — review tomorrow" withArrow>
-          <Button
-            size="sm"
-            radius="md"
-            variant="light"
-            color="red"
-            onClick={() => onSrsRate('again')}
-            style={{ fontWeight: 700, minWidth: 70 }}
-          >
-            Again
-          </Button>
-        </Tooltip>
-        <Tooltip label="Hard — remembered with difficulty" withArrow>
-          <Button
-            size="sm"
-            radius="md"
-            variant="light"
-            color="orange"
-            onClick={() => onSrsRate('hard')}
-            style={{ fontWeight: 700, minWidth: 70 }}
-          >
-            Hard
-          </Button>
-        </Tooltip>
-        <Tooltip label="Good — recalled correctly" withArrow>
-          <Button
-            size="sm"
-            radius="md"
-            variant="light"
-            color="teal"
-            onClick={() => onSrsRate('good')}
-            style={{ fontWeight: 700, minWidth: 70 }}
-          >
-            Good
-          </Button>
-        </Tooltip>
-        <Tooltip label="Easy — recalled instantly" withArrow>
-          <Button
-            size="sm"
-            radius="md"
-            variant="light"
-            color="indigo"
-            onClick={() => onSrsRate('easy')}
-            style={{ fontWeight: 700, minWidth: 70 }}
-          >
-            Easy
-          </Button>
-        </Tooltip>
-      </Group>
-    </Scroller>
-    </Stack>
-  ) : null;
+          <Group gap="sm" justify="center" wrap="nowrap">
+            <Tooltip label="Completely forgot — review tomorrow" withArrow>
+              <Button
+                size="sm"
+                radius="md"
+                variant="light"
+                color="red"
+                onClick={() => onSrsRate('again')}
+                style={{ fontWeight: 700, minWidth: 70 }}
+              >
+                Again
+              </Button>
+            </Tooltip>
+            <Tooltip label="Hard — remembered with difficulty" withArrow>
+              <Button
+                size="sm"
+                radius="md"
+                variant="light"
+                color="orange"
+                onClick={() => onSrsRate('hard')}
+                style={{ fontWeight: 700, minWidth: 70 }}
+              >
+                Hard
+              </Button>
+            </Tooltip>
+            <Tooltip label="Good — recalled correctly" withArrow>
+              <Button
+                size="sm"
+                radius="md"
+                variant="light"
+                color="teal"
+                onClick={() => onSrsRate('good')}
+                style={{ fontWeight: 700, minWidth: 70 }}
+              >
+                Good
+              </Button>
+            </Tooltip>
+            <Tooltip label="Easy — recalled instantly" withArrow>
+              <Button
+                size="sm"
+                radius="md"
+                variant="light"
+                color="indigo"
+                onClick={() => onSrsRate('easy')}
+                style={{ fontWeight: 700, minWidth: 70 }}
+              >
+                Easy
+              </Button>
+            </Tooltip>
+          </Group>
+        </Scroller>
+      </Stack>
+    ) : null;
 
   const wordWithActions = (includeMissed: boolean) => (
     <Group gap="sm" align="center" justify="center">

@@ -31,7 +31,7 @@ export function GroupManager({
     .sort((a, b) => a.name.localeCompare(b.name));
 
   const groupToDelete = confirmDeleteId
-    ? activeGroups.find((g) => g.id === confirmDeleteId) ?? null
+    ? (activeGroups.find((g) => g.id === confirmDeleteId) ?? null)
     : null;
 
   const startEditing = (group: GroupRecord) => {
@@ -134,8 +134,8 @@ export function GroupManager({
             <Text component="span" fw={700} c="var(--text-primary)">
               &ldquo;{groupToDelete?.name}&rdquo;
             </Text>
-            ? Words in this group will <strong>not</strong> be deleted — they will simply lose
-            this group tag. This action cannot be undone.
+            ? Words in this group will <strong>not</strong> be deleted — they will simply lose this
+            group tag. This action cannot be undone.
           </Text>
           <Group justify="flex-end" gap="sm">
             <Button

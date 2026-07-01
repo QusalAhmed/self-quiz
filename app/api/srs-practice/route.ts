@@ -6,20 +6,8 @@ export const revalidate = 0;
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const {
-      id,
-      word_id,
-      quiz_mode,
-      word,
-      meaning,
-      ease_factor,
-      interval,
-      repetitions,
-      next_review_at,
-      last_reviewed_at,
-      updated_at,
-      deleted,
-    } = body;
+    const { id, word_id, quiz_mode, word, meaning, difficulty, practiced_at, updated_at, deleted } =
+      body;
 
     if (!id || !word_id || !word) {
       return NextResponse.json(
@@ -34,17 +22,14 @@ export async function POST(request: NextRequest) {
       quiz_mode: quiz_mode || 'wordToMeaning',
       word,
       meaning: meaning || '',
-      ease_factor: ease_factor ?? 2.5,
-      interval: interval ?? 0,
-      repetitions: repetitions ?? 0,
-      next_review_at: next_review_at || new Date().toISOString(),
-      last_reviewed_at: last_reviewed_at || new Date().toISOString(),
+      difficulty: difficulty || 'good',
+      practiced_at: practiced_at || new Date().toISOString(),
       updated_at: updated_at || new Date().toISOString(),
       deleted: deleted || false,
     };
 
     const { data, error } = await supabase
-      .from('srs_records')
+      .from('srs_practice_words')
       .upsert(payload, { onConflict: 'id' });
 
     if (error) {
@@ -68,7 +53,11 @@ export async function GET(request: NextRequest) {
     const id = searchParams.get('id');
 
     if (id) {
-      const { data, error } = await supabase.from('srs_records').select('*').eq('id', id).single();
+      const { data, error } = await supabase
+        .from('srs_practice_words')
+        .select('*')
+        .eq('id', id)
+        .single();
 
       if (error) {
         console.error('Supabase error:', error);
@@ -87,9 +76,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Return ALL records including deleted ones so other devices can apply
-    // soft-deletes when they pull. The client filters isDeleted locally.
-    const { data, error } = await supabase.from('srs_records').select('*');
+    const { data, error } = await supabase.from('srs_practice_words').select('*');
 
     if (error) {
       console.error('Supabase error:', error);

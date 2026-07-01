@@ -102,106 +102,6 @@ export function WordForm({ onAdd, disabled, customGroups, onAddCustomGroup }: Wo
             radius="md"
           />
 
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr auto',
-              alignItems: 'flex-end',
-              gap: '8px',
-            }}
-          >
-            {isAddingNewGroup ? (
-              <TextInput
-                label={
-                  <Text size="xs" fw={600} c="dimmed">
-                    Create New Group
-                  </Text>
-                }
-                placeholder="Group name, e.g. Verbs, SAT prep"
-                value={newGroupName}
-                onChange={(event) => setNewGroupName(event.currentTarget.value)}
-                disabled={disabled || isSaving}
-                size="sm"
-                radius="md"
-                style={{ flex: 1 }}
-              />
-            ) : (
-              <MultiSelect
-                label={
-                  <Text size="xs" fw={600} c="dimmed">
-                    Groups (optional)
-                  </Text>
-                }
-                placeholder="Choose one or more groups..."
-                value={groups}
-                onChange={setGroups}
-                data={customGroups.map((g) => ({ value: g, label: g }))}
-                disabled={disabled || isSaving}
-                size="sm"
-                radius="md"
-                style={{ flex: 1 }}
-                searchable
-                clearable
-              />
-            )}
-
-            {isAddingNewGroup ? (
-              <Group gap={4} style={{ marginBottom: '4px' }}>
-                <Tooltip label="Add Group" withArrow>
-                  <ActionIcon
-                    variant="filled"
-                    color="indigo"
-                    size="md"
-                    radius="md"
-                    onClick={() => {
-                      const trimmed = newGroupName.trim();
-                      if (trimmed) {
-                        if (onAddCustomGroup) {
-                          onAddCustomGroup(trimmed);
-                        }
-                        setGroups((prev) => Array.from(new Set([...prev, trimmed])));
-                      }
-                      setNewGroupName('');
-                      setIsAddingNewGroup(false);
-                    }}
-                    disabled={!newGroupName.trim() || disabled || isSaving}
-                  >
-                    <IconCheck size={18} />
-                  </ActionIcon>
-                </Tooltip>
-                <Tooltip label="Cancel" withArrow>
-                  <ActionIcon
-                    variant="light"
-                    color="gray"
-                    size="md"
-                    radius="md"
-                    onClick={() => {
-                      setNewGroupName('');
-                      setIsAddingNewGroup(false);
-                    }}
-                    disabled={disabled || isSaving}
-                  >
-                    <IconX size={18} />
-                  </ActionIcon>
-                </Tooltip>
-              </Group>
-            ) : (
-              <Tooltip label="Create new custom group" withArrow>
-                <ActionIcon
-                  variant="light"
-                  color="indigo"
-                  size="lg"
-                  radius="md"
-                  style={{ marginBottom: '2px' }}
-                  onClick={() => setIsAddingNewGroup(true)}
-                  disabled={disabled || isSaving}
-                >
-                  <IconPlus size={20} />
-                </ActionIcon>
-              </Tooltip>
-            )}
-          </div>
-
           <Textarea
             label={
               <Text size="xs" fw={600} c="dimmed">
@@ -235,6 +135,106 @@ export function WordForm({ onAdd, disabled, customGroups, onAddCustomGroup }: Wo
             radius="md"
             onKeyDown={handleMeaningKeyDown}
           />
+
+          <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr auto',
+                alignItems: 'flex-end',
+                gap: '8px',
+              }}
+          >
+            {isAddingNewGroup ? (
+                <TextInput
+                    label={
+                      <Text size="xs" fw={600} c="dimmed">
+                        Create New Group
+                      </Text>
+                    }
+                    placeholder="Group name, e.g. Verbs, SAT prep"
+                    value={newGroupName}
+                    onChange={(event) => setNewGroupName(event.currentTarget.value)}
+                    disabled={disabled || isSaving}
+                    size="sm"
+                    radius="md"
+                    style={{ flex: 1 }}
+                />
+            ) : (
+                <MultiSelect
+                    label={
+                      <Text size="xs" fw={600} c="dimmed">
+                        Groups (optional)
+                      </Text>
+                    }
+                    placeholder="Choose one or more groups..."
+                    value={groups}
+                    onChange={setGroups}
+                    data={customGroups.map((g) => ({ value: g, label: g }))}
+                    disabled={disabled || isSaving}
+                    size="sm"
+                    radius="md"
+                    style={{ flex: 1 }}
+                    searchable
+                    clearable
+                />
+            )}
+
+            {isAddingNewGroup ? (
+                <Group gap={4} style={{ marginBottom: '4px' }}>
+                  <Tooltip label="Add Group" withArrow>
+                    <ActionIcon
+                        variant="filled"
+                        color="indigo"
+                        size="md"
+                        radius="md"
+                        onClick={() => {
+                          const trimmed = newGroupName.trim();
+                          if (trimmed) {
+                            if (onAddCustomGroup) {
+                              onAddCustomGroup(trimmed);
+                            }
+                            setGroups((prev) => Array.from(new Set([...prev, trimmed])));
+                          }
+                          setNewGroupName('');
+                          setIsAddingNewGroup(false);
+                        }}
+                        disabled={!newGroupName.trim() || disabled || isSaving}
+                    >
+                      <IconCheck size={18} />
+                    </ActionIcon>
+                  </Tooltip>
+                  <Tooltip label="Cancel" withArrow>
+                    <ActionIcon
+                        variant="light"
+                        color="gray"
+                        size="md"
+                        radius="md"
+                        onClick={() => {
+                          setNewGroupName('');
+                          setIsAddingNewGroup(false);
+                        }}
+                        disabled={disabled || isSaving}
+                    >
+                      <IconX size={18} />
+                    </ActionIcon>
+                  </Tooltip>
+                </Group>
+            ) : (
+                <Tooltip label="Create new custom group" withArrow>
+                  <ActionIcon
+                      variant="light"
+                      color="indigo"
+                      size="lg"
+                      radius="md"
+                      style={{ marginBottom: '2px' }}
+                      onClick={() => setIsAddingNewGroup(true)}
+                      disabled={disabled || isSaving}
+                  >
+                    <IconPlus size={20} />
+                  </ActionIcon>
+                </Tooltip>
+            )}
+          </div>
 
           <Group justify="flex-end" mt="xs">
             <Button

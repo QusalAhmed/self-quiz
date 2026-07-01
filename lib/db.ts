@@ -5,12 +5,13 @@ import {
   type RxDatabase,
   type RxJsonSchema,
 } from 'rxdb';
-import type { SrsRecord } from './srs';
 import { RxDBDevModePlugin, disableWarnings } from 'rxdb/plugins/dev-mode';
 import { RxDBMigrationSchemaPlugin } from 'rxdb/plugins/migration-schema';
 import { RxDBQueryBuilderPlugin } from 'rxdb/plugins/query-builder';
 import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie';
 import { wrappedValidateAjvStorage } from 'rxdb/plugins/validate-ajv';
+import type { SrsRecord } from './srs';
+import type { SrsPracticeRecord } from './srs-practice';
 
 export type WordRecord = {
   id: string;
@@ -37,6 +38,7 @@ export type GroupRecord = {
 export type QuizMode = 'wordToMeaning' | 'meaningToWord' | 'spelling';
 
 export type { SrsRecord };
+export type { SrsPracticeRecord };
 
 export type MissedWordRecord = {
   id: string;
@@ -59,11 +61,13 @@ export type WordCollection = RxCollection<WordRecord>;
 export type MissedWordCollection = RxCollection<MissedWordRecord>;
 export type GroupCollection = RxCollection<GroupRecord>;
 export type SrsCollection = RxCollection<SrsRecord>;
+export type SrsPracticeCollection = RxCollection<SrsPracticeRecord>;
 export type AppDatabase = RxDatabase<{
   words: WordCollection;
   missedWords: MissedWordCollection;
   groups: GroupCollection;
   srsRecords: SrsCollection;
+  srsPracticeWords: SrsPracticeCollection;
 }>;
 
 const wordSchema: RxJsonSchema<WordRecord> = {
@@ -201,6 +205,39 @@ const srsSchema: RxJsonSchema<SrsRecord> = {
   indexes: ['wordId', 'quizMode', 'nextReviewAt', 'updatedAt', 'isDeleted'],
 };
 
+const srsPracticeSchema: RxJsonSchema<SrsPracticeRecord> = {
+  title: 'srs practice words schema',
+  version: 1,
+  description: 'Recently practiced SRS words with the latest rating',
+  primaryKey: 'id',
+  type: 'object',
+  properties: {
+    id: { type: 'string', maxLength: 128 },
+    wordId: { type: 'string', maxLength: 64 },
+    quizMode: { type: 'string', maxLength: 16 },
+    word: { type: 'string', maxLength: 128 },
+    meaning: { type: 'string' },
+    difficulty: { type: 'string', maxLength: 8 },
+    practicedAt: { type: 'string', maxLength: 32 },
+    updatedAt: { type: 'string', maxLength: 32 },
+    lastSyncedAt: { type: 'string', default: '' },
+    isDeleted: { type: 'boolean', default: false },
+  },
+  required: [
+    'id',
+    'wordId',
+    'quizMode',
+    'word',
+    'meaning',
+    'difficulty',
+    'practicedAt',
+    'updatedAt',
+    'lastSyncedAt',
+    'isDeleted',
+  ],
+  indexes: ['wordId', 'quizMode', 'practicedAt', 'updatedAt', 'isDeleted'],
+};
+
 if (process.env.NODE_ENV === 'development') {
   addRxPlugin(RxDBDevModePlugin);
   disableWarnings();
@@ -284,6 +321,12 @@ async function createDatabase(): Promise<AppDatabase> {
     },
     srsRecords: {
       schema: srsSchema,
+      migrationStrategies: {
+        1: (oldDoc) => ({ ...oldDoc }),
+      },
+    },
+    srsPracticeWords: {
+      schema: srsPracticeSchema,
       migrationStrategies: {
         1: (oldDoc) => ({ ...oldDoc }),
       },

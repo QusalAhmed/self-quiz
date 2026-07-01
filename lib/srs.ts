@@ -27,10 +27,7 @@ export type SrsRecord = {
   isDeleted: boolean;
 };
 
-export type SrsCardState = Pick<
-  SrsRecord,
-  'easeFactor' | 'interval' | 'repetitions'
->;
+export type SrsCardState = Pick<SrsRecord, 'easeFactor' | 'interval' | 'repetitions'>;
 
 // ---------------------------------------------------------------------------
 // Helpers
