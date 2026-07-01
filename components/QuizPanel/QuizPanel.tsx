@@ -13,6 +13,7 @@ import {
   TextInput,
   Divider,
   Badge,
+    Scroller
 } from '@mantine/core';
 import {
   IconAward,
@@ -305,7 +306,7 @@ export function QuizPanel({
     item.tags && item.tags.length > 0 ? (
       <Group gap="xs" justify="center" mt="sm">
         {item.tags.map((tag) => (
-          <Badge key={tag} variant="light" color="indigo" radius="sm">
+          <Badge key={tag} variant="light" color="grape" radius="sm">
             {tag}
           </Badge>
         ))}
@@ -336,6 +337,7 @@ export function QuizPanel({
           HOW WELL DID YOU KNOW THIS?
         </Text>
       </Group>
+        <Scroller>
       <Group gap="sm" justify="center" wrap="nowrap">
         <Tooltip label="Completely forgot — review tomorrow" withArrow>
           <Button
@@ -386,6 +388,7 @@ export function QuizPanel({
           </Button>
         </Tooltip>
       </Group>
+    </Scroller>
     </Stack>
   ) : null;
 
@@ -436,7 +439,7 @@ export function QuizPanel({
             <IconEdit size={20} />
           </ActionIcon>
         )}
-        {includeMissed && !srsMode && markMissedAction}
+        {includeMissed && markMissedAction}
       </Group>
     </Group>
   );
