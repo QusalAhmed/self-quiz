@@ -75,7 +75,6 @@ import {
   wordHasGroup,
 } from '@/lib/groups';
 import { buildSrsId, computeSm2, createInitialSrsRecord, type SrsRating } from '@/lib/srs';
-import { createInitialSrsPracticeRecord } from '@/lib/srs-practice';
 import {
   performFullSync,
   pullRemoteGroups,
@@ -91,6 +90,9 @@ import {
   pushSrsPracticeWordToRemote,
   setupOnlineSyncListener,
 } from '@/lib/sync';
+
+import { buildSrsPracticeId, createInitialSrsPracticeRecord } from '@/lib/srs-practice';
+
 
 const quizRanges = {
   all: 'All Words',
@@ -504,6 +506,7 @@ function MissedWordVirtualList({
 
 function formatPracticeDate(value: string): string {
   return new Date(value).toLocaleString(undefined, {
+    timeStyle: "medium",
     dateStyle: "medium",
   });
 }
@@ -2040,20 +2043,55 @@ export default function HomePage() {
       await database.srsRecords.upsert(updated);
       void pushSrsRecordToRemote(database.srsRecords, updated);
 
-      const practiceRecord = {
-        ...createInitialSrsPracticeRecord(
-          currentQuizItem.id,
-          quizDirection as import('@/lib/db').QuizMode,
-          currentQuizItem.word,
-          currentQuizItem.meaning,
-          rating,
-          timestamp
-        ),
-        updatedAt: timestamp,
-      };
+      const practiceId = buildSrsPracticeId(currentQuizItem.id, quizDirection as import('@/lib/db').QuizMode);
+      const shouldAddToPractice = rating === 'again' || rating === 'hard';
 
-      await database.srsPracticeWords.upsert(practiceRecord);
-      void pushSrsPracticeWordToRemote(database.srsPracticeWords, practiceRecord);
+      if (shouldAddToPractice) {
+        const practiceRecord = {
+          ...createInitialSrsPracticeRecord(
+            currentQuizItem.id,
+            quizDirection as import('@/lib/db').QuizMode,
+            currentQuizItem.word,
+            currentQuizItem.meaning,
+            rating,
+            timestamp
+          ),
+          updatedAt: timestamp,
+          isDeleted: false,
+        };
+
+        await database.srsPracticeWords.upsert(practiceRecord);
+        void pushSrsPracticeWordToRemote(database.srsPracticeWords, practiceRecord);
+      } else {
+        // if later rated good/easy, remove it from SRS Practice
+        const existing = await database.srsPracticeWords.findOne(practiceId).exec();
+        if (existing) {
+          const deletedRecord = {
+            ...(existing.toJSON() as SrsPracticeRecord),
+            difficulty: rating,
+            practicedAt: timestamp,
+            updatedAt: timestamp,
+            isDeleted: true,
+          };
+          await database.srsPracticeWords.upsert(deletedRecord);
+          void pushSrsPracticeWordToRemote(database.srsPracticeWords, deletedRecord);
+        }
+      }
+
+      // const practiceRecord = {
+      //   ...createInitialSrsPracticeRecord(
+      //     currentQuizItem.id,
+      //     quizDirection as import('@/lib/db').QuizMode,
+      //     currentQuizItem.word,
+      //     currentQuizItem.meaning,
+      //     rating,
+      //     timestamp
+      //   ),
+      //   updatedAt: timestamp,
+      // };
+      //
+      // await database.srsPracticeWords.upsert(practiceRecord);
+      // void pushSrsPracticeWordToRemote(database.srsPracticeWords, practiceRecord);
 
       // Advance to next card automatically
       handleNext();
