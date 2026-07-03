@@ -75,6 +75,7 @@ import {
   wordHasGroup,
 } from '@/lib/groups';
 import { buildSrsId, computeSm2, createInitialSrsRecord, type SrsRating } from '@/lib/srs';
+import { buildSrsPracticeId, createInitialSrsPracticeRecord } from '@/lib/srs-practice';
 import {
   performFullSync,
   pullRemoteGroups,
@@ -90,9 +91,7 @@ import {
   pushSrsPracticeWordToRemote,
   setupOnlineSyncListener,
 } from '@/lib/sync';
-
-import { buildSrsPracticeId, createInitialSrsPracticeRecord } from '@/lib/srs-practice';
-
+import { resolveWordTextFromMainTable } from '@/lib/word-display';
 
 const quizRanges = {
   all: 'All Words',
@@ -506,8 +505,8 @@ function MissedWordVirtualList({
 
 function formatPracticeDate(value: string): string {
   return new Date(value).toLocaleString(undefined, {
-    timeStyle: "medium",
-    dateStyle: "medium",
+    timeStyle: 'medium',
+    dateStyle: 'medium',
   });
 }
 
@@ -1054,6 +1053,10 @@ export default function HomePage() {
     return new Map(words.map((word) => [word.id, getDisplayExamples(word)]));
   }, [words]);
 
+  const wordsById = useMemo(() => {
+    return new Map(words.map((word) => [word.id, word]));
+  }, [words]);
+
   const getExamplesForId = useCallback(
     (id: string) => {
       return examplesById.get(id) ?? [];
@@ -1084,8 +1087,12 @@ export default function HomePage() {
   }, [words]);
 
   const missedWordsForMode = useMemo(
-    () => missedWords.filter((word) => word.quizMode === quizDirection),
-    [missedWords, quizDirection]
+    () =>
+      missedWords
+        .filter((word) => word.quizMode === quizDirection)
+        .map((word) => resolveWordTextFromMainTable(word, wordsById))
+        .filter((word): word is MissedWordRecord => word !== null),
+    [missedWords, quizDirection, wordsById]
   );
 
   const missedWordIdSet = useMemo(
@@ -1098,13 +1105,12 @@ export default function HomePage() {
     const now = new Date().toISOString();
     return srsRecords
       .filter((r) => !r.isDeleted && r.quizMode === quizDirection && r.nextReviewAt <= now)
+      .map((record) => resolveWordTextFromMainTable(record, wordsById))
+      .filter((record): record is import('@/lib/db').SrsRecord => record !== null)
       .sort((a, b) => a.nextReviewAt.localeCompare(b.nextReviewAt));
-  }, [srsRecords, quizDirection]);
+  }, [srsRecords, quizDirection, wordsById]);
 
-  const srsDueTodayCount = useMemo(() => {
-    const now = new Date().toISOString();
-    return srsRecords.filter((r) => !r.isDeleted && r.nextReviewAt <= now).length;
-  }, [srsRecords]);
+  const srsDueTodayCount = useMemo(() => srsDueRecords.length, [srsDueRecords]);
 
   const recentSrsPracticeWords = useMemo(() => {
     const cutoff = Date.now() - 24 * 60 * 60 * 1000;
@@ -1115,8 +1121,10 @@ export default function HomePage() {
           record.quizMode === quizDirection &&
           new Date(record.practicedAt).getTime() >= cutoff
       )
+      .map((record) => resolveWordTextFromMainTable(record, wordsById))
+      .filter((record): record is SrsPracticeRecord => record !== null)
       .sort((a, b) => b.practicedAt.localeCompare(a.practicedAt));
-  }, [srsPracticeWords, quizDirection]);
+  }, [srsPracticeWords, quizDirection, wordsById]);
 
   const getCandidateWordId = useCallback(
     (word: WordRecord | MissedWordRecord | import('@/lib/db').SrsRecord | SrsPracticeRecord) => {
@@ -2043,7 +2051,10 @@ export default function HomePage() {
       await database.srsRecords.upsert(updated);
       void pushSrsRecordToRemote(database.srsRecords, updated);
 
-      const practiceId = buildSrsPracticeId(currentQuizItem.id, quizDirection as import('@/lib/db').QuizMode);
+      const practiceId = buildSrsPracticeId(
+        currentQuizItem.id,
+        quizDirection as import('@/lib/db').QuizMode
+      );
       const shouldAddToPractice = rating === 'again' || rating === 'hard';
 
       if (shouldAddToPractice) {
