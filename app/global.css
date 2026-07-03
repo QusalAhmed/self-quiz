@@ -215,6 +215,20 @@ h6 {
 }
 
 /* Floating custom animations */
+@keyframes sync-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.sync-spin-icon {
+  animation: sync-spin 1s linear infinite;
+}
+
 @keyframes float {
   0% {
     transform: translateY(0px);

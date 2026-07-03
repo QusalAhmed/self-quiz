@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     Button,
     Card,
@@ -12,6 +12,8 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconPlus, IconCheck, IconX } from '@tabler/icons-react';
+import { EditWordModal } from '@/components/EditWordModal/EditWordModal';
+import type { WordRecord } from '@/lib/db';
 
 export type WordFormEditValues = {
     word: string;
@@ -26,6 +28,14 @@ type WordFormProps = {
     onAddCustomGroup?: (group: string) => void;
     variant?: 'card' | 'embedded' | 'plain';
     editValues?: WordFormEditValues | null;
+    existingWords?: WordRecord[];
+    onEditExisting?: (
+        id: string,
+        word: string,
+        meaning: string,
+        userExamples: string[],
+        groups: string[]
+    ) => Promise<void> | void;
     onSubmit: (
         word: string,
         meaning: string,
@@ -46,6 +56,8 @@ export function WordForm({
                              onAddCustomGroup,
                              variant = 'card',
                              editValues,
+                             existingWords,
+                             onEditExisting,
                              onSubmit,
                              onCancel,
                          }: WordFormProps) {
@@ -58,7 +70,44 @@ export function WordForm({
     const [isAddingNewGroup, setIsAddingNewGroup] = useState(false);
     const [newGroupName, setNewGroupName] = useState('');
     const [isSaving, setIsSaving] = useState(false);
+    const [editModalRecord, setEditModalRecord] = useState<WordRecord | null>(null);
     const wordInputRef = useRef<HTMLInputElement>(null);
+
+    const resetForm = useCallback(() => {
+        setWord('');
+        setMeaning('');
+        setExamples(['']);
+        setGroups([]);
+        setIsAddingNewGroup(false);
+        setNewGroupName('');
+    }, []);
+
+    const findExistingWord = useCallback(
+        (value: string): WordRecord | undefined => {
+            const normalized = value.trim().toLowerCase();
+            if (!normalized || !existingWords?.length) {
+                return undefined;
+            }
+            return existingWords.find((item) => item.word.trim().toLowerCase() === normalized);
+        },
+        [existingWords]
+    );
+
+    const openEditModalForExistingWord = useCallback(
+        (value: string) => {
+            if (isEditMode || !onEditExisting) {
+                return false;
+            }
+            const match = findExistingWord(value);
+            if (!match) {
+                return false;
+            }
+            setEditModalRecord(match);
+            resetForm();
+            return true;
+        },
+        [findExistingWord, isEditMode, onEditExisting, resetForm]
+    );
 
     useEffect(() => {
         if (isEditMode && editValues) {
@@ -75,15 +124,6 @@ export function WordForm({
     const inputSize = variant === 'card' ? 'md' : 'sm';
     const buttonSize = variant === 'embedded' ? 'xs' : variant === 'card' ? 'md' : 'sm';
 
-    const resetForm = () => {
-        setWord('');
-        setMeaning('');
-        setExamples(['']);
-        setGroups([]);
-        setIsAddingNewGroup(false);
-        setNewGroupName('');
-    };
-
     const parsedExamples = () => examples.map((value) => value.trim()).filter(Boolean);
 
     const handleSubmit = async (event?: React.SubmitEvent<HTMLFormElement>) => {
@@ -91,6 +131,10 @@ export function WordForm({
             event.preventDefault();
         }
         if (!canSubmit) {
+            return;
+        }
+
+        if (!isEditMode && openEditModalForExistingWord(word)) {
             return;
         }
 
@@ -157,6 +201,9 @@ export function WordForm({
                     placeholder="e.g. eloquent, pragmatic, nebulous"
                     value={word}
                     onChange={(event) => setWord(event.currentTarget.value)}
+                    onBlur={() => {
+                        openEditModalForExistingWord(word);
+                    }}
                     disabled={disabled || isSaving}
                     required
                     size={inputSize}
@@ -359,21 +406,51 @@ export function WordForm({
         </form>
     );
 
+    const closeEditModal = () => {
+        setEditModalRecord(null);
+        setTimeout(() => {
+            wordInputRef.current?.focus();
+        }, 0);
+    };
+
+    const editModal =
+        !isEditMode && onEditExisting ? (
+            <EditWordModal
+                opened={editModalRecord !== null}
+                onClose={closeEditModal}
+                wordRecord={editModalRecord}
+                customGroups={customGroups}
+                onSave={async (id, nextWord, nextMeaning, userExamples, nextGroups) => {
+                    await onEditExisting(id, nextWord, nextMeaning, userExamples, nextGroups);
+                    closeEditModal();
+                }}
+                onAddCustomGroup={onAddCustomGroup}
+            />
+        ) : null;
+
     if (variant === 'card') {
         return (
-            <Card
-                className="glass-panel"
-                radius="lg"
-                padding="xl"
-                style={{
-                    borderLeft: '4px solid #6366f1',
-                    overflow: 'hidden',
-                }}
-            >
-                {formContent}
-            </Card>
+            <>
+                <Card
+                    className="glass-panel"
+                    radius="lg"
+                    padding="xl"
+                    style={{
+                        borderLeft: '4px solid #6366f1',
+                        overflow: 'hidden',
+                    }}
+                >
+                    {formContent}
+                </Card>
+                {editModal}
+            </>
         );
     }
 
-    return formContent;
+    return (
+        <>
+            {formContent}
+            {editModal}
+        </>
+    );
 }

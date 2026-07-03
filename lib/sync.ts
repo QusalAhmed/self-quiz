@@ -1499,10 +1499,15 @@ export function setupOnlineSyncListener(
   missedCollection: MissedWordCollection,
   groupsCollection: GroupCollection,
   srsCollection?: SrsCollection,
-  srsPracticeCollection?: SrsPracticeCollection
+  srsPracticeCollection?: SrsPracticeCollection,
+  performSync?: () => Promise<void>
 ): () => void {
   const handleOnline = async () => {
     console.log('Device is back online! Starting full sync...');
+    if (performSync) {
+      await performSync();
+      return;
+    }
     await performFullSync(
       wordsCollection,
       missedCollection,

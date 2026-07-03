@@ -19,6 +19,7 @@ import {
   Tooltip,
   useMantineColorScheme,
   Grid,
+    Flex,
   SimpleGrid,
   Card,
   Badge,
@@ -867,6 +868,25 @@ export default function HomePage() {
   // Custom states for UI Enhancements
   const { colorScheme, setColorScheme } = useMantineColorScheme();
   const [onlineStatus, setOnlineStatus] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const syncInProgressRef = useRef(false);
+
+  const withSyncState = useCallback(async (task: () => Promise<void>) => {
+    if (syncInProgressRef.current || !navigator.onLine) {
+      return;
+    }
+
+    syncInProgressRef.current = true;
+    setIsSyncing(true);
+    try {
+      await task();
+    } catch (error) {
+      console.error(error);
+    } finally {
+      syncInProgressRef.current = false;
+      setIsSyncing(false);
+    }
+  }, []);
 
   const pageSize = 15; // Enhanced list density
   const prevQuizRangeRef = useRef<QuizRangeKey>('all');
@@ -1509,18 +1529,30 @@ export default function HomePage() {
         db.missedWords,
         db.groups,
         db.srsRecords,
-        db.srsPracticeWords
+        db.srsPracticeWords,
+        () =>
+          withSyncState(() =>
+            performFullSync(
+              db.words,
+              db.missedWords,
+              db.groups,
+              db.srsRecords,
+              db.srsPracticeWords
+            )
+          )
       );
 
       // Sync in background — does not block UI rendering
       if (navigator.onLine) {
         console.log('App started online: Starting background sync...');
-        void performFullSync(
-          db.words,
-          db.missedWords,
-          db.groups,
-          db.srsRecords,
-          db.srsPracticeWords
+        void withSyncState(() =>
+          performFullSync(
+            db.words,
+            db.missedWords,
+            db.groups,
+            db.srsRecords,
+            db.srsPracticeWords
+          )
         );
       } else {
         console.log('App started offline: Using local data. Will sync when online.');
@@ -1977,7 +2009,7 @@ export default function HomePage() {
       return;
     }
     console.log('User triggered manual sync...');
-    try {
+    await withSyncState(async () => {
       await performFullSync(
         database.words,
         database.missedWords,
@@ -1986,9 +2018,7 @@ export default function HomePage() {
         database.srsPracticeWords
       );
       await checkCurrentWordMissedStatus();
-    } catch (e) {
-      console.error(e);
-    }
+    });
   };
 
   const toggleTheme = () => {
@@ -2190,7 +2220,7 @@ export default function HomePage() {
         </Card>
 
         {/* --- Interactive Statistics Dashboard Row --- */}
-        <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="md" verticalSpacing="md">
+        <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="md" verticalSpacing="xs" autoFlow="auto-fit">
           {/* Card 1: Total Words */}
           <Card
             className="glass-panel"
@@ -2295,16 +2325,35 @@ export default function HomePage() {
                 <Text size="xs" fw={700} c="dimmed" style={{ letterSpacing: '0.05em' }}>
                   CLOUD SYNC
                 </Text>
-                <Group gap={6} mt={4}>
-                  <Text size="lg" fw={700} c={unsyncedCount === 0 ? 'teal' : 'orange'}>
+                <Flex
+                    // gap="xs"
+                    justify="flex-start"
+                    align="center"
+                    direction="row"
+                    wrap="wrap"
+                >
+                  <Text size="lg" fw={700} c={unsyncedCount === 0 ? 'teal' : 'orange'} mt={4}>
                     {unsyncedCount === 0 ? 'Fully Synced' : `${unsyncedCount} Sync Pending`}
                   </Text>
                   {onlineStatus && (
-                    <ActionIcon size="sm" variant="subtle" color="teal" onClick={handleManualSync}>
-                      <IconRotateClockwise size={16} />
-                    </ActionIcon>
+                    <Tooltip label={isSyncing ? 'Syncing…' : 'Sync now'} withArrow>
+                      <ActionIcon
+                        size="sm"
+                        variant="subtle"
+                        color="teal"
+                        mt={4}
+                        disabled={isSyncing}
+                        onClick={handleManualSync}
+                        aria-label="Sync now"
+                      >
+                        <IconRotateClockwise
+                          size={16}
+                          className={isSyncing ? 'sync-spin-icon' : undefined}
+                        />
+                      </ActionIcon>
+                    </Tooltip>
                   )}
-                </Group>
+                </Flex>
               </div>
               {unsyncedCount === 0 ? (
                 <IconCloudCheck size={28} style={{ opacity: 0.35, color: '#10b981' }} />
@@ -2338,6 +2387,8 @@ export default function HomePage() {
               disabled={isLoading}
               customGroups={customGroups}
               onAddCustomGroup={handleAddCustomGroup}
+              existingWords={words}
+              onEditExisting={handleEdit}
             />
 
             {/* Redesigned Glassmorphic Workspace Control Center */}
