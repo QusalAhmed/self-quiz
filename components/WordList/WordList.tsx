@@ -1,29 +1,10 @@
-import {
-  ActionIcon,
-  Badge,
-  Button,
-  Card,
-  Group,
-  Modal,
-  Stack,
-  Text,
-  TextInput,
-  Textarea,
-  Tooltip,
-  MultiSelect,
-} from '@mantine/core';
-import {
-  IconEdit,
-  IconTrash,
-  IconRotateClockwise,
-  IconPlus,
-  IconCheck,
-  IconX,
-} from '@tabler/icons-react';
-import { useState } from 'react';
+import { ActionIcon, Badge, Button, Card, Group, Modal, Stack, Text, Tooltip } from '@mantine/core';
+import { IconEdit, IconTrash, IconRotateClockwise } from '@tabler/icons-react';
+import { useMemo, useState } from 'react';
+import { WordForm } from '@/components/WordForm/WordForm';
 import { formatDate, formatRelativeShort } from '@/lib/dateUtils';
 import type { WordRecord } from '@/lib/db';
-import { getDisplayExamples, parseExampleLines } from '@/lib/examples';
+import { getDisplayExamples } from '@/lib/examples';
 import { getWordGroups } from '@/lib/groups';
 
 type WordListProps = {
@@ -50,15 +31,26 @@ export function WordList({
   onAddCustomGroup,
 }: WordListProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [draftWord, setDraftWord] = useState('');
-  const [draftMeaning, setDraftMeaning] = useState('');
-  const [draftUserExamples, setDraftUserExamples] = useState('');
-  const [draftGroups, setDraftGroups] = useState<string[]>([]);
-  const [isAddingNewGroup, setIsAddingNewGroup] = useState(false);
-  const [newGroupName, setNewGroupName] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleteConfirmWord, setDeleteConfirmWord] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const editingItem = useMemo(
+    () => (editingId ? words.find((item) => item.id === editingId) ?? null : null),
+    [editingId, words]
+  );
+
+  const editValues = useMemo(() => {
+    if (!editingItem) {
+      return null;
+    }
+    return {
+      word: editingItem.word,
+      meaning: editingItem.meaning,
+      userExamples: Array.isArray(editingItem.userExamples) ? editingItem.userExamples : [],
+      groups: getWordGroups(editingItem),
+    };
+  }, [editingItem]);
 
   if (words.length === 0) {
     return (
@@ -88,45 +80,6 @@ export function WordList({
       </div>
     );
   }
-
-  const startEditing = (item: WordRecord) => {
-    setEditingId(item.id);
-    setDraftWord(item.word);
-    setDraftMeaning(item.meaning);
-    setDraftUserExamples(Array.isArray(item.userExamples) ? item.userExamples.join('\n') : '');
-    setDraftGroups(getWordGroups(item));
-    setIsAddingNewGroup(false);
-    setNewGroupName('');
-  };
-
-  const cancelEditing = () => {
-    setEditingId(null);
-    setDraftWord('');
-    setDraftMeaning('');
-    setDraftUserExamples('');
-    setDraftGroups([]);
-    setIsAddingNewGroup(false);
-    setNewGroupName('');
-  };
-
-  const saveEditing = async () => {
-    if (!editingId) {
-      return;
-    }
-    const nextWord = draftWord.trim();
-    const nextMeaning = draftMeaning.trim();
-    if (!nextWord) {
-      return;
-    }
-    await onEdit(
-      editingId,
-      nextWord,
-      nextMeaning,
-      parseExampleLines(draftUserExamples),
-      draftGroups
-    );
-    cancelEditing();
-  };
 
   const openDeleteConfirm = (id: string, word: string) => {
     setDeleteConfirmId(id);
@@ -274,7 +227,7 @@ export function WordList({
                         color="indigo"
                         size="sm"
                         radius="md"
-                        onClick={() => startEditing(item)}
+                        onClick={() => setEditingId(item.id)}
                         style={{ transition: 'all 0.2s ease' }}
                       >
                         <IconEdit size={15} />
@@ -318,163 +271,27 @@ export function WordList({
               )}
 
               {/* ── Edit form section ── */}
-              {isEditing && (
+              {isEditing && editValues && (
                 <div
                   style={{
                     padding: '12px 16px 16px',
                     borderTop: '1px solid rgba(99, 102, 241, 0.15)',
                   }}
                 >
-                  <Stack gap="md">
-                    <TextInput
-                      label={
-                        <Text size="xs" fw={600} c="dimmed" span>
-                          Word
-                        </Text>
+                  <WordForm
+                    variant="embedded"
+                    customGroups={customGroups}
+                    onAddCustomGroup={onAddCustomGroup}
+                    editValues={editValues}
+                    onSubmit={async (word, meaning, userExamples, groups) => {
+                      if (!editingId) {
+                        return;
                       }
-                      value={draftWord}
-                      onChange={(e) => setDraftWord(e.currentTarget.value)}
-                      required
-                      radius="md"
-                      size="sm"
-                    />
-
-                    <div
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: '1fr auto',
-                        alignItems: 'flex-end',
-                        gap: '8px',
-                      }}
-                    >
-                      {isAddingNewGroup ? (
-                        <TextInput
-                          label={
-                            <Text size="xs" fw={600} c="dimmed">
-                              Create New Group
-                            </Text>
-                          }
-                          placeholder="Group name, e.g. Verbs, SAT prep"
-                          value={newGroupName}
-                          onChange={(event) => setNewGroupName(event.currentTarget.value)}
-                          size="sm"
-                          radius="md"
-                          style={{ flex: 1 }}
-                        />
-                      ) : (
-                        <MultiSelect
-                          label={
-                            <Text size="xs" fw={600} c="dimmed">
-                              Groups
-                            </Text>
-                          }
-                          placeholder="Choose one or more groups..."
-                          value={draftGroups}
-                          onChange={setDraftGroups}
-                          data={customGroups.map((g) => ({ value: g, label: g }))}
-                          size="sm"
-                          radius="md"
-                          style={{ flex: 1 }}
-                          searchable
-                          clearable
-                        />
-                      )}
-
-                      {isAddingNewGroup ? (
-                        <Group gap={4} style={{ marginBottom: '4px' }}>
-                          <Tooltip label="Add Group" withArrow>
-                            <ActionIcon
-                              variant="filled"
-                              color="indigo"
-                              size="md"
-                              radius="md"
-                              onClick={() => {
-                                const trimmed = newGroupName.trim();
-                                if (trimmed) {
-                                  if (onAddCustomGroup) {
-                                    onAddCustomGroup(trimmed);
-                                  }
-                                  setDraftGroups((prev) => Array.from(new Set([...prev, trimmed])));
-                                }
-                                setNewGroupName('');
-                                setIsAddingNewGroup(false);
-                              }}
-                              disabled={!newGroupName.trim()}
-                            >
-                              <IconCheck size={18} />
-                            </ActionIcon>
-                          </Tooltip>
-                          <Tooltip label="Cancel" withArrow>
-                            <ActionIcon
-                              variant="light"
-                              color="gray"
-                              size="md"
-                              radius="md"
-                              onClick={() => {
-                                setNewGroupName('');
-                                setIsAddingNewGroup(false);
-                              }}
-                            >
-                              <IconX size={18} />
-                            </ActionIcon>
-                          </Tooltip>
-                        </Group>
-                      ) : (
-                        <Tooltip label="Create new custom group" withArrow>
-                          <ActionIcon
-                            variant="light"
-                            color="indigo"
-                            size="lg"
-                            radius="md"
-                            style={{ marginBottom: '2px' }}
-                            onClick={() => setIsAddingNewGroup(true)}
-                          >
-                            <IconPlus size={20} />
-                          </ActionIcon>
-                        </Tooltip>
-                      )}
-                    </div>
-
-                    <Textarea
-                      label={
-                        <Text size="xs" fw={600} c="dimmed">
-                          Definition
-                        </Text>
-                      }
-                      value={draftMeaning}
-                      onChange={(e) => setDraftMeaning(e.currentTarget.value)}
-                      minRows={2}
-                      radius="md"
-                      size="sm"
-                    />
-                    <Textarea
-                      label={
-                        <Text size="xs" fw={600} c="dimmed">
-                          Your examples (one per line)
-                        </Text>
-                      }
-                      value={draftUserExamples}
-                      onChange={(e) => setDraftUserExamples(e.currentTarget.value)}
-                      minRows={2}
-                      radius="md"
-                      size="sm"
-                      placeholder="Add your own example sentences..."
-                    />
-                    <Group justify="flex-end" gap="xs">
-                      <Button
-                        variant="subtle"
-                        color="gray"
-                        size="xs"
-                        radius="md"
-                        onClick={cancelEditing}
-                      >
-                        Cancel
-                      </Button>
-                      <Button className="btn-premium" size="xs" radius="md" onClick={saveEditing}>
-                        Save Changes
-                      </Button>
-                    </Group>
-                  </Stack>
+                      await onEdit(editingId, word, meaning, userExamples, groups);
+                      setEditingId(null);
+                    }}
+                    onCancel={() => setEditingId(null)}
+                  />
                 </div>
               )}
             </Card>

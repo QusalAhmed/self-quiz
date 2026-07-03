@@ -78,12 +78,12 @@ import { buildSrsId, computeSm2, createInitialSrsRecord, type SrsRating } from '
 import { buildSrsPracticeId, createInitialSrsPracticeRecord } from '@/lib/srs-practice';
 import {
   performFullSync,
-  pullRemoteGroups,
-  pullRemoteMissedWords,
-  pullRemoteWords,
-  pushAllLocalGroups,
-  pushAllLocalMissedWords,
-  pushAllLocalWords,
+  // pullRemoteGroups,
+  // pullRemoteMissedWords,
+  // pullRemoteWords,
+  // pushAllLocalGroups,
+  // pushAllLocalMissedWords,
+  // pushAllLocalWords,
   pushGroupToRemote,
   pushMissedWordToRemote,
   pushWordToRemote,
@@ -540,7 +540,6 @@ function SrsPracticeVirtualList({
   onToggleMissed,
   isMissedWord,
   onEditClick,
-  onQuizWord,
 }: SrsPracticeVirtualListProps) {
   const parentRef = useRef<HTMLDivElement>(null);
 
@@ -1260,7 +1259,7 @@ export default function HomePage() {
       return [];
     }
 
-    let candidates: (WordRecord | MissedWordRecord)[] = [];
+    let candidates: (WordRecord | MissedWordRecord)[]
 
     if (quizSource === 'missed') {
       candidates = missedWordsForMode.filter((word) => {
@@ -1634,7 +1633,7 @@ export default function HomePage() {
   const handleAdd = async (
     word: string,
     meaning: string,
-    example: string,
+    userExamples: string[],
     selectedGroups: string[]
   ) => {
     if (!database) {
@@ -1649,7 +1648,6 @@ export default function HomePage() {
     }
 
     const timestamp = new Date().toISOString();
-    const userExamples = example ? [example] : [];
     const record: WordRecord = {
       id: crypto.randomUUID(),
       word: capitalizeWord(word),
@@ -1908,19 +1906,6 @@ export default function HomePage() {
   const handleReveal = () => {
     setRevealed(true);
   };
-
-  const handleMarkMissed = async () => {
-    if (!database || !currentQuizItem) {
-      return;
-    }
-    await saveMissedWordRecord(
-      currentQuizItem.id,
-      currentQuizItem.word,
-      currentQuizItem.meaning,
-      quizDirection
-    );
-  };
-
   const handleUnmarkMissed = async (id: string) => {
     if (!database) {
       return;
@@ -2349,7 +2334,7 @@ export default function HomePage() {
         {mode === 'study' && (
           <Stack gap="lg">
             <WordForm
-              onAdd={handleAdd}
+              onSubmit={handleAdd}
               disabled={isLoading}
               customGroups={customGroups}
               onAddCustomGroup={handleAddCustomGroup}
