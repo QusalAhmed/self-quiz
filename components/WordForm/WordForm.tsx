@@ -153,9 +153,36 @@ export function WordForm({
     };
 
     const handleMeaningKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-        if (event.key === 'Enter' && !event.shiftKey && !isEditMode) {
+        if (event.key === 'Enter' && !event.shiftKey) {
             event.preventDefault();
             void handleSubmit();
+        }
+    };
+
+    const handleWordKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            void handleSubmit();
+        }
+    };
+
+    const handleExampleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            void handleSubmit();
+        }
+    };
+
+    const handleNewGroupKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            const trimmed = newGroupName.trim();
+            if (trimmed) {
+                onAddCustomGroup?.(trimmed);
+                setGroups((prev) => Array.from(new Set([...prev, trimmed])));
+            }
+            setNewGroupName('');
+            setIsAddingNewGroup(false);
         }
     };
 
@@ -201,6 +228,7 @@ export function WordForm({
                     placeholder="e.g. eloquent, pragmatic, nebulous"
                     value={word}
                     onChange={(event) => setWord(event.currentTarget.value)}
+                    onKeyDown={handleWordKeyDown}
                     onBlur={() => {
                         openEditModalForExistingWord(word);
                     }}
@@ -239,6 +267,7 @@ export function WordForm({
                                 onChange={(event) =>
                                     updateExample(index, event.currentTarget.value.replace(/\s+/g, ' ').trim())
                                 }
+                                onKeyDown={handleExampleKeyDown}
                                 disabled={disabled || isSaving}
                                 minRows={1}
                                 size="sm"
@@ -295,6 +324,7 @@ export function WordForm({
                             placeholder="Group name, e.g. Verbs, SAT prep"
                             value={newGroupName}
                             onChange={(event) => setNewGroupName(event.currentTarget.value)}
+                            onKeyDown={handleNewGroupKeyDown}
                             disabled={disabled || isSaving}
                             size="sm"
                             radius="md"

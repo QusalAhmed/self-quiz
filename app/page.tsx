@@ -49,7 +49,7 @@ import {
   IconEyeOff,
   IconTags,
 } from '@tabler/icons-react';
-import { useVirtualizer } from '@tanstack/react-virtual';
+import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { EditWordModal } from '@/components/EditWordModal/EditWordModal';
 import { GroupManager } from '@/components/GroupManager/GroupManager';
@@ -274,13 +274,26 @@ function MissedWordVirtualList({
   onRefreshExamples,
   onUnmarkMissed,
 }: MissedWordVirtualListProps) {
-  const parentRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const [scrollMargin, setScrollMargin] = useState(0);
 
-  const rowVirtualizer = useVirtualizer({
+  useEffect(() => {
+    const updateScrollMargin = () => {
+      if (listRef.current) {
+        setScrollMargin(listRef.current.getBoundingClientRect().top + window.scrollY);
+      }
+    };
+    updateScrollMargin();
+    window.addEventListener('resize', updateScrollMargin);
+    return () => window.removeEventListener('resize', updateScrollMargin);
+  }, []);
+
+  const rowVirtualizer = useWindowVirtualizer({
     count: words.length,
-    getScrollElement: () => parentRef.current,
     estimateSize: () => 100,
+    getItemKey: useCallback((index: number) => words[index]?.id || index, [words]),
     overscan: 5,
+    scrollMargin,
   });
 
   const speakWord = (text: string) => {
@@ -295,17 +308,7 @@ function MissedWordVirtualList({
   };
 
   return (
-    <div
-      ref={parentRef}
-      style={{
-        height: '100dvh',
-        overflowY: 'auto',
-        overflowX: 'hidden',
-        scrollbarWidth: 'thin',
-        borderRadius: '8px',
-        padding: '8px',
-      }}
-    >
+    <div ref={listRef}>
       <div
         style={{
           height: `${rowVirtualizer.getTotalSize()}px`,
@@ -350,7 +353,7 @@ function MissedWordVirtualList({
                 top: 0,
                 left: 0,
                 width: '100%',
-                transform: `translateY(${virtualRow.start}px)`,
+                transform: `translateY(${virtualRow.start - scrollMargin}px)`,
                 paddingBottom: '8px',
               }}
             >
@@ -542,13 +545,26 @@ function SrsPracticeVirtualList({
   isMissedWord,
   onEditClick,
 }: SrsPracticeVirtualListProps) {
-  const parentRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const [scrollMargin, setScrollMargin] = useState(0);
 
-  const rowVirtualizer = useVirtualizer({
+  useEffect(() => {
+    const updateScrollMargin = () => {
+      if (listRef.current) {
+        setScrollMargin(listRef.current.getBoundingClientRect().top + window.scrollY);
+      }
+    };
+    updateScrollMargin();
+    window.addEventListener('resize', updateScrollMargin);
+    return () => window.removeEventListener('resize', updateScrollMargin);
+  }, []);
+
+  const rowVirtualizer = useWindowVirtualizer({
     count: words.length,
-    getScrollElement: () => parentRef.current,
     estimateSize: () => 120,
+    getItemKey: useCallback((index: number) => words[index]?.id || index, [words]),
     overscan: 5,
+    scrollMargin,
   });
 
   const speakWord = (text: string) => {
@@ -563,17 +579,7 @@ function SrsPracticeVirtualList({
   };
 
   return (
-    <div
-      ref={parentRef}
-      style={{
-        height: '100dvh',
-        overflowY: 'auto',
-        overflowX: 'hidden',
-        scrollbarWidth: 'thin',
-        borderRadius: '8px',
-        padding: '8px',
-      }}
-    >
+    <div ref={listRef}>
       <div
         style={{
           height: `${rowVirtualizer.getTotalSize()}px`,
@@ -596,7 +602,7 @@ function SrsPracticeVirtualList({
                 top: 0,
                 left: 0,
                 width: '100%',
-                transform: `translateY(${virtualRow.start}px)`,
+                transform: `translateY(${virtualRow.start - scrollMargin}px)`,
                 paddingBottom: '8px',
               }}
             >
@@ -1986,7 +1992,7 @@ export default function HomePage() {
     await checkCurrentWordMissedStatus();
   };
 
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
     const nextIndex = quizIndex + 1;
     if (nextIndex >= quizQueue.length) {
       setCompleted(true);
@@ -1996,19 +2002,18 @@ export default function HomePage() {
 
     setQuizIndex(nextIndex);
     setRevealed(false);
-  };
+  }, [quizIndex, quizQueue.length]);
 
-  const handlePrevious = () => {
+  const handlePrevious = useCallback(() => {
     const prevIndex = Math.max(quizIndex - 1, 0);
     setQuizIndex(prevIndex);
     setRevealed(false);
-  };
+  }, [quizIndex]);
 
-  const handleManualSync = async () => {
+  const runFullSync = useCallback(async () => {
     if (!database) {
       return;
     }
-    console.log('User triggered manual sync...');
     await withSyncState(async () => {
       await performFullSync(
         database.words,
@@ -2019,7 +2024,53 @@ export default function HomePage() {
       );
       await checkCurrentWordMissedStatus();
     });
+  }, [database, withSyncState, checkCurrentWordMissedStatus]);
+
+  const handleManualSync = async () => {
+    if (!database) {
+      return;
+    }
+    console.log('User triggered manual sync...');
+    await runFullSync();
   };
+
+  useEffect(() => {
+    if (!database || !onlineStatus) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      void runFullSync();
+    }, 10 * 60 * 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [database, onlineStatus, runFullSync]);
+
+  // Automatically refresh the page after 10 minutes of inactivity
+  useEffect(() => {
+    let timerId = window.setTimeout(() => {
+      window.location.reload();
+    }, 10 * 60 * 1000);
+
+    const resetTimer = () => {
+      window.clearTimeout(timerId);
+      timerId = window.setTimeout(() => {
+        window.location.reload();
+      }, 10 * 60 * 1000);
+    };
+
+    const events = ['mousemove', 'keydown', 'mousedown', 'touchstart'];
+    events.forEach((event) => {
+      window.addEventListener(event, resetTimer);
+    });
+
+    return () => {
+      window.clearTimeout(timerId);
+      events.forEach((event) => {
+        window.removeEventListener(event, resetTimer);
+      });
+    };
+  }, []);
 
   const toggleTheme = () => {
     setColorScheme(colorScheme === 'dark' ? 'light' : 'dark');
@@ -2746,9 +2797,9 @@ export default function HomePage() {
               totalCount={quizQueue.length}
               onRestart={resetQuiz}
               onRefreshExamples={handleRefreshExamples}
-              srsMode={quizSource === 'srs' || quizSource === 'srsPractice'}
+              srsMode={quizSource === 'srs'}
               onSrsRate={
-                quizSource === 'srs' || quizSource === 'srsPractice' ? handleSrsRate : undefined
+                quizSource === 'srs' ? handleSrsRate : undefined
               }
               onEditClick={(id) => setEditingQuizWordId(id)}
             />
