@@ -196,6 +196,7 @@ export function WordList({
                           fontStyle: hasMeaning ? 'normal' : 'italic',
                           lineHeight: 1.6,
                           wordBreak: 'break-word',
+                          fontWeight: 600,
                         }}
                       >
                         {hasMeaning ? item.meaning : 'Fetching definition…'}
