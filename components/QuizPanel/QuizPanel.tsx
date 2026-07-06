@@ -91,7 +91,7 @@ export function QuizPanel({
 
   const scrollToCenter = () => {
     if (quizPanelRef.current) {
-      quizPanelRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      quizPanelRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
 
