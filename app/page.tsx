@@ -19,7 +19,7 @@ import {
   Tooltip,
   useMantineColorScheme,
   Grid,
-    Flex,
+  Flex,
   SimpleGrid,
   Card,
   Badge,
@@ -321,24 +321,24 @@ function MissedWordVirtualList({
           const severity =
             count >= 5
               ? {
-                  color: '#ef4444',
-                  bg: 'rgba(239,68,68,0.08)',
-                  border: 'rgba(239,68,68,0.25)',
-                  badgeColor: 'red' as const,
-                }
+                color: '#ef4444',
+                bg: 'rgba(239,68,68,0.08)',
+                border: 'rgba(239,68,68,0.25)',
+                badgeColor: 'red' as const,
+              }
               : count >= 3
                 ? {
-                    color: '#f97316',
-                    bg: 'rgba(249,115,22,0.07)',
-                    border: 'rgba(249,115,22,0.2)',
-                    badgeColor: 'orange' as const,
-                  }
+                  color: '#f97316',
+                  bg: 'rgba(249,115,22,0.07)',
+                  border: 'rgba(249,115,22,0.2)',
+                  badgeColor: 'orange' as const,
+                }
                 : {
-                    color: '#22c55e',
-                    bg: 'rgba(34,197,94,0.06)',
-                    border: 'rgba(34,197,94,0.18)',
-                    badgeColor: 'teal' as const,
-                  };
+                  color: '#22c55e',
+                  bg: 'rgba(34,197,94,0.06)',
+                  border: 'rgba(34,197,94,0.18)',
+                  badgeColor: 'teal' as const,
+                };
 
           const missedExamples = getExamplesForId(word.wordId);
           const isRevealed = !hideMissedMeanings || revealedMissedWordIds[word.id];
@@ -857,6 +857,7 @@ export default function HomePage() {
   const [revealed, setRevealed] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchScope, setSearchScope] = useState<'word' | 'wordAndDefinition'>('word');
   const [page, setPage] = useState(1);
 
   // Custom Groups states
@@ -1071,8 +1072,16 @@ export default function HomePage() {
     if (!query) {
       return list;
     }
-    return list.filter((word) => word.word.toLowerCase().includes(query));
-  }, [words, searchQuery, groupFilter]);
+    return list.filter((word) => {
+      if (word.word.toLowerCase().includes(query)) {
+        return true;
+      }
+      if (searchScope === 'wordAndDefinition') {
+        return word.meaning.toLowerCase().includes(query);
+      }
+      return false;
+    });
+  }, [words, searchQuery, searchScope, groupFilter]);
 
   const examplesById = useMemo(() => {
     return new Map(words.map((word) => [word.id, getDisplayExamples(word)]));
@@ -1087,6 +1096,20 @@ export default function HomePage() {
       return examplesById.get(id) ?? [];
     },
     [examplesById]
+  );
+
+  const getQuizItemExamples = useCallback(
+    (id: string) => {
+      const word = wordsById.get(id);
+      if (!word) {
+        return { examples: [] as string[], userExamples: [] as string[] };
+      }
+      return {
+        examples: Array.isArray(word.examples) ? word.examples : [],
+        userExamples: Array.isArray(word.userExamples) ? word.userExamples : [],
+      };
+    },
+    [wordsById]
   );
 
   const updateQuizQueueExamples = useCallback((id: string, examples: string[]) => {
@@ -1350,11 +1373,13 @@ export default function HomePage() {
     const queue = shuffle(
       quizCandidates.map((word) => {
         const wordId = getCandidateWordId(word);
+        const { examples, userExamples } = getQuizItemExamples(wordId);
         return {
           id: wordId,
           word: word.word,
           meaning: word.meaning,
-          examples: getExamplesForId(wordId),
+          examples,
+          userExamples,
           tags: words.find((w) => w.id === wordId)?.customGroups || [],
         };
       })
@@ -1363,7 +1388,7 @@ export default function HomePage() {
     setQuizIndex(0);
     setRevealed(false);
     setCompleted(queue.length === 0);
-  }, [quizCandidates, getExamplesForId, getCandidateWordId, words]);
+  }, [quizCandidates, getQuizItemExamples, getCandidateWordId, words]);
 
   // Initialize quiz when candidates are available, only if quiz is empty
   useEffect(() => {
@@ -1419,11 +1444,13 @@ export default function HomePage() {
     const queue = shuffle(
       quizCandidates.map((word) => {
         const wordId = getCandidateWordId(word);
+        const { examples, userExamples } = getQuizItemExamples(wordId);
         return {
           id: wordId,
           word: word.word,
           meaning: word.meaning,
-          examples: getExamplesForId(wordId),
+          examples,
+          userExamples,
           tags: words.find((w) => w.id === wordId)?.customGroups || [],
         };
       })
@@ -1439,7 +1466,7 @@ export default function HomePage() {
     quizQueue.length,
     customStart,
     customEnd,
-    getExamplesForId,
+    getQuizItemExamples,
     getCandidateWordId,
     quizDirection,
     quizGroupFilter,
@@ -1872,7 +1899,17 @@ export default function HomePage() {
 
     await database.words.upsert(record);
     await pushWordToRemote(database.words, record);
-    updateQuizQueueExamples(id, getDisplayExamples(record));
+    setQuizQueue((prev) =>
+      prev.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              examples: Array.isArray(record.examples) ? record.examples : [],
+              userExamples: Array.isArray(record.userExamples) ? record.userExamples : [],
+            }
+          : item
+      )
+    );
   };
 
   const handleRefreshExamples = async (id: string) => {
@@ -1938,7 +1975,7 @@ export default function HomePage() {
 
     await database.words.upsert(updated);
     await pushWordToRemote(database.words, updated);
-    updateQuizQueueExamples(id, getDisplayExamples(updated));
+    updateQuizQueueExamples(id, examples);
   };
 
   const handleReveal = () => {
@@ -2089,11 +2126,11 @@ export default function HomePage() {
       let currentState = existingDoc
         ? (existingDoc.toJSON() as import('@/lib/db').SrsRecord)
         : createInitialSrsRecord(
-            currentQuizItem.id,
-            quizDirection as import('@/lib/db').QuizMode,
-            currentQuizItem.word,
-            currentQuizItem.meaning
-          );
+          currentQuizItem.id,
+          quizDirection as import('@/lib/db').QuizMode,
+          currentQuizItem.word,
+          currentQuizItem.meaning
+        );
 
       const { easeFactor, interval, repetitions, nextReviewAt } = computeSm2(
         currentState,
@@ -2377,11 +2414,11 @@ export default function HomePage() {
                   CLOUD SYNC
                 </Text>
                 <Flex
-                    // gap="xs"
-                    justify="flex-start"
-                    align="center"
-                    direction="row"
-                    wrap="wrap"
+                  // gap="xs"
+                  justify="flex-start"
+                  align="center"
+                  direction="row"
+                  wrap="wrap"
                 >
                   <Text size="lg" fw={700} c={unsyncedCount === 0 ? 'teal' : 'orange'} mt={4}>
                     {unsyncedCount === 0 ? 'Fully Synced' : `${unsyncedCount} Sync Pending`}
@@ -2492,31 +2529,51 @@ export default function HomePage() {
 
                 <Grid gap="sm">
                   <Grid.Col span={{ base: 12, sm: 8 }}>
-                    <TextInput
-                      placeholder="Search vocabulary by keyword..."
-                      leftSection={
-                        <IconSearch size={18} style={{ opacity: 0.55, color: '#a855f7' }} />
-                      }
-                      rightSection={
-                        searchQuery ? (
-                          <CloseButton
-                            size="sm"
-                            aria-label="Clear search"
-                            onClick={() => {
-                              setSearchQuery('');
-                              setPage(1);
-                            }}
-                          />
-                        ) : null
-                      }
-                      value={searchQuery}
-                      size="md"
-                      radius="md"
-                      onChange={(event) => {
-                        setSearchQuery(event.currentTarget.value);
-                        setPage(1);
-                      }}
-                    />
+                    <Stack gap="xs">
+                      <TextInput
+                        placeholder={
+                          searchScope === 'wordAndDefinition'
+                            ? 'Search words or definitions...'
+                            : 'Search vocabulary by keyword...'
+                        }
+                        leftSection={
+                          <IconSearch size={18} style={{ opacity: 0.55, color: '#a855f7' }} />
+                        }
+                        rightSection={
+                          searchQuery ? (
+                            <CloseButton
+                              size="sm"
+                              aria-label="Clear search"
+                              onClick={() => {
+                                setSearchQuery('');
+                                setPage(1);
+                              }}
+                            />
+                          ) : null
+                        }
+                        value={searchQuery}
+                        size="md"
+                        radius="md"
+                        onChange={(event) => {
+                          setSearchQuery(event.currentTarget.value);
+                          setPage(1);
+                        }}
+                      />
+                      <SegmentedControl
+                        value={searchScope}
+                        onChange={(value) => {
+                          setSearchScope(value as 'word' | 'wordAndDefinition');
+                          setPage(1);
+                        }}
+                        data={[
+                          { label: 'Word only', value: 'word' },
+                          { label: 'Word + Definition', value: 'wordAndDefinition' },
+                        ]}
+                        size="xs"
+                        radius="md"
+                        fullWidth
+                      />
+                    </Stack>
                   </Grid.Col>
                   <Grid.Col span={{ base: 12, sm: 4 }}>
                     <Select
@@ -3083,7 +3140,13 @@ export default function HomePage() {
           setQuizQueue((prev) =>
             prev.map((item) =>
               item.id === id
-                ? { ...item, word, meaning, tags: groups, examples: getExamplesForId(id) }
+                ? {
+                    ...item,
+                    word,
+                    meaning,
+                    tags: groups,
+                    ...getQuizItemExamples(id),
+                  }
                 : item
             )
           );

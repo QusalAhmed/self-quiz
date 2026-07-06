@@ -346,7 +346,8 @@ h6 {
 
 .header-panel .header-left {
   flex: 1 1 320px;
-  min-width: 0; /* allow text truncation and wrapping */
+  min-width: 0;
+  /* allow text truncation and wrapping */
 }
 
 .header-panel .header-right {

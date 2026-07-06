@@ -26,6 +26,7 @@ import {
   IconBookmark,
   IconBookmarkOff,
   IconEdit,
+  IconNotes,
 } from '@tabler/icons-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { SrsRating } from '@/lib/srs';
@@ -35,6 +36,7 @@ export type QuizItem = {
   word: string;
   meaning: string;
   examples?: string[];
+  userExamples?: string[];
   tags?: string[];
 };
 
@@ -84,11 +86,12 @@ export function QuizPanel({
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [typedWord, setTypedWord] = useState('');
   const [spellingState, setSpellingState] = useState<'idle' | 'correct' | 'incorrect'>('idle');
+  const [showUserExamples, setShowUserExamples] = useState(false);
   const quizPanelRef = useRef<HTMLDivElement>(null);
 
   const scrollToCenter = () => {
     if (quizPanelRef.current) {
-      quizPanelRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      quizPanelRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
   };
 
@@ -125,6 +128,7 @@ export function QuizPanel({
   useEffect(() => {
     setSpellingState('idle');
     setTypedWord('');
+    setShowUserExamples(false);
   }, [item?.id, quizDirection]);
 
   const handleCheckSpelling = useCallback(() => {
@@ -275,7 +279,47 @@ export function QuizPanel({
   const progressPercent =
     totalCount > 0 ? ((currentIndex + (revealed ? 1 : 0)) / totalCount) * 100 : 0;
   const examples = Array.isArray(item?.examples) ? item.examples : [];
+  const userExamples = Array.isArray(item?.userExamples) ? item.userExamples : [];
   const isWordToMeaning = quizDirection === 'wordToMeaning';
+
+  const userExamplesBlock =
+    showUserExamples && userExamples.length > 0 ? (
+      <Stack gap={2}>
+        <Text size="xs" fw={600} c="dimmed" style={{ textAlign: 'center' }}>
+          My Examples
+        </Text>
+        <ScrollArea.Autosize mah={250} offsetScrollbars scrollbarSize={8} scrollHideDelay={500}>
+          {userExamples.map((example, index) => (
+            <Text
+              key={`${item.id}-quiz-user-example-${index}`}
+              size="sm"
+              style={{
+                color: 'var(--text-secondary)',
+                lineHeight: 1.5,
+                wordBreak: 'break-word',
+                display: 'flex',
+              }}
+            >
+              • {example}
+            </Text>
+          ))}
+        </ScrollArea.Autosize>
+      </Stack>
+    ) : null;
+
+  const showUserExamplesButton =
+    userExamples.length > 0 ? (
+      <Button
+        variant="outline"
+        color="grape"
+        size="sm"
+        radius="md"
+        leftSection={<IconNotes size={16} />}
+        onClick={() => setShowUserExamples((prev) => !prev)}
+      >
+        {showUserExamples ? 'Hide My Examples' : 'Show My Examples'}
+      </Button>
+    ) : null;
 
   const examplesBlock =
     examples.length > 0 ? (
@@ -284,7 +328,7 @@ export function QuizPanel({
           Examples
         </Text>
         <ScrollArea.Autosize mah={250} offsetScrollbars scrollbarSize={8} scrollHideDelay={500}>
-          {examples.map((example, index) => (
+          {[...userExamples, ...examples].map((example, index) => (
             <Text
               key={`${item.id}-quiz-example-${index}`}
               size="sm"
@@ -468,6 +512,7 @@ export function QuizPanel({
       onClick={() => {
         onReveal();
         scrollToCenter();
+        setShowUserExamples(() => false);
       }}
       size="lg"
       radius="md"
@@ -534,6 +579,8 @@ export function QuizPanel({
           {quizDirection === 'wordToMeaning' && (
             <>
               {wordWithActions(true)}
+              {showUserExamplesButton}
+              {userExamplesBlock}
               {!revealed ? (
                 revealButton
               ) : (
@@ -560,6 +607,8 @@ export function QuizPanel({
           {quizDirection === 'meaningToWord' && (
             <>
               {meaningPrompt}
+              {showUserExamplesButton}
+              {userExamplesBlock}
               {!revealed ? (
                 revealButton
               ) : (
@@ -606,6 +655,9 @@ export function QuizPanel({
                       </Text>
                     </Group>
                   </Card>
+
+                  {showUserExamplesButton}
+                  {userExamplesBlock}
 
                   <TextInput
                     value={typedWord}
