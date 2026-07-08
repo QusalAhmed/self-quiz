@@ -41,20 +41,45 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: `No definition found for: ${word}` }, { status: 404 });
     }
 
-    const entry = data[0];
-    let meaning = '';
+    const definitions: { meaning: string; partOfSpeech: string }[] = [];
 
-    // Try to get the first definition from the first meaning
-    if (entry.meanings && Array.isArray(entry.meanings) && entry.meanings.length > 0) {
-      const firstMeaning = entry.meanings[0];
-      if (
-        firstMeaning.definitions &&
-        Array.isArray(firstMeaning.definitions) &&
-        firstMeaning.definitions.length > 0
-      ) {
-        meaning = firstMeaning.definitions[0].definition?.trim() || '';
+    for (const entry of data) {
+      if (!entry.meanings || !Array.isArray(entry.meanings)) {
+        continue;
+      }
+
+      for (const apiMeaning of entry.meanings) {
+        const partOfSpeech =
+          typeof apiMeaning.partOfSpeech === 'string' ? apiMeaning.partOfSpeech.trim() : '';
+        if (!Array.isArray(apiMeaning.definitions)) {
+          continue;
+        }
+
+        for (const definition of apiMeaning.definitions) {
+          const meaning = definition?.definition?.trim() || '';
+          if (!meaning) {
+            continue;
+          }
+          if (definitions.some((item) => item.meaning.toLowerCase() === meaning.toLowerCase())) {
+            continue;
+          }
+          definitions.push({ meaning, partOfSpeech });
+          if (definitions.length >= 6) {
+            break;
+          }
+        }
+
+        if (definitions.length >= 6) {
+          break;
+        }
+      }
+
+      if (definitions.length >= 6) {
+        break;
       }
     }
+
+    const meaning = definitions.map((definition) => definition.meaning).join('\n');
 
     if (!meaning) {
       console.warn('No definition extracted for word:', word);
@@ -62,7 +87,7 @@ export async function POST(request: Request) {
     }
 
     console.log('Successfully fetched definition for word:', word, '-', meaning);
-    return NextResponse.json({ meaning });
+    return NextResponse.json({ meaning, definitions });
   } catch (error) {
     console.error('Error in meaning API:', error);
     return NextResponse.json(

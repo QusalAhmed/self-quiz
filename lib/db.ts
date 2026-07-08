@@ -17,13 +17,21 @@ export type WordRecord = {
   id: string;
   word: string;
   meaning: string;
-  examples: string[];
-  userExamples: string[];
+  definitions: WordDefinition[];
   createdAt: string;
   updatedAt: string;
   isDeleted: boolean;
   lastSyncedAt: string;
   customGroups: string[];
+};
+
+export type WordDefinition = {
+  meaning: string;
+  partOfSpeech: string;
+  /** AI-generated example sentences for this specific definition. */
+  examples: string[];
+  /** User-authored example sentences for this specific definition. */
+  userExamples: string[];
 };
 
 export type GroupRecord = {
@@ -72,7 +80,7 @@ export type AppDatabase = RxDatabase<{
 
 const wordSchema: RxJsonSchema<WordRecord> = {
   title: 'word schema',
-  version: 5,
+  version: 7,
   description: 'English word memorization entries',
   primaryKey: 'id',
   type: 'object',
@@ -80,14 +88,24 @@ const wordSchema: RxJsonSchema<WordRecord> = {
     id: { type: 'string', maxLength: 64 },
     word: { type: 'string', maxLength: 128 },
     meaning: { type: 'string' },
-    examples: {
+    definitions: {
       type: 'array',
-      items: { type: 'string' },
-      default: [],
-    },
-    userExamples: {
-      type: 'array',
-      items: { type: 'string' },
+      items: {
+        type: 'object',
+        properties: {
+          meaning: { type: 'string' },
+          partOfSpeech: { type: 'string' },
+          examples: {
+            type: 'array',
+            items: { type: 'string' },
+          },
+          userExamples: {
+            type: 'array',
+            items: { type: 'string' },
+          },
+        },
+        required: ['meaning', 'partOfSpeech', 'examples', 'userExamples'],
+      },
       default: [],
     },
     createdAt: { type: 'string' },
@@ -104,8 +122,7 @@ const wordSchema: RxJsonSchema<WordRecord> = {
     'id',
     'word',
     'meaning',
-    'examples',
-    'userExamples',
+    'definitions',
     'createdAt',
     'updatedAt',
     'isDeleted',
@@ -291,6 +308,84 @@ async function createDatabase(): Promise<AppDatabase> {
           return {
             ...rest,
             customGroups: Array.from(new Set(existingGroups)),
+          };
+        },
+        6: (oldDoc) => ({
+          ...oldDoc,
+          definitions: Array.isArray(oldDoc.definitions)
+            ? oldDoc.definitions
+                .map((definition: unknown) => {
+                  if (typeof definition === 'string') {
+                    const meaning = definition.trim();
+                    return meaning ? { meaning, partOfSpeech: '' } : null;
+                  }
+                  if (!definition || typeof definition !== 'object') {
+                    return null;
+                  }
+                  const value = definition as {
+                    meaning?: unknown;
+                    definition?: unknown;
+                    partOfSpeech?: unknown;
+                  };
+                  const meaning =
+                    typeof value.meaning === 'string'
+                      ? value.meaning.trim()
+                      : typeof value.definition === 'string'
+                        ? value.definition.trim()
+                        : '';
+                  const partOfSpeech =
+                    typeof value.partOfSpeech === 'string' ? value.partOfSpeech.trim() : '';
+                  return meaning ? { meaning, partOfSpeech } : null;
+                })
+                .filter(Boolean)
+            : typeof oldDoc.meaning === 'string' && oldDoc.meaning.trim()
+              ? [{ meaning: oldDoc.meaning.trim(), partOfSpeech: '' }]
+              : [],
+        }),
+        7: (oldDoc) => {
+          const legacyExamples = Array.isArray(oldDoc.examples)
+            ? oldDoc.examples.filter((e: unknown) => typeof e === 'string' && e.trim().length > 0)
+            : [];
+          const legacyUserExamples = Array.isArray(oldDoc.userExamples)
+            ? oldDoc.userExamples.filter(
+                (e: unknown) => typeof e === 'string' && e.trim().length > 0
+              )
+            : [];
+
+          let definitions = (Array.isArray(oldDoc.definitions) ? oldDoc.definitions : []).map(
+            (definition: unknown) => {
+              const value = (definition && typeof definition === 'object' ? definition : {}) as {
+                meaning?: unknown;
+                partOfSpeech?: unknown;
+              };
+              return {
+                meaning: typeof value.meaning === 'string' ? value.meaning : '',
+                partOfSpeech: typeof value.partOfSpeech === 'string' ? value.partOfSpeech : '',
+                examples: [],
+                userExamples: [],
+              };
+            }
+          );
+
+          if (
+            definitions.length === 0 &&
+            (legacyExamples.length > 0 || legacyUserExamples.length > 0)
+          ) {
+            definitions = [{ meaning: '', partOfSpeech: '', examples: [], userExamples: [] }];
+          }
+
+          if (definitions.length > 0) {
+            definitions[0] = {
+              ...definitions[0],
+              examples: legacyExamples,
+              userExamples: legacyUserExamples,
+            };
+          }
+
+          const { examples: _examples, userExamples: _userExamples, ...rest } = oldDoc;
+          return {
+            ...rest,
+            definitions,
           };
         },
       },

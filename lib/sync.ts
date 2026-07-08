@@ -11,6 +11,7 @@ import {
   type WordCollection,
   type WordRecord,
 } from './db';
+import { definitionsToMeaning, mergeLegacyFlatExamples, normalizeDefinitions } from './definitions';
 import { getWordGroups } from './groups';
 import { buildSrsId, type SrsRecord } from './srs';
 import { buildSrsPracticeId } from './srs-practice';
@@ -42,10 +43,15 @@ async function handleSyncResponseError(response: Response, actionLabel: string):
 }
 
 function toWritableWord(record: any): WordRecord {
+  const definitions = mergeLegacyFlatExamples(
+    normalizeDefinitions(record.definitions, record.meaning ?? ''),
+    record.examples,
+    record.userExamples
+  );
   return {
     ...record,
-    examples: Array.isArray(record.examples) ? [...record.examples] : [],
-    userExamples: Array.isArray(record.userExamples) ? [...record.userExamples] : [],
+    meaning: definitionsToMeaning(definitions),
+    definitions,
     customGroups: getWordGroups(record),
   };
 }
@@ -54,6 +60,7 @@ export type RemoteWordRow = {
   id: string;
   word: string;
   meaning: string;
+  definitions?: unknown[] | null;
   examples?: string[] | null;
   user_examples?: string[] | null;
   created_at: string;
@@ -89,13 +96,17 @@ function mapRowToRecord(row: RemoteWordRow): WordRecord {
     : [];
   const legacyGroup = row.custom_group?.trim() || '';
   const customGroups = fromArray.length > 0 ? fromArray : legacyGroup ? [legacyGroup] : [];
+  const definitions = mergeLegacyFlatExamples(
+    normalizeDefinitions(row.definitions, row.meaning ?? ''),
+    row.examples,
+    row.user_examples
+  );
 
   return {
     id: row.id,
     word: row.word,
-    meaning: row.meaning,
-    examples: Array.isArray(row.examples) ? row.examples : [],
-    userExamples: Array.isArray(row.user_examples) ? row.user_examples : [],
+    meaning: definitionsToMeaning(definitions),
+    definitions,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     isDeleted: row.deleted,
@@ -368,6 +379,7 @@ type WordSyncPayload = {
   id: string;
   word: string;
   meaning: string;
+  definitions: unknown[];
   examples: string[];
   user_examples: string[];
   created_at: string;
@@ -379,12 +391,16 @@ type WordSyncPayload = {
 
 function wordRecordToPayload(record: WordRecord): WordSyncPayload {
   const groups = getWordGroups(record);
+  const definitions = normalizeDefinitions(record.definitions, record.meaning);
   return {
     id: record.id,
     word: record.word,
-    meaning: record.meaning,
-    examples: record.examples,
-    user_examples: record.userExamples,
+    meaning: definitionsToMeaning(definitions),
+    definitions,
+    // Example sentences now live inside each definition; these flat columns are kept
+    // empty for backward compatibility with the remote schema.
+    examples: [],
+    user_examples: [],
     created_at: record.createdAt,
     updated_at: record.updatedAt,
     deleted: record.isDeleted,
@@ -1072,8 +1088,8 @@ export async function fetchMissingMeanings(collection: WordCollection): Promise<
 
     for (const doc of allWords) {
       const record = toWritableWord(doc.toJSON());
-      // Skip if word has meaning or is deleted
-      if (record.meaning && record.meaning.trim().length > 0) {
+      // Skip if word has definitions or is deleted
+      if (normalizeDefinitions(record.definitions, record.meaning).length > 0) {
         continue;
       }
       if (record.isDeleted) {
@@ -1093,7 +1109,8 @@ export async function fetchMissingMeanings(collection: WordCollection): Promise<
         }
 
         const data = await response.json();
-        const meaning = String(data?.meaning ?? '').trim();
+        const definitions = normalizeDefinitions(data?.definitions, String(data?.meaning ?? ''));
+        const meaning = definitionsToMeaning(definitions);
 
         if (!meaning) {
           console.warn('No meaning returned for:', record.word);
@@ -1104,6 +1121,7 @@ export async function fetchMissingMeanings(collection: WordCollection): Promise<
         const updated = {
           ...record,
           meaning,
+          definitions,
           updatedAt: new Date().toISOString(),
         };
 

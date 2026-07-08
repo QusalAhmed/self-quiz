@@ -1,7 +1,8 @@
 import { Modal, Text } from '@mantine/core';
 import { useMemo } from 'react';
 import { WordForm } from '@/components/WordForm/WordForm';
-import type { WordRecord } from '@/lib/db';
+import type { WordDefinition, WordRecord } from '@/lib/db';
+import { getWordDefinitions } from '@/lib/definitions';
 import { getWordGroups } from '@/lib/groups';
 
 type EditWordModalProps = {
@@ -13,7 +14,7 @@ type EditWordModalProps = {
     id: string,
     word: string,
     meaning: string,
-    userExamples: string[],
+    definitions: WordDefinition[],
     customGroups: string[]
   ) => Promise<void> | void;
   onAddCustomGroup?: (group: string) => void;
@@ -34,7 +35,7 @@ export function EditWordModal({
     return {
       word: wordRecord.word,
       meaning: wordRecord.meaning,
-      userExamples: Array.isArray(wordRecord.userExamples) ? wordRecord.userExamples : [],
+      definitions: getWordDefinitions(wordRecord),
       groups: getWordGroups(wordRecord),
     };
   }, [wordRecord]);
@@ -62,8 +63,8 @@ export function EditWordModal({
         customGroups={customGroups}
         onAddCustomGroup={onAddCustomGroup}
         editValues={opened ? editValues : null}
-        onSubmit={async (word, meaning, userExamples, groups) => {
-          await onSave(wordRecord.id, word, meaning, userExamples, groups);
+        onSubmit={async (word, meaning, definitions, groups) => {
+          await onSave(wordRecord.id, word, meaning, definitions, groups);
           onClose();
         }}
         onCancel={onClose}

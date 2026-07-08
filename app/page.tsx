@@ -51,6 +51,7 @@ import {
 } from '@tabler/icons-react';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { DefinitionsDisplay } from '@/components/DefinitionsDisplay/DefinitionsDisplay';
 import { EditWordModal } from '@/components/EditWordModal/EditWordModal';
 import { GroupManager } from '@/components/GroupManager/GroupManager';
 import { PwaRegister } from '@/components/PwaRegister/PwaRegister';
@@ -64,9 +65,10 @@ import {
   type GroupRecord,
   type MissedWordRecord,
   type SrsPracticeRecord,
+  type WordDefinition,
   type WordRecord,
 } from '@/lib/db';
-import { getDisplayExamples } from '@/lib/examples';
+import { definitionsToMeaning, getWordDefinitions, normalizeDefinitions } from '@/lib/definitions';
 import {
   getActiveGroupNames,
   getWordGroups,
@@ -129,6 +131,8 @@ type QuizSourceKey = keyof typeof quizSources;
 type QuizDirectionKey = keyof typeof quizDirections;
 
 type PracticeDisplayKey = keyof typeof practiceDisplayModes;
+
+type WordWithDefinitions<T> = T & { definitions?: WordDefinition[] };
 
 function shuffle<T>(items: T[]): T[] {
   const result = [...items];
@@ -212,10 +216,11 @@ function getInitialCustomEnd(): string {
 }
 
 function toMutableWordRecord(record: any): WordRecord {
+  const definitions = normalizeDefinitions(record.definitions, record.meaning ?? '');
   return {
     ...record,
-    examples: Array.isArray(record.examples) ? [...record.examples] : [],
-    userExamples: Array.isArray(record.userExamples) ? [...record.userExamples] : [],
+    meaning: definitionsToMeaning(definitions),
+    definitions,
     customGroups: getWordGroups(record),
   } as WordRecord;
 }
@@ -251,16 +256,34 @@ async function requestExamples(word: string, meaning: string): Promise<string[]>
     : [];
 }
 
+/** Fetches 3-5 AI example sentences for each definition, in parallel, keeping them grouped
+ * per-definition (index-aligned with the `definitions` array). */
+async function requestExamplesForDefinitions(
+  word: string,
+  definitions: WordDefinition[]
+): Promise<string[][]> {
+  return Promise.all(definitions.map((definition) => requestExamples(word, definition.meaning)));
+}
+
+function mergeExamplesIntoDefinitions(
+  definitions: WordDefinition[],
+  examplesPerDefinition: string[][]
+): WordDefinition[] {
+  return definitions.map((definition, index) => ({
+    ...definition,
+    examples: examplesPerDefinition[index] ?? definition.examples ?? [],
+  }));
+}
+
 // ---------------------------------------------------------------------------
 // Virtualized missed-word list
 // ---------------------------------------------------------------------------
 
 interface MissedWordVirtualListProps {
-  words: MissedWordRecord[];
+  words: Array<MissedWordRecord & { definitions?: WordDefinition[] }>;
   hideMissedMeanings: boolean;
   revealedMissedWordIds: Record<string, boolean>;
   onRevealMissedWord: (id: string) => void;
-  getExamplesForId: (id: string) => string[];
   onRefreshExamples: (id: string) => void;
   onUnmarkMissed: (id: string) => void;
 }
@@ -270,7 +293,6 @@ function MissedWordVirtualList({
   hideMissedMeanings,
   revealedMissedWordIds,
   onRevealMissedWord,
-  getExamplesForId,
   onRefreshExamples,
   onUnmarkMissed,
 }: MissedWordVirtualListProps) {
@@ -340,7 +362,6 @@ function MissedWordVirtualList({
                   badgeColor: 'teal' as const,
                 };
 
-          const missedExamples = getExamplesForId(word.wordId);
           const isRevealed = !hideMissedMeanings || revealedMissedWordIds[word.id];
 
           return (
@@ -441,42 +462,9 @@ function MissedWordVirtualList({
                   </div>
 
                   {isRevealed ? (
-                    <>
-                      <Text
-                        size="sm"
-                        style={{
-                          color: 'var(--text-secondary)',
-                          lineHeight: 1.5,
-                          wordBreak: 'break-word',
-                        }}
-                      >
-                        {word.meaning || (
-                          <span style={{ fontStyle: 'italic', opacity: 0.55 }}>
-                            No definition available
-                          </span>
-                        )}
-                      </Text>
-                      {missedExamples.length > 0 && (
-                        <Stack gap={2} mt={6}>
-                          <Text size="xs" fw={600} c="dimmed">
-                            Examples
-                          </Text>
-                          {missedExamples.map((example, index) => (
-                            <Text
-                              key={`${word.id}-virt-ex-${index}`}
-                              size="sm"
-                              style={{
-                                color: 'var(--text-secondary)',
-                                lineHeight: 1.5,
-                                wordBreak: 'break-word',
-                              }}
-                            >
-                              {`• ${example}`}
-                            </Text>
-                          ))}
-                        </Stack>
-                      )}
-                    </>
+                    <div style={{ marginTop: 4 }}>
+                      <DefinitionsDisplay definitions={word.definitions} fallbackMeaning={word.meaning} />
+                    </div>
                   ) : (
                     <Button
                       variant="subtle"
@@ -522,10 +510,9 @@ function getDifficultyBadgeColor(difficulty: SrsPracticeRecord['difficulty']): s
 }
 
 interface SrsPracticeVirtualListProps {
-  words: SrsPracticeRecord[];
+  words: Array<SrsPracticeRecord & { definitions?: WordDefinition[] }>;
   hideMeanings: boolean;
   revealedWordIds: Record<string, boolean>;
-  getExamplesForId: (id: string) => string[];
   onRevealWord: (id: string) => void;
   onRefreshExamples: (id: string) => void;
   onToggleMissed: (word: SrsPracticeRecord) => void;
@@ -538,7 +525,6 @@ function SrsPracticeVirtualList({
   words,
   hideMeanings,
   revealedWordIds,
-  getExamplesForId,
   onRevealWord,
   onRefreshExamples,
   onToggleMissed,
@@ -588,7 +574,6 @@ function SrsPracticeVirtualList({
       >
         {rowVirtualizer.getVirtualItems().map((virtualRow) => {
           const word = words[virtualRow.index];
-          const examples = getExamplesForId(word.wordId);
           const isRevealed = !hideMeanings || revealedWordIds[word.id];
           const missed = isMissedWord(word.wordId);
 
@@ -722,42 +707,9 @@ function SrsPracticeVirtualList({
                   </Text>
 
                   {isRevealed ? (
-                    <>
-                      <Text
-                        size="sm"
-                        style={{
-                          color: 'var(--text-secondary)',
-                          lineHeight: 1.5,
-                          wordBreak: 'break-word',
-                        }}
-                      >
-                        {word.meaning || (
-                          <span style={{ fontStyle: 'italic', opacity: 0.55 }}>
-                            No definition available
-                          </span>
-                        )}
-                      </Text>
-                      {examples.length > 0 && (
-                        <Stack gap={2} mt={6}>
-                          <Text size="xs" fw={600} c="dimmed">
-                            Examples
-                          </Text>
-                          {examples.map((example, index) => (
-                            <Text
-                              key={`${word.id}-virt-ex-${index}`}
-                              size="sm"
-                              style={{
-                                color: 'var(--text-secondary)',
-                                lineHeight: 1.5,
-                                wordBreak: 'break-word',
-                              }}
-                            >
-                              {`• ${example}`}
-                            </Text>
-                          ))}
-                        </Stack>
-                      )}
-                    </>
+                    <div style={{ marginTop: 4 }}>
+                      <DefinitionsDisplay definitions={word.definitions} fallbackMeaning={word.meaning} />
+                    </div>
                   ) : (
                     <Button
                       variant="subtle"
@@ -1077,44 +1029,17 @@ export default function HomePage() {
         return true;
       }
       if (searchScope === 'wordAndDefinition') {
-        return word.meaning.toLowerCase().includes(query);
+        return getWordDefinitions(word).some((definition) =>
+          definition.meaning.toLowerCase().includes(query)
+        );
       }
       return false;
     });
   }, [words, searchQuery, searchScope, groupFilter]);
 
-  const examplesById = useMemo(() => {
-    return new Map(words.map((word) => [word.id, getDisplayExamples(word)]));
-  }, [words]);
-
   const wordsById = useMemo(() => {
     return new Map(words.map((word) => [word.id, word]));
   }, [words]);
-
-  const getExamplesForId = useCallback(
-    (id: string) => {
-      return examplesById.get(id) ?? [];
-    },
-    [examplesById]
-  );
-
-  const getQuizItemExamples = useCallback(
-    (id: string) => {
-      const word = wordsById.get(id);
-      if (!word) {
-        return { examples: [] as string[], userExamples: [] as string[] };
-      }
-      return {
-        examples: Array.isArray(word.examples) ? word.examples : [],
-        userExamples: Array.isArray(word.userExamples) ? word.userExamples : [],
-      };
-    },
-    [wordsById]
-  );
-
-  const updateQuizQueueExamples = useCallback((id: string, examples: string[]) => {
-    setQuizQueue((prev) => prev.map((item) => (item.id === id ? { ...item, examples } : item)));
-  }, []);
 
   const totalPages = Math.max(1, Math.ceil(filteredWords.length / pageSize));
 
@@ -1139,7 +1064,7 @@ export default function HomePage() {
       missedWords
         .filter((word) => word.quizMode === quizDirection)
         .map((word) => resolveWordTextFromMainTable(word, wordsById))
-        .filter((word): word is MissedWordRecord => word !== null),
+        .filter((word): word is WordWithDefinitions<MissedWordRecord> => word !== null),
     [missedWords, quizDirection, wordsById]
   );
 
@@ -1154,7 +1079,9 @@ export default function HomePage() {
     return srsRecords
       .filter((r) => !r.isDeleted && r.quizMode === quizDirection && r.nextReviewAt <= now)
       .map((record) => resolveWordTextFromMainTable(record, wordsById))
-      .filter((record): record is import('@/lib/db').SrsRecord => record !== null)
+      .filter(
+        (record): record is WordWithDefinitions<import('@/lib/db').SrsRecord> => record !== null
+      )
       .sort((a, b) => a.nextReviewAt.localeCompare(b.nextReviewAt));
   }, [srsRecords, quizDirection, wordsById]);
 
@@ -1170,7 +1097,7 @@ export default function HomePage() {
           new Date(record.practicedAt).getTime() >= cutoff
       )
       .map((record) => resolveWordTextFromMainTable(record, wordsById))
-      .filter((record): record is SrsPracticeRecord => record !== null)
+      .filter((record): record is WordWithDefinitions<SrsPracticeRecord> => record !== null)
       .sort((a, b) => b.practicedAt.localeCompare(a.practicedAt));
   }, [srsPracticeWords, quizDirection, wordsById]);
 
@@ -1373,13 +1300,12 @@ export default function HomePage() {
     const queue = shuffle(
       quizCandidates.map((word) => {
         const wordId = getCandidateWordId(word);
-        const { examples, userExamples } = getQuizItemExamples(wordId);
+        const definitions = normalizeDefinitions((word as { definitions?: WordDefinition[] }).definitions, word.meaning);
         return {
           id: wordId,
           word: word.word,
-          meaning: word.meaning,
-          examples,
-          userExamples,
+          meaning: definitionsToMeaning(definitions),
+          definitions,
           tags: words.find((w) => w.id === wordId)?.customGroups || [],
         };
       })
@@ -1388,7 +1314,7 @@ export default function HomePage() {
     setQuizIndex(0);
     setRevealed(false);
     setCompleted(queue.length === 0);
-  }, [quizCandidates, getQuizItemExamples, getCandidateWordId, words]);
+  }, [quizCandidates, getCandidateWordId, words]);
 
   // Initialize quiz when candidates are available, only if quiz is empty
   useEffect(() => {
@@ -1444,13 +1370,12 @@ export default function HomePage() {
     const queue = shuffle(
       quizCandidates.map((word) => {
         const wordId = getCandidateWordId(word);
-        const { examples, userExamples } = getQuizItemExamples(wordId);
+        const definitions = normalizeDefinitions((word as { definitions?: WordDefinition[] }).definitions, word.meaning);
         return {
           id: wordId,
           word: word.word,
-          meaning: word.meaning,
-          examples,
-          userExamples,
+          meaning: definitionsToMeaning(definitions),
+          definitions,
           tags: words.find((w) => w.id === wordId)?.customGroups || [],
         };
       })
@@ -1466,7 +1391,6 @@ export default function HomePage() {
     quizQueue.length,
     customStart,
     customEnd,
-    getQuizItemExamples,
     getCandidateWordId,
     quizDirection,
     quizGroupFilter,
@@ -1698,7 +1622,7 @@ export default function HomePage() {
   const handleAdd = async (
     word: string,
     meaning: string,
-    userExamples: string[],
+    definitions: WordDefinition[],
     selectedGroups: string[]
   ) => {
     if (!database) {
@@ -1713,12 +1637,13 @@ export default function HomePage() {
     }
 
     const timestamp = new Date().toISOString();
+    const normalizedDefinitions = normalizeDefinitions(definitions, meaning);
+    const normalizedMeaning = definitionsToMeaning(normalizedDefinitions);
     const record: WordRecord = {
       id: crypto.randomUUID(),
       word: capitalizeWord(word),
-      meaning,
-      examples: [],
-      userExamples,
+      meaning: normalizedMeaning,
+      definitions: normalizedDefinitions,
       createdAt: timestamp,
       updatedAt: timestamp,
       isDeleted: false,
@@ -1736,16 +1661,19 @@ export default function HomePage() {
       // 'spelling'
     ];
     for (const qMode of quizModes) {
-      const srsRecord = createInitialSrsRecord(record.id, qMode, capitalizeWord(word), meaning);
+      const srsRecord = createInitialSrsRecord(record.id, qMode, capitalizeWord(word), normalizedMeaning);
       await database.srsRecords.upsert(srsRecord);
       void pushSrsRecordToRemote(database.srsRecords, srsRecord);
     }
 
-    if (meaning) {
+    if (normalizedDefinitions.length > 0) {
       void (async () => {
         try {
-          const examples = await requestExamples(record.word, meaning);
-          if (examples.length === 0) {
+          const examplesPerDefinition = await requestExamplesForDefinitions(
+            record.word,
+            normalizedDefinitions
+          );
+          if (examplesPerDefinition.every((examples) => examples.length === 0)) {
             return;
           }
 
@@ -1754,9 +1682,10 @@ export default function HomePage() {
             return;
           }
 
+          const current = toMutableWordRecord(doc.toJSON());
           const updated = {
-            ...toMutableWordRecord(doc.toJSON()),
-            examples,
+            ...current,
+            definitions: mergeExamplesIntoDefinitions(current.definitions, examplesPerDefinition),
             updatedAt: new Date().toISOString(),
           };
 
@@ -1768,7 +1697,7 @@ export default function HomePage() {
       })();
     }
 
-    if (!meaning) {
+    if (normalizedDefinitions.length === 0) {
       void (async () => {
         try {
           if (!navigator.onLine) {
@@ -1795,7 +1724,8 @@ export default function HomePage() {
           }
 
           const data = await response.json();
-          const aiMeaning = String(data?.meaning ?? '').trim();
+          const aiDefinitions = normalizeDefinitions(data?.definitions, String(data?.meaning ?? ''));
+          const aiMeaning = definitionsToMeaning(aiDefinitions);
 
           if (!aiMeaning) {
             console.warn('No definition returned for word:', record.word);
@@ -1809,7 +1739,7 @@ export default function HomePage() {
           }
 
           const current = toMutableWordRecord(doc.toJSON());
-          if (current.meaning) {
+          if (getWordDefinitions(current).length > 0) {
             console.log('Meaning already exists, skipping update');
             return;
           }
@@ -1817,17 +1747,21 @@ export default function HomePage() {
           const updated = {
             ...current,
             meaning: aiMeaning,
+            definitions: aiDefinitions,
             updatedAt: new Date().toISOString(),
           };
 
           await database.words.upsert(updated);
           await pushWordToRemote(database.words, updated);
 
-          const examples = await requestExamples(updated.word, aiMeaning);
-          if (examples.length > 0) {
+          const examplesPerDefinition = await requestExamplesForDefinitions(
+            updated.word,
+            aiDefinitions
+          );
+          if (examplesPerDefinition.some((examples) => examples.length > 0)) {
             const withExamples = {
               ...updated,
-              examples,
+              definitions: mergeExamplesIntoDefinitions(updated.definitions, examplesPerDefinition),
               updatedAt: new Date().toISOString(),
             };
             await database.words.upsert(withExamples);
@@ -1867,7 +1801,7 @@ export default function HomePage() {
     id: string,
     word: string,
     meaning: string,
-    userExamples: string[],
+    definitions: WordDefinition[],
     customGroups: string[]
   ) => {
     if (!database) {
@@ -1888,11 +1822,13 @@ export default function HomePage() {
 
     const timestamp = new Date().toISOString();
     const current = toMutableWordRecord(doc.toJSON());
+    const normalizedDefinitions = normalizeDefinitions(definitions, meaning);
+    const normalizedMeaning = definitionsToMeaning(normalizedDefinitions);
     const record = {
       ...current,
       word,
-      meaning,
-      userExamples,
+      meaning: normalizedMeaning,
+      definitions: normalizedDefinitions,
       customGroups: normalizedGroups,
       updatedAt: timestamp,
     };
@@ -1904,8 +1840,8 @@ export default function HomePage() {
         item.id === id
           ? {
               ...item,
-              examples: Array.isArray(record.examples) ? record.examples : [],
-              userExamples: Array.isArray(record.userExamples) ? record.userExamples : [],
+              meaning: record.meaning,
+              definitions: record.definitions,
             }
           : item
       )
@@ -1923,9 +1859,9 @@ export default function HomePage() {
     }
 
     const record = toMutableWordRecord(doc.toJSON());
-    let meaning = record.meaning.trim();
+    let definitions = getWordDefinitions(record);
 
-    if (!meaning) {
+    if (definitions.length === 0) {
       if (!navigator.onLine) {
         console.warn('Device is offline, skipping examples fetch for:', record.word);
         return;
@@ -1943,12 +1879,14 @@ export default function HomePage() {
       }
 
       const data = await response.json();
-      meaning = String(data?.meaning ?? '').trim();
+      definitions = normalizeDefinitions(data?.definitions, String(data?.meaning ?? ''));
+      const meaning = definitionsToMeaning(definitions);
 
       if (meaning) {
         const updated = {
           ...record,
           meaning,
+          definitions,
           updatedAt: new Date().toISOString(),
         };
         await database.words.upsert(updated);
@@ -1956,26 +1894,28 @@ export default function HomePage() {
       }
     }
 
-    if (!meaning) {
+    if (definitions.length === 0) {
       return;
     }
 
-    const examples = await requestExamples(record.word, meaning);
-    if (examples.length === 0) {
+    const examplesPerDefinition = await requestExamplesForDefinitions(record.word, definitions);
+    if (examplesPerDefinition.every((examples) => examples.length === 0)) {
       return;
     }
 
+    const updatedDefinitions = mergeExamplesIntoDefinitions(definitions, examplesPerDefinition);
     const updated = {
       ...record,
-      meaning,
-      examples,
-      userExamples: record.userExamples,
+      meaning: definitionsToMeaning(updatedDefinitions),
+      definitions: updatedDefinitions,
       updatedAt: new Date().toISOString(),
     };
 
     await database.words.upsert(updated);
     await pushWordToRemote(database.words, updated);
-    updateQuizQueueExamples(id, examples);
+    setQuizQueue((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, definitions: updatedDefinitions } : item))
+    );
   };
 
   const handleReveal = () => {
@@ -3059,7 +2999,6 @@ export default function HomePage() {
                     onRevealMissedWord={(id) =>
                       setRevealedMissedWordIds((prev) => ({ ...prev, [id]: true }))
                     }
-                    getExamplesForId={getExamplesForId}
                     onRefreshExamples={handleRefreshExamples}
                     onUnmarkMissed={handleUnmarkMissed}
                   />
@@ -3105,7 +3044,6 @@ export default function HomePage() {
                   words={recentSrsPracticeWords}
                   hideMeanings={hideSrsPracticeMeanings}
                   revealedWordIds={revealedSrsPracticeWordIds}
-                  getExamplesForId={getExamplesForId}
                   onRevealWord={(id) =>
                     setRevealedSrsPracticeWordIds((prev) => ({ ...prev, [id]: true }))
                   }
@@ -3135,8 +3073,8 @@ export default function HomePage() {
           editingQuizWordId ? words.find((w) => w.id === editingQuizWordId) || null : null
         }
         customGroups={customGroups}
-        onSave={async (id, word, meaning, userExamples, groups) => {
-          await handleEdit(id, word, meaning, userExamples, groups);
+        onSave={async (id, word, meaning, definitions, groups) => {
+          await handleEdit(id, word, meaning, definitions, groups);
           setQuizQueue((prev) =>
             prev.map((item) =>
               item.id === id
@@ -3144,8 +3082,8 @@ export default function HomePage() {
                     ...item,
                     word,
                     meaning,
+                    definitions,
                     tags: groups,
-                    ...getQuizItemExamples(id),
                   }
                 : item
             )

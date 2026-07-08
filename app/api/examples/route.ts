@@ -53,9 +53,10 @@ export async function POST(request: Request) {
     {
       role: 'user',
       content:
-        `Give me 5 example sentences in English using the word "${word}" (meaning: ${meaning}).\n` +
+        `Give me between 3 and 5 example sentences in English using the word "${word}" ` +
+        `(meaning: ${meaning}). Each sentence must clearly reflect this specific meaning.\n` +
         'Reply with ONLY this JSON and nothing else:\n' +
-        '{"examples":["sentence 1","sentence 2","sentence 3","sentence 4","sentence 5"]}',
+        '{"examples":["sentence 1","sentence 2","sentence 3"]}',
     },
   ];
 

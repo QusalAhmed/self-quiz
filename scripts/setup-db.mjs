@@ -19,6 +19,7 @@ async function setupDatabase() {
       id TEXT PRIMARY KEY,
       word TEXT NOT NULL,
       meaning TEXT,
+      definitions JSONB DEFAULT '[]'::jsonb,
       created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
       updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
       deleted BOOLEAN DEFAULT FALSE

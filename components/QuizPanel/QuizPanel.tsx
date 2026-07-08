@@ -29,14 +29,16 @@ import {
   IconNotes,
 } from '@tabler/icons-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { DefinitionsDisplay } from '@/components/DefinitionsDisplay/DefinitionsDisplay';
+import type { WordDefinition } from '@/lib/db';
+import { normalizeDefinitions } from '@/lib/definitions';
 import type { SrsRating } from '@/lib/srs';
 
 export type QuizItem = {
   id: string;
   word: string;
   meaning: string;
-  examples?: string[];
-  userExamples?: string[];
+  definitions?: WordDefinition[];
   tags?: string[];
 };
 
@@ -278,18 +280,18 @@ export function QuizPanel({
 
   const progressPercent =
     totalCount > 0 ? ((currentIndex + (revealed ? 1 : 0)) / totalCount) * 100 : 0;
-  const examples = Array.isArray(item?.examples) ? item.examples : [];
-  const userExamples = Array.isArray(item?.userExamples) ? item.userExamples : [];
+  const definitions = normalizeDefinitions(item?.definitions, item.meaning);
+  const allUserExamples = definitions.flatMap((definition) => definition.userExamples);
   const isWordToMeaning = quizDirection === 'wordToMeaning';
 
   const userExamplesBlock =
-    showUserExamples && userExamples.length > 0 ? (
+    showUserExamples && allUserExamples.length > 0 ? (
       <Stack gap={2}>
         <Text size="xs" fw={600} c="dimmed" style={{ textAlign: 'center' }}>
           My Examples
         </Text>
         <ScrollArea.Autosize mah={250} offsetScrollbars scrollbarSize={8} scrollHideDelay={500}>
-          {userExamples.map((example, index) => (
+          {allUserExamples.map((example, index) => (
             <Text
               key={`${item.id}-quiz-user-example-${index}`}
               size="sm"
@@ -308,7 +310,7 @@ export function QuizPanel({
     ) : null;
 
   const showUserExamplesButton =
-    userExamples.length > 0 ? (
+    allUserExamples.length > 0 ? (
       <Button
         variant="outline"
         color="grape"
@@ -319,31 +321,6 @@ export function QuizPanel({
       >
         {showUserExamples ? 'Hide My Examples' : 'Show My Examples'}
       </Button>
-    ) : null;
-
-  const examplesBlock =
-    examples.length > 0 ? (
-      <Stack gap={2}>
-        <Text size="xs" fw={600} c="dimmed" style={{ textAlign: 'center' }}>
-          Examples
-        </Text>
-        <ScrollArea.Autosize mah={250} offsetScrollbars scrollbarSize={8} scrollHideDelay={500}>
-          {[...userExamples, ...examples].map((example, index) => (
-            <Text
-              key={`${item.id}-quiz-example-${index}`}
-              size="sm"
-              style={{
-                color: 'var(--text-secondary)',
-                lineHeight: 1.5,
-                wordBreak: 'break-word',
-                display: 'flex',
-              }}
-            >
-              • {example}
-            </Text>
-          ))}
-        </ScrollArea.Autosize>
-      </Stack>
     ) : null;
 
   const tagsBlock =
@@ -489,21 +466,24 @@ export function QuizPanel({
     </Group>
   );
 
-  const meaningPrompt = (
-    <Text
-      size="lg"
-      fw={500}
-      style={{
-        color: 'var(--text-secondary)',
-        textAlign: 'center',
-        lineHeight: 1.7,
-        maxWidth: 520,
-        fontSize: '1.35rem',
-      }}
-    >
-      {item.meaning || 'No definition available.'}
-    </Text>
+  const renderDefinitionsBlock = (showExamples: boolean) => (
+    <ScrollArea.Autosize mah={420} offsetScrollbars scrollbarSize={8} scrollHideDelay={500} style={{ width: '100%' }}>
+      <DefinitionsDisplay
+        definitions={definitions}
+        showExamples={showExamples}
+        align="center"
+        meaningSize="lg"
+        maxWidth={620}
+        emptyText="No definition available."
+      />
+    </ScrollArea.Autosize>
   );
+
+  // In meaningToWord mode the definition is shown as the *question*, before the word is
+  // revealed — examples must stay hidden then since they'd give the word away. Everywhere
+  // else the word is already visible, so examples can be shown alongside the definitions.
+  const definitionsBlock = renderDefinitionsBlock(true);
+  const definitionsBlockNoSpoilers = renderDefinitionsBlock(false);
 
   const revealButton = (
     <Button
@@ -517,7 +497,7 @@ export function QuizPanel({
       size="lg"
       radius="md"
       className="btn-pulse"
-      disabled={!isWordToMeaning && !item.meaning}
+      disabled={!isWordToMeaning && definitions.length === 0}
       style={{
         height: '60px',
         fontSize: '1rem',
@@ -585,19 +565,8 @@ export function QuizPanel({
                 revealButton
               ) : (
                 <>
-                  <Text
-                    size="md"
-                    fw={500}
-                    style={{
-                      color: 'var(--text-secondary)',
-                      textAlign: 'center',
-                      lineHeight: 1.6,
-                    }}
-                  >
-                    {item.meaning ? item.meaning : 'No definition available.'}
-                  </Text>
+                  {definitionsBlock}
                   {tagsBlock}
-                  {examplesBlock}
                   {srsRatingButtons}
                 </>
               )}
@@ -606,7 +575,7 @@ export function QuizPanel({
 
           {quizDirection === 'meaningToWord' && (
             <>
-              {meaningPrompt}
+              {revealed ? definitionsBlock : definitionsBlockNoSpoilers}
               {showUserExamplesButton}
               {userExamplesBlock}
               {!revealed ? (
@@ -615,7 +584,6 @@ export function QuizPanel({
                 <Stack gap="md" align="center" style={{ width: '100%' }}>
                   {wordWithActions(true)}
                   {tagsBlock}
-                  {examplesBlock}
                   {srsRatingButtons}
                 </Stack>
               )}
@@ -853,19 +821,8 @@ export function QuizPanel({
 
                   <Stack gap="md" align="center" style={{ width: '100%' }}>
                     {wordWithActions(true)}
-                    <Text
-                      size="md"
-                      fw={500}
-                      style={{
-                        color: 'var(--text-secondary)',
-                        textAlign: 'center',
-                        lineHeight: 1.6,
-                      }}
-                    >
-                      {item.meaning ? item.meaning : 'No definition available.'}
-                    </Text>
+                    {definitionsBlock}
                     {tagsBlock}
-                    {examplesBlock}
                     {srsRatingButtons}
                   </Stack>
                 </Stack>

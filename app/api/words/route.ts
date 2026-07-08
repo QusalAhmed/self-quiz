@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { definitionsToMeaning, normalizeDefinitions } from '@/lib/definitions';
 
 export const revalidate = 0; // Disable caching for this route
 
@@ -10,6 +11,7 @@ export async function POST(request: NextRequest) {
       id,
       word,
       meaning,
+      definitions,
       examples,
       user_examples,
       created_at,
@@ -28,11 +30,13 @@ export async function POST(request: NextRequest) {
       : custom_group?.trim()
         ? [custom_group.trim()]
         : [];
+    const normalizedDefinitions = normalizeDefinitions(definitions, meaning || '');
 
     const payload = {
       id,
       word,
-      meaning: meaning || '',
+      meaning: definitionsToMeaning(normalizedDefinitions),
+      definitions: normalizedDefinitions,
       examples: Array.isArray(examples) ? examples : [],
       user_examples: Array.isArray(user_examples) ? user_examples : [],
       created_at: created_at || new Date().toISOString(),

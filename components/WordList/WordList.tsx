@@ -1,10 +1,11 @@
 import { ActionIcon, Badge, Button, Card, Group, Modal, Stack, Text, Tooltip } from '@mantine/core';
 import { IconEdit, IconTrash, IconRotateClockwise } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
+import { DefinitionsDisplay } from '@/components/DefinitionsDisplay/DefinitionsDisplay';
 import { WordForm } from '@/components/WordForm/WordForm';
 import { formatDate, formatRelativeShort } from '@/lib/dateUtils';
-import type { WordRecord } from '@/lib/db';
-import { getDisplayExamples } from '@/lib/examples';
+import type { WordDefinition, WordRecord } from '@/lib/db';
+import { getWordDefinitions } from '@/lib/definitions';
 import { getWordGroups } from '@/lib/groups';
 
 type WordListProps = {
@@ -14,7 +15,7 @@ type WordListProps = {
     id: string,
     word: string,
     meaning: string,
-    userExamples: string[],
+    definitions: WordDefinition[],
     customGroups: string[]
   ) => Promise<void> | void;
   onRefreshExamples: (id: string) => Promise<void> | void;
@@ -47,7 +48,7 @@ export function WordList({
     return {
       word: editingItem.word,
       meaning: editingItem.meaning,
-      userExamples: Array.isArray(editingItem.userExamples) ? editingItem.userExamples : [],
+      definitions: getWordDefinitions(editingItem),
       groups: getWordGroups(editingItem),
     };
   }, [editingItem]);
@@ -110,9 +111,8 @@ export function WordList({
       <Stack gap="sm">
         {words.map((item) => {
           const isEditing = editingId === item.id;
-          const hasMeaning = Boolean(item.meaning);
-          const displayExamples = getDisplayExamples(item);
-          const hasExamples = displayExamples.length > 0;
+          const definitions = getWordDefinitions(item);
+          const hasMeaning = definitions.length > 0;
 
           return (
             <Card
@@ -185,23 +185,14 @@ export function WordList({
                     ))}
                   </Group>
 
-                  {/* Meaning (always visible) */}
+                  {/* Definitions (always visible), each shown separately with its own examples */}
                   {!isEditing && (
-                    <>
-                      <Text
-                        size="sm"
-                        style={{
-                          marginTop: 6,
-                          color: hasMeaning ? 'var(--text-secondary)' : 'var(--text-muted)',
-                          fontStyle: hasMeaning ? 'normal' : 'italic',
-                          lineHeight: 1.6,
-                          wordBreak: 'break-word',
-                          fontWeight: 600,
-                        }}
-                      >
-                        {hasMeaning ? item.meaning : 'Fetching definition…'}
-                      </Text>
-                    </>
+                    <div style={{ marginTop: 6 }}>
+                      <DefinitionsDisplay
+                        definitions={definitions}
+                        emptyText="Fetching definition..."
+                      />
+                    </div>
                   )}
                 </div>
 
@@ -249,28 +240,6 @@ export function WordList({
                 </Group>
               </div>
 
-              {/*Examples*/}
-              {!isEditing && hasExamples && (
-                <Stack gap={2} mt={6}>
-                  <Text size="xs" fw={600} c="dimmed">
-                    Examples
-                  </Text>
-                  {displayExamples.map((example, index) => (
-                    <Text
-                      key={`${item.id}-example-${index}`}
-                      size="sm"
-                      style={{
-                        color: 'var(--text-secondary)',
-                        lineHeight: 1.5,
-                        wordBreak: 'break-word',
-                      }}
-                    >
-                      {`• ${example}`}
-                    </Text>
-                  ))}
-                </Stack>
-              )}
-
               {/* ── Edit form section ── */}
               {isEditing && editValues && (
                 <div
@@ -284,11 +253,11 @@ export function WordList({
                     customGroups={customGroups}
                     onAddCustomGroup={onAddCustomGroup}
                     editValues={editValues}
-                    onSubmit={async (word, meaning, userExamples, groups) => {
+                    onSubmit={async (word, meaning, definitions, groups) => {
                       if (!editingId) {
                         return;
                       }
-                      await onEdit(editingId, word, meaning, userExamples, groups);
+                      await onEdit(editingId, word, meaning, definitions, groups);
                       setEditingId(null);
                     }}
                     onCancel={() => setEditingId(null)}

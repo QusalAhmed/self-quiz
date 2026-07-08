@@ -8,17 +8,20 @@ import {
     TextInput,
     Textarea,
     MultiSelect,
+    Select,
     ActionIcon,
     Tooltip,
+    Divider,
 } from '@mantine/core';
 import { IconPlus, IconCheck, IconX } from '@tabler/icons-react';
 import { EditWordModal } from '@/components/EditWordModal/EditWordModal';
-import type { WordRecord } from '@/lib/db';
+import type { WordDefinition, WordRecord } from '@/lib/db';
+import { PARTS_OF_SPEECH, definitionsToMeaning, normalizeDefinitions } from '@/lib/definitions';
 
 export type WordFormEditValues = {
     word: string;
     meaning: string;
-    userExamples: string[];
+    definitions?: WordDefinition[];
     groups: string[];
 };
 
@@ -33,21 +36,48 @@ type WordFormProps = {
         id: string,
         word: string,
         meaning: string,
-        userExamples: string[],
+        definitions: WordDefinition[],
         groups: string[]
     ) => Promise<void> | void;
     onSubmit: (
         word: string,
         meaning: string,
-        userExamples: string[],
+        definitions: WordDefinition[],
         groups: string[]
     ) => Promise<void> | void;
     onCancel?: () => void;
 };
 
+/** Form-local shape for a definition being edited. `examples` (AI-generated) are carried
+ * through untouched; only `userExamples` are editable here. */
+type DefinitionFormValue = {
+    meaning: string;
+    partOfSpeech: string;
+    examples: string[];
+    userExamples: string[];
+};
+
 function normalizeExamples(values: string[]): string[] {
     const trimmed = values.map((value) => value.trim()).filter(Boolean);
     return trimmed.length > 0 ? trimmed : [''];
+}
+
+function createEmptyDefinitionFormValue(): DefinitionFormValue {
+    return { meaning: '', partOfSpeech: '', examples: [], userExamples: [''] };
+}
+
+function definitionsToFormValues(definitions: WordDefinition[]): DefinitionFormValue[] {
+    if (definitions.length === 0) {
+        return [createEmptyDefinitionFormValue()];
+    }
+    return definitions.map((definition) => ({
+        meaning: definition.meaning,
+        partOfSpeech: definition.partOfSpeech,
+        examples: Array.isArray(definition.examples) ? definition.examples : [],
+        userExamples: normalizeExamples(
+            Array.isArray(definition.userExamples) ? definition.userExamples : []
+        ),
+    }));
 }
 
 export function WordForm({
@@ -64,8 +94,9 @@ export function WordForm({
     const isEditMode = editValues != null;
 
     const [word, setWord] = useState('');
-    const [meaning, setMeaning] = useState('');
-    const [examples, setExamples] = useState<string[]>(['']);
+    const [definitions, setDefinitions] = useState<DefinitionFormValue[]>([
+        createEmptyDefinitionFormValue(),
+    ]);
     const [groups, setGroups] = useState<string[]>([]);
     const [isAddingNewGroup, setIsAddingNewGroup] = useState(false);
     const [newGroupName, setNewGroupName] = useState('');
@@ -75,8 +106,7 @@ export function WordForm({
 
     const resetForm = useCallback(() => {
         setWord('');
-        setMeaning('');
-        setExamples(['']);
+        setDefinitions([createEmptyDefinitionFormValue()]);
         setGroups([]);
         setIsAddingNewGroup(false);
         setNewGroupName('');
@@ -112,8 +142,8 @@ export function WordForm({
     useEffect(() => {
         if (isEditMode && editValues) {
             setWord(editValues.word);
-            setMeaning(editValues.meaning);
-            setExamples(normalizeExamples(editValues.userExamples));
+            const normalized = normalizeDefinitions(editValues.definitions, editValues.meaning);
+            setDefinitions(definitionsToFormValues(normalized));
             setGroups(editValues.groups);
             setIsAddingNewGroup(false);
             setNewGroupName('');
@@ -124,7 +154,15 @@ export function WordForm({
     const inputSize = variant === 'card' ? 'md' : 'sm';
     const buttonSize = variant === 'embedded' ? 'xs' : variant === 'card' ? 'md' : 'sm';
 
-    const parsedExamples = () => examples.map((value) => value.trim()).filter(Boolean);
+    const parsedDefinitions = (): WordDefinition[] =>
+        normalizeDefinitions(
+            definitions.map((definition) => ({
+                meaning: definition.meaning,
+                partOfSpeech: definition.partOfSpeech,
+                examples: definition.examples,
+                userExamples: definition.userExamples,
+            }))
+        );
 
     const handleSubmit = async (event?: React.SubmitEvent<HTMLFormElement>) => {
         if (event) {
@@ -140,7 +178,8 @@ export function WordForm({
 
         setIsSaving(true);
         try {
-            await onSubmit(word.trim(), meaning.trim(), parsedExamples(), groups);
+            const nextDefinitions = parsedDefinitions();
+            await onSubmit(word.trim(), definitionsToMeaning(nextDefinitions), nextDefinitions, groups);
             if (!isEditMode) {
                 resetForm();
                 setTimeout(() => {
@@ -152,7 +191,7 @@ export function WordForm({
         }
     };
 
-    const handleMeaningKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    const handleDefinitionKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (event.key === 'Enter' && !event.shiftKey) {
             event.preventDefault();
             void handleSubmit();
@@ -186,19 +225,56 @@ export function WordForm({
         }
     };
 
-    const updateExample = (index: number, value: string) => {
-        setExamples((prev) => prev.map((item, i) => (i === index ? value : item)));
+    const updateDefinition = (index: number, value: Partial<Pick<DefinitionFormValue, 'meaning' | 'partOfSpeech'>>) => {
+        setDefinitions((prev) =>
+            prev.map((item, i) => (i === index ? { ...item, ...value } : item))
+        );
     };
 
-    const addExampleField = () => {
-        setExamples((prev) => [...prev, '']);
+    const addDefinitionField = () => {
+        setDefinitions((prev) => [...prev, createEmptyDefinitionFormValue()]);
     };
 
-    const removeExampleField = (index: number) => {
-        setExamples((prev) => {
+    const removeDefinitionField = (index: number) => {
+        setDefinitions((prev) => {
             const next = prev.filter((_, i) => i !== index);
-            return next.length > 0 ? next : [''];
+            return next.length > 0 ? next : [createEmptyDefinitionFormValue()];
         });
+    };
+
+    const updateDefinitionExample = (defIndex: number, exIndex: number, value: string) => {
+        setDefinitions((prev) =>
+            prev.map((item, i) =>
+                i === defIndex
+                    ? {
+                          ...item,
+                          userExamples: item.userExamples.map((example, ei) =>
+                              ei === exIndex ? value : example
+                          ),
+                      }
+                    : item
+            )
+        );
+    };
+
+    const addDefinitionExampleField = (defIndex: number) => {
+        setDefinitions((prev) =>
+            prev.map((item, i) =>
+                i === defIndex ? { ...item, userExamples: [...item.userExamples, ''] } : item
+            )
+        );
+    };
+
+    const removeDefinitionExampleField = (defIndex: number, exIndex: number) => {
+        setDefinitions((prev) =>
+            prev.map((item, i) => {
+                if (i !== defIndex) {
+                    return item;
+                }
+                const next = item.userExamples.filter((_, ei) => ei !== exIndex);
+                return { ...item, userExamples: next.length > 0 ? next : [''] };
+            })
+        );
     };
 
     const formContent = (
@@ -238,58 +314,156 @@ export function WordForm({
                     radius="md"
                 />
 
-                <Textarea
-                    label={
-                        <Text size="xs" fw={600} c="dimmed">
-                            Definition (optional)
-                        </Text>
-                    }
-                    placeholder="Type your own definition here, or leave it blank to auto-fetch..."
-                    value={meaning}
-                    onChange={(event) => setMeaning(event.currentTarget.value)}
-                    onKeyDown={handleMeaningKeyDown}
-                    disabled={disabled || isSaving}
-                    minRows={2.5}
-                    size="sm"
-                    radius="md"
-                    autosize
-                />
-
-                <Stack gap="xs">
+                <Stack gap="md">
                     <Text size="xs" fw={600} c="dimmed">
-                        Examples (optional)
+                        Definitions (optional) — add one entry per meaning
                     </Text>
-                    {examples.map((example, index) => (
-                        <Group key={`example-${index}`} align="flex-end" gap="xs" wrap="nowrap">
-                            <Textarea
-                                placeholder="Add an example sentence using this word..."
-                                value={example}
-                                onChange={(event) =>
-                                    updateExample(index, event.currentTarget.value.replace(/\s+/g, ' ').trim())
-                                }
-                                onKeyDown={handleExampleKeyDown}
-                                disabled={disabled || isSaving}
-                                minRows={1}
-                                size="sm"
-                                radius="md"
-                                autosize
-                                style={{flex: 1}}
-                            />
-                            <Tooltip label="Remove example" withArrow>
-                                <ActionIcon
-                                    variant="light"
-                                    color="gray"
-                                    size={inputSize}
-                                    radius="md"
-                                    onClick={() => removeExampleField(index)}
-                                    disabled={disabled || isSaving || examples.length === 1}
-                                    type="button"
-                                    aria-label="Remove example"
-                                >
-                                    <IconX size={16}/>
-                                </ActionIcon>
-                            </Tooltip>
-                        </Group>
+                    {definitions.map((definition, index) => (
+                        <Card
+                            key={`definition-${index}`}
+                            withBorder
+                            radius="md"
+                            padding="sm"
+                            style={{ background: 'rgba(99, 102, 241, 0.03)' }}
+                        >
+                            <Stack gap={8}>
+                                <Group justify="space-between" align="center" gap="xs" wrap="nowrap">
+                                    <Text size="sm" fw={700} c="indigo" style={{ lineHeight: 1.4 }}>
+                                        Definition {index + 1}
+                                    </Text>
+                                    <Tooltip label="Remove definition" withArrow>
+                                        <ActionIcon
+                                            variant="light"
+                                            color="gray"
+                                            size={inputSize}
+                                            radius="md"
+                                            onClick={() => removeDefinitionField(index)}
+                                            disabled={disabled || isSaving || definitions.length === 1}
+                                            type="button"
+                                            aria-label="Remove definition"
+                                        >
+                                            <IconX size={16}/>
+                                        </ActionIcon>
+                                    </Tooltip>
+                                </Group>
+                                <Group align="flex-end" gap="xs" wrap="wrap">
+                                    <Select
+                                        label={
+                                            <Text size="xs" fw={600} c="dimmed">
+                                                Part of speech
+                                            </Text>
+                                        }
+                                        placeholder="Any"
+                                        value={definition.partOfSpeech || null}
+                                        onChange={(value) =>
+                                            updateDefinition(index, {partOfSpeech: value ?? ''})
+                                        }
+                                        data={PARTS_OF_SPEECH.map((part) => ({
+                                            value: part,
+                                            label: part.charAt(0).toUpperCase() + part.slice(1),
+                                        }))}
+                                        disabled={disabled || isSaving}
+                                        size="sm"
+                                        radius="md"
+                                        clearable
+                                        searchable
+                                        w={{ base: '100%', sm: 160 }}
+                                        style={{flexShrink: 0}}
+                                    />
+                                    <Textarea
+                                        label={
+                                            <Text size="xs" fw={600} c="dimmed">
+                                                Definition
+                                            </Text>
+                                        }
+                                        placeholder="Type ..."
+                                        value={definition.meaning}
+                                        onChange={(event) =>
+                                            updateDefinition(index, {meaning: event.currentTarget.value})
+                                        }
+                                        onKeyDown={handleDefinitionKeyDown}
+                                        disabled={disabled || isSaving}
+                                        minRows={1}
+                                        size="sm"
+                                        radius="md"
+                                        autosize
+                                        style={{flex: 1, minWidth: 200}}
+                                    />
+                                </Group>
+
+                                <Divider label="Your examples for this definition" labelPosition="left" />
+
+                                <Stack gap={6}>
+                                    {definition.userExamples.map((example, exIndex) => (
+                                        <Group key={`definition-${index}-example-${exIndex}`} align="flex-end" gap="xs" wrap="nowrap">
+                                            <Textarea
+                                                placeholder="Add an example sentence using this meaning..."
+                                                value={example}
+                                                onChange={(event) =>
+                                                    updateDefinitionExample(
+                                                        index,
+                                                        exIndex,
+                                                        event.currentTarget.value.replace(/\s+/g, ' ').trim()
+                                                    )
+                                                }
+                                                onKeyDown={handleExampleKeyDown}
+                                                disabled={disabled || isSaving}
+                                                minRows={1}
+                                                size="sm"
+                                                radius="md"
+                                                autosize
+                                                style={{flex: 1}}
+                                            />
+                                            <Tooltip label="Remove example" withArrow>
+                                                <ActionIcon
+                                                    variant="light"
+                                                    color="gray"
+                                                    size={inputSize}
+                                                    radius="md"
+                                                    onClick={() => removeDefinitionExampleField(index, exIndex)}
+                                                    disabled={disabled || isSaving || definition.userExamples.length === 1}
+                                                    type="button"
+                                                    aria-label="Remove example"
+                                                >
+                                                    <IconX size={16}/>
+                                                </ActionIcon>
+                                            </Tooltip>
+                                        </Group>
+                                    ))}
+                                    <Button
+                                        variant="subtle"
+                                        color="indigo"
+                                        size="xs"
+                                        radius="md"
+                                        leftSection={<IconPlus size={14}/>}
+                                        onClick={() => addDefinitionExampleField(index)}
+                                        disabled={disabled || isSaving}
+                                        type="button"
+                                        w="fit-content"
+                                    >
+                                        Add example
+                                    </Button>
+
+                                    {definition.examples.length > 0 && (
+                                        <Stack gap={2} mt={4}>
+                                            <Text size="xs" fw={600} c="dimmed">
+                                                AI-generated examples
+                                            </Text>
+                                            {definition.examples.map((example, exIndex) => (
+                                                <Text
+                                                    key={`definition-${index}-ai-example-${exIndex}`}
+                                                    size="xs"
+                                                    c="dimmed"
+                                                    style={{lineHeight: 1.5, wordBreak: 'break-word'}}
+                                                >
+                                                    {`• ${example}`}
+                                                </Text>
+                                            ))}
+                                        </Stack>
+                                    )}
+                                </Stack>
+                            </Stack>
+                        </Card>
                     ))}
                     <Button
                         variant="light"
@@ -297,12 +471,12 @@ export function WordForm({
                         size="xs"
                         radius="md"
                         leftSection={<IconPlus size={14}/>}
-                        onClick={addExampleField}
+                        onClick={addDefinitionField}
                         disabled={disabled || isSaving}
                         type="button"
                         w="fit-content"
                     >
-                        Add example
+                        Add definition
                     </Button>
                 </Stack>
 
@@ -450,8 +624,8 @@ export function WordForm({
                 onClose={closeEditModal}
                 wordRecord={editModalRecord}
                 customGroups={customGroups}
-                onSave={async (id, nextWord, nextMeaning, userExamples, nextGroups) => {
-                    await onEditExisting(id, nextWord, nextMeaning, userExamples, nextGroups);
+                onSave={async (id, nextWord, nextMeaning, nextDefinitions, nextGroups) => {
+                    await onEditExisting(id, nextWord, nextMeaning, nextDefinitions, nextGroups);
                     closeEditModal();
                 }}
                 onAddCustomGroup={onAddCustomGroup}
@@ -464,10 +638,11 @@ export function WordForm({
                 <Card
                     className="glass-panel"
                     radius="lg"
-                    padding="xl"
+                    padding={0}
                     style={{
                         borderLeft: '4px solid #6366f1',
                         overflow: 'hidden',
+                        padding: 'clamp(16px, 4vw, 32px)',
                     }}
                 >
                     {formContent}

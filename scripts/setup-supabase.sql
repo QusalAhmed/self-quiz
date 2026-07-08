@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS public.words (
   id TEXT PRIMARY KEY,
   word TEXT NOT NULL,
   meaning TEXT,
+  definitions JSONB DEFAULT '[]'::jsonb,
   examples JSONB,
   user_examples JSONB DEFAULT '[]'::jsonb,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -43,6 +44,7 @@ CREATE POLICY "Allow anonymous delete" ON public.words
 ALTER TABLE public.words ADD COLUMN IF NOT EXISTS user_examples JSONB DEFAULT '[]'::jsonb;
 ALTER TABLE public.words ADD COLUMN IF NOT EXISTS custom_group TEXT DEFAULT '';
 ALTER TABLE public.words ADD COLUMN IF NOT EXISTS custom_groups JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.words ADD COLUMN IF NOT EXISTS definitions JSONB DEFAULT '[]'::jsonb;
 
 -- Create the groups table
 CREATE TABLE IF NOT EXISTS public.groups (

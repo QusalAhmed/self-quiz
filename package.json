@@ -17,6 +17,7 @@
     "format:write": "oxfmt --write \"**/*.{ts,tsx,css}\"",
     "backfill:srs": "node scripts/backfill-srs.mjs",
     "migrate:srs-practice": "node scripts/migrate-srs-practice.mjs",
+    "migrate:definitions": "node scripts/migrate-definitions.mjs",
     "test": "npx next typegen && npm run format:test && npm run lint && npm run typecheck && npm run jest",
     "storybook": "storybook dev -p 6006",
     "storybook:build": "storybook build"

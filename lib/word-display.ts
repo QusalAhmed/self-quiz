@@ -1,9 +1,11 @@
-import type { WordRecord } from './db';
+import type { WordDefinition, WordRecord } from './db';
+import { definitionsToMeaning, getWordDefinitions } from './definitions';
 
 export type WordTextRecord = {
   wordId: string;
   word: string;
   meaning: string;
+  definitions?: WordDefinition[];
 };
 
 export function resolveWordTextFromMainTable<T extends WordTextRecord>(
@@ -18,6 +20,7 @@ export function resolveWordTextFromMainTable<T extends WordTextRecord>(
   return {
     ...record,
     word: currentWord.word,
-    meaning: currentWord.meaning,
+    meaning: definitionsToMeaning(getWordDefinitions(currentWord)),
+    definitions: getWordDefinitions(currentWord),
   };
 }

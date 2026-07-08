@@ -9,8 +9,7 @@ describe('resolveWordTextFromMainTable', () => {
         id: 'w1',
         word: 'updated word',
         meaning: 'updated meaning',
-        examples: [],
-        userExamples: [],
+        definitions: [{ meaning: 'updated meaning', partOfSpeech: '', examples: [], userExamples: [] }],
         createdAt: '2026-07-01T00:00:00.000Z',
         updatedAt: '2026-07-03T00:00:00.000Z',
         isDeleted: false,
@@ -38,6 +37,7 @@ describe('resolveWordTextFromMainTable', () => {
       ...record,
       word: 'updated word',
       meaning: 'updated meaning',
+      definitions: [{ meaning: 'updated meaning', partOfSpeech: '', examples: [], userExamples: [] }],
     });
   });
 
