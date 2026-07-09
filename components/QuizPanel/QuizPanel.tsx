@@ -59,6 +59,7 @@ type QuizPanelProps = {
   totalCount?: number;
   onRestart?: () => void;
   onRefreshExamples?: (id: string) => void;
+  isGeneratingExamples?: boolean;
   /** Enable SRS rating mode — shows Again/Hard/Good/Easy buttons instead of bookmark */
   srsMode?: boolean;
   /** Called when user selects a rating in SRS mode */
@@ -81,6 +82,7 @@ export function QuizPanel({
   totalCount = 0,
   onRestart,
   onRefreshExamples,
+  isGeneratingExamples = false,
   srsMode = false,
   onSrsRate,
   onEditClick,
@@ -466,6 +468,12 @@ export function QuizPanel({
     </Group>
   );
 
+  const examplesGenerationIndicator = isGeneratingExamples ? (
+    <Text size="xs" c="dimmed" ta="center">
+      Generating examples...
+    </Text>
+  ) : null;
+
   const renderDefinitionsBlock = (showExamples: boolean) => (
     <ScrollArea.Autosize mah={420} offsetScrollbars scrollbarSize={8} scrollHideDelay={500} style={{ width: '100%' }}>
       <DefinitionsDisplay
@@ -561,6 +569,7 @@ export function QuizPanel({
               {wordWithActions(true)}
               {showUserExamplesButton}
               {userExamplesBlock}
+              {examplesGenerationIndicator}
               {!revealed ? (
                 revealButton
               ) : (
@@ -578,6 +587,7 @@ export function QuizPanel({
               {revealed ? definitionsBlock : definitionsBlockNoSpoilers}
               {showUserExamplesButton}
               {userExamplesBlock}
+              {examplesGenerationIndicator}
               {!revealed ? (
                 revealButton
               ) : (

@@ -19,6 +19,57 @@ type ExamplesPayload = {
   meaning?: string;
 };
 
+function normalizeExamples(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((item) => (typeof item === 'string' ? item.trim() : ''))
+    .filter(Boolean)
+    .slice(0, 5);
+}
+
+function parseExamplesFromRawText(rawText: string): string[] {
+  const trimmed = rawText.trim();
+  if (!trimmed) {
+    return [];
+  }
+
+  const candidates = [trimmed];
+  const fencedMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fencedMatch?.[1]) {
+    candidates.unshift(fencedMatch[1].trim());
+  }
+
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(candidate) as { examples?: unknown } | string;
+      if (typeof parsed === 'string') {
+        try {
+          const reparsed = JSON.parse(parsed) as { examples?: unknown };
+          const examples = normalizeExamples(reparsed?.examples);
+          if (examples.length > 0) {
+            return examples;
+          }
+        } catch {
+          // Ignore and continue to the next parse strategy.
+        }
+        continue;
+      }
+
+      const examples = normalizeExamples(parsed?.examples);
+      if (examples.length > 0) {
+        return examples;
+      }
+    } catch {
+      // Ignore and continue to the next parse strategy.
+    }
+  }
+
+  return [];
+}
+
 export async function POST(request: Request) {
   let body: ExamplesPayload | null;
   try {
@@ -85,6 +136,10 @@ export async function POST(request: Request) {
 
     // Native endpoint returns the text directly in result.response
     const rawText = data?.result?.response ?? '';
+    // const examples = parseExamplesFromRawText(rawText);
+
+    // return NextResponse.json({ examples });
+    //
     console.log('Raw AI response:', NextResponse.json(rawText));
     return NextResponse.json(rawText);
   } catch (error) {

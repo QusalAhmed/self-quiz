@@ -25,6 +25,7 @@ import {
   Badge,
   Divider,
   useCombobox,
+    Menu
 } from '@mantine/core';
 import {
   IconSearch,
@@ -48,6 +49,7 @@ import {
   IconEye,
   IconEyeOff,
   IconTags,
+  IconCheck
 } from '@tabler/icons-react';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -269,10 +271,27 @@ function mergeExamplesIntoDefinitions(
   definitions: WordDefinition[],
   examplesPerDefinition: string[][]
 ): WordDefinition[] {
-  return definitions.map((definition, index) => ({
-    ...definition,
-    examples: examplesPerDefinition[index] ?? definition.examples ?? [],
-  }));
+  return definitions.map((definition, index) => {
+    const nextExamples = examplesPerDefinition[index];
+    return {
+      ...definition,
+      examples:
+        Array.isArray(nextExamples) && nextExamples.length > 0
+          ? nextExamples
+          : definition.examples ?? [],
+    };
+  });
+}
+
+function getMissingAiExampleDefinitionIndexes(definitions: WordDefinition[]): number[] {
+  return definitions
+    .map((definition, index) => ({ definition, index }))
+    .filter(
+      ({ definition }) =>
+        definition.meaning.trim().length > 0 &&
+        (!Array.isArray(definition.examples) || definition.examples.length === 0)
+    )
+    .map(({ index }) => index);
 }
 
 // ---------------------------------------------------------------------------
@@ -286,6 +305,7 @@ interface MissedWordVirtualListProps {
   onRevealMissedWord: (id: string) => void;
   onRefreshExamples: (id: string) => void;
   onUnmarkMissed: (id: string) => void;
+  generatingExampleWordIds?: Record<string, boolean>;
 }
 
 function MissedWordVirtualList({
@@ -295,6 +315,7 @@ function MissedWordVirtualList({
   onRevealMissedWord,
   onRefreshExamples,
   onUnmarkMissed,
+  generatingExampleWordIds = {},
 }: MissedWordVirtualListProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const [scrollMargin, setScrollMargin] = useState(0);
@@ -363,6 +384,7 @@ function MissedWordVirtualList({
                 };
 
           const isRevealed = !hideMissedMeanings || revealedMissedWordIds[word.id];
+          const isGeneratingExamples = generatingExampleWordIds[word.wordId];
 
           return (
             <div
@@ -429,6 +451,8 @@ function MissedWordVirtualList({
                           size="md"
                           radius="md"
                           onClick={() => onRefreshExamples(word.wordId)}
+                          disabled={isGeneratingExamples}
+                          loading={isGeneratingExamples}
                           style={{ transition: 'all 0.2s ease' }}
                         >
                           <IconRotateClockwise size={16} />
@@ -460,6 +484,12 @@ function MissedWordVirtualList({
                       </Tooltip>
                     </Group>
                   </div>
+
+                  {isGeneratingExamples && (
+                    <Text size="xs" c="dimmed" mb={4}>
+                      Generating examples...
+                    </Text>
+                  )}
 
                   {isRevealed ? (
                     <div style={{ marginTop: 4 }}>
@@ -519,6 +549,7 @@ interface SrsPracticeVirtualListProps {
   isMissedWord: (wordId: string) => boolean;
   onEditClick?: (id: string) => void;
   onQuizWord: (id: string) => void;
+  generatingExampleWordIds?: Record<string, boolean>;
 }
 
 function SrsPracticeVirtualList({
@@ -530,6 +561,7 @@ function SrsPracticeVirtualList({
   onToggleMissed,
   isMissedWord,
   onEditClick,
+  generatingExampleWordIds = {},
 }: SrsPracticeVirtualListProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const [scrollMargin, setScrollMargin] = useState(0);
@@ -576,6 +608,7 @@ function SrsPracticeVirtualList({
           const word = words[virtualRow.index];
           const isRevealed = !hideMeanings || revealedWordIds[word.id];
           const missed = isMissedWord(word.wordId);
+          const isGeneratingExamples = generatingExampleWordIds[word.wordId];
 
           return (
             <div
@@ -653,6 +686,8 @@ function SrsPracticeVirtualList({
                           size="md"
                           radius="md"
                           onClick={() => onRefreshExamples(word.wordId)}
+                          disabled={isGeneratingExamples}
+                          loading={isGeneratingExamples}
                           style={{ transition: 'all 0.2s ease' }}
                         >
                           <IconRotateClockwise size={16} />
@@ -705,6 +740,12 @@ function SrsPracticeVirtualList({
                   <Text size="xs" c="dimmed" mb={6}>
                     Practiced {formatPracticeDate(word.practicedAt)}
                   </Text>
+
+                  {isGeneratingExamples && (
+                    <Text size="xs" c="dimmed" mb={4}>
+                      Generating examples...
+                    </Text>
+                  )}
 
                   {isRevealed ? (
                     <div style={{ marginTop: 4 }}>
@@ -821,6 +862,7 @@ export default function HomePage() {
   const [revealedSrsPracticeWordIds, setRevealedSrsPracticeWordIds] = useState<
     Record<string, boolean>
   >({});
+  const [exampleGenerationCounts, setExampleGenerationCounts] = useState<Record<string, number>>({});
 
   const customGroups = useMemo(() => getActiveGroupNames(groups), [groups]);
 
@@ -1519,7 +1561,7 @@ export default function HomePage() {
       }
     };
 
-    load();
+    load().then(() => console.log("Data loaded"));
 
     return () => {
       isMounted = false;
@@ -1619,6 +1661,111 @@ export default function HomePage() {
     void migrateGroups();
   }, [database, isLoading]);
 
+  const ensureMissingAiExamples = useCallback(
+    async (wordId: string) => {
+      if (!database) {
+        return;
+      }
+
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        return;
+      }
+
+      const doc = await database.words.findOne(wordId).exec();
+      if (!doc) {
+        return;
+      }
+
+      const current = toMutableWordRecord(doc.toJSON());
+      const currentDefinitions = getWordDefinitions(current);
+      const missingIndexes = getMissingAiExampleDefinitionIndexes(currentDefinitions);
+      if (missingIndexes.length === 0) {
+        return;
+      }
+
+      setExampleGenerationCounts((prev) => ({
+        ...prev,
+        [wordId]: (prev[wordId] ?? 0) + 1,
+      }));
+
+      try {
+        const generatedExamples = await Promise.all(
+          missingIndexes.map((index) => requestExamples(current.word, currentDefinitions[index].meaning))
+        );
+        if (generatedExamples.every((examples) => examples.length === 0)) {
+          return;
+        }
+
+        const generatedByIndex = new Map<number, string[]>();
+        missingIndexes.forEach((index, resultIndex) => {
+          const examples = generatedExamples[resultIndex] ?? [];
+          if (examples.length > 0) {
+            generatedByIndex.set(index, examples);
+          }
+        });
+
+        if (generatedByIndex.size === 0) {
+          return;
+        }
+
+        const refreshedDoc = await database.words.findOne(wordId).exec();
+        if (!refreshedDoc) {
+          return;
+        }
+
+        const latest = toMutableWordRecord(refreshedDoc.toJSON());
+        const latestDefinitions = getWordDefinitions(latest);
+        const updatedDefinitions = latestDefinitions.map((definition, index) => {
+          if ((definition.examples?.length ?? 0) > 0) {
+            return definition;
+          }
+
+          const examples = generatedByIndex.get(index);
+          return examples && examples.length > 0 ? { ...definition, examples } : definition;
+        });
+
+        if (
+          updatedDefinitions.every(
+            (definition, index) => definition.examples === latestDefinitions[index]?.examples
+          )
+        ) {
+          return;
+        }
+
+        const updated = {
+          ...latest,
+          meaning: definitionsToMeaning(updatedDefinitions),
+          definitions: updatedDefinitions,
+          updatedAt: new Date().toISOString(),
+        };
+
+        await database.words.upsert(updated);
+        await pushWordToRemote(database.words, updated);
+        setQuizQueue((prev) =>
+          prev.map((item) =>
+            item.id === wordId
+              ? {
+                  ...item,
+                  meaning: updated.meaning,
+                  definitions: updated.definitions,
+                }
+              : item
+          )
+        );
+      } finally {
+        setExampleGenerationCounts((prev) => {
+          const nextCount = Math.max(0, (prev[wordId] ?? 0) - 1);
+          if (nextCount === 0) {
+            const { [wordId]: _removed, ...rest } = prev;
+            return rest;
+          }
+          return { ...prev, [wordId]: nextCount };
+        });
+      }
+    },
+    [database]
+  );
+
   const handleAdd = async (
     word: string,
     meaning: string,
@@ -1667,34 +1814,9 @@ export default function HomePage() {
     }
 
     if (normalizedDefinitions.length > 0) {
-      void (async () => {
-        try {
-          const examplesPerDefinition = await requestExamplesForDefinitions(
-            record.word,
-            normalizedDefinitions
-          );
-          if (examplesPerDefinition.every((examples) => examples.length === 0)) {
-            return;
-          }
-
-          const doc = await database.words.findOne(record.id).exec();
-          if (!doc) {
-            return;
-          }
-
-          const current = toMutableWordRecord(doc.toJSON());
-          const updated = {
-            ...current,
-            definitions: mergeExamplesIntoDefinitions(current.definitions, examplesPerDefinition),
-            updatedAt: new Date().toISOString(),
-          };
-
-          await database.words.upsert(updated);
-          await pushWordToRemote(database.words, updated);
-        } catch (error) {
-          console.error('Error fetching examples:', error);
-        }
-      })();
+      void ensureMissingAiExamples(record.id).catch((error) => {
+        console.error('Error filling missing AI examples after add:', error);
+      });
     }
 
     if (normalizedDefinitions.length === 0) {
@@ -1753,20 +1875,7 @@ export default function HomePage() {
 
           await database.words.upsert(updated);
           await pushWordToRemote(database.words, updated);
-
-          const examplesPerDefinition = await requestExamplesForDefinitions(
-            updated.word,
-            aiDefinitions
-          );
-          if (examplesPerDefinition.some((examples) => examples.length > 0)) {
-            const withExamples = {
-              ...updated,
-              definitions: mergeExamplesIntoDefinitions(updated.definitions, examplesPerDefinition),
-              updatedAt: new Date().toISOString(),
-            };
-            await database.words.upsert(withExamples);
-            await pushWordToRemote(database.words, withExamples);
-          }
+          await ensureMissingAiExamples(record.id);
 
           console.log('Definition updated for word:', record.word, '-', aiMeaning);
         } catch (error) {
@@ -1846,6 +1955,12 @@ export default function HomePage() {
           : item
       )
     );
+
+    if (normalizedDefinitions.length > 0) {
+      void ensureMissingAiExamples(id).catch((error) => {
+        console.error('Error filling missing AI examples after edit:', error);
+      });
+    }
   };
 
   const handleRefreshExamples = async (id: string) => {
@@ -1853,69 +1968,85 @@ export default function HomePage() {
       return;
     }
 
-    const doc = await database.words.findOne(id).exec();
-    if (!doc) {
-      return;
-    }
+    setExampleGenerationCounts((prev) => ({
+      ...prev,
+      [id]: (prev[id] ?? 0) + 1,
+    }));
 
-    const record = toMutableWordRecord(doc.toJSON());
-    let definitions = getWordDefinitions(record);
-
-    if (definitions.length === 0) {
-      if (!navigator.onLine) {
-        console.warn('Device is offline, skipping examples fetch for:', record.word);
+    try {
+      const doc = await database.words.findOne(id).exec();
+      if (!doc) {
         return;
       }
 
-      const response = await fetch('/api/meaning', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ word: record.word }),
+      const record = toMutableWordRecord(doc.toJSON());
+      let definitions = getWordDefinitions(record);
+
+      if (definitions.length === 0) {
+        if (!navigator.onLine) {
+          console.warn('Device is offline, skipping examples fetch for:', record.word);
+          return;
+        }
+
+        const response = await fetch('/api/meaning', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ word: record.word }),
+        });
+
+        if (!response.ok) {
+          console.warn('Failed to fetch meaning for examples:', record.word);
+          return;
+        }
+
+        const data = await response.json();
+        definitions = normalizeDefinitions(data?.definitions, String(data?.meaning ?? ''));
+        const meaning = definitionsToMeaning(definitions);
+
+        if (meaning) {
+          const updated = {
+            ...record,
+            meaning,
+            definitions,
+            updatedAt: new Date().toISOString(),
+          };
+          await database.words.upsert(updated);
+          await pushWordToRemote(database.words, updated);
+        }
+      }
+
+      if (definitions.length === 0) {
+        return;
+      }
+
+      const examplesPerDefinition = await requestExamplesForDefinitions(record.word, definitions);
+      if (examplesPerDefinition.every((examples) => examples.length === 0)) {
+        return;
+      }
+
+      const updatedDefinitions = mergeExamplesIntoDefinitions(definitions, examplesPerDefinition);
+      const updated = {
+        ...record,
+        meaning: definitionsToMeaning(updatedDefinitions),
+        definitions: updatedDefinitions,
+        updatedAt: new Date().toISOString(),
+      };
+
+      await database.words.upsert(updated);
+      await pushWordToRemote(database.words, updated);
+      setQuizQueue((prev) =>
+        prev.map((item) => (item.id === id ? { ...item, definitions: updatedDefinitions } : item))
+      );
+    } finally {
+      setExampleGenerationCounts((prev) => {
+        const nextCount = Math.max(0, (prev[id] ?? 0) - 1);
+        if (nextCount === 0) {
+          const { [id]: _removed, ...rest } = prev;
+          return rest;
+        }
+        return { ...prev, [id]: nextCount };
       });
-
-      if (!response.ok) {
-        console.warn('Failed to fetch meaning for examples:', record.word);
-        return;
-      }
-
-      const data = await response.json();
-      definitions = normalizeDefinitions(data?.definitions, String(data?.meaning ?? ''));
-      const meaning = definitionsToMeaning(definitions);
-
-      if (meaning) {
-        const updated = {
-          ...record,
-          meaning,
-          definitions,
-          updatedAt: new Date().toISOString(),
-        };
-        await database.words.upsert(updated);
-        await pushWordToRemote(database.words, updated);
-      }
     }
-
-    if (definitions.length === 0) {
-      return;
-    }
-
-    const examplesPerDefinition = await requestExamplesForDefinitions(record.word, definitions);
-    if (examplesPerDefinition.every((examples) => examples.length === 0)) {
-      return;
-    }
-
-    const updatedDefinitions = mergeExamplesIntoDefinitions(definitions, examplesPerDefinition);
-    const updated = {
-      ...record,
-      meaning: definitionsToMeaning(updatedDefinitions),
-      definitions: updatedDefinitions,
-      updatedAt: new Date().toISOString(),
-    };
-
-    await database.words.upsert(updated);
-    await pushWordToRemote(database.words, updated);
-    setQuizQueue((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, definitions: updatedDefinitions } : item))
-    );
   };
 
   const handleReveal = () => {
@@ -2477,7 +2608,29 @@ export default function HomePage() {
                             : 'Search vocabulary by keyword...'
                         }
                         leftSection={
-                          <IconSearch size={18} style={{ opacity: 0.55, color: '#a855f7' }} />
+                          <Menu withArrow closeOnItemClick trigger={'click-hover'}>
+                            <Menu.Target>
+                              <IconSearch size={18} style={{ opacity: 0.55, color: '#a855f7' }} />
+                            </Menu.Target>
+
+                            <Menu.Dropdown onChange={event => console.log(event)}>
+                              <Menu.Label>Order</Menu.Label>
+                                <Menu.Item value="word" onClick={() => {
+                                  setSearchScope('word');
+                                  setPage(1);
+                                }}>
+                                  {searchScope === 'word' ? <IconCheck size={16} style={{ marginRight: 4 }} /> : null}
+                                  Word only
+                                </Menu.Item>
+                              <Menu.Item value="wordAndDefinition" onClick={() => {
+                                  setSearchScope('wordAndDefinition');
+                                  setPage(1);
+                                }}>
+                                  {searchScope === 'wordAndDefinition' ? <IconCheck size={16} style={{ marginRight: 4 }} /> : null}
+                                  Word + Definition
+                                </Menu.Item>
+                            </Menu.Dropdown>
+                          </Menu>
                         }
                         rightSection={
                           searchQuery ? (
@@ -2499,20 +2652,19 @@ export default function HomePage() {
                           setPage(1);
                         }}
                       />
-                      <SegmentedControl
-                        value={searchScope}
-                        onChange={(value) => {
-                          setSearchScope(value as 'word' | 'wordAndDefinition');
-                          setPage(1);
-                        }}
-                        data={[
-                          { label: 'Word only', value: 'word' },
-                          { label: 'Word + Definition', value: 'wordAndDefinition' },
-                        ]}
-                        size="xs"
-                        radius="md"
-                        fullWidth
-                      />
+                      {/*<SegmentedControl*/}
+                      {/*  value={searchScope}*/}
+                      {/*  onChange={(value) => {*/}
+                      {/*    setSearchScope(value as 'word' | 'wordAndDefinition');*/}
+                      {/*    setPage(1);*/}
+                      {/*  }}*/}
+                      {/*  data={[*/}
+                      {/*    { label: 'Word only', value: 'word' },*/}
+                      {/*    { label: 'Word + Definition', value: 'wordAndDefinition' },*/}
+                      {/*  ]}*/}
+                      {/*  size="xs"*/}
+                      {/*  radius="lg"*/}
+                      {/*/>*/}
                     </Stack>
                   </Grid.Col>
                   <Grid.Col span={{ base: 12, sm: 4 }}>
@@ -2544,6 +2696,9 @@ export default function HomePage() {
               onRefreshExamples={handleRefreshExamples}
               customGroups={customGroups}
               onAddCustomGroup={handleAddCustomGroup}
+              generatingExampleWordIds={Object.fromEntries(
+                Object.keys(exampleGenerationCounts).map((id) => [id, true])
+              )}
             />
 
             <GroupManager
@@ -2794,6 +2949,7 @@ export default function HomePage() {
               totalCount={quizQueue.length}
               onRestart={resetQuiz}
               onRefreshExamples={handleRefreshExamples}
+              isGeneratingExamples={currentQuizItem ? (exampleGenerationCounts[currentQuizItem.id] ?? 0) > 0 : false}
               srsMode={quizSource === 'srs'}
               onSrsRate={
                 quizSource === 'srs' ? handleSrsRate : undefined
@@ -3001,6 +3157,9 @@ export default function HomePage() {
                     }
                     onRefreshExamples={handleRefreshExamples}
                     onUnmarkMissed={handleUnmarkMissed}
+                    generatingExampleWordIds={Object.fromEntries(
+                      Object.keys(exampleGenerationCounts).map((id) => [id, true])
+                    )}
                   />
                 )
               ) : recentSrsPracticeWords.length === 0 ? (
@@ -3051,6 +3210,9 @@ export default function HomePage() {
                   onToggleMissed={(word) =>
                     void toggleMissedWordRecord(word.wordId, word.word, word.meaning, word.quizMode)
                   }
+                  generatingExampleWordIds={Object.fromEntries(
+                    Object.keys(exampleGenerationCounts).map((id) => [id, true])
+                  )}
                   isMissedWord={(wordId) => missedWordIdSet.has(wordId)}
                   onEditClick={(id) => setEditingQuizWordId(id)}
                   onQuizWord={() => {

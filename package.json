@@ -24,7 +24,7 @@
   },
   "dependencies": {
     "@mantine/charts": "^9.2.1",
-    "@mantine/core": "9.2.1",
+    "@mantine/core": "^9.2.1",
     "@mantine/hooks": "9.2.1",
     "@next/bundle-analyzer": "^16.0.0",
     "@supabase/supabase-js": "^2.106.2",
