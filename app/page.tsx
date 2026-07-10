@@ -1575,30 +1575,17 @@ export default function HomePage() {
   }, []);
 
   const currentQuizItem = quizQueue[quizIndex] ?? null;
-  const [isCurrentMarkedMissed, setIsCurrentMarkedMissed] = useState(false);
   const [hideMissedMeanings, setHideMissedMeanings] = useState(false);
   const [revealedMissedWordIds, setRevealedMissedWordIds] = useState<Record<string, boolean>>({});
 
-  const checkCurrentWordMissedStatus = useCallback(async () => {
-    if (!database || !currentQuizItem) {
-      setIsCurrentMarkedMissed(false);
-      return;
+  const isCurrentMarkedMissed = useMemo(() => {
+    if (!currentQuizItem) {
+      return false;
     }
-    try {
-      const missedId = buildMissedWordId(currentQuizItem.id, quizDirection);
-      const doc = await database.missedWords.findOne(missedId).exec();
-      const isMissed = !!doc && !doc.isDeleted;
-      setIsCurrentMarkedMissed(isMissed);
-      console.log(`[Check Missed Status] Word "${currentQuizItem.word}" is missed: ${isMissed}`);
-    } catch (error) {
-      console.error('Error checking missed status in DB:', error);
-    }
-  }, [database, currentQuizItem, quizDirection]);
 
-  // Run check when word, database, or missedWords list changes
-  useEffect(() => {
-    checkCurrentWordMissedStatus();
-  }, [currentQuizItem, database, missedWords, checkCurrentWordMissedStatus]);
+    const missedId = buildMissedWordId(currentQuizItem.id, quizDirection);
+    return missedWords.some((item) => item.id === missedId && !item.isDeleted);
+  }, [currentQuizItem, quizDirection, missedWords]);
 
   useEffect(() => {
     if (!database || isLoading) {
@@ -2097,7 +2084,6 @@ export default function HomePage() {
       currentQuizItem.meaning,
       quizDirection
     );
-    await checkCurrentWordMissedStatus();
   };
 
   const handleNext = useCallback(() => {
@@ -2130,9 +2116,8 @@ export default function HomePage() {
         database.srsRecords,
         database.srsPracticeWords
       );
-      await checkCurrentWordMissedStatus();
     });
-  }, [database, withSyncState, checkCurrentWordMissedStatus]);
+  }, [database, withSyncState]);
 
   const handleManualSync = async () => {
     if (!database) {
@@ -2614,7 +2599,7 @@ export default function HomePage() {
                             </Menu.Target>
 
                             <Menu.Dropdown onChange={event => console.log(event)}>
-                              <Menu.Label>Order</Menu.Label>
+                              <Menu.Label>Search Type</Menu.Label>
                                 <Menu.Item value="word" onClick={() => {
                                   setSearchScope('word');
                                   setPage(1);

@@ -403,7 +403,7 @@ export function WordForm({
                                                     updateDefinitionExample(
                                                         index,
                                                         exIndex,
-                                                        event.currentTarget.value.replace(/\s+/g, ' ').trim()
+                                                        event.currentTarget.value.replace(/\s+/g, ' ')
                                                     )
                                                 }
                                                 onKeyDown={handleExampleKeyDown}
