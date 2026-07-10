@@ -1,65 +1,36 @@
 'use client';
 
-import {
-  Button,
-  Combobox,
-  CloseButton,
-  Container,
-  InputBase,
-  Group,
-  Modal,
-  Pagination,
-  Select,
-  SegmentedControl,
-  Stack,
-  Text,
-  TextInput,
-  Title,
-  ActionIcon,
-  Tooltip,
-  useMantineColorScheme,
-  Grid,
-  Flex,
-  SimpleGrid,
-  Card,
-  Badge,
-  Divider,
-  useCombobox,
-    Menu
-} from '@mantine/core';
-import {
-  IconSearch,
-  IconSun,
-  IconMoon,
-  IconChevronDown,
-  IconCloudCheck,
-  IconCloudUpload,
-  IconWifi,
-  IconWifiOff,
-  IconBook,
-  IconBrain,
-  IconHistory,
-  IconRotateClockwise,
-  IconBookmarkOff,
-  IconBookmark,
-  IconEdit,
-  IconFlame,
-  IconTarget,
-  IconVolume,
-  IconEye,
-  IconEyeOff,
-  IconTags,
-  IconCheck
-} from '@tabler/icons-react';
-import { useWindowVirtualizer } from '@tanstack/react-virtual';
+import { Container, SegmentedControl, Stack, useMantineColorScheme } from '@mantine/core';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { DefinitionsDisplay } from '@/components/DefinitionsDisplay/DefinitionsDisplay';
+import {
+  practiceDisplayModes,
+  quizDirections,
+  type PracticeDisplayKey,
+  type QuizDirectionKey,
+  type QuizRangeKey,
+  type QuizSourceKey,
+} from '@/app/home/constants';
+import {
+  capitalizeWord,
+  getInitialCustomEnd,
+  getInitialCustomStart,
+  getMissingAiExampleDefinitionIndexes,
+  getRangeEnd,
+  getRangeStart,
+  mergeExamplesIntoDefinitions,
+  requestExamples,
+  requestExamplesForDefinitions,
+  shuffle,
+  toMutableWordRecord,
+} from '@/app/home/utils';
+import { ClearMissedWordsModal } from '@/components/Home/ClearMissedWordsModal';
+import { HomeHeader } from '@/components/Home/HomeHeader';
+import { QuizModeSection } from '@/components/Home/QuizModeSection';
+import { StatsDashboard } from '@/components/Home/StatsDashboard';
+import { StudyModeSection } from '@/components/Home/StudyModeSection';
 import { EditWordModal } from '@/components/EditWordModal/EditWordModal';
-import { GroupManager } from '@/components/GroupManager/GroupManager';
 import { PwaRegister } from '@/components/PwaRegister/PwaRegister';
-import { QuizPanel, type QuizDirection, type QuizItem } from '@/components/QuizPanel/QuizPanel';
-import { WordForm } from '@/components/WordForm/WordForm';
-import { WordList } from '@/components/WordList/WordList';
+import { type QuizItem } from '@/components/QuizPanel/QuizPanel';
 import {
   getDatabase,
   buildMissedWordId,
@@ -83,12 +54,6 @@ import { buildSrsId, computeSm2, createInitialSrsRecord, type SrsRating } from '
 import { buildSrsPracticeId, createInitialSrsPracticeRecord } from '@/lib/srs-practice';
 import {
   performFullSync,
-  // pullRemoteGroups,
-  // pullRemoteMissedWords,
-  // pullRemoteWords,
-  // pushAllLocalGroups,
-  // pushAllLocalMissedWords,
-  // pushAllLocalWords,
   pushGroupToRemote,
   pushMissedWordToRemote,
   pushWordToRemote,
@@ -98,737 +63,7 @@ import {
 } from '@/lib/sync';
 import { resolveWordTextFromMainTable } from '@/lib/word-display';
 
-const quizRanges = {
-  all: 'All Words',
-  today: 'Today',
-  yesterday: 'Yesterday',
-  week: 'Last 7 days',
-  month: 'Last 30 days',
-  year: 'This year',
-  custom: 'Custom Range',
-} as const;
-
-const quizSources = {
-  words: 'Regular',
-  missed: 'Missed Words',
-  srs: 'SRS Review',
-  srsPractice: 'SRS Practice',
-} as const;
-
-const practiceDisplayModes = {
-  missed: 'Missed Words',
-  srs: 'SRS Practice',
-} as const;
-
-const quizDirections = {
-  wordToMeaning: 'Word → Meaning',
-  meaningToWord: 'Meaning → Word',
-  spelling: 'Spelling Mode',
-} as const;
-
-type QuizRangeKey = keyof typeof quizRanges;
-
-type QuizSourceKey = keyof typeof quizSources;
-
-type QuizDirectionKey = keyof typeof quizDirections;
-
-type PracticeDisplayKey = keyof typeof practiceDisplayModes;
-
 type WordWithDefinitions<T> = T & { definitions?: WordDefinition[] };
-
-function shuffle<T>(items: T[]): T[] {
-  const result = [...items];
-  for (let i = result.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [result[i], result[j]] = [result[j], result[i]];
-  }
-  return result;
-}
-
-function getRangeStart(range: QuizRangeKey, customStart?: string | null): Date | null {
-  if (range === 'custom') {
-    return customStart ? new Date(customStart) : null;
-  }
-  const now = new Date();
-  if (range === 'all') {
-    return null;
-  }
-  if (range === 'year') {
-    return new Date(now.getFullYear(), 0, 1);
-  }
-  if (range === 'today') {
-    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  }
-  if (range === 'yesterday') {
-    const start = new Date(now);
-    start.setDate(now.getDate() - 1);
-    start.setHours(0, 0, 0, 0);
-    return start;
-  }
-
-  const days = range === 'week' ? 7 : 30;
-  const start = new Date(now);
-  start.setDate(now.getDate() - (days - 1));
-  start.setHours(0, 0, 0, 0);
-  return start;
-}
-
-function getRangeEnd(range: QuizRangeKey, customEnd?: string | null): Date | null {
-  if (range === 'custom') {
-    return customEnd ? new Date(customEnd) : null;
-  }
-  const now = new Date();
-  if (range === 'all') {
-    return null;
-  }
-  if (range === 'today') {
-    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    end.setHours(23, 59, 59, 999);
-    return end;
-  }
-  if (range === 'yesterday') {
-    const end = new Date(now);
-    end.setDate(now.getDate() - 1);
-    end.setHours(23, 59, 59, 999);
-    return end;
-  }
-
-  return now;
-}
-
-function formatDateTimeLocal(date: Date): string {
-  const pad = (num: number) => String(num).padStart(2, '0');
-  const year = date.getFullYear();
-  const month = pad(date.getMonth() + 1);
-  const day = pad(date.getDate());
-  const hours = pad(date.getHours());
-  const minutes = pad(date.getMinutes());
-  return `${year}-${month}-${day}T${hours}:${minutes}`;
-}
-
-function getInitialCustomStart(): string {
-  const date = new Date();
-  date.setDate(date.getDate() - 2);
-  date.setHours(0, 0, 0, 0);
-  return formatDateTimeLocal(date);
-}
-
-function getInitialCustomEnd(): string {
-  return formatDateTimeLocal(new Date());
-}
-
-function toMutableWordRecord(record: any): WordRecord {
-  const definitions = normalizeDefinitions(record.definitions, record.meaning ?? '');
-  return {
-    ...record,
-    meaning: definitionsToMeaning(definitions),
-    definitions,
-    customGroups: getWordGroups(record),
-  } as WordRecord;
-}
-
-function capitalizeWord(value: string): string {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return '';
-  }
-  return `${trimmed.charAt(0).toUpperCase()}${trimmed.slice(1)}`;
-}
-
-async function requestExamples(word: string, meaning: string): Promise<string[]> {
-  if (typeof navigator !== 'undefined' && !navigator.onLine) {
-    return [];
-  }
-
-  const response = await fetch('/api/examples', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ word, meaning }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.warn('Examples API error:', response.status, errorText);
-    return [];
-  }
-
-  const data = await response.json();
-  return Array.isArray(data?.examples)
-    ? data.examples.map((item: string) => String(item).trim()).filter(Boolean)
-    : [];
-}
-
-/** Fetches 3-5 AI example sentences for each definition, in parallel, keeping them grouped
- * per-definition (index-aligned with the `definitions` array). */
-async function requestExamplesForDefinitions(
-  word: string,
-  definitions: WordDefinition[]
-): Promise<string[][]> {
-  return Promise.all(definitions.map((definition) => requestExamples(word, definition.meaning)));
-}
-
-function mergeExamplesIntoDefinitions(
-  definitions: WordDefinition[],
-  examplesPerDefinition: string[][]
-): WordDefinition[] {
-  return definitions.map((definition, index) => {
-    const nextExamples = examplesPerDefinition[index];
-    return {
-      ...definition,
-      examples:
-        Array.isArray(nextExamples) && nextExamples.length > 0
-          ? nextExamples
-          : definition.examples ?? [],
-    };
-  });
-}
-
-function getMissingAiExampleDefinitionIndexes(definitions: WordDefinition[]): number[] {
-  return definitions
-    .map((definition, index) => ({ definition, index }))
-    .filter(
-      ({ definition }) =>
-        definition.meaning.trim().length > 0 &&
-        (!Array.isArray(definition.examples) || definition.examples.length === 0)
-    )
-    .map(({ index }) => index);
-}
-
-// ---------------------------------------------------------------------------
-// Virtualized missed-word list
-// ---------------------------------------------------------------------------
-
-interface MissedWordVirtualListProps {
-  words: Array<MissedWordRecord & { definitions?: WordDefinition[] }>;
-  hideMissedMeanings: boolean;
-  revealedMissedWordIds: Record<string, boolean>;
-  onRevealMissedWord: (id: string) => void;
-  onRefreshExamples: (id: string) => void;
-  onUnmarkMissed: (id: string) => void;
-  generatingExampleWordIds?: Record<string, boolean>;
-}
-
-function MissedWordVirtualList({
-  words,
-  hideMissedMeanings,
-  revealedMissedWordIds,
-  onRevealMissedWord,
-  onRefreshExamples,
-  onUnmarkMissed,
-  generatingExampleWordIds = {},
-}: MissedWordVirtualListProps) {
-  const listRef = useRef<HTMLDivElement>(null);
-  const [scrollMargin, setScrollMargin] = useState(0);
-
-  useEffect(() => {
-    const updateScrollMargin = () => {
-      if (listRef.current) {
-        setScrollMargin(listRef.current.getBoundingClientRect().top + window.scrollY);
-      }
-    };
-    updateScrollMargin();
-    window.addEventListener('resize', updateScrollMargin);
-    return () => window.removeEventListener('resize', updateScrollMargin);
-  }, []);
-
-  const rowVirtualizer = useWindowVirtualizer({
-    count: words.length,
-    estimateSize: () => 100,
-    getItemKey: useCallback((index: number) => words[index]?.id || index, [words]),
-    overscan: 5,
-    scrollMargin,
-  });
-
-  const speakWord = (text: string) => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
-      return;
-    }
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'en-US';
-    utterance.rate = 0.9;
-    window.speechSynthesis.speak(utterance);
-  };
-
-  return (
-    <div ref={listRef}>
-      <div
-        style={{
-          height: `${rowVirtualizer.getTotalSize()}px`,
-          position: 'relative',
-        }}
-      >
-        {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-          const word = words[virtualRow.index];
-          const count = word.missedCount;
-          const severity =
-            count >= 5
-              ? {
-                color: '#ef4444',
-                bg: 'rgba(239,68,68,0.08)',
-                border: 'rgba(239,68,68,0.25)',
-                badgeColor: 'red' as const,
-              }
-              : count >= 3
-                ? {
-                  color: '#f97316',
-                  bg: 'rgba(249,115,22,0.07)',
-                  border: 'rgba(249,115,22,0.2)',
-                  badgeColor: 'orange' as const,
-                }
-                : {
-                  color: '#22c55e',
-                  bg: 'rgba(34,197,94,0.06)',
-                  border: 'rgba(34,197,94,0.18)',
-                  badgeColor: 'teal' as const,
-                };
-
-          const isRevealed = !hideMissedMeanings || revealedMissedWordIds[word.id];
-          const isGeneratingExamples = generatingExampleWordIds[word.wordId];
-
-          return (
-            <div
-              key={word.id}
-              data-index={virtualRow.index}
-              ref={rowVirtualizer.measureElement}
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                transform: `translateY(${virtualRow.start - scrollMargin}px)`,
-                paddingBottom: '8px',
-              }}
-            >
-              <div
-                style={{
-                  borderRadius: '12px',
-                  border: `1px solid ${severity.border}`,
-                  borderLeft: `4px solid ${severity.color}`,
-                  background: severity.bg,
-                  padding: '12px 16px',
-                  transition: 'all 0.2s cubic-bezier(0.4,0,0.2,1)',
-                }}
-                className="hover-lift"
-              >
-                <div style={{ minWidth: 0 }}>
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '1fr auto',
-                      alignItems: 'center',
-                      gap: '12px',
-                    }}
-                  >
-                    <Group gap={8} align="center" wrap="wrap" mb={4}>
-                      <Text
-                        fw={700}
-                        size="md"
-                        style={{
-                          fontFamily: 'var(--font-title)',
-                          color: 'var(--text-primary)',
-                          letterSpacing: '-0.01em',
-                        }}
-                      >
-                        {word.word}
-                      </Text>
-                      <Badge
-                        color={severity.badgeColor}
-                        variant="light"
-                        size="xs"
-                        radius="sm"
-                        style={{ fontWeight: 700, fontSize: '10px' }}
-                      >
-                        ×{count} missed
-                      </Badge>
-                    </Group>
-
-                    <Group gap={4} style={{ flexShrink: 0 }}>
-                      <Tooltip label="Regenerate examples" withArrow>
-                        <ActionIcon
-                          variant="subtle"
-                          color="indigo"
-                          size="md"
-                          radius="md"
-                          onClick={() => onRefreshExamples(word.wordId)}
-                          disabled={isGeneratingExamples}
-                          loading={isGeneratingExamples}
-                          style={{ transition: 'all 0.2s ease' }}
-                        >
-                          <IconRotateClockwise size={16} />
-                        </ActionIcon>
-                      </Tooltip>
-                      <Tooltip label="Listen to pronunciation" withArrow>
-                        <ActionIcon
-                          variant="subtle"
-                          color="gray"
-                          size="md"
-                          radius="md"
-                          onClick={() => speakWord(word.word)}
-                          style={{ transition: 'all 0.2s ease' }}
-                        >
-                          <IconVolume size={16} />
-                        </ActionIcon>
-                      </Tooltip>
-                      <Tooltip label="Remove from missed list" withArrow>
-                        <ActionIcon
-                          variant="subtle"
-                          color="red"
-                          size="md"
-                          radius="md"
-                          onClick={() => onUnmarkMissed(word.id)}
-                          style={{ transition: 'all 0.2s ease' }}
-                        >
-                          <IconBookmarkOff size={16} />
-                        </ActionIcon>
-                      </Tooltip>
-                    </Group>
-                  </div>
-
-                  {isGeneratingExamples && (
-                    <Text size="xs" c="dimmed" mb={4}>
-                      Generating examples...
-                    </Text>
-                  )}
-
-                  {isRevealed ? (
-                    <div style={{ marginTop: 4 }}>
-                      <DefinitionsDisplay definitions={word.definitions} fallbackMeaning={word.meaning} />
-                    </div>
-                  ) : (
-                    <Button
-                      variant="subtle"
-                      color="indigo"
-                      size="xs"
-                      radius="sm"
-                      onClick={() => onRevealMissedWord(word.id)}
-                      leftSection={<IconEye size={12} />}
-                      style={{
-                        fontSize: '11px',
-                        height: '22px',
-                        paddingLeft: '8px',
-                        paddingRight: '8px',
-                        display: 'inline-flex',
-                        marginTop: '4px',
-                      }}
-                    >
-                      Show Definition
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function formatPracticeDate(value: string): string {
-  return new Date(value).toLocaleString(undefined, {
-    timeStyle: 'medium',
-    dateStyle: 'medium',
-  });
-}
-
-function getDifficultyBadgeColor(difficulty: SrsPracticeRecord['difficulty']): string {
-  if (difficulty === 'again') return 'red';
-  if (difficulty === 'hard') return 'orange';
-  if (difficulty === 'easy') return 'indigo';
-  return 'teal';
-}
-
-interface SrsPracticeVirtualListProps {
-  words: Array<SrsPracticeRecord & { definitions?: WordDefinition[] }>;
-  hideMeanings: boolean;
-  revealedWordIds: Record<string, boolean>;
-  onRevealWord: (id: string) => void;
-  onRefreshExamples: (id: string) => void;
-  onToggleMissed: (word: SrsPracticeRecord) => void;
-  isMissedWord: (wordId: string) => boolean;
-  onEditClick?: (id: string) => void;
-  onQuizWord: (id: string) => void;
-  generatingExampleWordIds?: Record<string, boolean>;
-}
-
-function SrsPracticeVirtualList({
-  words,
-  hideMeanings,
-  revealedWordIds,
-  onRevealWord,
-  onRefreshExamples,
-  onToggleMissed,
-  isMissedWord,
-  onEditClick,
-  generatingExampleWordIds = {},
-}: SrsPracticeVirtualListProps) {
-  const listRef = useRef<HTMLDivElement>(null);
-  const [scrollMargin, setScrollMargin] = useState(0);
-
-  useEffect(() => {
-    const updateScrollMargin = () => {
-      if (listRef.current) {
-        setScrollMargin(listRef.current.getBoundingClientRect().top + window.scrollY);
-      }
-    };
-    updateScrollMargin();
-    window.addEventListener('resize', updateScrollMargin);
-    return () => window.removeEventListener('resize', updateScrollMargin);
-  }, []);
-
-  const rowVirtualizer = useWindowVirtualizer({
-    count: words.length,
-    estimateSize: () => 120,
-    getItemKey: useCallback((index: number) => words[index]?.id || index, [words]),
-    overscan: 5,
-    scrollMargin,
-  });
-
-  const speakWord = (text: string) => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
-      return;
-    }
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'en-US';
-    utterance.rate = 0.9;
-    window.speechSynthesis.speak(utterance);
-  };
-
-  return (
-    <div ref={listRef}>
-      <div
-        style={{
-          height: `${rowVirtualizer.getTotalSize()}px`,
-          position: 'relative',
-        }}
-      >
-        {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-          const word = words[virtualRow.index];
-          const isRevealed = !hideMeanings || revealedWordIds[word.id];
-          const missed = isMissedWord(word.wordId);
-          const isGeneratingExamples = generatingExampleWordIds[word.wordId];
-
-          return (
-            <div
-              key={word.id}
-              data-index={virtualRow.index}
-              ref={rowVirtualizer.measureElement}
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                transform: `translateY(${virtualRow.start - scrollMargin}px)`,
-                paddingBottom: '8px',
-              }}
-            >
-              <div
-                style={{
-                  borderRadius: '12px',
-                  border: '1px solid rgba(139,92,246,0.18)',
-                  borderLeft: '4px solid #8b5cf6',
-                  background: 'rgba(139,92,246,0.05)',
-                  padding: '12px 16px',
-                  transition: 'all 0.2s cubic-bezier(0.4,0,0.2,1)',
-                }}
-                className="hover-lift"
-              >
-                <div style={{ minWidth: 0 }}>
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '1fr auto',
-                      alignItems: 'center',
-                      gap: '12px',
-                    }}
-                  >
-                    <Group gap={8} align="center" wrap="wrap" mb={4}>
-                      <Text
-                        fw={700}
-                        size="md"
-                        style={{
-                          fontFamily: 'var(--font-title)',
-                          color: 'var(--text-primary)',
-                          letterSpacing: '-0.01em',
-                        }}
-                      >
-                        {word.word}
-                      </Text>
-                      <Badge
-                        color={getDifficultyBadgeColor(word.difficulty)}
-                        variant="light"
-                        size="xs"
-                        radius="sm"
-                        style={{ fontWeight: 700, fontSize: '10px' }}
-                      >
-                        {word.difficulty}
-                      </Badge>
-                      {missed && (
-                        <Badge
-                          color="red"
-                          variant="light"
-                          size="xs"
-                          radius="sm"
-                          style={{ fontWeight: 700, fontSize: '10px' }}
-                        >
-                          missed
-                        </Badge>
-                      )}
-                    </Group>
-
-                    <Group gap={4} style={{ flexShrink: 0 }}>
-                      <Tooltip label="Regenerate examples" withArrow>
-                        <ActionIcon
-                          variant="subtle"
-                          color="indigo"
-                          size="md"
-                          radius="md"
-                          onClick={() => onRefreshExamples(word.wordId)}
-                          disabled={isGeneratingExamples}
-                          loading={isGeneratingExamples}
-                          style={{ transition: 'all 0.2s ease' }}
-                        >
-                          <IconRotateClockwise size={16} />
-                        </ActionIcon>
-                      </Tooltip>
-                      <Tooltip label="Listen to pronunciation" withArrow>
-                        <ActionIcon
-                          variant="subtle"
-                          color="gray"
-                          size="md"
-                          radius="md"
-                          onClick={() => speakWord(word.word)}
-                          style={{ transition: 'all 0.2s ease' }}
-                        >
-                          <IconVolume size={16} />
-                        </ActionIcon>
-                      </Tooltip>
-                      {onEditClick && (
-                        <Tooltip label="Edit word" withArrow>
-                          <ActionIcon
-                            variant="subtle"
-                            color="gray"
-                            size="md"
-                            radius="md"
-                            onClick={() => onEditClick(word.wordId)}
-                            style={{ transition: 'all 0.2s ease' }}
-                          >
-                            <IconEdit size={16} />
-                          </ActionIcon>
-                        </Tooltip>
-                      )}
-                      <Tooltip
-                        label={missed ? 'Remove from missed list' : 'Add to missed list'}
-                        withArrow
-                      >
-                        <ActionIcon
-                          variant="subtle"
-                          color={missed ? 'teal' : 'red'}
-                          size="md"
-                          radius="md"
-                          onClick={() => onToggleMissed(word)}
-                          style={{ transition: 'all 0.2s ease' }}
-                        >
-                          {missed ? <IconBookmark size={16} /> : <IconBookmarkOff size={16} />}
-                        </ActionIcon>
-                      </Tooltip>
-                    </Group>
-                  </div>
-
-                  <Text size="xs" c="dimmed" mb={6}>
-                    Practiced {formatPracticeDate(word.practicedAt)}
-                  </Text>
-
-                  {isGeneratingExamples && (
-                    <Text size="xs" c="dimmed" mb={4}>
-                      Generating examples...
-                    </Text>
-                  )}
-
-                  {isRevealed ? (
-                    <div style={{ marginTop: 4 }}>
-                      <DefinitionsDisplay definitions={word.definitions} fallbackMeaning={word.meaning} />
-                    </div>
-                  ) : (
-                    <Button
-                      variant="subtle"
-                      color="indigo"
-                      size="xs"
-                      radius="sm"
-                      onClick={() => onRevealWord(word.id)}
-                      leftSection={<IconEye size={12} />}
-                      style={{
-                        fontSize: '11px',
-                        height: '22px',
-                        paddingLeft: '8px',
-                        paddingRight: '8px',
-                        display: 'inline-flex',
-                        marginTop: '4px',
-                      }}
-                    >
-                      Show Definition
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-interface PracticeDisplayComboboxProps {
-  value: PracticeDisplayKey;
-  onChange: (value: PracticeDisplayKey) => void;
-}
-
-function PracticeDisplayCombobox({ value, onChange }: PracticeDisplayComboboxProps) {
-  const combobox = useCombobox({
-    onDropdownClose: () => combobox.resetSelectedOption(),
-  });
-
-  return (
-    <Combobox
-      store={combobox}
-      onOptionSubmit={(selected) => {
-        onChange(selected as PracticeDisplayKey);
-        combobox.closeDropdown();
-      }}
-    >
-      <Combobox.Target>
-        <InputBase
-          component="button"
-          type="button"
-          pointer
-          rightSection={<IconChevronDown size={14} />}
-          onClick={() => combobox.toggleDropdown()}
-          styles={{
-            input: {
-              minWidth: 180,
-              fontWeight: 600,
-            },
-          }}
-        >
-          {practiceDisplayModes[value]}
-        </InputBase>
-      </Combobox.Target>
-
-      <Combobox.Dropdown>
-        <Combobox.Options>
-          {Object.entries(practiceDisplayModes).map(([optionValue, label]) => (
-            <Combobox.Option key={optionValue} value={optionValue}>
-              {label}
-            </Combobox.Option>
-          ))}
-        </Combobox.Options>
-      </Combobox.Dropdown>
-    </Combobox>
-  );
-}
 
 export default function HomePage() {
   const [database, setDatabase] = useState<AppDatabase | null>(null);
@@ -862,6 +97,7 @@ export default function HomePage() {
   const [revealedSrsPracticeWordIds, setRevealedSrsPracticeWordIds] = useState<
     Record<string, boolean>
   >({});
+  const [autoPronounceQuizWord, setAutoPronounceQuizWord] = useState(false);
   const [exampleGenerationCounts, setExampleGenerationCounts] = useState<Record<string, number>>({});
 
   const customGroups = useMemo(() => getActiveGroupNames(groups), [groups]);
@@ -1142,6 +378,11 @@ export default function HomePage() {
       .filter((record): record is WordWithDefinitions<SrsPracticeRecord> => record !== null)
       .sort((a, b) => b.practicedAt.localeCompare(a.practicedAt));
   }, [srsPracticeWords, quizDirection, wordsById]);
+
+  const generatingExampleWordIds = useMemo(
+    () => Object.fromEntries(Object.keys(exampleGenerationCounts).map((id) => [id, true])),
+    [exampleGenerationCounts]
+  );
 
   const getCandidateWordId = useCallback(
     (word: WordRecord | MissedWordRecord | import('@/lib/db').SrsRecord | SrsPracticeRecord) => {
@@ -2273,242 +1514,47 @@ export default function HomePage() {
     <Container size="md" py="xl">
       <PwaRegister />
 
-      {/* Confirmation dialog for clearing all missed words */}
-      <Modal
+      <ClearMissedWordsModal
         opened={confirmClearAllOpen}
+        count={missedWordsForMode.length}
+        quizDirectionLabel={quizDirections[quizDirection]}
         onClose={() => setConfirmClearAllOpen(false)}
-        title={
-          <Text fw={700} size="md" style={{ fontFamily: 'var(--font-title)' }}>
-            Clear All Missed Words?
-          </Text>
-        }
-        centered
-        radius="lg"
-        size="sm"
-        overlayProps={{ backgroundOpacity: 0.45, blur: 4 }}
-      >
-        <Stack gap="lg">
-          <Text size="sm" c="dimmed" style={{ lineHeight: 1.6 }}>
-            This will permanently remove{' '}
-            <Text component="span" fw={700} c="red">
-              {missedWordsForMode.length} missed word{missedWordsForMode.length !== 1 ? 's' : ''}
-            </Text>{' '}
-            from the <strong>{quizDirections[quizDirection]}</strong> mode list. This action cannot
-            be undone.
-          </Text>
-          <Group justify="flex-end" gap="sm">
-            <Button
-              variant="subtle"
-              color="gray"
-              radius="md"
-              onClick={() => setConfirmClearAllOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              color="red"
-              radius="md"
-              leftSection={<IconBookmarkOff size={16} />}
-              onClick={handleConfirmClearAll}
-            >
-              Clear All
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
+        onConfirm={handleConfirmClearAll}
+      />
+
       <Stack gap="xl">
-        {/* --- Gorgeous Glassmorphic Header Panel --- */}
-        <Card className="glass-panel header-panel" padding="xl" radius="lg">
-          <Group className="header-inner" justify="space-between" align="flex-start" wrap="wrap">
-            <Stack className="header-left" gap="xs" style={{ flex: 1 }}>
-              <Title
-                order={1}
-                style={{ fontSize: '2rem', display: 'flex', alignItems: 'center', gap: '8px' }}
-              >
-                <span className="text-gradient">English Word Memorizer</span>
-              </Title>
-              <Text c="dimmed" size="sm" style={{ lineHeight: 1.5, maxWidth: '480px' }}>
-                A modern local-first vocabulary companion. Learn new definitions, sync with Supabase
-                Cloud, and practice dynamically offline.
-              </Text>
-            </Stack>
+        <HomeHeader
+          onlineStatus={onlineStatus}
+          colorScheme={colorScheme}
+          onToggleTheme={toggleTheme}
+        />
 
-            {/* Quick Status Pill Bar & Theme Toggler */}
-            <Group className="header-right" gap="xs" style={{ flexShrink: 0 }}>
-              <Tooltip label={onlineStatus ? 'Online' : 'Offline'}>
-                <Badge
-                  color={onlineStatus ? 'teal' : 'red'}
-                  variant="light"
-                  size="md"
-                  radius="md"
-                  leftSection={onlineStatus ? <IconWifi size={14} /> : <IconWifiOff size={14} />}
-                >
-                  {onlineStatus ? 'Online' : 'Offline'}
-                </Badge>
-              </Tooltip>
+        <StatsDashboard
+          totalWords={words.length}
+          todayCount={todayCount}
+          srsDueTodayCount={srsDueTodayCount}
+          unsyncedCount={unsyncedCount}
+          onlineStatus={onlineStatus}
+          isSyncing={isSyncing}
+          onSyncNow={handleManualSync}
+          onOpenAllWordsQuiz={() => {
+            setMode('quiz');
+            setQuizSource('words');
+            setQuizRange('all');
+            setQuizGroupFilter('all');
+          }}
+          onOpenTodayQuiz={() => {
+            setMode('quiz');
+            setQuizSource('words');
+            setQuizRange('today');
+            setQuizGroupFilter('all');
+          }}
+          onOpenSrsQuiz={() => {
+            setMode('quiz');
+            setQuizSource('srs');
+          }}
+        />
 
-              <Tooltip label="Toggle Theme">
-                <ActionIcon
-                  variant="subtle"
-                  color="indigo"
-                  size="lg"
-                  radius="md"
-                  onClick={toggleTheme}
-                  style={{ transition: 'transform 0.3s ease' }}
-                >
-                  {colorScheme === 'dark' ? <IconSun size={20} /> : <IconMoon size={20} />}
-                </ActionIcon>
-              </Tooltip>
-            </Group>
-          </Group>
-        </Card>
-
-        {/* --- Interactive Statistics Dashboard Row --- */}
-        <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="md" verticalSpacing="xs" autoFlow="auto-fit">
-          {/* Card 1: Total Words */}
-          <Card
-            className="glass-panel"
-            radius="lg"
-            padding="md"
-            style={{ borderLeft: '4px solid #6366f1', cursor: 'pointer' }}
-            onClick={() => {
-              setMode('quiz');
-              setQuizSource('words');
-              setQuizRange('all');
-              setQuizGroupFilter('all');
-            }}
-          >
-            <Group justify="space-between" align="center">
-              <div>
-                <Text size="xs" fw={700} c="dimmed" style={{ letterSpacing: '0.05em' }}>
-                  TOTAL WORDS
-                </Text>
-                <Text
-                  size="xl"
-                  fw={800}
-                  style={{ fontFamily: 'var(--font-title)', marginTop: '4px' }}
-                >
-                  {words.length}
-                </Text>
-              </div>
-              <IconBook size={28} style={{ opacity: 0.25, color: '#6366f1' }} />
-            </Group>
-          </Card>
-
-          {/* Card 2: Today's Additions */}
-          <Card
-            className="glass-panel"
-            radius="lg"
-            padding="md"
-            style={{ borderLeft: '4px solid #a855f7', cursor: 'pointer' }}
-            onClick={() => {
-              setMode('quiz');
-              setQuizSource('words');
-              setQuizRange('today');
-              setQuizGroupFilter('all');
-            }}
-          >
-            <Group justify="space-between" align="center">
-              <div>
-                <Text size="xs" fw={700} c="dimmed" style={{ letterSpacing: '0.05em' }}>
-                  ADDED TODAY
-                </Text>
-                <Text
-                  size="xl"
-                  fw={800}
-                  style={{ fontFamily: 'var(--font-title)', marginTop: '4px' }}
-                >
-                  {todayCount}
-                </Text>
-              </div>
-              <IconHistory size={28} style={{ opacity: 0.25, color: '#a855f7' }} />
-            </Group>
-          </Card>
-
-          {/* Card 3: SRS Due Today */}
-          <Card
-            className="glass-panel"
-            radius="lg"
-            padding="md"
-            style={{ borderLeft: '4px solid #8b5cf6', cursor: 'pointer' }}
-            onClick={() => {
-              setMode('quiz');
-              setQuizSource('srs');
-            }}
-          >
-            <Group justify="space-between" align="center">
-              <div>
-                <Text size="xs" fw={700} c="dimmed" style={{ letterSpacing: '0.05em' }}>
-                  SRS DUE TODAY
-                </Text>
-                <Text
-                  size="xl"
-                  fw={800}
-                  style={{
-                    fontFamily: 'var(--font-title)',
-                    marginTop: '4px',
-                    color: srsDueTodayCount > 0 ? '#8b5cf6' : undefined,
-                  }}
-                >
-                  {srsDueTodayCount}
-                </Text>
-              </div>
-              <IconBrain size={28} style={{ opacity: 0.25, color: '#8b5cf6' }} />
-            </Group>
-          </Card>
-
-          {/* Card 4: Cloud Synchronization Status */}
-          <Card
-            className="glass-panel"
-            radius="lg"
-            padding="md"
-            style={{ borderLeft: '4px solid #10b981' }}
-          >
-            <Group justify="space-between" align="center">
-              <div>
-                <Text size="xs" fw={700} c="dimmed" style={{ letterSpacing: '0.05em' }}>
-                  CLOUD SYNC
-                </Text>
-                <Flex
-                  // gap="xs"
-                  justify="flex-start"
-                  align="center"
-                  direction="row"
-                  wrap="wrap"
-                >
-                  <Text size="lg" fw={700} c={unsyncedCount === 0 ? 'teal' : 'orange'} mt={4}>
-                    {unsyncedCount === 0 ? 'Fully Synced' : `${unsyncedCount} Sync Pending`}
-                  </Text>
-                  {onlineStatus && (
-                    <Tooltip label={isSyncing ? 'Syncing…' : 'Sync now'} withArrow>
-                      <ActionIcon
-                        size="sm"
-                        variant="subtle"
-                        color="teal"
-                        mt={4}
-                        disabled={isSyncing}
-                        onClick={handleManualSync}
-                        aria-label="Sync now"
-                      >
-                        <IconRotateClockwise
-                          size={16}
-                          className={isSyncing ? 'sync-spin-icon' : undefined}
-                        />
-                      </ActionIcon>
-                    </Tooltip>
-                  )}
-                </Flex>
-              </div>
-              {unsyncedCount === 0 ? (
-                <IconCloudCheck size={28} style={{ opacity: 0.35, color: '#10b981' }} />
-              ) : (
-                <IconCloudUpload size={28} style={{ opacity: 0.35, color: '#f59e0b' }} />
-              )}
-            </Group>
-          </Card>
-        </SimpleGrid>
-
-        {/* Mode Selector Panel */}
         <SegmentedControl
           value={mode}
           onChange={(value) => setMode(value as 'study' | 'quiz')}
@@ -2523,693 +1569,97 @@ export default function HomePage() {
           style={{ padding: '4px' }}
         />
 
-        {/* --- STUDY MODE --- */}
         {mode === 'study' && (
-          <Stack gap="lg">
-            <WordForm
-              onSubmit={handleAdd}
-              disabled={isLoading}
-              customGroups={customGroups}
-              onAddCustomGroup={handleAddCustomGroup}
-              existingWords={words}
-              onEditExisting={handleEdit}
-            />
-
-            {/* Redesigned Glassmorphic Workspace Control Center */}
-            <Card
-              className="glass-panel"
-              radius="lg"
-              padding="lg"
-              style={{
-                borderLeft: '4px solid #a855f7',
-                overflow: 'hidden',
-              }}
-            >
-              <Stack gap="md">
-                <Group justify="space-between" align="center">
-                  <Group gap="xs">
-                    <IconBook size={22} style={{ color: '#a855f7' }} />
-                    <Title
-                      order={3}
-                      style={{
-                        fontFamily: 'var(--font-title)',
-                        fontSize: '1.25rem',
-                        color: 'var(--text-primary)',
-                      }}
-                    >
-                      Your Workspace
-                    </Title>
-                  </Group>
-                  <Group gap="xs">
-                    <Button
-                      variant="light"
-                      color="grape"
-                      size="xs"
-                      radius="md"
-                      leftSection={<IconTags size={16} />}
-                      onClick={() => setGroupManagerOpen(true)}
-                    >
-                      Manage Groups
-                    </Button>
-                    <Badge
-                      variant="gradient"
-                      gradient={{ from: 'indigo', to: 'purple' }}
-                      size="md"
-                      radius="md"
-                      style={{ fontWeight: 700 }}
-                    >
-                      {filteredWords.length} word{filteredWords.length !== 1 ? 's' : ''}
-                    </Badge>
-                  </Group>
-                </Group>
-
-                <Grid gap="sm">
-                  <Grid.Col span={{ base: 12, sm: 8 }}>
-                    <Stack gap="xs">
-                      <TextInput
-                        placeholder={
-                          searchScope === 'wordAndDefinition'
-                            ? 'Search words or definitions...'
-                            : 'Search vocabulary by keyword...'
-                        }
-                        leftSection={
-                          <Menu withArrow closeOnItemClick trigger={'click-hover'}>
-                            <Menu.Target>
-                              <IconSearch size={18} style={{ opacity: 0.55, color: '#a855f7' }} />
-                            </Menu.Target>
-
-                            <Menu.Dropdown onChange={event => console.log(event)}>
-                              <Menu.Label>Search Type</Menu.Label>
-                                <Menu.Item value="word" onClick={() => {
-                                  setSearchScope('word');
-                                  setPage(1);
-                                }}>
-                                  {searchScope === 'word' ? <IconCheck size={16} style={{ marginRight: 4 }} /> : null}
-                                  Word only
-                                </Menu.Item>
-                              <Menu.Item value="wordAndDefinition" onClick={() => {
-                                  setSearchScope('wordAndDefinition');
-                                  setPage(1);
-                                }}>
-                                  {searchScope === 'wordAndDefinition' ? <IconCheck size={16} style={{ marginRight: 4 }} /> : null}
-                                  Word + Definition
-                                </Menu.Item>
-                            </Menu.Dropdown>
-                          </Menu>
-                        }
-                        rightSection={
-                          searchQuery ? (
-                            <CloseButton
-                              size="sm"
-                              aria-label="Clear search"
-                              onClick={() => {
-                                setSearchQuery('');
-                                setPage(1);
-                              }}
-                            />
-                          ) : null
-                        }
-                        value={searchQuery}
-                        size="md"
-                        radius="md"
-                        onChange={(event) => {
-                          setSearchQuery(event.currentTarget.value);
-                          setPage(1);
-                        }}
-                      />
-                      {/*<SegmentedControl*/}
-                      {/*  value={searchScope}*/}
-                      {/*  onChange={(value) => {*/}
-                      {/*    setSearchScope(value as 'word' | 'wordAndDefinition');*/}
-                      {/*    setPage(1);*/}
-                      {/*  }}*/}
-                      {/*  data={[*/}
-                      {/*    { label: 'Word only', value: 'word' },*/}
-                      {/*    { label: 'Word + Definition', value: 'wordAndDefinition' },*/}
-                      {/*  ]}*/}
-                      {/*  size="xs"*/}
-                      {/*  radius="lg"*/}
-                      {/*/>*/}
-                    </Stack>
-                  </Grid.Col>
-                  <Grid.Col span={{ base: 12, sm: 4 }}>
-                    <Select
-                      placeholder="Filter by Group"
-                      value={groupFilter}
-                      onChange={(value) => {
-                        setGroupFilter(value ?? 'all');
-                        setPage(1);
-                      }}
-                      data={[
-                        { value: 'all', label: 'All Groups' },
-                        { value: 'none', label: 'No Group' },
-                        ...customGroups.map((g) => ({ value: g, label: g })),
-                      ]}
-                      size="md"
-                      radius="md"
-                      allowDeselect={false}
-                    />
-                  </Grid.Col>
-                </Grid>
-              </Stack>
-            </Card>
-
-            <WordList
-              words={pagedWords}
-              onDelete={handleDelete}
-              onEdit={handleEdit}
-              onRefreshExamples={handleRefreshExamples}
-              customGroups={customGroups}
-              onAddCustomGroup={handleAddCustomGroup}
-              generatingExampleWordIds={Object.fromEntries(
-                Object.keys(exampleGenerationCounts).map((id) => [id, true])
-              )}
-            />
-
-            <GroupManager
-              opened={groupManagerOpen}
-              onClose={() => setGroupManagerOpen(false)}
-              groups={groups}
-              onRename={handleRenameGroup}
-              onDelete={handleDeleteGroup}
-              onAdd={handleCreateGroup}
-            />
-
-            {totalPages > 1 && (
-              <Group justify="center" mt="sm">
-                <div className="desktop-only">
-                  <Pagination
-                    value={page}
-                    onChange={setPage}
-                    total={totalPages}
-                    radius="md"
-                    color="indigo"
-                    size="sm"
-                    siblings={1}
-                    boundaries={1}
-                    withEdges
-                  />
-                </div>
-                <div className="mobile-only">
-                  <Group gap="sm" align="center">
-                    <Button
-                      variant="subtle"
-                      color="indigo"
-                      size="xs"
-                      radius="md"
-                      disabled={page === 1}
-                      onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    >
-                      Prev
-                    </Button>
-                    <Text
-                      size="xs"
-                      fw={700}
-                      c="dimmed"
-                      style={{ minWidth: 60, textAlign: 'center' }}
-                    >
-                      {page} / {totalPages}
-                    </Text>
-                    <Button
-                      variant="subtle"
-                      color="indigo"
-                      size="xs"
-                      radius="md"
-                      disabled={page === totalPages}
-                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    >
-                      Next
-                    </Button>
-                  </Group>
-                </div>
-              </Group>
-            )}
-          </Stack>
+          <StudyModeSection
+            isLoading={isLoading}
+            customGroups={customGroups}
+            words={words}
+            pagedWords={pagedWords}
+            filteredWordsCount={filteredWords.length}
+            totalPages={totalPages}
+            page={page}
+            searchQuery={searchQuery}
+            searchScope={searchScope}
+            groupFilter={groupFilter}
+            groupManagerOpen={groupManagerOpen}
+            groups={groups}
+            generatingExampleWordIds={generatingExampleWordIds}
+            onSubmitWord={handleAdd}
+            onAddCustomGroup={handleAddCustomGroup}
+            onEditExisting={handleEdit}
+            onDeleteWord={handleDelete}
+            onEditWord={handleEdit}
+            onRefreshExamples={handleRefreshExamples}
+            onCreateGroup={handleCreateGroup}
+            onRenameGroup={handleRenameGroup}
+            onDeleteGroup={handleDeleteGroup}
+            onOpenGroupManager={() => setGroupManagerOpen(true)}
+            onCloseGroupManager={() => setGroupManagerOpen(false)}
+            onSetSearchQuery={setSearchQuery}
+            onSetSearchScope={setSearchScope}
+            onSetGroupFilter={setGroupFilter}
+            onSetPage={setPage}
+          />
         )}
 
-        {/* --- QUIZ MODE --- */}
         {mode === 'quiz' && (
-          <Stack gap="lg" style={{ minHeight: '100vh' }}>
-            <Card
-              className="glass-panel"
-              radius="lg"
-              padding="lg"
-              style={{ borderLeft: '4px solid #6366f1' }}
-            >
-              <Stack gap="md">
-                <Grid align="flex-end" gap="md">
-                  <Grid.Col span={{ base: 12, sm: 3 }}>
-                    <Select
-                      label={
-                        <Text size="xs" fw={700} c="dimmed">
-                          QUIZ POOL RANGE
-                        </Text>
-                      }
-                      data={Object.entries(quizRanges).map(([value, label]) => ({
-                        value,
-                        label,
-                      }))}
-                      value={quizRange}
-                      size="md"
-                      radius="md"
-                      onChange={(value) => setQuizRange((value as QuizRangeKey) ?? 'all')}
-                      allowDeselect={false}
-                    />
-                  </Grid.Col>
-
-                  <Grid.Col span={{ base: 12, sm: 3 }}>
-                    <Select
-                      label={
-                        <Text size="xs" fw={700} c="dimmed">
-                          QUIZ SOURCE
-                        </Text>
-                      }
-                      data={Object.entries(quizSources).map(([value, label]) => ({
-                        value,
-                        label,
-                      }))}
-                      value={quizSource}
-                      size="md"
-                      radius="md"
-                      onChange={(value) => setQuizSource((value as QuizSourceKey) ?? 'words')}
-                      allowDeselect={false}
-                    />
-                  </Grid.Col>
-
-                  <Grid.Col span={{ base: 12, sm: 3 }}>
-                    <Select
-                      label={
-                        <Text size="xs" fw={700} c="dimmed">
-                          QUIZ MODE
-                        </Text>
-                      }
-                      data={Object.entries(quizDirections).map(([value, label]) => ({
-                        value,
-                        label,
-                      }))}
-                      value={quizDirection}
-                      size="md"
-                      radius="md"
-                      onChange={(value) =>
-                        setQuizDirection((value as QuizDirectionKey) ?? 'wordToMeaning')
-                      }
-                      allowDeselect={false}
-                    />
-                  </Grid.Col>
-
-                  <Grid.Col span={{ base: 12, sm: 3 }}>
-                    <Select
-                      label={
-                        <Text size="xs" fw={700} c="dimmed">
-                          QUIZ GROUP
-                        </Text>
-                      }
-                      data={[
-                        { value: 'all', label: 'All Groups' },
-                        { value: 'none', label: 'No Group' },
-                        ...customGroups.map((g) => ({ value: g, label: g })),
-                      ]}
-                      value={quizGroupFilter}
-                      size="md"
-                      radius="md"
-                      onChange={(value) => setQuizGroupFilter(value ?? 'all')}
-                      allowDeselect={false}
-                    />
-                  </Grid.Col>
-                </Grid>
-
-                {/* Custom Date Range pickers */}
-                {quizRange === 'custom' && (
-                  <div
-                    style={{
-                      borderRadius: '12px',
-                      border: '1px solid rgba(99,102,241,0.2)',
-                      background: 'rgba(99,102,241,0.04)',
-                      padding: '16px',
-                    }}
-                  >
-                    <Stack gap="sm">
-                      <Group gap="xs" align="center" mb={4}>
-                        <div
-                          style={{
-                            width: 6,
-                            height: 6,
-                            borderRadius: '50%',
-                            background: 'linear-gradient(135deg, #6366f1, #a855f7)',
-                          }}
-                        />
-                        <Text size="xs" fw={700} c="indigo" style={{ letterSpacing: '0.05em' }}>
-                          CUSTOM DATE RANGE
-                        </Text>
-                      </Group>
-                      <Grid gap="md">
-                        <Grid.Col span={{ base: 12, sm: 6 }}>
-                          <TextInput
-                            label={
-                              <Text size="xs" fw={600} c="dimmed">
-                                From
-                              </Text>
-                            }
-                            type="datetime-local"
-                            value={customStart}
-                            onChange={(e) => setCustomStart(e.currentTarget.value)}
-                            size="md"
-                            radius="md"
-                            max={customEnd}
-                          />
-                        </Grid.Col>
-                        <Grid.Col span={{ base: 12, sm: 6 }}>
-                          <TextInput
-                            label={
-                              <Text size="xs" fw={600} c="dimmed">
-                                To
-                              </Text>
-                            }
-                            type="datetime-local"
-                            value={customEnd}
-                            onChange={(e) => setCustomEnd(e.currentTarget.value)}
-                            size="md"
-                            radius="md"
-                            min={customStart}
-                          />
-                        </Grid.Col>
-                      </Grid>
-                    </Stack>
-                  </div>
-                )}
-
-                {/* Restart Quiz and Candidates count info row */}
-                <Group justify="space-between" align="center" mt="xs">
-                  <Text size="xs" c="dimmed">
-                    {quizCandidates.length} word{quizCandidates.length !== 1 ? 's' : ''} in this
-                    selection
-                  </Text>
-                  <Button
-                    variant="light"
-                    color="indigo"
-                    size="md"
-                    radius="md"
-                    onClick={resetQuiz}
-                    disabled={quizQueue.length === 0}
-                    leftSection={<IconRotateClockwise size={18} />}
-                  >
-                    Restart Quiz
-                  </Button>
-                </Group>
-              </Stack>
-            </Card>
-
-            <QuizPanel
-              item={currentQuizItem}
-              quizDirection={quizDirection as QuizDirection}
-              revealed={revealed}
-              onReveal={handleReveal}
-              onMarkMissed={handleToggleMissed}
-              isMarkedMissed={isCurrentMarkedMissed}
-              onNext={handleNext}
-              onPrevious={handlePrevious}
-              completed={completed}
-              hasPrevious={quizIndex > 0}
-              currentIndex={quizIndex}
-              totalCount={quizQueue.length}
-              onRestart={resetQuiz}
-              onRefreshExamples={handleRefreshExamples}
-              isGeneratingExamples={currentQuizItem ? (exampleGenerationCounts[currentQuizItem.id] ?? 0) > 0 : false}
-              srsMode={quizSource === 'srs'}
-              onSrsRate={
-                quizSource === 'srs' ? handleSrsRate : undefined
-              }
-              onEditClick={(id) => setEditingQuizWordId(id)}
-            />
-
-            <Card
-              className="glass-panel"
-              radius="lg"
-              padding="lg"
-              style={{ borderLeft: '4px solid #ef4444', overflow: 'hidden' }}
-            >
-              <Group justify="space-between" align="center" mb="md" gap="md" wrap="wrap">
-                <Group gap="sm" wrap="wrap">
-                  <div
-                    style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: 10,
-                      background:
-                        practiceDisplayMode === 'missed'
-                          ? 'linear-gradient(135deg, #ef4444 0%, #f97316 100%)'
-                          : 'linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      boxShadow:
-                        practiceDisplayMode === 'missed'
-                          ? '0 4px 12px rgba(239,68,68,0.35)'
-                          : '0 4px 12px rgba(139,92,246,0.35)',
-                    }}
-                  >
-                    {practiceDisplayMode === 'missed' ? (
-                      <IconFlame size={18} color="white" />
-                    ) : (
-                      <IconBrain size={18} color="white" />
-                    )}
-                  </div>
-                  <div>
-                    <Title order={4} style={{ fontFamily: 'var(--font-title)', lineHeight: 1.2 }}>
-                      {practiceDisplayModes[practiceDisplayMode]}
-                    </Title>
-                    <Text size="xs" c="dimmed" style={{ lineHeight: 1 }}>
-                      {quizDirections[quizDirection]}
-                    </Text>
-                  </div>
-                  <Badge
-                    variant="gradient"
-                    gradient={
-                      practiceDisplayMode === 'missed'
-                        ? { from: 'red', to: 'orange' }
-                        : { from: 'violet', to: 'indigo' }
-                    }
-                    size="md"
-                    radius="md"
-                    style={{ fontWeight: 800 }}
-                  >
-                    {practiceDisplayMode === 'missed'
-                      ? missedWordsForMode.length
-                      : recentSrsPracticeWords.length}
-                  </Badge>
-                </Group>
-
-                <Group gap="xs" wrap="wrap">
-                  <PracticeDisplayCombobox
-                    value={practiceDisplayMode}
-                    onChange={setPracticeDisplayMode}
-                  />
-                  {practiceDisplayMode === 'missed' ? (
-                    <Tooltip
-                      label={hideMissedMeanings ? 'Show all meanings' : 'Hide all meanings'}
-                      withArrow
-                    >
-                      <ActionIcon
-                        variant="subtle"
-                        color="gray"
-                        size="md"
-                        radius="md"
-                        onClick={() => {
-                          const nextVal = !hideMissedMeanings;
-                          setHideMissedMeanings(nextVal);
-                          if (nextVal) {
-                            setRevealedMissedWordIds({});
-                          }
-                        }}
-                      >
-                        {hideMissedMeanings ? <IconEyeOff size={24} /> : <IconEye size={24} />}
-                      </ActionIcon>
-                    </Tooltip>
-                  ) : (
-                    <>
-                      <Tooltip
-                        label={hideSrsPracticeMeanings ? 'Show all meanings' : 'Hide all meanings'}
-                        withArrow
-                      >
-                        <ActionIcon
-                          variant="subtle"
-                          color="gray"
-                          size="md"
-                          radius="md"
-                          onClick={() => {
-                            const nextVal = !hideSrsPracticeMeanings;
-                            setHideSrsPracticeMeanings(nextVal);
-                            if (nextVal) {
-                              setRevealedSrsPracticeWordIds({});
-                            }
-                          }}
-                        >
-                          {hideSrsPracticeMeanings ? (
-                            <IconEyeOff size={24} />
-                          ) : (
-                            <IconEye size={24} />
-                          )}
-                        </ActionIcon>
-                      </Tooltip>
-                      <Button
-                        variant="light"
-                        color="indigo"
-                        size="xs"
-                        radius="md"
-                        leftSection={<IconBrain size={14} />}
-                        onClick={() => {
-                          setMode('quiz');
-                          setQuizSource('srsPractice');
-                          setQuizRange('all');
-                          setQuizGroupFilter('all');
-                        }}
-                      >
-                        Quiz
-                      </Button>
-                    </>
-                  )}
-                  {practiceDisplayMode === 'missed' && missedWordsForMode.length > 0 && (
-                    <Button
-                      variant="subtle"
-                      color="red"
-                      size="xs"
-                      radius="md"
-                      leftSection={<IconBookmarkOff size={14} />}
-                      onClick={() => setConfirmClearAllOpen(true)}
-                      style={{ opacity: 0.8 }}
-                    >
-                      Clear All
-                    </Button>
-                  )}
-                </Group>
-              </Group>
-
-              <Divider
-                style={{
-                  borderColor:
-                    practiceDisplayMode === 'missed'
-                      ? 'rgba(239,68,68,0.15)'
-                      : 'rgba(139,92,246,0.15)',
-                  marginBottom: '16px',
-                }}
-              />
-
-              {practiceDisplayMode === 'missed' ? (
-                missedWordsForMode.length === 0 ? (
-                  <div
-                    style={{
-                      textAlign: 'center',
-                      padding: '36px 24px',
-                      borderRadius: '12px',
-                      border: '1.5px dashed rgba(239,68,68,0.2)',
-                      background: 'rgba(239,68,68,0.03)',
-                    }}
-                  >
-                    <Stack gap="sm" align="center">
-                      <div
-                        style={{
-                          width: 48,
-                          height: 48,
-                          borderRadius: '50%',
-                          background: 'rgba(239,68,68,0.08)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        <IconTarget size={24} style={{ color: '#ef4444', opacity: 0.5 }} />
-                      </div>
-                      <Text fw={600} size="sm" style={{ color: 'var(--text-secondary)' }}>
-                        No missed words yet
-                      </Text>
-                      <Text
-                        size="xs"
-                        c="dimmed"
-                        style={{ lineHeight: 1.5, maxWidth: 280, margin: '0 auto' }}
-                      >
-                        When you bookmark a word as missed during a quiz in{' '}
-                        {quizDirections[quizDirection]}, it will appear here for targeted practice.
-                      </Text>
-                    </Stack>
-                  </div>
-                ) : (
-                  <MissedWordVirtualList
-                    words={missedWordsForMode}
-                    hideMissedMeanings={hideMissedMeanings}
-                    revealedMissedWordIds={revealedMissedWordIds}
-                    onRevealMissedWord={(id) =>
-                      setRevealedMissedWordIds((prev) => ({ ...prev, [id]: true }))
-                    }
-                    onRefreshExamples={handleRefreshExamples}
-                    onUnmarkMissed={handleUnmarkMissed}
-                    generatingExampleWordIds={Object.fromEntries(
-                      Object.keys(exampleGenerationCounts).map((id) => [id, true])
-                    )}
-                  />
-                )
-              ) : recentSrsPracticeWords.length === 0 ? (
-                <div
-                  style={{
-                    textAlign: 'center',
-                    padding: '36px 24px',
-                    borderRadius: '12px',
-                    border: '1.5px dashed rgba(139,92,246,0.2)',
-                    background: 'rgba(139,92,246,0.03)',
-                  }}
-                >
-                  <Stack gap="sm" align="center">
-                    <div
-                      style={{
-                        width: 48,
-                        height: 48,
-                        borderRadius: '50%',
-                        background: 'rgba(139,92,246,0.08)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <IconBrain size={24} style={{ color: '#8b5cf6', opacity: 0.5 }} />
-                    </div>
-                    <Text fw={600} size="sm" style={{ color: 'var(--text-secondary)' }}>
-                      No SRS practice words in the last 24 hours
-                    </Text>
-                    <Text
-                      size="xs"
-                      c="dimmed"
-                      style={{ lineHeight: 1.5, maxWidth: 320, margin: '0 auto' }}
-                    >
-                      Rated SRS words will show up here for 24 hours so you can review them again.
-                    </Text>
-                  </Stack>
-                </div>
-              ) : (
-                <SrsPracticeVirtualList
-                  words={recentSrsPracticeWords}
-                  hideMeanings={hideSrsPracticeMeanings}
-                  revealedWordIds={revealedSrsPracticeWordIds}
-                  onRevealWord={(id) =>
-                    setRevealedSrsPracticeWordIds((prev) => ({ ...prev, [id]: true }))
-                  }
-                  onRefreshExamples={handleRefreshExamples}
-                  onToggleMissed={(word) =>
-                    void toggleMissedWordRecord(word.wordId, word.word, word.meaning, word.quizMode)
-                  }
-                  generatingExampleWordIds={Object.fromEntries(
-                    Object.keys(exampleGenerationCounts).map((id) => [id, true])
-                  )}
-                  isMissedWord={(wordId) => missedWordIdSet.has(wordId)}
-                  onEditClick={(id) => setEditingQuizWordId(id)}
-                  onQuizWord={() => {
-                    setMode('quiz');
-                    setQuizSource('srsPractice');
-                    setQuizRange('all');
-                    setQuizGroupFilter('all');
-                  }}
-                />
-              )}
-            </Card>
-          </Stack>
+          <QuizModeSection
+            quizRange={quizRange}
+            quizSource={quizSource}
+            quizDirection={quizDirection}
+            quizGroupFilter={quizGroupFilter}
+            customGroups={customGroups}
+            customStart={customStart}
+            customEnd={customEnd}
+            quizCandidatesCount={quizCandidates.length}
+            quizQueueLength={quizQueue.length}
+            currentQuizItem={currentQuizItem}
+            revealed={revealed}
+            completed={completed}
+            quizIndex={quizIndex}
+            isCurrentMarkedMissed={isCurrentMarkedMissed}
+            practiceDisplayMode={practiceDisplayMode}
+            hideMissedMeanings={hideMissedMeanings}
+            hideSrsPracticeMeanings={hideSrsPracticeMeanings}
+            revealedMissedWordIds={revealedMissedWordIds}
+            revealedSrsPracticeWordIds={revealedSrsPracticeWordIds}
+            missedWordsForMode={missedWordsForMode}
+            recentSrsPracticeWords={recentSrsPracticeWords}
+            missedWordIdSet={missedWordIdSet}
+            generatingExampleWordIds={generatingExampleWordIds}
+            autoPronounceQuizWord={autoPronounceQuizWord}
+            onSetQuizRange={setQuizRange}
+            onSetQuizSource={setQuizSource}
+            onSetQuizDirection={setQuizDirection}
+            onSetQuizGroupFilter={setQuizGroupFilter}
+            onSetCustomStart={setCustomStart}
+            onSetCustomEnd={setCustomEnd}
+            onResetQuiz={resetQuiz}
+            onReveal={handleReveal}
+            onToggleMissed={handleToggleMissed}
+            onNext={handleNext}
+            onPrevious={handlePrevious}
+            onRefreshExamples={handleRefreshExamples}
+            onSrsRate={handleSrsRate}
+            onEditClick={(id) => setEditingQuizWordId(id)}
+            onSetPracticeDisplayMode={setPracticeDisplayMode}
+            onSetAutoPronounceQuizWord={setAutoPronounceQuizWord}
+            onSetHideMissedMeanings={setHideMissedMeanings}
+            onSetHideSrsPracticeMeanings={setHideSrsPracticeMeanings}
+            onSetRevealedMissedWordIds={setRevealedMissedWordIds}
+            onSetRevealedSrsPracticeWordIds={setRevealedSrsPracticeWordIds}
+            onUnmarkMissed={handleUnmarkMissed}
+            onTogglePracticeMissed={(word) =>
+              void toggleMissedWordRecord(word.wordId, word.word, word.meaning, word.quizMode)
+            }
+            onOpenSrsPracticeQuiz={() => {
+              setMode('quiz');
+              setQuizSource('srsPractice');
+              setQuizRange('all');
+              setQuizGroupFilter('all');
+            }}
+            onOpenClearAllMissed={() => setConfirmClearAllOpen(true)}
+          />
         )}
       </Stack>
 

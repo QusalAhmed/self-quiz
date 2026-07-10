@@ -1,29 +1,18 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Button, Card, Group, Stack, Text, TextInput } from '@mantine/core';
+import { IconPlus } from '@tabler/icons-react';
+import { DefinitionEditorCard } from '@/components/WordForm/DefinitionEditorCard';
+import { GroupSelector } from '@/components/WordForm/GroupSelector';
+import { type WordFormEditValues, type DefinitionFormValue } from '@/components/WordForm/types';
 import {
-    Button,
-    Card,
-    Group,
-    Stack,
-    Text,
-    TextInput,
-    Textarea,
-    MultiSelect,
-    Select,
-    ActionIcon,
-    Tooltip,
-    Divider,
-} from '@mantine/core';
-import { IconPlus, IconCheck, IconX } from '@tabler/icons-react';
+    createEmptyDefinitionFormValue,
+    definitionsToFormValues,
+} from '@/components/WordForm/utils';
 import { EditWordModal } from '@/components/EditWordModal/EditWordModal';
 import type { WordDefinition, WordRecord } from '@/lib/db';
-import { PARTS_OF_SPEECH, definitionsToMeaning, normalizeDefinitions } from '@/lib/definitions';
+import { definitionsToMeaning, normalizeDefinitions } from '@/lib/definitions';
 
-export type WordFormEditValues = {
-    word: string;
-    meaning: string;
-    definitions?: WordDefinition[];
-    groups: string[];
-};
+export type { WordFormEditValues } from '@/components/WordForm/types';
 
 type WordFormProps = {
     disabled?: boolean;
@@ -47,38 +36,6 @@ type WordFormProps = {
     ) => Promise<void> | void;
     onCancel?: () => void;
 };
-
-/** Form-local shape for a definition being edited. `examples` (AI-generated) are carried
- * through untouched; only `userExamples` are editable here. */
-type DefinitionFormValue = {
-    meaning: string;
-    partOfSpeech: string;
-    examples: string[];
-    userExamples: string[];
-};
-
-function normalizeExamples(values: string[]): string[] {
-    const trimmed = values.map((value) => value.trim()).filter(Boolean);
-    return trimmed.length > 0 ? trimmed : [''];
-}
-
-function createEmptyDefinitionFormValue(): DefinitionFormValue {
-    return { meaning: '', partOfSpeech: '', examples: [], userExamples: [''] };
-}
-
-function definitionsToFormValues(definitions: WordDefinition[]): DefinitionFormValue[] {
-    if (definitions.length === 0) {
-        return [createEmptyDefinitionFormValue()];
-    }
-    return definitions.map((definition) => ({
-        meaning: definition.meaning,
-        partOfSpeech: definition.partOfSpeech,
-        examples: Array.isArray(definition.examples) ? definition.examples : [],
-        userExamples: normalizeExamples(
-            Array.isArray(definition.userExamples) ? definition.userExamples : []
-        ),
-    }));
-}
 
 export function WordForm({
                              disabled,
@@ -319,151 +276,22 @@ export function WordForm({
                         Definitions (optional) — add one entry per meaning
                     </Text>
                     {definitions.map((definition, index) => (
-                        <Card
+                        <DefinitionEditorCard
                             key={`definition-${index}`}
-                            withBorder
-                            radius="md"
-                            padding="sm"
-                            style={{ background: 'rgba(99, 102, 241, 0.03)' }}
-                        >
-                            <Stack gap={8}>
-                                <Group justify="space-between" align="center" gap="xs" wrap="nowrap">
-                                    <Text size="sm" fw={700} c="indigo" style={{ lineHeight: 1.4 }}>
-                                        Definition {index + 1}
-                                    </Text>
-                                    <Tooltip label="Remove definition" withArrow>
-                                        <ActionIcon
-                                            variant="light"
-                                            color="gray"
-                                            size={inputSize}
-                                            radius="md"
-                                            onClick={() => removeDefinitionField(index)}
-                                            disabled={disabled || isSaving || definitions.length === 1}
-                                            type="button"
-                                            aria-label="Remove definition"
-                                        >
-                                            <IconX size={16}/>
-                                        </ActionIcon>
-                                    </Tooltip>
-                                </Group>
-                                <Group align="flex-end" gap="xs" wrap="wrap">
-                                    <Select
-                                        label={
-                                            <Text size="xs" fw={600} c="dimmed">
-                                                Part of speech
-                                            </Text>
-                                        }
-                                        placeholder="Any"
-                                        value={definition.partOfSpeech || null}
-                                        onChange={(value) =>
-                                            updateDefinition(index, {partOfSpeech: value ?? ''})
-                                        }
-                                        data={PARTS_OF_SPEECH.map((part) => ({
-                                            value: part,
-                                            label: part.charAt(0).toUpperCase() + part.slice(1),
-                                        }))}
-                                        disabled={disabled || isSaving}
-                                        size="sm"
-                                        radius="md"
-                                        clearable
-                                        searchable
-                                        w={{ base: '100%', sm: 160 }}
-                                        style={{flexShrink: 0}}
-                                    />
-                                    <Textarea
-                                        label={
-                                            <Text size="xs" fw={600} c="dimmed">
-                                                Definition
-                                            </Text>
-                                        }
-                                        placeholder="Type ..."
-                                        value={definition.meaning}
-                                        onChange={(event) =>
-                                            updateDefinition(index, {meaning: event.currentTarget.value})
-                                        }
-                                        onKeyDown={handleDefinitionKeyDown}
-                                        disabled={disabled || isSaving}
-                                        minRows={1}
-                                        size="sm"
-                                        radius="md"
-                                        autosize
-                                        style={{flex: 1, minWidth: 200}}
-                                    />
-                                </Group>
-
-                                <Divider label="Your examples for this definition" labelPosition="left" />
-
-                                <Stack gap={6}>
-                                    {definition.userExamples.map((example, exIndex) => (
-                                        <Group key={`definition-${index}-example-${exIndex}`} align="flex-end" gap="xs" wrap="nowrap">
-                                            <Textarea
-                                                placeholder="Add an example sentence using this meaning..."
-                                                value={example}
-                                                onChange={(event) =>
-                                                    updateDefinitionExample(
-                                                        index,
-                                                        exIndex,
-                                                        event.currentTarget.value.replace(/\s+/g, ' ')
-                                                    )
-                                                }
-                                                onKeyDown={handleExampleKeyDown}
-                                                disabled={disabled || isSaving}
-                                                minRows={1}
-                                                size="sm"
-                                                radius="md"
-                                                autosize
-                                                style={{flex: 1}}
-                                            />
-                                            <Tooltip label="Remove example" withArrow>
-                                                <ActionIcon
-                                                    variant="light"
-                                                    color="gray"
-                                                    size={inputSize}
-                                                    radius="md"
-                                                    onClick={() => removeDefinitionExampleField(index, exIndex)}
-                                                    disabled={disabled || isSaving || definition.userExamples.length === 1}
-                                                    type="button"
-                                                    aria-label="Remove example"
-                                                >
-                                                    <IconX size={16}/>
-                                                </ActionIcon>
-                                            </Tooltip>
-                                        </Group>
-                                    ))}
-                                    <Button
-                                        variant="subtle"
-                                        color="indigo"
-                                        size="xs"
-                                        radius="md"
-                                        leftSection={<IconPlus size={14}/>}
-                                        onClick={() => addDefinitionExampleField(index)}
-                                        disabled={disabled || isSaving}
-                                        type="button"
-                                        w="fit-content"
-                                    >
-                                        Add example
-                                    </Button>
-
-                                    {definition.examples.length > 0 && (
-                                        <Stack gap={2} mt={4}>
-                                            <Text size="xs" fw={600} c="dimmed">
-                                                AI-generated examples
-                                            </Text>
-                                            {definition.examples.map((example, exIndex) => (
-                                                <Text
-                                                    key={`definition-${index}-ai-example-${exIndex}`}
-                                                    size="xs"
-                                                    c="dimmed"
-                                                    style={{lineHeight: 1.5, wordBreak: 'break-word'}}
-                                                >
-                                                    {`• ${example}`}
-                                                </Text>
-                                            ))}
-                                        </Stack>
-                                    )}
-                                </Stack>
-                            </Stack>
-                        </Card>
+                            definition={definition}
+                            index={index}
+                            inputSize={inputSize}
+                            disabled={disabled}
+                            isSaving={isSaving}
+                            definitionCount={definitions.length}
+                            onUpdateDefinition={updateDefinition}
+                            onRemoveDefinition={removeDefinitionField}
+                            onUpdateExample={updateDefinitionExample}
+                            onAddExample={addDefinitionExampleField}
+                            onRemoveExample={removeDefinitionExampleField}
+                            onDefinitionKeyDown={handleDefinitionKeyDown}
+                            onExampleKeyDown={handleExampleKeyDown}
+                        />
                     ))}
                     <Button
                         variant="light"
@@ -480,104 +308,31 @@ export function WordForm({
                     </Button>
                 </Stack>
 
-                <div
-                    style={{
-                        display: 'grid',
-                        gridTemplateColumns: '1fr auto',
-                        alignItems: 'flex-end',
-                        gap: '8px',
+                <GroupSelector
+                    customGroups={customGroups}
+                    groups={groups}
+                    isAddingNewGroup={isAddingNewGroup}
+                    newGroupName={newGroupName}
+                    disabled={disabled}
+                    isSaving={isSaving}
+                    onGroupsChange={setGroups}
+                    onNewGroupNameChange={setNewGroupName}
+                    onNewGroupKeyDown={handleNewGroupKeyDown}
+                    onStartAddingGroup={() => setIsAddingNewGroup(true)}
+                    onConfirmNewGroup={() => {
+                        const trimmed = newGroupName.trim();
+                        if (trimmed) {
+                            onAddCustomGroup?.(trimmed);
+                            setGroups((prev) => Array.from(new Set([...prev, trimmed])));
+                        }
+                        setNewGroupName('');
+                        setIsAddingNewGroup(false);
                     }}
-                >
-                    {isAddingNewGroup ? (
-                        <TextInput
-                            label={
-                                <Text size="xs" fw={600} c="dimmed">
-                                    Create New Group
-                                </Text>
-                            }
-                            placeholder="Group name, e.g. Verbs, SAT prep"
-                            value={newGroupName}
-                            onChange={(event) => setNewGroupName(event.currentTarget.value)}
-                            onKeyDown={handleNewGroupKeyDown}
-                            disabled={disabled || isSaving}
-                            size="sm"
-                            radius="md"
-                            style={{flex: 1}}
-                        />
-                    ) : (
-                        <MultiSelect
-                            label={
-                                <Text size="xs" fw={600} c="dimmed">
-                                    Groups (optional)
-                                </Text>
-                            }
-                            placeholder="Choose one or more groups..."
-                            value={groups}
-                            onChange={setGroups}
-                            data={customGroups.map((g) => ({value: g, label: g}))}
-                            disabled={disabled || isSaving}
-                            size="sm"
-                            radius="md"
-                            style={{flex: 1}}
-                            searchable
-                            clearable
-                        />
-                    )}
-
-                    {isAddingNewGroup ? (
-                        <Group gap={4} style={{marginBottom: '4px'}}>
-                            <Tooltip label="Add Group" withArrow>
-                                <ActionIcon
-                                    variant="filled"
-                                    color="indigo"
-                                    size="md"
-                                    radius="md"
-                                    onClick={() => {
-                                        const trimmed = newGroupName.trim();
-                                        if (trimmed) {
-                                            onAddCustomGroup?.(trimmed);
-                                            setGroups((prev) => Array.from(new Set([...prev, trimmed])));
-                                        }
-                                        setNewGroupName('');
-                                        setIsAddingNewGroup(false);
-                                    }}
-                                    disabled={!newGroupName.trim() || disabled || isSaving}
-                                >
-                                    <IconCheck size={18}/>
-                                </ActionIcon>
-                            </Tooltip>
-                            <Tooltip label="Cancel" withArrow>
-                                <ActionIcon
-                                    variant="light"
-                                    color="gray"
-                                    size="md"
-                                    radius="md"
-                                    onClick={() => {
-                                        setNewGroupName('');
-                                        setIsAddingNewGroup(false);
-                                    }}
-                                    disabled={disabled || isSaving}
-                                >
-                                    <IconX size={18}/>
-                                </ActionIcon>
-                            </Tooltip>
-                        </Group>
-                    ) : (
-                        <Tooltip label="Create new custom group" withArrow>
-                            <ActionIcon
-                                variant="light"
-                                color="indigo"
-                                size="lg"
-                                radius="md"
-                                style={{marginBottom: '2px'}}
-                                onClick={() => setIsAddingNewGroup(true)}
-                                disabled={disabled || isSaving}
-                            >
-                                <IconPlus size={20}/>
-                            </ActionIcon>
-                        </Tooltip>
-                    )}
-                </div>
+                    onCancelNewGroup={() => {
+                        setNewGroupName('');
+                        setIsAddingNewGroup(false);
+                    }}
+                />
 
                 <Group justify="flex-end" gap={isEditMode ? 'xs' : 'sm'} mt={variant === 'plain' ? 'sm' : 'xs'}>
                     {isEditMode && onCancel && (

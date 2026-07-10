@@ -1,7 +1,8 @@
-import { ActionIcon, Badge, Button, Card, Group, Modal, Stack, Text, Tooltip } from '@mantine/core';
+import { Badge, Button, Card, Group, Modal, Stack, Text, Tooltip } from '@mantine/core';
 import { IconEdit, IconTrash, IconRotateClockwise } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
 import { DefinitionsDisplay } from '@/components/DefinitionsDisplay/DefinitionsDisplay';
+import { WordActionIcon } from '@/components/WordActions/WordActionIcon';
 import { WordForm } from '@/components/WordForm/WordForm';
 import { formatDate, formatRelativeShort } from '@/lib/dateUtils';
 import type { WordDefinition, WordRecord } from '@/lib/db';
@@ -180,43 +181,35 @@ export function WordList({
                                 <Group gap={4} style={{flexShrink: 0, marginLeft: 8}}>
                                     {!isEditing && (
                                         <>
-                                            <Tooltip label="Generate new examples" withArrow>
-                                                <ActionIcon
-                                                    aria-label={`Generate new examples for ${item.word}`}
-                                                    variant="subtle"
-                                                    color="indigo"
-                                                    size="sm"
-                                                    radius="md"
-                                                    onClick={() => onRefreshExamples(item.id)}
-                                                    disabled={isGeneratingExamples}
-                                                    loading={isGeneratingExamples}
-                                                    style={{transition: 'all 0.2s ease'}}
-                                                >
-                                                    <IconRotateClockwise size={15}/>
-                                                </ActionIcon>
-                                            </Tooltip>
-                                            <ActionIcon
-                                                aria-label={`Edit ${item.word}`}
-                                                variant="subtle"
+                                            <WordActionIcon
+                                                label="Generate new examples"
+                                                ariaLabel={`Generate new examples for ${item.word}`}
                                                 color="indigo"
                                                 size="sm"
-                                                radius="md"
+                                                onClick={() => onRefreshExamples(item.id)}
+                                                disabled={isGeneratingExamples}
+                                                loading={isGeneratingExamples}
+                                            >
+                                                <IconRotateClockwise size={15}/>
+                                            </WordActionIcon>
+                                            <WordActionIcon
+                                                label="Edit word"
+                                                ariaLabel={`Edit ${item.word}`}
+                                                color="indigo"
+                                                size="sm"
                                                 onClick={() => setEditingId(item.id)}
-                                                style={{transition: 'all 0.2s ease'}}
                                             >
                                                 <IconEdit size={15}/>
-                                            </ActionIcon>
-                                            <ActionIcon
-                                                aria-label={`Delete ${item.word}`}
-                                                variant="subtle"
+                                            </WordActionIcon>
+                                            <WordActionIcon
+                                                label="Delete word"
+                                                ariaLabel={`Delete ${item.word}`}
                                                 color="red"
                                                 size="sm"
-                                                radius="md"
                                                 onClick={() => openDeleteConfirm(item.id, item.word)}
-                                                style={{transition: 'all 0.2s ease'}}
                                             >
                                                 <IconTrash size={15}/>
-                                            </ActionIcon>
+                                            </WordActionIcon>
                                         </>
                                     )}
                                 </Group>

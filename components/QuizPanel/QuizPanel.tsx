@@ -1,5 +1,4 @@
 import {
-  ActionIcon,
   Button,
   Card,
   Group,
@@ -30,6 +29,7 @@ import {
 } from '@tabler/icons-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { DefinitionsDisplay } from '@/components/DefinitionsDisplay/DefinitionsDisplay';
+import { WordActionIcon } from '@/components/WordActions/WordActionIcon';
 import type { WordDefinition } from '@/lib/db';
 import { normalizeDefinitions } from '@/lib/definitions';
 import type { SrsRating } from '@/lib/srs';
@@ -60,6 +60,7 @@ type QuizPanelProps = {
   onRestart?: () => void;
   onRefreshExamples?: (id: string) => void;
   isGeneratingExamples?: boolean;
+  autoPronounceWord?: boolean;
   /** Enable SRS rating mode — shows Again/Hard/Good/Easy buttons instead of bookmark */
   srsMode?: boolean;
   /** Called when user selects a rating in SRS mode */
@@ -83,6 +84,7 @@ export function QuizPanel({
   onRestart,
   onRefreshExamples,
   isGeneratingExamples = false,
+  autoPronounceWord = false,
   srsMode = false,
   onSrsRate,
   onEditClick,
@@ -92,6 +94,7 @@ export function QuizPanel({
   const [spellingState, setSpellingState] = useState<'idle' | 'correct' | 'incorrect'>('idle');
   const [showUserExamples, setShowUserExamples] = useState(false);
   const quizPanelRef = useRef<HTMLDivElement>(null);
+  const lastAutoPronouncedKeyRef = useRef<string | null>(null);
 
   const scrollToCenter = () => {
     if (quizPanelRef.current) {
@@ -117,16 +120,33 @@ export function QuizPanel({
     window.speechSynthesis.speak(utterance);
   }, []);
 
-  // Pronounce word when it loads or direction changes to spelling
   useEffect(() => {
-    if (quizDirection === 'spelling' && item && !completed && !revealed) {
-      const timer = setTimeout(() => {
-        handleSpeak(item.word);
-      }, 300);
-      return () => clearTimeout(timer);
+    if (!item || completed) {
+      return;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [item?.id, quizDirection]);
+
+    const shouldAutoSpeak =
+      (quizDirection === 'spelling' && !revealed) ||
+      (autoPronounceWord &&
+        (quizDirection === 'wordToMeaning' ||
+          (quizDirection === 'meaningToWord' && revealed)));
+
+    if (!shouldAutoSpeak) {
+      return;
+    }
+
+    const key = `${item.id}:${quizDirection}:${revealed ? 'revealed' : 'hidden'}`;
+    if (lastAutoPronouncedKeyRef.current === key) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      lastAutoPronouncedKeyRef.current = key;
+      handleSpeak(item.word);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [autoPronounceWord, completed, handleSpeak, item, quizDirection, revealed]);
 
   // Reset spelling state on new item or direction change
   useEffect(() => {
@@ -337,18 +357,15 @@ export function QuizPanel({
     ) : null;
 
   const markMissedAction = (
-    <Tooltip label={isMarkedMissed ? 'Unmark missed' : 'Mark as missed'}>
-      <ActionIcon
-        aria-label={isMarkedMissed ? 'Unmark missed' : 'Mark as missed'}
-        variant="subtle"
-        color={isMarkedMissed ? 'teal' : 'red'}
-        size="lg"
-        radius="md"
-        onClick={onMarkMissed}
-      >
-        {isMarkedMissed ? <IconBookmark size={20} /> : <IconBookmarkOff size={20} />}
-      </ActionIcon>
-    </Tooltip>
+    <WordActionIcon
+      label={isMarkedMissed ? 'Unmark missed' : 'Mark as missed'}
+      color={isMarkedMissed ? 'teal' : 'red'}
+      size="lg"
+      onClick={onMarkMissed}
+      withArrow={false}
+    >
+      {isMarkedMissed ? <IconBookmark size={20} /> : <IconBookmarkOff size={20} />}
+    </WordActionIcon>
   );
 
   // SRS rating bar — shown after reveal in srsMode
@@ -431,37 +448,32 @@ export function QuizPanel({
         {item.word}
       </Title>
       <Group gap={6}>
-        <ActionIcon
-          aria-label="Speak pronunciation"
-          variant="subtle"
+        <WordActionIcon
+          label="Speak pronunciation"
           color={isPlayingAudio ? 'indigo' : 'gray'}
           size="lg"
-          radius="md"
           onClick={() => handleSpeak(item.word)}
+          withArrow={false}
         >
           <IconVolume size={20} />
-        </ActionIcon>
-        <ActionIcon
-          aria-label="Copy word"
-          variant="subtle"
-          color="gray"
+        </WordActionIcon>
+        <WordActionIcon
+          label="Copy word"
           size="lg"
-          radius="md"
           onClick={() => navigator.clipboard.writeText(item.word)}
+          withArrow={false}
         >
           <IconCopy size={20} />
-        </ActionIcon>
+        </WordActionIcon>
         {onEditClick && (
-          <ActionIcon
-            aria-label="Edit word"
-            variant="subtle"
-            color="gray"
+          <WordActionIcon
+            label="Edit word"
             size="lg"
-            radius="md"
             onClick={() => onEditClick(item.id)}
+            withArrow={false}
           >
             <IconEdit size={20} />
-          </ActionIcon>
+          </WordActionIcon>
         )}
         {includeMissed && markMissedAction}
       </Group>
@@ -618,16 +630,16 @@ export function QuizPanel({
                     className="hover-lift"
                   >
                     <Group gap="sm" justify="center">
-                      <ActionIcon
-                        aria-label="Speak pronunciation"
+                      <WordActionIcon
+                        label="Speak pronunciation"
                         variant="gradient"
                         gradient={{ from: 'indigo', to: 'purple' }}
                         color={isPlayingAudio ? 'indigo' : 'gray'}
                         size="lg"
-                        radius="md"
+                        withArrow={false}
                       >
                         <IconVolume size={20} />
-                      </ActionIcon>
+                      </WordActionIcon>
                       <Text fw={600} size="sm" c="indigo">
                         {isPlayingAudio ? 'Speaking...' : 'Listen to Word'}
                       </Text>
