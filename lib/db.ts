@@ -18,6 +18,7 @@ export type WordRecord = {
   word: string;
   meaning: string;
   definitions: WordDefinition[];
+  aiExampleCount: number;
   createdAt: string;
   updatedAt: string;
   isDeleted: boolean;
@@ -80,7 +81,7 @@ export type AppDatabase = RxDatabase<{
 
 const wordSchema: RxJsonSchema<WordRecord> = {
   title: 'word schema',
-  version: 7,
+  version: 8,
   description: 'English word memorization entries',
   primaryKey: 'id',
   type: 'object',
@@ -108,6 +109,7 @@ const wordSchema: RxJsonSchema<WordRecord> = {
       },
       default: [],
     },
+    aiExampleCount: { type: 'number', minimum: 1, maximum: 10, default: 5 },
     createdAt: { type: 'string' },
     updatedAt: { type: 'string', maxLength: 32 },
     isDeleted: { type: 'boolean', default: false },
@@ -123,6 +125,7 @@ const wordSchema: RxJsonSchema<WordRecord> = {
     'word',
     'meaning',
     'definitions',
+    'aiExampleCount',
     'createdAt',
     'updatedAt',
     'isDeleted',
@@ -388,6 +391,10 @@ async function createDatabase(): Promise<AppDatabase> {
             definitions,
           };
         },
+        8: (oldDoc) => ({
+          ...oldDoc,
+          aiExampleCount: 5,
+        }),
       },
     },
     groups: {

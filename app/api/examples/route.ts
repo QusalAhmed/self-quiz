@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server';
+import { normalizeAiExampleCount, normalizeAiExamples } from '@/lib/examples';
 
 type CloudflareMessage = {
   role: 'system' | 'user' | 'assistant';
   content: string;
 };
 
-// Native /AI/run endpoint response shape
 type CloudflareAIResponse = {
   result?: {
-    response?: string;
+    response?: unknown;
   };
   success?: boolean;
   errors?: Array<{ message: string }>;
@@ -17,20 +17,16 @@ type CloudflareAIResponse = {
 type ExamplesPayload = {
   word?: string;
   meaning?: string;
+  count?: number;
+  referenceExamples?: string[];
+  partOfSpeech?: string;
 };
 
-function normalizeExamples(value: unknown): string[] {
-  if (!Array.isArray(value)) {
+function parseExamplesFromRawText(rawText: unknown, targetCount: number): string[] {
+  if (typeof rawText !== 'string') {
     return [];
   }
 
-  return value
-    .map((item) => (typeof item === 'string' ? item.trim() : ''))
-    .filter(Boolean)
-    .slice(0, 5);
-}
-
-function parseExamplesFromRawText(rawText: string): string[] {
   const trimmed = rawText.trim();
   if (!trimmed) {
     return [];
@@ -48,7 +44,7 @@ function parseExamplesFromRawText(rawText: string): string[] {
       if (typeof parsed === 'string') {
         try {
           const reparsed = JSON.parse(parsed) as { examples?: unknown };
-          const examples = normalizeExamples(reparsed?.examples);
+          const examples = normalizeAiExamples(reparsed?.examples, targetCount);
           if (examples.length > 0) {
             return examples;
           }
@@ -58,7 +54,7 @@ function parseExamplesFromRawText(rawText: string): string[] {
         continue;
       }
 
-      const examples = normalizeExamples(parsed?.examples);
+      const examples = normalizeAiExamples(parsed?.examples, targetCount);
       if (examples.length > 0) {
         return examples;
       }
@@ -68,6 +64,55 @@ function parseExamplesFromRawText(rawText: string): string[] {
   }
 
   return [];
+}
+
+function normalizeReferenceExamples(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      value
+        .map((item) => (typeof item === 'string' ? item.trim() : ''))
+        .filter(Boolean)
+    )
+  ).slice(0, 5);
+}
+
+function extractExamplesFromAiResponse(result: unknown, targetCount: number): string[] {
+  if (Array.isArray(result)) {
+    return normalizeAiExamples(result, targetCount);
+  }
+
+  if (result && typeof result === 'object') {
+    const value = result as {
+      examples?: unknown;
+      response?: unknown;
+      output?: unknown;
+    };
+
+    const directExamples = normalizeAiExamples(value.examples, targetCount);
+    if (directExamples.length > 0) {
+      return directExamples;
+    }
+
+    const nestedResponseExamples = parseExamplesFromRawText(value.response, targetCount);
+    if (nestedResponseExamples.length > 0) {
+      return nestedResponseExamples;
+    }
+
+    const nestedOutputExamples = normalizeAiExamples(value.output, targetCount);
+    if (nestedOutputExamples.length > 0) {
+      return nestedOutputExamples;
+    }
+  }
+
+  return parseExamplesFromRawText(result, targetCount);
+}
+
+function normalizePartOfSpeech(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
 }
 
 export async function POST(request: Request) {
@@ -80,6 +125,10 @@ export async function POST(request: Request) {
 
   const word = body?.word?.trim();
   const meaning = body?.meaning?.trim();
+  const targetCount = normalizeAiExampleCount(body?.count);
+  const referenceExamples = normalizeReferenceExamples(body?.referenceExamples);
+  const partOfSpeech = normalizePartOfSpeech(body?.partOfSpeech);
+
   if (!word || !meaning) {
     return NextResponse.json({ error: 'Word and meaning are required' }, { status: 400 });
   }
@@ -95,6 +144,16 @@ export async function POST(request: Request) {
 
   const model = process.env.CF_AI_MODEL || '@cf/meta/llama-3.1-8b-instruct';
 
+  const partOfSpeechBlock = partOfSpeech
+    ? `\nSelected part of speech: ${partOfSpeech}.`
+    : '';
+  const referenceBlock =
+    referenceExamples.length > 0
+      ? `\nReference user examples for this same meaning (use only as guidance, do not copy verbatim):\n${referenceExamples
+          .map((example, index) => `${index + 1}. ${example}`)
+          .join('\n')}\n`
+      : '';
+
   const messages: CloudflareMessage[] = [
     {
       role: 'system',
@@ -104,9 +163,12 @@ export async function POST(request: Request) {
     {
       role: 'user',
       content:
-        `Give me between 3 and 5 example sentences in English using the word "${word}" ` +
-        `(meaning: ${meaning}). Each sentence must clearly reflect this specific meaning.\n` +
-        'Reply with ONLY this JSON and nothing else:\n' +
+        `Give me up to ${targetCount} example sentences in English using the word "${word}" ` +
+        `(meaning: ${meaning}). Each sentence must clearly reflect this specific meaning.` +
+        partOfSpeechBlock +
+        ` Prefer ${targetCount} examples if possible, but return fewer if that is more natural or accurate.` +
+        referenceBlock +
+        '\nReply with ONLY this JSON and nothing else:\n' +
         '{"examples":["sentence 1","sentence 2","sentence 3"]}',
     },
   ];
@@ -134,14 +196,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: `AI service error: ${errMsg}` }, { status: 502 });
     }
 
-    // Native endpoint returns the text directly in result.response
-    const rawText = data?.result?.response ?? '';
-    // const examples = parseExamplesFromRawText(rawText);
+    const examples = extractExamplesFromAiResponse(data?.result?.response, targetCount);
 
-    // return NextResponse.json({ examples });
-    //
-    console.log('Raw AI response:', NextResponse.json(rawText));
-    return NextResponse.json(rawText);
+    return NextResponse.json({ examples });
   } catch (error) {
     console.error('Error in examples API:', error);
     return NextResponse.json(

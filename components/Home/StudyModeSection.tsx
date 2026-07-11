@@ -37,7 +37,8 @@ type StudyModeSectionProps = {
     word: string,
     meaning: string,
     definitions: WordDefinition[],
-    selectedGroups: string[]
+    selectedGroups: string[],
+    aiExampleCount: number
   ) => Promise<void> | void;
   onAddCustomGroup: (group: string) => void;
   onEditExisting: (
@@ -45,7 +46,8 @@ type StudyModeSectionProps = {
     word: string,
     meaning: string,
     definitions: WordDefinition[],
-    groups: string[]
+    groups: string[],
+    aiExampleCount: number
   ) => Promise<void> | void;
   onDeleteWord: (id: string) => Promise<void> | void;
   onEditWord: (
@@ -53,7 +55,8 @@ type StudyModeSectionProps = {
     word: string,
     meaning: string,
     definitions: WordDefinition[],
-    groups: string[]
+    groups: string[],
+    aiExampleCount: number
   ) => Promise<void> | void;
   onRefreshExamples: (id: string) => Promise<void> | void;
   onCreateGroup: (name: string) => Promise<void> | void;

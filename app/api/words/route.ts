@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { definitionsToMeaning, normalizeDefinitions } from '@/lib/definitions';
+import { normalizeAiExampleCount } from '@/lib/examples';
 
 export const revalidate = 0; // Disable caching for this route
 
@@ -19,6 +20,7 @@ export async function POST(request: NextRequest) {
       deleted,
       custom_group,
       custom_groups,
+      ai_example_count,
     } = body;
 
     if (!id || !word) {
@@ -44,6 +46,7 @@ export async function POST(request: NextRequest) {
       deleted: deleted || false,
       custom_groups: normalizedGroups,
       custom_group: normalizedGroups[0] || '',
+      ai_example_count: normalizeAiExampleCount(ai_example_count),
     };
 
     const { data, error } = await supabase.from('words').upsert(payload, { onConflict: 'id' });

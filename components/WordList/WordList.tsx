@@ -17,7 +17,8 @@ type WordListProps = {
         word: string,
         meaning: string,
         definitions: WordDefinition[],
-        customGroups: string[]
+        customGroups: string[],
+        aiExampleCount: number
     ) => Promise<void> | void;
     onRefreshExamples: (id: string) => Promise<void> | void;
     customGroups: string[];
@@ -53,6 +54,7 @@ export function WordList({
             meaning: editingItem.meaning,
             definitions: getWordDefinitions(editingItem),
             groups: getWordGroups(editingItem),
+            aiExampleCount: editingItem.aiExampleCount,
         };
     }, [editingItem]);
 
@@ -243,11 +245,11 @@ export function WordList({
                                         customGroups={customGroups}
                                         onAddCustomGroup={onAddCustomGroup}
                                         editValues={editValues}
-                                        onSubmit={async (word, meaning, definitions, groups) => {
+                                        onSubmit={async (word, meaning, definitions, groups, aiExampleCount) => {
                                             if (!editingId) {
                                                 return;
                                             }
-                                            await onEdit(editingId, word, meaning, definitions, groups);
+                                            await onEdit(editingId, word, meaning, definitions, groups, aiExampleCount);
                                             setEditingId(null);
                                         }}
                                         onCancel={() => setEditingId(null)}

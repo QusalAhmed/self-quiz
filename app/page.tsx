@@ -61,6 +61,7 @@ import {
   pushSrsPracticeWordToRemote,
   setupOnlineSyncListener,
 } from '@/lib/sync';
+import { mergeAiExamples, normalizeAiExampleCount, normalizeAiExamples } from '@/lib/examples';
 import { resolveWordTextFromMainTable } from '@/lib/word-display';
 
 type WordWithDefinitions<T> = T & { definitions?: WordDefinition[] };
@@ -906,7 +907,11 @@ export default function HomePage() {
 
       const current = toMutableWordRecord(doc.toJSON());
       const currentDefinitions = getWordDefinitions(current);
-      const missingIndexes = getMissingAiExampleDefinitionIndexes(currentDefinitions);
+      const targetAiExampleCount = normalizeAiExampleCount(current.aiExampleCount);
+      const missingIndexes = getMissingAiExampleDefinitionIndexes(
+        currentDefinitions,
+        targetAiExampleCount
+      );
       if (missingIndexes.length === 0) {
         return;
       }
@@ -918,7 +923,15 @@ export default function HomePage() {
 
       try {
         const generatedExamples = await Promise.all(
-          missingIndexes.map((index) => requestExamples(current.word, currentDefinitions[index].meaning))
+          missingIndexes.map((index) =>
+            requestExamples(
+              current.word,
+              currentDefinitions[index].meaning,
+              targetAiExampleCount,
+              currentDefinitions[index].userExamples ?? [],
+              currentDefinitions[index].partOfSpeech ?? ''
+            )
+          )
         );
         if (generatedExamples.every((examples) => examples.length === 0)) {
           return;
@@ -944,12 +957,24 @@ export default function HomePage() {
         const latest = toMutableWordRecord(refreshedDoc.toJSON());
         const latestDefinitions = getWordDefinitions(latest);
         const updatedDefinitions = latestDefinitions.map((definition, index) => {
-          if ((definition.examples?.length ?? 0) > 0) {
-            return definition;
+          const currentExamples = normalizeAiExamples(definition.examples, targetAiExampleCount);
+          if (currentExamples.length >= targetAiExampleCount) {
+            return {
+              ...definition,
+              examples: currentExamples,
+            };
           }
 
           const examples = generatedByIndex.get(index);
-          return examples && examples.length > 0 ? { ...definition, examples } : definition;
+          return examples && examples.length > 0
+            ? {
+                ...definition,
+                examples: mergeAiExamples(currentExamples, examples, targetAiExampleCount),
+              }
+            : {
+                ...definition,
+                examples: currentExamples,
+              };
         });
 
         if (
@@ -998,7 +1023,8 @@ export default function HomePage() {
     word: string,
     meaning: string,
     definitions: WordDefinition[],
-    selectedGroups: string[]
+    selectedGroups: string[],
+    aiExampleCount: number
   ) => {
     if (!database) {
       return;
@@ -1014,11 +1040,13 @@ export default function HomePage() {
     const timestamp = new Date().toISOString();
     const normalizedDefinitions = normalizeDefinitions(definitions, meaning);
     const normalizedMeaning = definitionsToMeaning(normalizedDefinitions);
+    const normalizedAiExampleCount = normalizeAiExampleCount(aiExampleCount);
     const record: WordRecord = {
       id: crypto.randomUUID(),
       word: capitalizeWord(word),
       meaning: normalizedMeaning,
       definitions: normalizedDefinitions,
+      aiExampleCount: normalizedAiExampleCount,
       createdAt: timestamp,
       updatedAt: timestamp,
       isDeleted: false,
@@ -1139,7 +1167,8 @@ export default function HomePage() {
     word: string,
     meaning: string,
     definitions: WordDefinition[],
-    customGroups: string[]
+    customGroups: string[],
+    aiExampleCount: number
   ) => {
     if (!database) {
       return;
@@ -1161,12 +1190,14 @@ export default function HomePage() {
     const current = toMutableWordRecord(doc.toJSON());
     const normalizedDefinitions = normalizeDefinitions(definitions, meaning);
     const normalizedMeaning = definitionsToMeaning(normalizedDefinitions);
+    const normalizedAiExampleCount = normalizeAiExampleCount(aiExampleCount);
     const record = {
       ...current,
       word,
       meaning: normalizedMeaning,
       definitions: normalizedDefinitions,
       customGroups: normalizedGroups,
+      aiExampleCount: normalizedAiExampleCount,
       updatedAt: timestamp,
     };
 
@@ -1247,12 +1278,21 @@ export default function HomePage() {
         return;
       }
 
-      const examplesPerDefinition = await requestExamplesForDefinitions(record.word, definitions);
+      const targetAiExampleCount = normalizeAiExampleCount(record.aiExampleCount);
+      const examplesPerDefinition = await requestExamplesForDefinitions(
+        record.word,
+        definitions,
+        targetAiExampleCount
+      );
       if (examplesPerDefinition.every((examples) => examples.length === 0)) {
         return;
       }
 
-      const updatedDefinitions = mergeExamplesIntoDefinitions(definitions, examplesPerDefinition);
+      const updatedDefinitions = mergeExamplesIntoDefinitions(
+        definitions,
+        examplesPerDefinition,
+        targetAiExampleCount
+      );
       const updated = {
         ...record,
         meaning: definitionsToMeaning(updatedDefinitions),
@@ -1300,8 +1340,9 @@ export default function HomePage() {
 
     const timestamp = new Date().toISOString();
     for (const item of missedWordsForMode) {
+      const { definitions: _definitions, ...baseRecord } = item;
       const record = {
-        ...item,
+        ...baseRecord,
         isDeleted: true,
         updatedAt: timestamp,
       };
@@ -1670,8 +1711,8 @@ export default function HomePage() {
           editingQuizWordId ? words.find((w) => w.id === editingQuizWordId) || null : null
         }
         customGroups={customGroups}
-        onSave={async (id, word, meaning, definitions, groups) => {
-          await handleEdit(id, word, meaning, definitions, groups);
+        onSave={async (id, word, meaning, definitions, groups, aiExampleCount) => {
+          await handleEdit(id, word, meaning, definitions, groups, aiExampleCount);
           setQuizQueue((prev) =>
             prev.map((item) =>
               item.id === id

@@ -11,6 +11,7 @@ import {
 import { EditWordModal } from '@/components/EditWordModal/EditWordModal';
 import type { WordDefinition, WordRecord } from '@/lib/db';
 import { definitionsToMeaning, normalizeDefinitions } from '@/lib/definitions';
+import { DEFAULT_AI_EXAMPLE_COUNT, normalizeAiExampleCount } from '@/lib/examples';
 
 export type { WordFormEditValues } from '@/components/WordForm/types';
 
@@ -26,13 +27,15 @@ type WordFormProps = {
         word: string,
         meaning: string,
         definitions: WordDefinition[],
-        groups: string[]
+        groups: string[],
+        aiExampleCount: number
     ) => Promise<void> | void;
     onSubmit: (
         word: string,
         meaning: string,
         definitions: WordDefinition[],
-        groups: string[]
+        groups: string[],
+        aiExampleCount: number
     ) => Promise<void> | void;
     onCancel?: () => void;
 };
@@ -55,6 +58,7 @@ export function WordForm({
         createEmptyDefinitionFormValue(),
     ]);
     const [groups, setGroups] = useState<string[]>([]);
+    const [aiExampleCount, setAiExampleCount] = useState(String(DEFAULT_AI_EXAMPLE_COUNT));
     const [isAddingNewGroup, setIsAddingNewGroup] = useState(false);
     const [newGroupName, setNewGroupName] = useState('');
     const [isSaving, setIsSaving] = useState(false);
@@ -65,6 +69,7 @@ export function WordForm({
         setWord('');
         setDefinitions([createEmptyDefinitionFormValue()]);
         setGroups([]);
+        setAiExampleCount(String(DEFAULT_AI_EXAMPLE_COUNT));
         setIsAddingNewGroup(false);
         setNewGroupName('');
     }, []);
@@ -102,6 +107,7 @@ export function WordForm({
             const normalized = normalizeDefinitions(editValues.definitions, editValues.meaning);
             setDefinitions(definitionsToFormValues(normalized));
             setGroups(editValues.groups);
+            setAiExampleCount(String(normalizeAiExampleCount(editValues.aiExampleCount)));
             setIsAddingNewGroup(false);
             setNewGroupName('');
         }
@@ -136,7 +142,13 @@ export function WordForm({
         setIsSaving(true);
         try {
             const nextDefinitions = parsedDefinitions();
-            await onSubmit(word.trim(), definitionsToMeaning(nextDefinitions), nextDefinitions, groups);
+            await onSubmit(
+                word.trim(),
+                definitionsToMeaning(nextDefinitions),
+                nextDefinitions,
+                groups,
+                normalizeAiExampleCount(aiExampleCount)
+            );
             if (!isEditMode) {
                 resetForm();
                 setTimeout(() => {
@@ -271,6 +283,27 @@ export function WordForm({
                     radius="md"
                 />
 
+                <Stack gap="sm">
+                    <TextInput
+                        label={
+                            <Text size="xs" fw={600} c="dimmed" span>
+                                AI examples per definition
+                            </Text>
+                        }
+                        description="Default 5. The app will ask AI for this many examples when possible."
+                        type="number"
+                        min={1}
+                        max={10}
+                        step={1}
+                        value={aiExampleCount}
+                        onChange={(event) => setAiExampleCount(event.currentTarget.value)}
+                        disabled={disabled || isSaving}
+                        size={inputSize}
+                        radius="md"
+                        style={{ maxWidth: 260 }}
+                    />
+                </Stack>
+
                 <Stack gap="md">
                     <Text size="xs" fw={600} c="dimmed">
                         Definitions (optional) — add one entry per meaning
@@ -379,8 +412,15 @@ export function WordForm({
                 onClose={closeEditModal}
                 wordRecord={editModalRecord}
                 customGroups={customGroups}
-                onSave={async (id, nextWord, nextMeaning, nextDefinitions, nextGroups) => {
-                    await onEditExisting(id, nextWord, nextMeaning, nextDefinitions, nextGroups);
+                onSave={async (id, nextWord, nextMeaning, nextDefinitions, nextGroups, nextAiExampleCount) => {
+                    await onEditExisting(
+                        id,
+                        nextWord,
+                        nextMeaning,
+                        nextDefinitions,
+                        nextGroups,
+                        nextAiExampleCount
+                    );
                     closeEditModal();
                 }}
                 onAddCustomGroup={onAddCustomGroup}

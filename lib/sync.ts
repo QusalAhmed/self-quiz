@@ -12,6 +12,7 @@ import {
   type WordRecord,
 } from './db';
 import { definitionsToMeaning, mergeLegacyFlatExamples, normalizeDefinitions } from './definitions';
+import { normalizeAiExampleCount } from './examples';
 import { getWordGroups } from './groups';
 import { buildSrsId, type SrsRecord } from './srs';
 import { buildSrsPracticeId } from './srs-practice';
@@ -53,6 +54,7 @@ function toWritableWord(record: any): WordRecord {
     meaning: definitionsToMeaning(definitions),
     definitions,
     customGroups: getWordGroups(record),
+    aiExampleCount: normalizeAiExampleCount(record.aiExampleCount ?? record.ai_example_count),
   };
 }
 
@@ -68,6 +70,7 @@ export type RemoteWordRow = {
   deleted: boolean;
   custom_group?: string | null;
   custom_groups?: string[] | null;
+  ai_example_count?: number | null;
 };
 
 export type RemoteGroupRow = {
@@ -107,6 +110,7 @@ function mapRowToRecord(row: RemoteWordRow): WordRecord {
     word: row.word,
     meaning: definitionsToMeaning(definitions),
     definitions,
+    aiExampleCount: normalizeAiExampleCount(row.ai_example_count),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     isDeleted: row.deleted,
@@ -387,6 +391,7 @@ type WordSyncPayload = {
   deleted: boolean;
   custom_groups: string[];
   custom_group: string;
+  ai_example_count: number;
 };
 
 function wordRecordToPayload(record: WordRecord): WordSyncPayload {
@@ -406,6 +411,7 @@ function wordRecordToPayload(record: WordRecord): WordSyncPayload {
     deleted: record.isDeleted,
     custom_groups: groups,
     custom_group: groups[0] || '',
+    ai_example_count: normalizeAiExampleCount(record.aiExampleCount),
   };
 }
 

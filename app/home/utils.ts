@@ -1,6 +1,12 @@
 import type { WordDefinition, WordRecord } from '@/lib/db';
 import { definitionsToMeaning, normalizeDefinitions } from '@/lib/definitions';
 import { getWordGroups } from '@/lib/groups';
+import {
+  DEFAULT_AI_EXAMPLE_COUNT,
+  mergeAiExamples,
+  normalizeAiExampleCount,
+  normalizeAiExamples,
+} from '@/lib/examples';
 import type { QuizRangeKey } from './constants';
 
 export function shuffle<T>(items: T[]): T[] {
@@ -91,6 +97,7 @@ export function toMutableWordRecord(record: any): WordRecord {
     meaning: definitionsToMeaning(definitions),
     definitions,
     customGroups: getWordGroups(record),
+    aiExampleCount: normalizeAiExampleCount(record.aiExampleCount ?? record.ai_example_count),
   } as WordRecord;
 }
 
@@ -102,7 +109,13 @@ export function capitalizeWord(value: string): string {
   return `${trimmed.charAt(0).toUpperCase()}${trimmed.slice(1)}`;
 }
 
-export async function requestExamples(word: string, meaning: string): Promise<string[]> {
+export async function requestExamples(
+  word: string,
+  meaning: string,
+  targetCount = DEFAULT_AI_EXAMPLE_COUNT,
+  referenceExamples: string[] = [],
+  partOfSpeech = ''
+): Promise<string[]> {
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
     return [];
   }
@@ -110,7 +123,13 @@ export async function requestExamples(word: string, meaning: string): Promise<st
   const response = await fetch('/api/examples', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ word, meaning }),
+    body: JSON.stringify({
+      word,
+      meaning,
+      count: normalizeAiExampleCount(targetCount),
+      referenceExamples,
+      partOfSpeech,
+    }),
   });
 
   if (!response.ok) {
@@ -120,21 +139,31 @@ export async function requestExamples(word: string, meaning: string): Promise<st
   }
 
   const data = await response.json();
-  return Array.isArray(data?.examples)
-    ? data.examples.map((item: string) => String(item).trim()).filter(Boolean)
-    : [];
+  return normalizeAiExamples(data?.examples, targetCount);
 }
 
 export async function requestExamplesForDefinitions(
   word: string,
-  definitions: WordDefinition[]
+  definitions: WordDefinition[],
+  targetCount = DEFAULT_AI_EXAMPLE_COUNT
 ): Promise<string[][]> {
-  return Promise.all(definitions.map((definition) => requestExamples(word, definition.meaning)));
+  return Promise.all(
+    definitions.map((definition) =>
+      requestExamples(
+        word,
+        definition.meaning,
+        targetCount,
+        definition.userExamples ?? [],
+        definition.partOfSpeech ?? ''
+      )
+    )
+  );
 }
 
 export function mergeExamplesIntoDefinitions(
   definitions: WordDefinition[],
-  examplesPerDefinition: string[][]
+  examplesPerDefinition: string[][],
+  targetCount = DEFAULT_AI_EXAMPLE_COUNT
 ): WordDefinition[] {
   return definitions.map((definition, index) => {
     const nextExamples = examplesPerDefinition[index];
@@ -142,19 +171,24 @@ export function mergeExamplesIntoDefinitions(
       ...definition,
       examples:
         Array.isArray(nextExamples) && nextExamples.length > 0
-          ? nextExamples
-          : definition.examples ?? [],
+          ? normalizeAiExamples(nextExamples, targetCount)
+          : normalizeAiExamples(definition.examples ?? [], targetCount),
     };
   });
 }
 
-export function getMissingAiExampleDefinitionIndexes(definitions: WordDefinition[]): number[] {
+export function getMissingAiExampleDefinitionIndexes(
+  definitions: WordDefinition[],
+  targetCount = DEFAULT_AI_EXAMPLE_COUNT
+): number[] {
+  const normalizedTarget = normalizeAiExampleCount(targetCount);
+
   return definitions
     .map((definition, index) => ({ definition, index }))
     .filter(
       ({ definition }) =>
         definition.meaning.trim().length > 0 &&
-        (!Array.isArray(definition.examples) || definition.examples.length === 0)
+        mergeAiExamples([], definition.examples ?? [], normalizedTarget).length < normalizedTarget
     )
     .map(({ index }) => index);
 }
