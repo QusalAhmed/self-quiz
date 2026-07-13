@@ -62,6 +62,16 @@ export type MissedWordRecord = {
   isDeleted: boolean;
 };
 
+export type DailyUsageRecord = {
+  id: string; // "YYYY-MM-DD:deviceId"
+  date: string; // "YYYY-MM-DD"
+  deviceId: string;
+  seconds: number;
+  updatedAt: string;
+  lastSyncedAt: string;
+  isDeleted: boolean;
+};
+
 export function buildMissedWordId(wordId: string, quizMode: QuizMode): string {
   return `${wordId}:${quizMode}`;
 }
@@ -71,12 +81,14 @@ export type MissedWordCollection = RxCollection<MissedWordRecord>;
 export type GroupCollection = RxCollection<GroupRecord>;
 export type SrsCollection = RxCollection<SrsRecord>;
 export type SrsPracticeCollection = RxCollection<SrsPracticeRecord>;
+export type DailyUsageCollection = RxCollection<DailyUsageRecord>;
 export type AppDatabase = RxDatabase<{
   words: WordCollection;
   missedWords: MissedWordCollection;
   groups: GroupCollection;
   srsRecords: SrsCollection;
   srsPracticeWords: SrsPracticeCollection;
+  dailyUsage: DailyUsageCollection;
 }>;
 
 const wordSchema: RxJsonSchema<WordRecord> = {
@@ -258,6 +270,26 @@ const srsPracticeSchema: RxJsonSchema<SrsPracticeRecord> = {
   indexes: ['wordId', 'quizMode', 'practicedAt', 'updatedAt', 'isDeleted'],
 };
 
+const dailyUsageSchema: RxJsonSchema<DailyUsageRecord> = {
+  title: 'daily usage schema',
+  version: 1,
+  description: 'Daily usage time per device',
+  primaryKey: 'id',
+  type: 'object',
+  properties: {
+    id: { type: 'string', maxLength: 128 },
+    date: { type: 'string', maxLength: 16 },
+    deviceId: { type: 'string', maxLength: 64 },
+    seconds: { type: 'number', minimum: 0 },
+    updatedAt: { type: 'string', maxLength: 32 },
+    lastSyncedAt: { type: 'string', default: '' },
+    isDeleted: { type: 'boolean', default: false },
+  },
+  required: ['id', 'date', 'deviceId', 'seconds', 'updatedAt', 'lastSyncedAt', 'isDeleted'],
+  indexes: ['date', 'deviceId', 'updatedAt', 'isDeleted'],
+};
+
+
 if (process.env.NODE_ENV === 'development') {
   addRxPlugin(RxDBDevModePlugin);
   disableWarnings();
@@ -429,6 +461,12 @@ async function createDatabase(): Promise<AppDatabase> {
     },
     srsPracticeWords: {
       schema: srsPracticeSchema,
+      migrationStrategies: {
+        1: (oldDoc) => ({ ...oldDoc }),
+      },
+    },
+    dailyUsage: {
+      schema: dailyUsageSchema,
       migrationStrategies: {
         1: (oldDoc) => ({ ...oldDoc }),
       },

@@ -72,24 +72,24 @@ export function MissedWordVirtualList({
           const severity =
             count >= 5
               ? {
-                  color: '#ef4444',
-                  bg: 'rgba(239,68,68,0.08)',
-                  border: 'rgba(239,68,68,0.25)',
-                  badgeColor: 'red' as const,
-                }
+                color: '#ef4444',
+                bg: 'rgba(239,68,68,0.08)',
+                border: 'rgba(239,68,68,0.25)',
+                badgeColor: 'red' as const,
+              }
               : count >= 3
                 ? {
-                    color: '#f97316',
-                    bg: 'rgba(249,115,22,0.07)',
-                    border: 'rgba(249,115,22,0.2)',
-                    badgeColor: 'orange' as const,
-                  }
+                  color: '#f97316',
+                  bg: 'rgba(249,115,22,0.07)',
+                  border: 'rgba(249,115,22,0.2)',
+                  badgeColor: 'orange' as const,
+                }
                 : {
-                    color: '#22c55e',
-                    bg: 'rgba(34,197,94,0.06)',
-                    border: 'rgba(34,197,94,0.18)',
-                    badgeColor: 'teal' as const,
-                  };
+                  color: '#22c55e',
+                  bg: 'rgba(34,197,94,0.06)',
+                  border: 'rgba(34,197,94,0.18)',
+                  badgeColor: 'teal' as const,
+                };
 
           const isRevealed = !hideMissedMeanings || revealedMissedWordIds[word.id];
           const isGeneratingExamples = Boolean(generatingExampleWordIds[word.wordId]);

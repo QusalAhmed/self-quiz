@@ -24,6 +24,7 @@ import {
   toMutableWordRecord,
 } from '@/app/home/utils';
 import { ClearMissedWordsModal } from '@/components/Home/ClearMissedWordsModal';
+import { DailyUsageTimer } from '@/components/Home/DailyUsageTimer';
 import { HomeHeader } from '@/components/Home/HomeHeader';
 import { QuizModeSection } from '@/components/Home/QuizModeSection';
 import { StatsDashboard } from '@/components/Home/StatsDashboard';
@@ -778,9 +779,11 @@ export default function HomePage() {
               db.missedWords,
               db.groups,
               db.srsRecords,
-              db.srsPracticeWords
+              db.srsPracticeWords,
+              db.dailyUsage
             )
-          )
+          ),
+        db.dailyUsage
       );
 
       // Sync in background — does not block UI rendering
@@ -792,7 +795,8 @@ export default function HomePage() {
             db.missedWords,
             db.groups,
             db.srsRecords,
-            db.srsPracticeWords
+            db.srsPracticeWords,
+            db.dailyUsage
           )
         );
       } else {
@@ -968,13 +972,13 @@ export default function HomePage() {
           const examples = generatedByIndex.get(index);
           return examples && examples.length > 0
             ? {
-                ...definition,
-                examples: mergeAiExamples(currentExamples, examples, targetAiExampleCount),
-              }
+              ...definition,
+              examples: mergeAiExamples(currentExamples, examples, targetAiExampleCount),
+            }
             : {
-                ...definition,
-                examples: currentExamples,
-              };
+              ...definition,
+              examples: currentExamples,
+            };
         });
 
         if (
@@ -998,10 +1002,10 @@ export default function HomePage() {
           prev.map((item) =>
             item.id === wordId
               ? {
-                  ...item,
-                  meaning: updated.meaning,
-                  definitions: updated.definitions,
-                }
+                ...item,
+                meaning: updated.meaning,
+                definitions: updated.definitions,
+              }
               : item
           )
         );
@@ -1207,10 +1211,10 @@ export default function HomePage() {
       prev.map((item) =>
         item.id === id
           ? {
-              ...item,
-              meaning: record.meaning,
-              definitions: record.definitions,
-            }
+            ...item,
+            meaning: record.meaning,
+            definitions: record.definitions,
+          }
           : item
       )
     );
@@ -1570,6 +1574,8 @@ export default function HomePage() {
           onToggleTheme={toggleTheme}
         />
 
+        <DailyUsageTimer />
+
         <StatsDashboard
           totalWords={words.length}
           todayCount={todayCount}
@@ -1717,12 +1723,12 @@ export default function HomePage() {
             prev.map((item) =>
               item.id === id
                 ? {
-                    ...item,
-                    word,
-                    meaning,
-                    definitions,
-                    tags: groups,
-                  }
+                  ...item,
+                  word,
+                  meaning,
+                  definitions,
+                  tags: groups,
+                }
                 : item
             )
           );

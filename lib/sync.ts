@@ -10,6 +10,8 @@ import {
   type SrsCollection,
   type WordCollection,
   type WordRecord,
+  type DailyUsageCollection,
+  type DailyUsageRecord,
 } from './db';
 import { definitionsToMeaning, mergeLegacyFlatExamples, normalizeDefinitions } from './definitions';
 import { normalizeAiExampleCount } from './examples';
@@ -582,8 +584,253 @@ export async function flushGroupOutbox(collection: GroupCollection): Promise<voi
 }
 
 // ---------------------------------------------------------------------------
-// Pull from remote
+// Daily Usage outbox (localStorage)
 // ---------------------------------------------------------------------------
+
+const DAILY_USAGE_OUTBOX_KEY = 'self_quiz_daily_usage_outbox';
+
+type DailyUsageSyncPayload = {
+  id: string;
+  date: string;
+  device_id: string;
+  seconds: number;
+  updated_at: string;
+  deleted: boolean;
+};
+
+function dailyUsageRecordToPayload(record: DailyUsageRecord): DailyUsageSyncPayload {
+  return {
+    id: record.id,
+    date: record.date,
+    device_id: record.deviceId,
+    seconds: record.seconds,
+    updated_at: record.updatedAt,
+    deleted: record.isDeleted,
+  };
+}
+
+function readDailyUsageOutbox(): DailyUsageSyncPayload[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(DAILY_USAGE_OUTBOX_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeDailyUsageOutbox(items: DailyUsageSyncPayload[]): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(DAILY_USAGE_OUTBOX_KEY, JSON.stringify(items));
+}
+
+function enqueueDailyUsageOutbox(record: DailyUsageRecord): void {
+  const payload = dailyUsageRecordToPayload(record);
+  const outbox = readDailyUsageOutbox().filter((item) => item.id !== payload.id);
+  outbox.push(payload);
+  writeDailyUsageOutbox(outbox);
+}
+
+function removeFromDailyUsageOutbox(id: string): void {
+  writeDailyUsageOutbox(readDailyUsageOutbox().filter((item) => item.id !== id));
+}
+
+export async function flushDailyUsageOutbox(collection: DailyUsageCollection): Promise<void> {
+  if (!isOnline()) return;
+
+  const outbox = readDailyUsageOutbox();
+  if (outbox.length === 0) return;
+
+  console.log(`Flushing ${outbox.length} daily usage record(s) from outbox...`);
+  const failed: DailyUsageSyncPayload[] = [];
+
+  for (const payload of outbox) {
+    try {
+      const response = await fetch('/api/daily-usage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        await handleSyncResponseError(response, 'flush daily usage outbox');
+        failed.push(payload);
+        continue;
+      }
+
+      removeFromDailyUsageOutbox(payload.id);
+      const existing = await collection.findOne(payload.id).exec();
+      if (existing) {
+        await collection.upsert({
+          ...existing.toJSON(),
+          lastSyncedAt: payload.updated_at,
+        });
+      }
+    } catch {
+      failed.push(payload);
+    }
+  }
+
+  if (failed.length > 0) {
+    writeDailyUsageOutbox(failed);
+    console.warn(`${failed.length} daily usage record(s) remain in outbox after flush`);
+  }
+}
+
+export type RemoteDailyUsageRow = {
+  id: string;
+  date: string;
+  device_id: string;
+  seconds: number;
+  updated_at: string;
+  deleted: boolean;
+};
+
+function mapDailyUsageRowToRecord(row: RemoteDailyUsageRow): DailyUsageRecord {
+  return {
+    id: row.id,
+    date: row.date,
+    deviceId: row.device_id,
+    seconds: row.seconds,
+    updatedAt: row.updated_at,
+    lastSyncedAt: row.updated_at,
+    isDeleted: row.deleted,
+  };
+}
+
+export async function pullRemoteDailyUsage(collection: DailyUsageCollection): Promise<void> {
+  if (!isOnline()) {
+    console.log('Device is offline, skipping daily usage pull from remote');
+    return;
+  }
+
+  try {
+    console.log('Pulling daily usage from Supabase...');
+    const response = await fetch(`/api/daily-usage?t=${Date.now()}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+      },
+    });
+
+    if (!response.ok) {
+      await handleSyncResponseError(response, 'pull remote daily usage');
+      return;
+    }
+
+    const { data } = await response.json();
+    if (!data || !Array.isArray(data)) {
+      console.log('No daily usage records to pull');
+      return;
+    }
+
+    console.log('Successfully pulled', data.length, 'daily usage record(s) from remote');
+    for (const row of data as RemoteDailyUsageRow[]) {
+      const mapped = mapDailyUsageRowToRecord(row);
+      const local = await collection.findOne(mapped.id).exec();
+      if (local) {
+        const localRecord = local.toJSON();
+
+        if (mapped.isDeleted && !localRecord.isDeleted) {
+          await collection.upsert(mapped);
+          continue;
+        }
+
+        // For daily usage, take the MAX seconds between local and remote
+        // to avoid losing study time from any device
+        if (localRecord.updatedAt >= mapped.updatedAt) {
+          // Local is same version or newer — keep local but merge if remote has more seconds
+          if (!mapped.isDeleted && mapped.seconds > localRecord.seconds) {
+            await collection.upsert({
+              ...localRecord,
+              seconds: mapped.seconds,
+              updatedAt: mapped.updatedAt,
+              lastSyncedAt: mapped.updatedAt,
+            });
+          }
+          continue;
+        }
+
+        // Remote is strictly newer
+        await collection.upsert(mapped);
+      } else {
+        await collection.upsert(mapped);
+      }
+    }
+  } catch (error) {
+    console.error('Error pulling daily usage:', error);
+  }
+}
+
+export async function pushDailyUsageToRemote(
+  collection: DailyUsageCollection,
+  record: DailyUsageRecord
+): Promise<void> {
+  if (!isOnline()) {
+    enqueueDailyUsageOutbox(record);
+    console.log('Device is offline, daily usage queued to outbox. Will sync when online.');
+    return;
+  }
+
+  try {
+    const payload = dailyUsageRecordToPayload(record);
+
+    const response = await fetch('/api/daily-usage', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      enqueueDailyUsageOutbox(record);
+      await handleSyncResponseError(response, 'push daily usage to remote');
+      return;
+    }
+
+    removeFromDailyUsageOutbox(record.id);
+    await collection.upsert({
+      ...record,
+      lastSyncedAt: record.updatedAt,
+    });
+    console.log('Successfully synced daily usage to remote:', record.id);
+  } catch (error) {
+    enqueueDailyUsageOutbox(record);
+    console.error('Error pushing daily usage to remote:', error);
+  }
+}
+
+export async function pushAllLocalDailyUsage(collection: DailyUsageCollection): Promise<void> {
+  if (!isOnline()) {
+    console.log('Device is offline, skipping daily usage push. Will sync when online.');
+    return;
+  }
+
+  try {
+    await flushDailyUsageOutbox(collection);
+
+    const localRecords = await collection.find().exec();
+    let syncedCount = 0;
+
+    for (const doc of localRecords) {
+      const record = doc.toJSON();
+      if (hasPendingLocalSync(record)) {
+        await pushDailyUsageToRemote(collection, record as DailyUsageRecord);
+        syncedCount++;
+      }
+    }
+
+    if (syncedCount > 0) {
+      console.log('Synced', syncedCount, 'daily usage record(s) to remote');
+    }
+  } catch (error) {
+    console.error('Error pushing all local daily usage:', error);
+  }
+}
+
+
 
 export async function pullRemoteWords(collection: WordCollection): Promise<void> {
   // Skip if offline
@@ -1479,7 +1726,8 @@ export async function performFullSync(
   missedCollection: MissedWordCollection,
   groupsCollection: GroupCollection,
   srsCollection?: SrsCollection,
-  srsPracticeCollection?: SrsPracticeCollection
+  srsPracticeCollection?: SrsPracticeCollection,
+  dailyUsageCollection?: DailyUsageCollection
 ): Promise<void> {
   if (!isOnline()) {
     console.log('Device is offline, skipping full sync');
@@ -1492,22 +1740,25 @@ export async function performFullSync(
   await flushWordOutbox(wordsCollection);
   await flushGroupOutbox(groupsCollection);
   await flushMissedWordOutbox(missedCollection);
-  if (srsCollection) await flushSrsOutbox(srsCollection);
-  if (srsPracticeCollection) await flushSrsPracticeOutbox(srsPracticeCollection);
+  if (srsCollection) { await flushSrsOutbox(srsCollection); }
+  if (srsPracticeCollection) { await flushSrsPracticeOutbox(srsPracticeCollection); }
+  if (dailyUsageCollection) { await flushDailyUsageOutbox(dailyUsageCollection); }
 
   // Step 2: Pull remote — brings in changes from other devices
   await pullRemoteGroups(groupsCollection);
   await pullRemoteWords(wordsCollection);
   await pullRemoteMissedWords(missedCollection);
-  if (srsCollection) await pullRemoteSrsRecords(srsCollection);
-  if (srsPracticeCollection) await pullRemoteSrsPracticeWords(srsPracticeCollection);
+  if (srsCollection) { await pullRemoteSrsRecords(srsCollection); }
+  if (srsPracticeCollection) { await pullRemoteSrsPracticeWords(srsPracticeCollection); }
+  if (dailyUsageCollection) { await pullRemoteDailyUsage(dailyUsageCollection); }
 
   // Step 3: Push any remaining locally pending records
   await pushAllLocalGroups(groupsCollection);
   await pushAllLocalWords(wordsCollection);
   await pushAllLocalMissedWords(missedCollection);
-  if (srsCollection) await pushAllLocalSrsRecords(srsCollection);
-  if (srsPracticeCollection) await pushAllLocalSrsPracticeWords(srsPracticeCollection);
+  if (srsCollection) { await pushAllLocalSrsRecords(srsCollection); }
+  if (srsPracticeCollection) { await pushAllLocalSrsPracticeWords(srsPracticeCollection); }
+  if (dailyUsageCollection) { await pushAllLocalDailyUsage(dailyUsageCollection); }
 
   // Step 4: Fetch meanings for words that are still missing them
   await fetchMissingMeanings(wordsCollection);
@@ -1524,7 +1775,8 @@ export function setupOnlineSyncListener(
   groupsCollection: GroupCollection,
   srsCollection?: SrsCollection,
   srsPracticeCollection?: SrsPracticeCollection,
-  performSync?: () => Promise<void>
+  performSync?: () => Promise<void>,
+  dailyUsageCollection?: DailyUsageCollection
 ): () => void {
   const handleOnline = async () => {
     console.log('Device is back online! Starting full sync...');
@@ -1537,7 +1789,8 @@ export function setupOnlineSyncListener(
       missedCollection,
       groupsCollection,
       srsCollection,
-      srsPracticeCollection
+      srsPracticeCollection,
+      dailyUsageCollection
     );
   };
 
