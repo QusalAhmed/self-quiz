@@ -283,26 +283,6 @@ export function WordForm({
                     radius="md"
                 />
 
-                <Stack gap="sm">
-                    <TextInput
-                        label={
-                            <Text size="xs" fw={600} c="dimmed" span>
-                                AI examples per definition
-                            </Text>
-                        }
-                        description="Default 5. The app will ask AI for this many examples when possible."
-                        type="number"
-                        min={1}
-                        max={10}
-                        step={1}
-                        value={aiExampleCount}
-                        onChange={(event) => setAiExampleCount(event.currentTarget.value)}
-                        disabled={disabled || isSaving}
-                        size={inputSize}
-                        radius="md"
-                        style={{ maxWidth: 260 }}
-                    />
-                </Stack>
 
                 <Stack gap="md">
                     <Text size="xs" fw={600} c="dimmed">
@@ -366,6 +346,27 @@ export function WordForm({
                         setIsAddingNewGroup(false);
                     }}
                 />
+
+                <Stack gap="sm">
+                    <TextInput
+                        label={
+                            <Text size="xs" fw={600} c="dimmed" span>
+                                AI examples per definition
+                            </Text>
+                        }
+                        description="Default 5. The app will ask AI for this many examples when possible."
+                        type="number"
+                        min={1}
+                        max={10}
+                        step={1}
+                        value={aiExampleCount}
+                        onChange={(event) => setAiExampleCount(event.currentTarget.value)}
+                        disabled={disabled || isSaving}
+                        size={inputSize}
+                        radius="md"
+                        style={{ maxWidth: 260 }}
+                    />
+                </Stack>
 
                 <Group justify="flex-end" gap={isEditMode ? 'xs' : 'sm'} mt={variant === 'plain' ? 'sm' : 'xs'}>
                     {isEditMode && onCancel && (
