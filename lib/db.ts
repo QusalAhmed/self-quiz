@@ -347,6 +347,19 @@ const dailyUsageSchema: RxJsonSchema<DailyUsageRecord> = {
   indexes: ['date', 'deviceId', 'updatedAt', 'isDeleted'],
 };
 
+if (typeof window !== 'undefined') {
+  const originalWarn = console.warn;
+  console.warn = function (...args: any[]) {
+    if (
+      typeof args[0] === 'string' &&
+      (args[0].includes('RxDB Open Core RxStorage') || args[0].includes('RxDB dev-mode warning'))
+    ) {
+      return;
+    }
+    originalWarn.apply(console, args);
+  };
+}
+
 if (process.env.NODE_ENV === 'development') {
   disableWarnings();
   addRxPlugin(RxDBDevModePlugin);
