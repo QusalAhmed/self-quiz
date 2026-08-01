@@ -752,8 +752,7 @@ export function QuizPanel({
                     </Group>
                   </Card>
 
-                  {showUserExamplesButton}
-                  {userExamplesBlock}
+                  {definitionsBlockNoSpoilers}
 
                   <TextInput
                     value={typedWord}
