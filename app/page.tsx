@@ -750,7 +750,7 @@ export default function HomePage() {
       customStartChanged ||
       customEndChanged ||
       groupChanged ||
-      (directionChanged && (quizSource === 'missed' || quizSource === 'srsPractice'));
+      directionChanged;
 
     if (!poolChanged || quizQueue.length === 0) {
       return;
@@ -951,6 +951,54 @@ export default function HomePage() {
       cleanupOnlineListener?.();
     };
   }, []);
+  // Auto-backfill missing SRS and FSRS records for meaningToWord and spelling modes across all words
+  useEffect(() => {
+    if (!database || isLoading || words.length === 0) {
+      return;
+    }
+
+    const backfill = async () => {
+      const allModes: import('@/lib/db').QuizMode[] = [
+        'wordToMeaning',
+        'meaningToWord',
+        'spelling',
+      ];
+
+      for (const wordRecord of words) {
+        if (wordRecord.isDeleted) continue;
+
+        for (const qMode of allModes) {
+          const srsId = buildSrsId(wordRecord.id, qMode);
+          const srsDoc = await database.srsRecords.findOne(srsId).exec();
+          if (!srsDoc) {
+            const newSrs = createInitialSrsRecord(
+              wordRecord.id,
+              qMode,
+              wordRecord.word,
+              wordRecord.meaning
+            );
+            await database.srsRecords.upsert(newSrs);
+            void pushSrsRecordToRemote(database.srsRecords, newSrs);
+          }
+
+          const fsrsId = buildFsrsId(wordRecord.id, qMode);
+          const fsrsDoc = await database.fsrsRecords.findOne(fsrsId).exec();
+          if (!fsrsDoc) {
+            const newFsrs = createInitialFsrsRecord(
+              wordRecord.id,
+              qMode,
+              wordRecord.word,
+              wordRecord.meaning
+            );
+            await database.fsrsRecords.upsert(newFsrs);
+            void pushFsrsRecordToRemote(database.fsrsRecords, newFsrs);
+          }
+        }
+      }
+    };
+
+    void backfill();
+  }, [database, isLoading, words]);
 
   const currentQuizItem = quizQueue[quizIndex] ?? null;
 
@@ -1239,11 +1287,7 @@ export default function HomePage() {
     await pushWordToRemote(database.words, record);
 
     // Auto-enqueue word into SRS for all quiz modes
-    const quizModes: import('@/lib/db').QuizMode[] = [
-      'wordToMeaning',
-      // 'meaningToWord',
-      // 'spelling'
-    ];
+    const quizModes: import('@/lib/db').QuizMode[] = ['wordToMeaning', 'meaningToWord', 'spelling'];
     for (const qMode of quizModes) {
       const srsRecord = createInitialSrsRecord(
         record.id,
