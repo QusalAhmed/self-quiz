@@ -45,7 +45,7 @@ export function StatsDashboard({
               {totalWords}
             </Text>
           </div>
-          <IconBook size={28} style={{ opacity: 0.25, color: '#6366f1' }} />
+          <IconBook size={28} style={{ opacity: 0.35, color: '#6366f1' }} />
         </Group>
       </Card>
 
@@ -65,7 +65,7 @@ export function StatsDashboard({
               {todayCount}
             </Text>
           </div>
-          <IconHistory size={28} style={{ opacity: 0.25, color: '#a855f7' }} />
+          <IconHistory size={28} style={{ opacity: 0.35, color: '#a855f7' }} />
         </Group>
       </Card>
 
@@ -85,10 +85,10 @@ export function StatsDashboard({
               <Text
                 size="xl"
                 fw={800}
+                c={srsDueTodayCount > 0 ? 'violet.6' : undefined}
                 style={{
                   fontFamily: 'var(--font-title)',
                   marginTop: '4px',
-                  color: srsDueTodayCount > 0 ? '#8b5cf6' : undefined,
                 }}
               >
                 {srsDueTodayCount}
@@ -96,8 +96,8 @@ export function StatsDashboard({
               {srsNextDueText && (
                 <Text
                   size="xs"
-                  fw={700}
-                  c={srsDueTodayCount > 0 ? 'violet.4' : 'dimmed'}
+                  fw={800}
+                  c={srsDueTodayCount > 0 ? 'violet.6' : 'dimmed'}
                   style={{ opacity: 0.95 }}
                 >
                   • {srsNextDueText}
@@ -105,7 +105,7 @@ export function StatsDashboard({
               )}
             </Group>
           </div>
-          <IconBrain size={28} style={{ opacity: 0.25, color: '#8b5cf6' }} />
+          <IconBrain size={28} style={{ opacity: 0.35, color: '#8b5cf6' }} />
         </Group>
       </Card>
 
@@ -113,7 +113,7 @@ export function StatsDashboard({
         className="glass-panel hover-lift"
         radius="lg"
         padding="md"
-        style={{ borderLeft: '4px solid #06b6d4', cursor: 'pointer' }}
+        style={{ borderLeft: '4px solid #ec4899', cursor: 'pointer' }}
         onClick={onOpenFsrsQuiz}
       >
         <Group justify="space-between" align="center">
@@ -125,10 +125,10 @@ export function StatsDashboard({
               <Text
                 size="xl"
                 fw={800}
+                c={fsrsDueTodayCount > 0 ? 'pink.6' : undefined}
                 style={{
                   fontFamily: 'var(--font-title)',
                   marginTop: '4px',
-                  color: fsrsDueTodayCount > 0 ? '#06b6d4' : undefined,
                 }}
               >
                 {fsrsDueTodayCount}
@@ -136,8 +136,8 @@ export function StatsDashboard({
               {fsrsNextDueText && (
                 <Text
                   size="xs"
-                  fw={700}
-                  c={fsrsDueTodayCount > 0 ? 'cyan.4' : 'dimmed'}
+                  fw={800}
+                  c={fsrsDueTodayCount > 0 ? 'pink.6' : 'dimmed'}
                   style={{ opacity: 0.95 }}
                 >
                   • {fsrsNextDueText}
@@ -145,7 +145,7 @@ export function StatsDashboard({
               )}
             </Group>
           </div>
-          <IconBrain size={28} style={{ opacity: 0.25, color: '#06b6d4' }} />
+          <IconBrain size={28} style={{ opacity: 0.45, color: '#ec4899' }} />
         </Group>
       </Card>
     </SimpleGrid>
