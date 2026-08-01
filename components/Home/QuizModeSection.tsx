@@ -94,6 +94,7 @@ type QuizModeSectionProps = {
   onTogglePracticeMissed: (word: SrsPracticeRecord) => void;
   onOpenSrsPracticeQuiz: () => void;
   onOpenClearAllMissed: () => void;
+  onDeleteFsrsRecord?: (wordId: string, quizMode: QuizDirection) => void;
 };
 
 export function QuizModeSection({
@@ -146,6 +147,7 @@ export function QuizModeSection({
   onTogglePracticeMissed,
   onOpenSrsPracticeQuiz,
   onOpenClearAllMissed,
+  onDeleteFsrsRecord,
 }: QuizModeSectionProps) {
   return (
     <Stack gap="lg" style={{ minHeight: '100vh' }}>
@@ -327,6 +329,7 @@ export function QuizModeSection({
         onSrsRate={quizSource === 'srs' || quizSource === 'fsrs' ? onSrsRate : undefined}
         srsIntervals={quizSource === 'srs' || quizSource === 'fsrs' ? srsIntervals : undefined}
         onEditClick={onEditClick}
+        onDeleteFsrsRecord={onDeleteFsrsRecord}
       />
 
       <Card

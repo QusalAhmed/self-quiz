@@ -13,6 +13,7 @@ import {
   Divider,
   Badge,
   Scroller,
+  Modal,
   SimpleGrid,
 } from '@mantine/core';
 import {
@@ -27,8 +28,10 @@ import {
   IconBookmarkOff,
   IconEdit,
   IconNotes,
+  IconTrash,
 } from '@tabler/icons-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { quizDirections } from '@/app/home/constants';
 import { DefinitionsDisplay } from '@/components/DefinitionsDisplay/DefinitionsDisplay';
 import { WordActionIcon } from '@/components/WordActions/WordActionIcon';
 import type { WordDefinition } from '@/lib/db';
@@ -69,6 +72,8 @@ type QuizPanelProps = {
   /** Estimated next review interval per rating, e.g. { again: '1m', hard: '10m', good: '1d', easy: '4d' } */
   srsIntervals?: Partial<Record<SrsRating, string>>;
   onEditClick?: (id: string) => void;
+  /** Called to delete FSRS record for selected quiz mode */
+  onDeleteFsrsRecord?: (wordId: string, quizMode: QuizDirection) => void;
 };
 
 export function QuizPanel({
@@ -92,11 +97,13 @@ export function QuizPanel({
   onSrsRate,
   srsIntervals,
   onEditClick,
+  onDeleteFsrsRecord,
 }: QuizPanelProps) {
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [typedWord, setTypedWord] = useState('');
   const [spellingState, setSpellingState] = useState<'idle' | 'correct' | 'incorrect'>('idle');
   const [showUserExamples, setShowUserExamples] = useState(false);
+  const [confirmDeleteFsrsOpened, setConfirmDeleteFsrsOpened] = useState(false);
   const quizPanelRef = useRef<HTMLDivElement>(null);
   const lastAutoPronouncedKeyRef = useRef<string | null>(null);
 
@@ -575,6 +582,16 @@ export function QuizPanel({
             <IconEdit size={20} />
           </WordActionIcon>
         )}
+        {onDeleteFsrsRecord && (
+          <WordActionIcon
+            label="Delete FSRS record for this quiz mode"
+            color="red"
+            onClick={() => setConfirmDeleteFsrsOpened(true)}
+            withArrow={false}
+          >
+            <IconTrash size={20} />
+          </WordActionIcon>
+        )}
         {includeMissed && markMissedAction}
       </Group>
     </Group>
@@ -996,6 +1013,54 @@ export function QuizPanel({
             {currentIndex + 1 >= totalCount ? 'Complete Session' : 'Next Word'}
           </Button>
         </Group>
+
+        <Modal
+          opened={confirmDeleteFsrsOpened}
+          onClose={() => setConfirmDeleteFsrsOpened(false)}
+          title={
+            <Group gap="xs">
+              <IconTrash size={20} color="#ef4444" />
+              <Text fw={700} size="md">
+                Delete FSRS Record
+              </Text>
+            </Group>
+          }
+          centered
+          radius="lg"
+          padding="lg"
+        >
+          <Stack gap="md">
+            <Text size="sm">
+              Are you sure you want to delete the FSRS record for <b>"{item?.word}"</b> in{' '}
+              <b>{quizDirections[quizDirection]}</b> mode?
+            </Text>
+            <Text size="xs" c="dimmed">
+              This will remove this card from your FSRS review queue for this mode and soft-delete
+              its FSRS learning history.
+            </Text>
+            <Group justify="flex-end" gap="xs" mt="sm">
+              <Button
+                variant="default"
+                radius="md"
+                onClick={() => setConfirmDeleteFsrsOpened(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                color="red"
+                radius="md"
+                onClick={() => {
+                  setConfirmDeleteFsrsOpened(false);
+                  if (item && onDeleteFsrsRecord) {
+                    onDeleteFsrsRecord(item.id, quizDirection);
+                  }
+                }}
+              >
+                Delete Record
+              </Button>
+            </Group>
+          </Stack>
+        </Modal>
       </Stack>
     </Card>
   );

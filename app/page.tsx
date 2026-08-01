@@ -1436,6 +1436,58 @@ export default function HomePage() {
     }
   };
 
+  const handleDeleteFsrsRecord = useCallback(
+    async (wordId: string, quizMode: import('@/lib/db').QuizMode) => {
+      if (!database) {
+        return;
+      }
+
+      const fsrsId = buildFsrsId(wordId, quizMode);
+      const targetWord = words.find((w) => w.id === wordId);
+      const wordText = targetWord?.word || 'word';
+
+      try {
+        const doc = await database.fsrsRecords.findOne(fsrsId).exec();
+        const timestamp = new Date().toISOString();
+
+        if (doc) {
+          const updatedDoc = await doc.patch({
+            isDeleted: true,
+            updatedAt: timestamp,
+          });
+          void pushFsrsRecordToRemote(database.fsrsRecords, updatedDoc.toJSON() as FsrsRecord);
+        } else {
+          const record: FsrsRecord = {
+            ...createInitialFsrsRecord(
+              wordId,
+              quizMode,
+              wordText,
+              targetWord?.meaning || '',
+              new Date(timestamp)
+            ),
+            isDeleted: true,
+            updatedAt: timestamp,
+          };
+          await database.fsrsRecords.upsert(record);
+          void pushFsrsRecordToRemote(database.fsrsRecords, record);
+        }
+
+        setFsrsRecords((prev) => prev.filter((r) => r.id !== fsrsId));
+
+        setQuizQueue((prev) => {
+          const nextQueue = prev.filter((item) => item.id !== wordId);
+          if (nextQueue.length === 0) {
+            setCompleted(true);
+          }
+          return nextQueue;
+        });
+      } catch (error) {
+        console.error('Failed to delete FSRS record:', error);
+      }
+    },
+    [database, words]
+  );
+
   const handleEdit = async (
     id: string,
     word: string,
@@ -2041,6 +2093,7 @@ export default function HomePage() {
               setQuizGroupFilter('all');
             }}
             onOpenClearAllMissed={() => setConfirmClearAllOpen(true)}
+            onDeleteFsrsRecord={handleDeleteFsrsRecord}
           />
         )}
       </Stack>
