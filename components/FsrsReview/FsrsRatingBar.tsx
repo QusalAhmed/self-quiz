@@ -1,6 +1,6 @@
 'use client';
 
-import { Badge, Button, Group, Stack, Text, Tooltip } from '@mantine/core';
+import { Badge, Button, Group, SimpleGrid, Stack, Text, Tooltip } from '@mantine/core';
 import { IconBrain } from '@tabler/icons-react';
 import React, { useEffect } from 'react';
 import type { FsrsRating } from '@/lib/fsrs';
@@ -83,7 +83,7 @@ export function FsrsRatingBar({ intervals, onRate, disabled = false }: FsrsRatin
         </Text>
       </Group>
 
-      <Group gap="sm" justify="center" wrap="nowrap" style={{ width: '100%' }}>
+      <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="xs" style={{ width: '100%' }}>
         {RATING_BUTTONS.map(({ rating, label, color, keyHint, className, defaultTooltip }) => {
           const intervalText = intervals?.[rating]?.intervalText;
           const tooltipLabel = intervalText
@@ -107,14 +107,12 @@ export function FsrsRatingBar({ intervals, onRate, disabled = false }: FsrsRatin
                 className={className}
                 style={{
                   fontWeight: 800,
-                  minWidth: 78,
-                  flex: 1,
-                  maxWidth: 135,
+                  width: '100%',
                   height: 'auto',
                   paddingTop: 8,
                   paddingBottom: 8,
-                  paddingLeft: 8,
-                  paddingRight: 8,
+                  paddingLeft: 6,
+                  paddingRight: 6,
                   border: '1px solid rgba(255, 255, 255, 0.08)',
                   position: 'relative',
                 }}
@@ -160,7 +158,7 @@ export function FsrsRatingBar({ intervals, onRate, disabled = false }: FsrsRatin
             </Tooltip>
           );
         })}
-      </Group>
+      </SimpleGrid>
     </Stack>
   );
 }

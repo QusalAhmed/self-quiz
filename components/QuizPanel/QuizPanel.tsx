@@ -13,6 +13,7 @@ import {
   Divider,
   Badge,
   Scroller,
+  SimpleGrid,
 } from '@mantine/core';
 import {
   IconAward,
@@ -421,7 +422,7 @@ export function QuizPanel({
             HOW WELL DID YOU RECALL THIS? (KEYS 1 - 4)
           </Text>
         </Group>
-        <Group gap="sm" justify="center" wrap="nowrap" style={{ width: '100%' }}>
+        <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="xs" style={{ width: '100%' }}>
           {[
             {
               rating: 'again' as const,
@@ -477,14 +478,12 @@ export function QuizPanel({
                   className={className}
                   style={{
                     fontWeight: 800,
-                    minWidth: 78,
-                    flex: 1,
-                    maxWidth: 135,
+                    width: '100%',
                     height: 'auto',
                     paddingTop: 8,
                     paddingBottom: 8,
-                    paddingLeft: 8,
-                    paddingRight: 8,
+                    paddingLeft: 6,
+                    paddingRight: 6,
                     border: '1px solid rgba(255, 255, 255, 0.08)',
                     position: 'relative',
                   }}
@@ -530,7 +529,7 @@ export function QuizPanel({
               </Tooltip>
             );
           })}
-        </Group>
+        </SimpleGrid>
       </Stack>
     ) : null;
 

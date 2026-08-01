@@ -11,7 +11,7 @@ export type FsrsCounterBadgeProps = {
 
 export function FsrsCounterBadge({ newCount, learningCount, reviewCount }: FsrsCounterBadgeProps) {
   return (
-    <Group gap={6} align="center">
+    <Group gap={6} align="center" justify="center" wrap="wrap">
       {/* Anki Blue Pill for New Cards */}
       <Badge
         variant="light"
