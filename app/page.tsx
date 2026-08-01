@@ -700,6 +700,8 @@ export default function HomePage() {
           meaning: definitionsToMeaning(definitions),
           definitions,
           tags: words.find((w) => w.id === wordId)?.customGroups || [],
+          notes:
+            words.find((w) => w.id === wordId)?.notes || (word as { notes?: string }).notes || '',
         };
       })
     );
@@ -777,6 +779,8 @@ export default function HomePage() {
           meaning: definitionsToMeaning(definitions),
           definitions,
           tags: words.find((w) => w.id === wordId)?.customGroups || [],
+          notes:
+            words.find((w) => w.id === wordId)?.notes || (word as { notes?: string }).notes || '',
         };
       })
     );
@@ -1253,7 +1257,8 @@ export default function HomePage() {
     meaning: string,
     definitions: WordDefinition[],
     selectedGroups: string[],
-    aiExampleCount: number
+    aiExampleCount: number,
+    notes?: string
   ) => {
     if (!database) {
       return;
@@ -1281,6 +1286,7 @@ export default function HomePage() {
       isDeleted: false,
       lastSyncedAt: '',
       customGroups: normalizedGroups,
+      notes: notes || '',
     };
 
     await database.words.upsert(record);
@@ -1494,7 +1500,8 @@ export default function HomePage() {
     meaning: string,
     definitions: WordDefinition[],
     customGroups: string[],
-    aiExampleCount: number
+    aiExampleCount: number,
+    notes?: string
   ) => {
     if (!database) {
       return;
@@ -1524,6 +1531,7 @@ export default function HomePage() {
       definitions: normalizedDefinitions,
       customGroups: normalizedGroups,
       aiExampleCount: normalizedAiExampleCount,
+      notes: notes !== undefined ? notes : current.notes || '',
       updatedAt: timestamp,
     };
 

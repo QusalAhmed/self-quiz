@@ -48,9 +48,29 @@ export async function POST(request: NextRequest) {
       custom_groups: normalizedGroups,
       custom_group: normalizedGroups[0] || '',
       ai_example_count: normalizeAiExampleCount(ai_example_count),
+      notes: typeof body.notes === 'string' ? body.notes : '',
     };
 
-    const { data, error } = await supabase.from('words').upsert(payload, { onConflict: 'id' });
+    let { data, error } = await supabase.from('words').upsert(payload, { onConflict: 'id' });
+
+    // Fallback if remote Supabase schema has not been updated with 'notes' column yet
+    if (
+      error &&
+      (error.message?.includes('notes') ||
+        error.message?.includes('schema cache') ||
+        error.code === 'PGRST204')
+    ) {
+      console.warn(
+        'Supabase notice: "notes" column missing in remote words table. Retrying upsert without notes column. Run "ALTER TABLE public.words ADD COLUMN IF NOT EXISTS notes TEXT DEFAULT \'\';" in Supabase SQL Editor.'
+      );
+      const payloadWithoutNotes = { ...payload };
+      delete (payloadWithoutNotes as Record<string, unknown>).notes;
+      const retryResult = await supabase
+        .from('words')
+        .upsert(payloadWithoutNotes, { onConflict: 'id' });
+      data = retryResult.data;
+      error = retryResult.error;
+    }
 
     if (error) {
       console.error('Supabase error:', error);

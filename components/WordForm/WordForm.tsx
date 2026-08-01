@@ -2,6 +2,7 @@ import { Button, Card, Group, Stack, Text, TextInput } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { EditWordModal } from '@/components/EditWordModal/EditWordModal';
+import { RichNoteEditor } from '@/components/RichNoteEditor/RichNoteEditor';
 import { DefinitionEditorCard } from '@/components/WordForm/DefinitionEditorCard';
 import { GroupSelector } from '@/components/WordForm/GroupSelector';
 import { type WordFormEditValues, type DefinitionFormValue } from '@/components/WordForm/types';
@@ -28,14 +29,16 @@ type WordFormProps = {
     meaning: string,
     definitions: WordDefinition[],
     groups: string[],
-    aiExampleCount: number
+    aiExampleCount: number,
+    notes?: string
   ) => Promise<void> | void;
   onSubmit: (
     word: string,
     meaning: string,
     definitions: WordDefinition[],
     groups: string[],
-    aiExampleCount: number
+    aiExampleCount: number,
+    notes?: string
   ) => Promise<void> | void;
   onCancel?: () => void;
 };
@@ -59,6 +62,7 @@ export function WordForm({
   ]);
   const [groups, setGroups] = useState<string[]>([]);
   const [aiExampleCount, setAiExampleCount] = useState(String(DEFAULT_AI_EXAMPLE_COUNT));
+  const [notes, setNotes] = useState('');
   const [isAddingNewGroup, setIsAddingNewGroup] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -70,6 +74,7 @@ export function WordForm({
     setDefinitions([createEmptyDefinitionFormValue()]);
     setGroups([]);
     setAiExampleCount(String(DEFAULT_AI_EXAMPLE_COUNT));
+    setNotes('');
     setIsAddingNewGroup(false);
     setNewGroupName('');
   }, []);
@@ -108,6 +113,7 @@ export function WordForm({
       setDefinitions(definitionsToFormValues(normalized));
       setGroups(editValues.groups);
       setAiExampleCount(String(normalizeAiExampleCount(editValues.aiExampleCount)));
+      setNotes(editValues.notes || '');
       setIsAddingNewGroup(false);
       setNewGroupName('');
     }
@@ -147,7 +153,8 @@ export function WordForm({
         definitionsToMeaning(nextDefinitions),
         nextDefinitions,
         groups,
-        normalizeAiExampleCount(aiExampleCount)
+        normalizeAiExampleCount(aiExampleCount),
+        notes
       );
       if (!isEditMode) {
         resetForm();
@@ -346,6 +353,13 @@ export function WordForm({
             setIsAddingNewGroup(false);
           }}
         />
+
+        <Stack gap="xs">
+          <Text size="xs" fw={600} c="dimmed">
+            Rich Text Note (optional)
+          </Text>
+          <RichNoteEditor value={notes} onChange={setNotes} />
+        </Stack>
 
         <Stack gap="sm">
           <TextInput

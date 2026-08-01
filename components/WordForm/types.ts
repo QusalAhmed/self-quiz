@@ -6,6 +6,7 @@ export type WordFormEditValues = {
   definitions?: WordDefinition[];
   groups: string[];
   aiExampleCount?: number;
+  notes?: string;
 };
 
 /** Form-local shape for a definition being edited. `examples` (AI-generated) are carried

@@ -89,6 +89,7 @@ export type RemoteWordRow = {
   custom_group?: string | null;
   custom_groups?: string[] | null;
   ai_example_count?: number | null;
+  notes?: string | null;
 };
 
 export type RemoteGroupRow = {
@@ -134,6 +135,7 @@ function mapRowToRecord(row: RemoteWordRow): WordRecord {
     isDeleted: row.deleted,
     lastSyncedAt: row.updated_at,
     customGroups: Array.from(new Set(customGroups)),
+    notes: row.notes || '',
   };
 }
 
@@ -529,6 +531,7 @@ type WordSyncPayload = {
   custom_groups: string[];
   custom_group: string;
   ai_example_count: number;
+  notes?: string;
 };
 
 function wordRecordToPayload(record: WordRecord): WordSyncPayload {
@@ -549,6 +552,7 @@ function wordRecordToPayload(record: WordRecord): WordSyncPayload {
     custom_groups: groups,
     custom_group: groups[0] || '',
     ai_example_count: normalizeAiExampleCount(record.aiExampleCount),
+    notes: record.notes || '',
   };
 }
 

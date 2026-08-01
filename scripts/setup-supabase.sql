@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS public.words (
   meaning TEXT,
   definitions JSONB DEFAULT '[]'::jsonb,
   ai_example_count INTEGER DEFAULT 5,
+  notes TEXT DEFAULT '',
   examples JSONB,
   user_examples JSONB DEFAULT '[]'::jsonb,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -47,6 +48,7 @@ ALTER TABLE public.words ADD COLUMN IF NOT EXISTS custom_group TEXT DEFAULT '';
 ALTER TABLE public.words ADD COLUMN IF NOT EXISTS custom_groups JSONB DEFAULT '[]'::jsonb;
 ALTER TABLE public.words ADD COLUMN IF NOT EXISTS definitions JSONB DEFAULT '[]'::jsonb;
 ALTER TABLE public.words ADD COLUMN IF NOT EXISTS ai_example_count INTEGER DEFAULT 5;
+ALTER TABLE public.words ADD COLUMN IF NOT EXISTS notes TEXT DEFAULT '';
 
 -- Create the groups table
 CREATE TABLE IF NOT EXISTS public.groups (

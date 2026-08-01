@@ -2,6 +2,7 @@ import { Badge, Button, Card, Group, Modal, Stack, Text, Tooltip } from '@mantin
 import { IconEdit, IconTrash, IconRotateClockwise } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
 import { DefinitionsDisplay } from '@/components/DefinitionsDisplay/DefinitionsDisplay';
+import { RichNoteViewer } from '@/components/RichNoteViewer/RichNoteViewer';
 import { WordActionIcon } from '@/components/WordActions/WordActionIcon';
 import { WordForm } from '@/components/WordForm/WordForm';
 import { formatDate, formatRelativeShort } from '@/lib/dateUtils';
@@ -18,7 +19,8 @@ type WordListProps = {
     meaning: string,
     definitions: WordDefinition[],
     customGroups: string[],
-    aiExampleCount: number
+    aiExampleCount: number,
+    notes?: string
   ) => Promise<void> | void;
   onRefreshExamples: (id: string) => Promise<void> | void;
   customGroups: string[];
@@ -220,6 +222,11 @@ export function WordList({
               {/* Definitions (always visible), each shown separately with its own examples */}
               {!isEditing && (
                 <div style={{ marginTop: 6 }}>
+                  {item.notes ? (
+                    <div style={{ marginBottom: 8 }}>
+                      <RichNoteViewer content={item.notes} />
+                    </div>
+                  ) : null}
                   <DefinitionsDisplay
                     definitions={definitions}
                     emptyText="Fetching definition..."
@@ -245,11 +252,19 @@ export function WordList({
                     customGroups={customGroups}
                     onAddCustomGroup={onAddCustomGroup}
                     editValues={editValues}
-                    onSubmit={async (word, meaning, definitions, groups, aiExampleCount) => {
+                    onSubmit={async (word, meaning, definitions, groups, aiExampleCount, notes) => {
                       if (!editingId) {
                         return;
                       }
-                      await onEdit(editingId, word, meaning, definitions, groups, aiExampleCount);
+                      await onEdit(
+                        editingId,
+                        word,
+                        meaning,
+                        definitions,
+                        groups,
+                        aiExampleCount,
+                        notes
+                      );
                       setEditingId(null);
                     }}
                     onCancel={() => setEditingId(null)}

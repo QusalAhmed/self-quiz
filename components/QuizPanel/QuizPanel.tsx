@@ -33,6 +33,7 @@ import {
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { quizDirections } from '@/app/home/constants';
 import { DefinitionsDisplay } from '@/components/DefinitionsDisplay/DefinitionsDisplay';
+import { RichNoteViewer } from '@/components/RichNoteViewer/RichNoteViewer';
 import { WordActionIcon } from '@/components/WordActions/WordActionIcon';
 import type { WordDefinition } from '@/lib/db';
 import { normalizeDefinitions } from '@/lib/definitions';
@@ -44,6 +45,7 @@ export type QuizItem = {
   meaning: string;
   definitions?: WordDefinition[];
   tags?: string[];
+  notes?: string;
 };
 
 export type QuizDirection = 'wordToMeaning' | 'meaningToWord' | 'spelling';
@@ -627,6 +629,7 @@ export function QuizPanel({
   // else the word is already visible, so examples can be shown alongside the definitions.
   const definitionsBlock = renderDefinitionsBlock(true);
   const definitionsBlockNoSpoilers = renderDefinitionsBlock(false);
+  const noteBlock = item?.notes ? <RichNoteViewer content={item.notes} /> : null;
 
   const revealButton = (
     <Button
@@ -709,6 +712,7 @@ export function QuizPanel({
                 revealButton
               ) : (
                 <>
+                  {noteBlock}
                   {definitionsBlock}
                   {tagsBlock}
                   {srsRatingButtons}
@@ -728,6 +732,7 @@ export function QuizPanel({
               ) : (
                 <Stack gap="md" align="center" style={{ width: '100%' }}>
                   {wordWithActions(true)}
+                  {noteBlock}
                   {tagsBlock}
                   {srsRatingButtons}
                 </Stack>
@@ -965,6 +970,7 @@ export function QuizPanel({
 
                   <Stack gap="md" align="center" style={{ width: '100%' }}>
                     {wordWithActions(true)}
+                    {noteBlock}
                     {definitionsBlock}
                     {tagsBlock}
                     {srsRatingButtons}
