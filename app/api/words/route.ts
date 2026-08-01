@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { definitionsToMeaning, normalizeDefinitions } from '@/lib/definitions';
 import { normalizeAiExampleCount } from '@/lib/examples';
 import { supabase } from '@/lib/supabase';
+import { fetchAllSupabaseRows } from '@/lib/supabase-pagination';
 
 export const revalidate = 0; // Disable caching for this route
 
@@ -91,14 +92,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Return ALL records including deleted ones so other devices can
-    // apply soft-deletes when they pull. The client filters isDeleted locally.
-    const { data, error } = await supabase.from('words').select('*');
-
-    if (error) {
-      console.error('Supabase error:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+    // Fetch ALL records with pagination to bypass Supabase 1000 row limit
+    const data = await fetchAllSupabaseRows('words');
 
     return NextResponse.json(
       { data },
