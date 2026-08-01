@@ -348,8 +348,8 @@ const dailyUsageSchema: RxJsonSchema<DailyUsageRecord> = {
 };
 
 if (process.env.NODE_ENV === 'development') {
-  addRxPlugin(RxDBDevModePlugin);
   disableWarnings();
+  addRxPlugin(RxDBDevModePlugin);
 }
 addRxPlugin(RxDBMigrationSchemaPlugin);
 addRxPlugin(RxDBQueryBuilderPlugin);

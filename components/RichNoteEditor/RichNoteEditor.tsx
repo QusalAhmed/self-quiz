@@ -3,7 +3,7 @@ import { Link, RichTextEditor } from '@mantine/tiptap';
 import Underline from '@tiptap/extension-underline';
 import { useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 
 type RichNoteEditorProps = {
   value: string;
@@ -11,12 +11,23 @@ type RichNoteEditorProps = {
   minHeight?: number | string;
 };
 
-const extensions = [StarterKit, Underline, Link];
-
 export function RichNoteEditor({ value, onChange, minHeight = 140 }: RichNoteEditorProps) {
+  const extensions = useMemo(
+    () => [
+      StarterKit.configure({
+        link: false,
+        underline: false,
+      }),
+      Underline,
+      Link,
+    ],
+    []
+  );
+
   const editor = useEditor({
     extensions,
     content: value || '',
+    immediatelyRender: false,
     onUpdate: ({ editor: currentEditor }) => {
       onChange(currentEditor.getHTML());
     },
