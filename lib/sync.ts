@@ -2,6 +2,8 @@ import {
   buildMissedWordId,
   type GroupCollection,
   type GroupRecord,
+  type FsrsCollection,
+  type FsrsRecord,
   type MissedWordCollection,
   type MissedWordRecord,
   type QuizMode,
@@ -15,6 +17,7 @@ import {
 } from './db';
 import { definitionsToMeaning, mergeLegacyFlatExamples, normalizeDefinitions } from './definitions';
 import { normalizeAiExampleCount } from './examples';
+import { buildFsrsId } from './fsrs';
 import { getWordGroups } from './groups';
 import { buildSrsId, type SrsRecord } from './srs';
 import { buildSrsPracticeId } from './srs-practice';
@@ -28,13 +31,26 @@ async function handleSyncResponseError(response: Response, actionLabel: string):
     }
   } catch (e) {}
 
+  const isNetworkFailure =
+    errorMessage.includes('fetch failed') ||
+    errorMessage.includes('Failed to fetch') ||
+    errorMessage.includes('NetworkError') ||
+    errorMessage.includes('network') ||
+    response.status === 502 ||
+    response.status === 503 ||
+    response.status === 504;
+
   const isSchemaMismatch =
     errorMessage.includes('schema cache') ||
     errorMessage.includes('does not exist') ||
     errorMessage.includes('column') ||
     errorMessage.includes('relation');
 
-  if (isSchemaMismatch) {
+  if (isNetworkFailure) {
+    console.warn(
+      `Sync notice: Remote endpoint temporarily unreachable during ${actionLabel} (${errorMessage}). Record queued to local outbox for automatic sync.`
+    );
+  } else if (isSchemaMismatch) {
     console.warn(
       `Supabase sync warning: Remote database schema is not updated. ` +
         `Please run the SQL statements from 'scripts/setup-supabase.sql' or the relevant migrate script in your Supabase SQL Editor. ` +
@@ -328,6 +344,125 @@ export async function flushSrsPracticeOutbox(collection: SrsPracticeCollection):
   if (failed.length > 0) {
     writeSrsPracticeOutbox(failed);
     console.warn(`${failed.length} SRS practice record(s) remain in outbox after flush`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// FSRS outbox (localStorage)
+// ---------------------------------------------------------------------------
+
+const FSRS_OUTBOX_KEY = 'self_quiz_fsrs_outbox';
+
+type FsrsSyncPayload = {
+  id: string;
+  word_id: string;
+  quiz_mode: string;
+  word: string;
+  meaning: string;
+  due_at: string;
+  stability: number;
+  difficulty: number;
+  elapsed_days: number;
+  scheduled_days: number;
+  learning_steps: number;
+  reps: number;
+  lapses: number;
+  state: string;
+  last_reviewed_at: string;
+  updated_at: string;
+  deleted: boolean;
+};
+
+function fsrsRecordToPayload(record: FsrsRecord): FsrsSyncPayload {
+  const lastReviewedAt =
+    record.lastReviewedAt || record.dueAt || record.updatedAt || new Date().toISOString();
+  return {
+    id: record.id,
+    word_id: record.wordId,
+    quiz_mode: record.quizMode,
+    word: record.word,
+    meaning: record.meaning,
+    due_at: record.dueAt,
+    stability: record.stability,
+    difficulty: record.difficulty,
+    elapsed_days: record.elapsedDays,
+    scheduled_days: record.scheduledDays,
+    learning_steps: record.learningSteps,
+    reps: record.reps,
+    lapses: record.lapses,
+    state: record.state,
+    last_reviewed_at: lastReviewedAt,
+    updated_at: record.updatedAt,
+    deleted: record.isDeleted,
+  };
+}
+
+function readFsrsOutbox(): FsrsSyncPayload[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(FSRS_OUTBOX_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeFsrsOutbox(items: FsrsSyncPayload[]): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(FSRS_OUTBOX_KEY, JSON.stringify(items));
+}
+
+function enqueueFsrsOutbox(record: FsrsRecord): void {
+  const payload = fsrsRecordToPayload(record);
+  const outbox = readFsrsOutbox().filter((item) => item.id !== payload.id);
+  outbox.push(payload);
+  writeFsrsOutbox(outbox);
+}
+
+function removeFromFsrsOutbox(id: string): void {
+  writeFsrsOutbox(readFsrsOutbox().filter((item) => item.id !== id));
+}
+
+export async function flushFsrsOutbox(collection: FsrsCollection): Promise<void> {
+  if (!isOnline()) return;
+
+  const outbox = readFsrsOutbox();
+  if (outbox.length === 0) return;
+
+  console.log(`Flushing ${outbox.length} FSRS record(s) from outbox...`);
+  const failed: FsrsSyncPayload[] = [];
+
+  for (const payload of outbox) {
+    try {
+      const response = await fetch('/api/fsrs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        failed.push(payload);
+        continue;
+      }
+
+      removeFromFsrsOutbox(payload.id);
+      const existing = await collection.findOne(payload.id).exec();
+      if (existing) {
+        await collection.upsert({
+          ...existing.toJSON(),
+          lastSyncedAt: payload.updated_at,
+        });
+      }
+    } catch {
+      failed.push(payload);
+    }
+  }
+
+  if (failed.length > 0) {
+    writeFsrsOutbox(failed);
+    console.warn(`${failed.length} FSRS record(s) remain in outbox after flush`);
   }
 }
 
@@ -830,8 +965,6 @@ export async function pushAllLocalDailyUsage(collection: DailyUsageCollection): 
   }
 }
 
-
-
 export async function pullRemoteWords(collection: WordCollection): Promise<void> {
   // Skip if offline
   if (!isOnline()) {
@@ -860,36 +993,33 @@ export async function pullRemoteWords(collection: WordCollection): Promise<void>
     }
 
     console.log('Successfully pulled', data.length, 'words from remote');
+    const localDocs = await collection.find().exec();
+    const localMap = new Map(localDocs.map((doc) => [doc.id, doc.toJSON()]));
+    const toUpsertMap = new Map<string, WordRecord>();
+
     for (const row of data as RemoteWordRow[]) {
       const mapped = mapRowToRecord(row);
+      const localRecord = localMap.get(mapped.id);
 
-      const local = await collection.findOne(mapped.id).exec();
-      if (local) {
-        const localRecord = local.toJSON();
-
-        // Always apply remote deletions — a delete on another device must
-        // propagate even if local has the same updatedAt.
+      if (localRecord) {
         if (mapped.isDeleted && !localRecord.isDeleted) {
-          await collection.upsert(mapped);
-          console.log(`Applied remote deletion for word "${mapped.word}"`);
+          toUpsertMap.set(mapped.id, mapped);
           continue;
         }
-
-        // If local has pending unsynced changes that are strictly newer,
-        // keep local and let push propagate them to remote.
         if (hasPendingLocalSync(localRecord) && localRecord.updatedAt > mapped.updatedAt) {
-          console.log(`Keeping local pending changes for "${mapped.word}"`);
           continue;
         }
-
-        // Skip if local is already at the same version or newer
         if (localRecord.updatedAt >= mapped.updatedAt) {
           continue;
         }
       }
+      toUpsertMap.set(mapped.id, mapped);
+    }
 
-      await collection.upsert(mapped);
-      console.log('Synced from remote:', mapped.word, '- isDeleted:', mapped.isDeleted);
+    const toUpsert = Array.from(toUpsertMap.values());
+    if (toUpsert.length > 0) {
+      await collection.bulkUpsert(toUpsert);
+      console.log(`Bulk synced ${toUpsert.length} words from remote`);
     }
   } catch (error) {
     console.error('Error pulling remote words:', error);
@@ -924,28 +1054,33 @@ export async function pullRemoteMissedWords(collection: MissedWordCollection): P
     }
 
     console.log('Successfully pulled', data.length, 'missed words from remote');
+    const localDocs = await collection.find().exec();
+    const localMap = new Map(localDocs.map((doc) => [doc.id, doc.toJSON()]));
+    const toUpsertMap = new Map<string, MissedWordRecord>();
+
     for (const row of data as RemoteMissedWordRow[]) {
       const mapped = mapMissedRowToRecord(row);
-      const local = await collection.findOne(mapped.id).exec();
-      if (local) {
-        const localRecord = local.toJSON();
+      const localRecord = localMap.get(mapped.id);
 
-        // Always apply remote deletions
+      if (localRecord) {
         if (mapped.isDeleted && !localRecord.isDeleted) {
-          await collection.upsert(mapped);
+          toUpsertMap.set(mapped.id, mapped);
           continue;
         }
-
-        // Protect strictly newer local pending changes
         if (hasPendingLocalSync(localRecord) && localRecord.updatedAt > mapped.updatedAt) {
           continue;
         }
-
         if (localRecord.updatedAt >= mapped.updatedAt) {
           continue;
         }
       }
-      await collection.upsert(mapped);
+      toUpsertMap.set(mapped.id, mapped);
+    }
+
+    const toUpsert = Array.from(toUpsertMap.values());
+    if (toUpsert.length > 0) {
+      await collection.bulkUpsert(toUpsert);
+      console.log(`Bulk synced ${toUpsert.length} missed words from remote`);
     }
   } catch (error) {
     console.error('Error pulling missed words:', error);
@@ -980,32 +1115,33 @@ export async function pullRemoteGroups(collection: GroupCollection): Promise<voi
     }
 
     console.log('Successfully pulled', data.length, 'groups from remote');
+    const localDocs = await collection.find().exec();
+    const localMap = new Map(localDocs.map((doc) => [doc.id, doc.toJSON()]));
+    const toUpsertMap = new Map<string, GroupRecord>();
+
     for (const row of data as RemoteGroupRow[]) {
       const mapped = mapGroupRowToRecord(row);
+      const localRecord = localMap.get(mapped.id);
 
-      const local = await collection.findOne(mapped.id).exec();
-      if (local) {
-        const localRecord = local.toJSON();
-
-        // Always apply remote deletions
+      if (localRecord) {
         if (mapped.isDeleted && !localRecord.isDeleted) {
-          await collection.upsert(mapped);
-          console.log(`Applied remote deletion for group "${mapped.name}"`);
+          toUpsertMap.set(mapped.id, mapped);
           continue;
         }
-
-        // Protect strictly newer local pending changes
         if (hasPendingLocalSync(localRecord) && localRecord.updatedAt > mapped.updatedAt) {
-          console.log(`Keeping local pending changes for group "${mapped.name}"`);
           continue;
         }
-
         if (localRecord.updatedAt >= mapped.updatedAt) {
           continue;
         }
       }
+      toUpsertMap.set(mapped.id, mapped);
+    }
 
-      await collection.upsert(mapped);
+    const toUpsert = Array.from(toUpsertMap.values());
+    if (toUpsert.length > 0) {
+      await collection.bulkUpsert(toUpsert);
+      console.log(`Bulk synced ${toUpsert.length} groups from remote`);
     }
   } catch (error) {
     console.error('Error pulling remote groups:', error);
@@ -1382,9 +1518,6 @@ export async function fetchMissingMeanings(collection: WordCollection): Promise<
         await pushWordToRemote(collection, updated);
         fetchedCount++;
         console.log('Fetched meaning for:', record.word);
-
-        // Add small delay to avoid overwhelming the API
-        await new Promise((resolve) => setTimeout(resolve, 100));
       } catch (error) {
         console.error('Error fetching meaning for word:', record.word, error);
       }
@@ -1466,6 +1599,52 @@ function mapSrsPracticeRowToRecord(row: RemoteSrsPracticeRow): SrsPracticeRecord
   };
 }
 
+export type RemoteFsrsRow = {
+  id: string;
+  word_id: string;
+  quiz_mode: string;
+  word: string;
+  meaning: string;
+  due_at: string;
+  stability: number;
+  difficulty: number;
+  elapsed_days: number;
+  scheduled_days: number;
+  learning_steps: number;
+  reps: number;
+  lapses: number;
+  state: string;
+  last_reviewed_at: string;
+  updated_at: string;
+  deleted: boolean;
+};
+
+function mapFsrsRowToRecord(row: RemoteFsrsRow): FsrsRecord {
+  const quizMode = (row.quiz_mode || 'wordToMeaning') as QuizMode;
+  const wordId = row.word_id;
+  const id = row.id.includes(':fsrs:') ? row.id : buildFsrsId(wordId, quizMode);
+  return {
+    id,
+    wordId,
+    quizMode,
+    word: row.word,
+    meaning: row.meaning ?? '',
+    dueAt: row.due_at || new Date().toISOString(),
+    stability: row.stability ?? 0,
+    difficulty: row.difficulty ?? 0,
+    elapsedDays: row.elapsed_days ?? 0,
+    scheduledDays: row.scheduled_days ?? 0,
+    learningSteps: row.learning_steps ?? 0,
+    reps: row.reps ?? 0,
+    lapses: row.lapses ?? 0,
+    state: (row.state || 'New') as FsrsRecord['state'],
+    lastReviewedAt: row.last_reviewed_at || '',
+    updatedAt: row.updated_at,
+    lastSyncedAt: row.updated_at,
+    isDeleted: row.deleted,
+  };
+}
+
 export async function pullRemoteSrsRecords(collection: SrsCollection): Promise<void> {
   if (!isOnline()) {
     console.log('Device is offline, skipping SRS records pull from remote');
@@ -1494,28 +1673,33 @@ export async function pullRemoteSrsRecords(collection: SrsCollection): Promise<v
     }
 
     console.log('Successfully pulled', data.length, 'SRS records from remote');
+    const localDocs = await collection.find().exec();
+    const localMap = new Map(localDocs.map((doc) => [doc.id, doc.toJSON()]));
+    const toUpsertMap = new Map<string, SrsRecord>();
+
     for (const row of data as RemoteSrsRow[]) {
       const mapped = mapSrsRowToRecord(row);
-      const local = await collection.findOne(mapped.id).exec();
-      if (local) {
-        const localRecord = local.toJSON();
+      const localRecord = localMap.get(mapped.id);
 
-        // Always apply remote deletions
+      if (localRecord) {
         if (mapped.isDeleted && !localRecord.isDeleted) {
-          await collection.upsert(mapped);
+          toUpsertMap.set(mapped.id, mapped);
           continue;
         }
-
-        // Protect strictly newer local pending changes
         if (hasPendingLocalSync(localRecord) && localRecord.updatedAt > mapped.updatedAt) {
           continue;
         }
-
         if (localRecord.updatedAt >= mapped.updatedAt) {
           continue;
         }
       }
-      await collection.upsert(mapped);
+      toUpsertMap.set(mapped.id, mapped);
+    }
+
+    const toUpsert = Array.from(toUpsertMap.values());
+    if (toUpsert.length > 0) {
+      await collection.bulkUpsert(toUpsert);
+      console.log(`Bulk synced ${toUpsert.length} SRS records from remote`);
     }
   } catch (error) {
     console.error('Error pulling SRS records:', error);
@@ -1550,29 +1734,97 @@ export async function pullRemoteSrsPracticeWords(collection: SrsPracticeCollecti
     }
 
     console.log('Successfully pulled', data.length, 'SRS practice word(s) from remote');
+    const localDocs = await collection.find().exec();
+    const localMap = new Map(localDocs.map((doc) => [doc.id, doc.toJSON()]));
+    const toUpsertMap = new Map<string, SrsPracticeRecord>();
+
     for (const row of data as RemoteSrsPracticeRow[]) {
       const mapped = mapSrsPracticeRowToRecord(row);
-      const local = await collection.findOne(mapped.id).exec();
-      if (local) {
-        const localRecord = local.toJSON();
+      const localRecord = localMap.get(mapped.id);
 
+      if (localRecord) {
         if (mapped.isDeleted && !localRecord.isDeleted) {
-          await collection.upsert(mapped);
+          toUpsertMap.set(mapped.id, mapped);
           continue;
         }
-
         if (hasPendingLocalSync(localRecord) && localRecord.updatedAt > mapped.updatedAt) {
           continue;
         }
-
         if (localRecord.updatedAt >= mapped.updatedAt) {
           continue;
         }
       }
-      await collection.upsert(mapped);
+      toUpsertMap.set(mapped.id, mapped);
+    }
+
+    const toUpsert = Array.from(toUpsertMap.values());
+    if (toUpsert.length > 0) {
+      await collection.bulkUpsert(toUpsert);
+      console.log(`Bulk synced ${toUpsert.length} SRS practice words from remote`);
     }
   } catch (error) {
     console.error('Error pulling SRS practice words:', error);
+  }
+}
+
+export async function pullRemoteFsrsRecords(collection: FsrsCollection): Promise<void> {
+  if (!isOnline()) {
+    console.log('Device is offline, skipping FSRS records pull from remote');
+    return;
+  }
+
+  try {
+    console.log('Pulling FSRS records from Supabase...');
+    const response = await fetch(`/api/fsrs?t=${Date.now()}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+      },
+    });
+
+    if (!response.ok) {
+      await handleSyncResponseError(response, 'pull FSRS records');
+      return;
+    }
+
+    const { data } = await response.json();
+    if (!data || !Array.isArray(data)) {
+      console.log('No FSRS records to pull');
+      return;
+    }
+
+    console.log('Successfully pulled', data.length, 'FSRS records from remote');
+    const localDocs = await collection.find().exec();
+    const localMap = new Map(localDocs.map((doc) => [doc.id, doc.toJSON()]));
+    const toUpsertMap = new Map<string, FsrsRecord>();
+
+    for (const row of data as RemoteFsrsRow[]) {
+      const mapped = mapFsrsRowToRecord(row);
+      const localRecord = localMap.get(mapped.id);
+
+      if (localRecord) {
+        if (mapped.isDeleted && !localRecord.isDeleted) {
+          toUpsertMap.set(mapped.id, mapped);
+          continue;
+        }
+        if (hasPendingLocalSync(localRecord) && localRecord.updatedAt > mapped.updatedAt) {
+          continue;
+        }
+        if (localRecord.updatedAt >= mapped.updatedAt) {
+          continue;
+        }
+      }
+      toUpsertMap.set(mapped.id, mapped);
+    }
+
+    const toUpsert = Array.from(toUpsertMap.values());
+    if (toUpsert.length > 0) {
+      await collection.bulkUpsert(toUpsert);
+      console.log(`Bulk synced ${toUpsert.length} FSRS records from remote`);
+    }
+  } catch (error) {
+    console.error('Error pulling FSRS records:', error);
   }
 }
 
@@ -1658,6 +1910,47 @@ export async function pushSrsPracticeWordToRemote(
   }
 }
 
+export async function pushFsrsRecordToRemote(
+  collection: FsrsCollection,
+  record: FsrsRecord
+): Promise<void> {
+  if (!isOnline()) {
+    enqueueFsrsOutbox(record);
+    console.log(
+      'Device is offline, FSRS record queued to outbox. Will sync when online:',
+      record.word
+    );
+    return;
+  }
+
+  try {
+    const payload = fsrsRecordToPayload(record);
+
+    console.log('Pushing FSRS record to remote:', record.word, record.quizMode);
+    const response = await fetch('/api/fsrs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      enqueueFsrsOutbox(record);
+      await handleSyncResponseError(response, 'push FSRS record to remote');
+      return;
+    }
+
+    removeFromFsrsOutbox(record.id);
+    await collection.upsert({
+      ...record,
+      lastSyncedAt: record.updatedAt,
+    });
+    console.log('Successfully synced FSRS record to remote:', record.word);
+  } catch (error) {
+    enqueueFsrsOutbox(record);
+    console.error('Error pushing FSRS record to remote:', error);
+  }
+}
+
 export async function pushAllLocalSrsRecords(collection: SrsCollection): Promise<void> {
   if (!isOnline()) {
     console.log('Device is offline, skipping SRS push. Will sync when online.');
@@ -1714,6 +2007,33 @@ export async function pushAllLocalSrsPracticeWords(
   }
 }
 
+export async function pushAllLocalFsrsRecords(collection: FsrsCollection): Promise<void> {
+  if (!isOnline()) {
+    console.log('Device is offline, skipping FSRS push. Will sync when online.');
+    return;
+  }
+
+  try {
+    await flushFsrsOutbox(collection);
+
+    console.log('Pushing all local FSRS records to remote...');
+    const localRecords = await collection.find().exec();
+    let syncedCount = 0;
+
+    for (const doc of localRecords) {
+      const record = doc.toJSON();
+      if (hasPendingLocalSync(record)) {
+        await pushFsrsRecordToRemote(collection, record as FsrsRecord);
+        syncedCount++;
+      }
+    }
+
+    console.log('Synced', syncedCount, 'FSRS record(s) to remote');
+  } catch (error) {
+    console.error('Error pushing all local FSRS records:', error);
+  }
+}
+
 /**
  * Perform a full bidirectional sync:
  *   1. Flush all outboxes (pending offline writes)
@@ -1727,6 +2047,7 @@ export async function performFullSync(
   groupsCollection: GroupCollection,
   srsCollection?: SrsCollection,
   srsPracticeCollection?: SrsPracticeCollection,
+  fsrsCollection?: FsrsCollection,
   dailyUsageCollection?: DailyUsageCollection
 ): Promise<void> {
   if (!isOnline()) {
@@ -1740,25 +2061,52 @@ export async function performFullSync(
   await flushWordOutbox(wordsCollection);
   await flushGroupOutbox(groupsCollection);
   await flushMissedWordOutbox(missedCollection);
-  if (srsCollection) { await flushSrsOutbox(srsCollection); }
-  if (srsPracticeCollection) { await flushSrsPracticeOutbox(srsPracticeCollection); }
-  if (dailyUsageCollection) { await flushDailyUsageOutbox(dailyUsageCollection); }
+  if (srsCollection) {
+    await flushSrsOutbox(srsCollection);
+  }
+  if (srsPracticeCollection) {
+    await flushSrsPracticeOutbox(srsPracticeCollection);
+  }
+  if (fsrsCollection) {
+    await flushFsrsOutbox(fsrsCollection);
+  }
+  if (dailyUsageCollection) {
+    await flushDailyUsageOutbox(dailyUsageCollection);
+  }
 
   // Step 2: Pull remote — brings in changes from other devices
   await pullRemoteGroups(groupsCollection);
   await pullRemoteWords(wordsCollection);
   await pullRemoteMissedWords(missedCollection);
-  if (srsCollection) { await pullRemoteSrsRecords(srsCollection); }
-  if (srsPracticeCollection) { await pullRemoteSrsPracticeWords(srsPracticeCollection); }
-  if (dailyUsageCollection) { await pullRemoteDailyUsage(dailyUsageCollection); }
+  if (srsCollection) {
+    await pullRemoteSrsRecords(srsCollection);
+  }
+  if (srsPracticeCollection) {
+    await pullRemoteSrsPracticeWords(srsPracticeCollection);
+  }
+  if (fsrsCollection) {
+    await pullRemoteFsrsRecords(fsrsCollection);
+  }
+  if (dailyUsageCollection) {
+    await pullRemoteDailyUsage(dailyUsageCollection);
+  }
 
   // Step 3: Push any remaining locally pending records
   await pushAllLocalGroups(groupsCollection);
   await pushAllLocalWords(wordsCollection);
   await pushAllLocalMissedWords(missedCollection);
-  if (srsCollection) { await pushAllLocalSrsRecords(srsCollection); }
-  if (srsPracticeCollection) { await pushAllLocalSrsPracticeWords(srsPracticeCollection); }
-  if (dailyUsageCollection) { await pushAllLocalDailyUsage(dailyUsageCollection); }
+  if (srsCollection) {
+    await pushAllLocalSrsRecords(srsCollection);
+  }
+  if (srsPracticeCollection) {
+    await pushAllLocalSrsPracticeWords(srsPracticeCollection);
+  }
+  if (fsrsCollection) {
+    await pushAllLocalFsrsRecords(fsrsCollection);
+  }
+  if (dailyUsageCollection) {
+    await pushAllLocalDailyUsage(dailyUsageCollection);
+  }
 
   // Step 4: Fetch meanings for words that are still missing them
   await fetchMissingMeanings(wordsCollection);
@@ -1775,6 +2123,7 @@ export function setupOnlineSyncListener(
   groupsCollection: GroupCollection,
   srsCollection?: SrsCollection,
   srsPracticeCollection?: SrsPracticeCollection,
+  fsrsCollection?: FsrsCollection,
   performSync?: () => Promise<void>,
   dailyUsageCollection?: DailyUsageCollection
 ): () => void {
@@ -1790,6 +2139,7 @@ export function setupOnlineSyncListener(
       groupsCollection,
       srsCollection,
       srsPracticeCollection,
+      fsrsCollection,
       dailyUsageCollection
     );
   };

@@ -96,7 +96,9 @@ function extractExamplesFromAiResponse(result: unknown, targetCount: number): st
   return parseExamplesFromRawText(result, targetCount);
 }
 
-export async function generateCloudflareExamples(params: GenerateExamplesParams): Promise<string[]> {
+export async function generateCloudflareExamples(
+  params: GenerateExamplesParams
+): Promise<string[]> {
   const { word, meaning, targetCount, partOfSpeech, referenceExamples } = params;
   const accountId = process.env.CF_ACCOUNT_ID;
   const apiToken = process.env.CF_API_TOKEN;
@@ -106,9 +108,7 @@ export async function generateCloudflareExamples(params: GenerateExamplesParams)
 
   const model = process.env.CF_AI_MODEL || '@cf/meta/llama-3.1-8b-instruct';
 
-  const partOfSpeechBlock = partOfSpeech
-    ? `\nSelected part of speech: ${partOfSpeech}.`
-    : '';
+  const partOfSpeechBlock = partOfSpeech ? `\nSelected part of speech: ${partOfSpeech}.` : '';
   const referenceBlock =
     referenceExamples.length > 0
       ? `\nReference user examples for this same meaning (use only as guidance, do not copy verbatim):\n${referenceExamples

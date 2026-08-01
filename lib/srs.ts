@@ -1,4 +1,5 @@
 import type { QuizMode } from './db';
+import { formatInterval } from './fsrs';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -113,6 +114,22 @@ export function computeSm2(
   const nextReviewAt = addDays(now, interval);
 
   return { easeFactor, interval, repetitions, nextReviewAt };
+}
+
+export function computeSm2Intervals(
+  current: SrsCardState,
+  now: Date = new Date()
+): Record<SrsRating, { nextReviewAt: string; intervalText: string }> {
+  const ratings: SrsRating[] = ['again', 'hard', 'good', 'easy'];
+  const res = {} as Record<SrsRating, { nextReviewAt: string; intervalText: string }>;
+  for (const rating of ratings) {
+    const computed = computeSm2(current, rating, now);
+    res[rating] = {
+      nextReviewAt: computed.nextReviewAt,
+      intervalText: formatInterval(computed.nextReviewAt, now),
+    };
+  }
+  return res;
 }
 
 // ---------------------------------------------------------------------------

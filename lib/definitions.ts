@@ -24,10 +24,7 @@ export function createEmptyDefinition(): WordDefinition {
   return { meaning: '', partOfSpeech: '', examples: [], userExamples: [] };
 }
 
-export function normalizeDefinitions(
-  definitions: unknown,
-  fallbackMeaning = ''
-): WordDefinition[] {
+export function normalizeDefinitions(definitions: unknown, fallbackMeaning = ''): WordDefinition[] {
   const normalized = Array.isArray(definitions)
     ? definitions
         .map((item) => {

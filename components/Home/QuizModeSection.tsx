@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react';
 import {
   ActionIcon,
   Badge,
@@ -24,6 +23,7 @@ import {
   IconTarget,
   IconVolume,
 } from '@tabler/icons-react';
+import type { ReactNode } from 'react';
 import {
   practiceDisplayModes,
   quizDirections,
@@ -34,8 +34,8 @@ import {
   type QuizRangeKey,
   type QuizSourceKey,
 } from '@/app/home/constants';
-import { PracticeDisplayCombobox } from '@/components/Practice/PracticeDisplayCombobox';
 import { MissedWordVirtualList } from '@/components/Practice/MissedWordVirtualList';
+import { PracticeDisplayCombobox } from '@/components/Practice/PracticeDisplayCombobox';
 import { SrsPracticeVirtualList } from '@/components/Practice/SrsPracticeVirtualList';
 import { QuizPanel, type QuizDirection, type QuizItem } from '@/components/QuizPanel/QuizPanel';
 import type { MissedWordRecord, SrsPracticeRecord, WordDefinition } from '@/lib/db';
@@ -78,6 +78,7 @@ type QuizModeSectionProps = {
   onPrevious: () => void;
   onRefreshExamples: (id: string) => Promise<void> | void;
   onSrsRate?: (rating: import('@/lib/srs').SrsRating) => void;
+  srsIntervals?: Partial<Record<import('@/lib/srs').SrsRating, string>>;
   onEditClick: (id: string) => void;
   onSetPracticeDisplayMode: (value: PracticeDisplayKey) => void;
   onSetAutoPronounceQuizWord: (value: boolean) => void;
@@ -133,6 +134,7 @@ export function QuizModeSection({
   onPrevious,
   onRefreshExamples,
   onSrsRate,
+  srsIntervals,
   onEditClick,
   onSetPracticeDisplayMode,
   onSetAutoPronounceQuizWord,
@@ -184,7 +186,9 @@ export function QuizModeSection({
               <SelectLike
                 data={Object.entries(quizDirections).map(([value, label]) => ({ value, label }))}
                 value={quizDirection}
-                onChange={(value) => onSetQuizDirection((value as QuizDirectionKey) ?? 'wordToMeaning')}
+                onChange={(value) =>
+                  onSetQuizDirection((value as QuizDirectionKey) ?? 'wordToMeaning')
+                }
               />
             </Grid.Col>
 
@@ -230,7 +234,11 @@ export function QuizModeSection({
                 <Grid gap="md">
                   <Grid.Col span={{ base: 12, sm: 6 }}>
                     <TextInput
-                      label={<Text size="xs" fw={600} c="dimmed">From</Text>}
+                      label={
+                        <Text size="xs" fw={600} c="dimmed">
+                          From
+                        </Text>
+                      }
                       type="datetime-local"
                       value={customStart}
                       onChange={(e) => onSetCustomStart(e.currentTarget.value)}
@@ -241,7 +249,11 @@ export function QuizModeSection({
                   </Grid.Col>
                   <Grid.Col span={{ base: 12, sm: 6 }}>
                     <TextInput
-                      label={<Text size="xs" fw={600} c="dimmed">To</Text>}
+                      label={
+                        <Text size="xs" fw={600} c="dimmed">
+                          To
+                        </Text>
+                      }
                       type="datetime-local"
                       value={customEnd}
                       onChange={(e) => onSetCustomEnd(e.currentTarget.value)}
@@ -311,8 +323,9 @@ export function QuizModeSection({
           currentQuizItem ? Boolean(generatingExampleWordIds[currentQuizItem.id]) : false
         }
         autoPronounceWord={autoPronounceQuizWord}
-        srsMode={quizSource === 'srs'}
-        onSrsRate={quizSource === 'srs' ? onSrsRate : undefined}
+        srsMode={quizSource === 'srs' || quizSource === 'fsrs'}
+        onSrsRate={quizSource === 'srs' || quizSource === 'fsrs' ? onSrsRate : undefined}
+        srsIntervals={quizSource === 'srs' || quizSource === 'fsrs' ? srsIntervals : undefined}
         onEditClick={onEditClick}
       />
 
@@ -452,9 +465,7 @@ export function QuizModeSection({
         <Divider
           style={{
             borderColor:
-              practiceDisplayMode === 'missed'
-                ? 'rgba(239,68,68,0.15)'
-                : 'rgba(139,92,246,0.15)',
+              practiceDisplayMode === 'missed' ? 'rgba(239,68,68,0.15)' : 'rgba(139,92,246,0.15)',
             marginBottom: '16px',
           }}
         />
@@ -466,8 +477,8 @@ export function QuizModeSection({
               title="No missed words yet"
               description={
                 <>
-                  When you bookmark a word as missed during a quiz in {quizDirections[quizDirection]},
-                  it will appear here for targeted practice.
+                  When you bookmark a word as missed during a quiz in{' '}
+                  {quizDirections[quizDirection]}, it will appear here for targeted practice.
                 </>
               }
               borderColor="rgba(239,68,68,0.2)"

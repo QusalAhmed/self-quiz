@@ -1,12 +1,12 @@
 import type { WordDefinition, WordRecord } from '@/lib/db';
 import { definitionsToMeaning, normalizeDefinitions } from '@/lib/definitions';
-import { getWordGroups } from '@/lib/groups';
 import {
   DEFAULT_AI_EXAMPLE_COUNT,
   mergeAiExamples,
   normalizeAiExampleCount,
   normalizeAiExamples,
 } from '@/lib/examples';
+import { getWordGroups } from '@/lib/groups';
 import type { QuizRangeKey } from './constants';
 
 export function shuffle<T>(items: T[]): T[] {

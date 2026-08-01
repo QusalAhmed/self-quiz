@@ -64,11 +64,12 @@ self.addEventListener('fetch', (event) => {
   // because the app code already checks navigator.onLine before calling them.
   if (isApiRequest(url)) {
     event.respondWith(
-      fetch(event.request).catch(() =>
-        new Response(JSON.stringify({ error: 'offline' }), {
-          status: 503,
-          headers: { 'Content-Type': 'application/json' },
-        })
+      fetch(event.request).catch(
+        () =>
+          new Response(JSON.stringify({ error: 'offline' }), {
+            status: 503,
+            headers: { 'Content-Type': 'application/json' },
+          })
       )
     );
     return;

@@ -33,9 +33,9 @@ if (!supabaseUrl || !supabaseAnonKey) {
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 async function migrateDatabase() {
-  console.log('Running database migration for groups support...');
+  console.log('Running database migration for FSRS support...');
 
-  const sqlPath = path.resolve(__dirname, 'migrate-group.sql');
+  const sqlPath = path.resolve(__dirname, 'migrate-fsrs.sql');
   const sqlStatements = fs.readFileSync(sqlPath, 'utf8');
 
   try {
@@ -46,17 +46,19 @@ async function migrateDatabase() {
           '\n⚠️  Could not run migration automatically because the "public.exec" RPC function is missing on your Supabase project.'
         );
         console.warn(
-          'Please manually copy the contents of "scripts/migrate-group.sql" and run them in your Supabase SQL Editor.'
+          'Please manually copy the contents of "scripts/migrate-fsrs.sql" and run them in your Supabase SQL Editor.'
         );
-        process.exit(0);
+        process.exitCode = 0;
+        return;
       }
       console.error('Error executing SQL migration:', error);
-      process.exit(1);
+      process.exitCode = 1;
+      return;
     }
     console.log('✅ Supabase database migration completed successfully!');
   } catch (error) {
     console.error('Migration failed:', error);
-    process.exit(1);
+    process.exitCode = 1;
   }
 }
 

@@ -292,12 +292,7 @@ export function StudyModeSection({
               >
                 Prev
               </Button>
-              <Text
-                size="xs"
-                fw={700}
-                c="dimmed"
-                style={{ minWidth: 60, textAlign: 'center' }}
-              >
+              <Text size="xs" fw={700} c="dimmed" style={{ minWidth: 60, textAlign: 'center' }}>
                 {page} / {totalPages}
               </Text>
               <Button

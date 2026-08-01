@@ -65,6 +65,8 @@ type QuizPanelProps = {
   srsMode?: boolean;
   /** Called when user selects a rating in SRS mode */
   onSrsRate?: (rating: SrsRating) => void;
+  /** Estimated next review interval per rating, e.g. { again: '1m', hard: '10m', good: '1d', easy: '4d' } */
+  srsIntervals?: Partial<Record<SrsRating, string>>;
   onEditClick?: (id: string) => void;
 };
 
@@ -87,6 +89,7 @@ export function QuizPanel({
   autoPronounceWord = false,
   srsMode = false,
   onSrsRate,
+  srsIntervals,
   onEditClick,
 }: QuizPanelProps) {
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
@@ -128,8 +131,7 @@ export function QuizPanel({
     const shouldAutoSpeak =
       (quizDirection === 'spelling' && !revealed) ||
       (autoPronounceWord &&
-        (quizDirection === 'wordToMeaning' ||
-          (quizDirection === 'meaningToWord' && revealed)));
+        (quizDirection === 'wordToMeaning' || (quizDirection === 'meaningToWord' && revealed)));
 
     if (!shouldAutoSpeak) {
       return;
@@ -230,6 +232,47 @@ export function QuizPanel({
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [quizDirection, revealed, completed, handleKeyPress]);
+
+  // Add keyboard shortcuts 1, 2, 3, 4 for rating when revealed in SRS/FSRS mode
+  useEffect(() => {
+    if (!srsMode || !revealed || !onSrsRate || completed) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const activeEl = document.activeElement;
+      if (activeEl) {
+        const tagName = activeEl.tagName.toLowerCase();
+        if (
+          tagName === 'input' ||
+          tagName === 'textarea' ||
+          activeEl.hasAttribute('contenteditable')
+        ) {
+          return;
+        }
+      }
+
+      switch (event.key) {
+        case '1':
+          event.preventDefault();
+          onSrsRate('again');
+          break;
+        case '2':
+          event.preventDefault();
+          onSrsRate('hard');
+          break;
+        case '3':
+          event.preventDefault();
+          onSrsRate('good');
+          break;
+        case '4':
+          event.preventDefault();
+          onSrsRate('easy');
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [srsMode, revealed, onSrsRate, completed]);
 
   const KEYBOARD_ROWS = [
     ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
@@ -368,68 +411,126 @@ export function QuizPanel({
     </WordActionIcon>
   );
 
-  // SRS rating bar — shown after reveal in srsMode
+  // Review rating bar — shown after reveal in review mode (Anki + RemNote inspired)
   const srsRatingButtons =
     srsMode && revealed && onSrsRate ? (
       <Stack gap="xs" align="center" style={{ width: '100%' }}>
-        <Group gap={4} align="center" mb={2}>
-          <IconBrain size={14} style={{ color: '#a855f7', opacity: 0.8 }} />
-          <Text size="xs" fw={700} c="dimmed" style={{ letterSpacing: '0.05em' }}>
-            HOW WELL DID YOU KNOW THIS?
+        <Group gap={6} align="center" mb={2}>
+          <IconBrain size={15} style={{ color: '#a855f7' }} />
+          <Text size="xs" fw={700} c="dimmed" style={{ letterSpacing: '0.06em' }}>
+            HOW WELL DID YOU RECALL THIS? (KEYS 1 - 4)
           </Text>
         </Group>
-        <Scroller>
-          <Group gap="sm" justify="center" wrap="nowrap">
-            <Tooltip label="Completely forgot — review tomorrow" withArrow>
-              <Button
-                size="sm"
-                radius="md"
-                variant="light"
-                color="red"
-                onClick={() => onSrsRate('again')}
-                style={{ fontWeight: 700, minWidth: 70 }}
+        <Group gap="sm" justify="center" wrap="nowrap" style={{ width: '100%' }}>
+          {[
+            {
+              rating: 'again' as const,
+              label: 'Again',
+              color: 'red',
+              keyHint: '1',
+              className: 'rating-btn-again',
+              defaultTooltip: 'Completely forgot — review again in 1 minute',
+            },
+            {
+              rating: 'hard' as const,
+              label: 'Hard',
+              color: 'orange',
+              keyHint: '2',
+              className: 'rating-btn-hard',
+              defaultTooltip: 'Hard — remembered with effort',
+            },
+            {
+              rating: 'good' as const,
+              label: 'Good',
+              color: 'teal',
+              keyHint: '3',
+              className: 'rating-btn-good',
+              defaultTooltip: 'Good — remembered correctly',
+            },
+            {
+              rating: 'easy' as const,
+              label: 'Easy',
+              color: 'indigo',
+              keyHint: '4',
+              className: 'rating-btn-easy',
+              defaultTooltip: 'Easy — recalled instantly',
+            },
+          ].map(({ rating, label, color, keyHint, className, defaultTooltip }) => {
+            const intervalText = srsIntervals?.[rating];
+            const tooltipLabel = intervalText
+              ? `${label} — next review in ${intervalText} (Press ${keyHint})`
+              : `${defaultTooltip} (Press ${keyHint})`;
+
+            return (
+              <Tooltip
+                key={rating}
+                label={tooltipLabel}
+                withArrow
+                transitionProps={{ duration: 150 }}
               >
-                Again
-              </Button>
-            </Tooltip>
-            <Tooltip label="Hard — remembered with difficulty" withArrow>
-              <Button
-                size="sm"
-                radius="md"
-                variant="light"
-                color="orange"
-                onClick={() => onSrsRate('hard')}
-                style={{ fontWeight: 700, minWidth: 70 }}
-              >
-                Hard
-              </Button>
-            </Tooltip>
-            <Tooltip label="Good — recalled correctly" withArrow>
-              <Button
-                size="sm"
-                radius="md"
-                variant="light"
-                color="teal"
-                onClick={() => onSrsRate('good')}
-                style={{ fontWeight: 700, minWidth: 70 }}
-              >
-                Good
-              </Button>
-            </Tooltip>
-            <Tooltip label="Easy — recalled instantly" withArrow>
-              <Button
-                size="sm"
-                radius="md"
-                variant="light"
-                color="indigo"
-                onClick={() => onSrsRate('easy')}
-                style={{ fontWeight: 700, minWidth: 70 }}
-              >
-                Easy
-              </Button>
-            </Tooltip>
-          </Group>
-        </Scroller>
+                <Button
+                  size="md"
+                  radius="lg"
+                  variant="light"
+                  color={color}
+                  onClick={() => onSrsRate(rating)}
+                  className={className}
+                  style={{
+                    fontWeight: 800,
+                    minWidth: 78,
+                    flex: 1,
+                    maxWidth: 135,
+                    height: 'auto',
+                    paddingTop: 8,
+                    paddingBottom: 8,
+                    paddingLeft: 8,
+                    paddingRight: 8,
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    position: 'relative',
+                  }}
+                >
+                  <Stack gap={2} align="center">
+                    {/* Next Review Time Interval (Anki style) */}
+                    <Text
+                      size="xs"
+                      fw={900}
+                      style={{
+                        fontSize: '0.78rem',
+                        lineHeight: 1,
+                        letterSpacing: '0.02em',
+                      }}
+                    >
+                      {intervalText || (rating === 'again' ? '<1m' : label)}
+                    </Text>
+
+                    {/* Rating Label */}
+                    <Text size="sm" fw={800} style={{ lineHeight: 1.15 }}>
+                      {label}
+                    </Text>
+
+                    {/* Key Hint Pill */}
+                    <Badge
+                      size="xs"
+                      variant="filled"
+                      color={color}
+                      circle
+                      style={{
+                        position: 'absolute',
+                        top: -6,
+                        right: -6,
+                        fontSize: '0.65rem',
+                        fontWeight: 900,
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+                      }}
+                    >
+                      {keyHint}
+                    </Badge>
+                  </Stack>
+                </Button>
+              </Tooltip>
+            );
+          })}
+        </Group>
       </Stack>
     ) : null;
 
@@ -487,7 +588,13 @@ export function QuizPanel({
   ) : null;
 
   const renderDefinitionsBlock = (showExamples: boolean) => (
-    <ScrollArea.Autosize mah={420} offsetScrollbars scrollbarSize={8} scrollHideDelay={500} style={{ width: '100%' }}>
+    <ScrollArea.Autosize
+      mah={420}
+      offsetScrollbars
+      scrollbarSize={8}
+      scrollHideDelay={500}
+      style={{ width: '100%' }}
+    >
       <DefinitionsDisplay
         definitions={definitions}
         showExamples={showExamples}

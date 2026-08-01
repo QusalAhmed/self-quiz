@@ -69,4 +69,3 @@ async function setupDatabase() {
 }
 
 setupDatabase();
-

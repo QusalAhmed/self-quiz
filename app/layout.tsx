@@ -2,6 +2,7 @@ import '@mantine/core/styles.css';
 import './global.css';
 import { ColorSchemeScript, mantineHtmlProps, MantineProvider } from '@mantine/core';
 import React from 'react';
+import { ReduxProvider } from '@/lib/redux/provider';
 import { theme } from '@/theme';
 
 export const metadata = {
@@ -24,7 +25,9 @@ export default function RootLayout({ children }: { children: any }) {
         <title>Self Quiz</title>
       </head>
       <body>
-        <MantineProvider theme={theme}>{children}</MantineProvider>
+        <ReduxProvider>
+          <MantineProvider theme={theme}>{children}</MantineProvider>
+        </ReduxProvider>
       </body>
     </html>
   );

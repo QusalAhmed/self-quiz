@@ -1,4 +1,3 @@
-import type { KeyboardEvent } from 'react';
 import {
   ActionIcon,
   Button,
@@ -12,6 +11,7 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { IconPlus, IconX } from '@tabler/icons-react';
+import type { KeyboardEvent } from 'react';
 import { PARTS_OF_SPEECH } from '@/lib/definitions';
 import type { DefinitionFormValue } from './types';
 
@@ -50,12 +50,7 @@ export function DefinitionEditorCard({
   onExampleKeyDown,
 }: DefinitionEditorCardProps) {
   return (
-    <Card
-      withBorder
-      radius="md"
-      padding="sm"
-      style={{ background: 'rgba(99, 102, 241, 0.03)' }}
-    >
+    <Card withBorder radius="md" padding="sm" style={{ background: 'rgba(99, 102, 241, 0.03)' }}>
       <Stack gap={8}>
         <Group justify="space-between" align="center" gap="xs" wrap="nowrap">
           <Text size="sm" fw={700} c="indigo" style={{ lineHeight: 1.4 }}>
@@ -79,7 +74,11 @@ export function DefinitionEditorCard({
 
         <Group align="flex-end" gap="xs" wrap="wrap">
           <Select
-            label={<Text size="xs" fw={600} c="dimmed">Part of speech</Text>}
+            label={
+              <Text size="xs" fw={600} c="dimmed">
+                Part of speech
+              </Text>
+            }
             placeholder="Any"
             value={definition.partOfSpeech || null}
             onChange={(value) => onUpdateDefinition(index, { partOfSpeech: value ?? '' })}
@@ -96,7 +95,11 @@ export function DefinitionEditorCard({
             style={{ flexShrink: 0 }}
           />
           <Textarea
-            label={<Text size="xs" fw={600} c="dimmed">Definition</Text>}
+            label={
+              <Text size="xs" fw={600} c="dimmed">
+                Definition
+              </Text>
+            }
             placeholder="Type ..."
             value={definition.meaning}
             onChange={(event) => onUpdateDefinition(index, { meaning: event.currentTarget.value })}

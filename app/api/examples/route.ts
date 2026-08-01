@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
+import { generateCloudflareExamples } from '@/lib/cloudflare';
 import { normalizeAiExampleCount } from '@/lib/examples';
 import { generateGoogleExamples } from '@/lib/google';
-import { generateCloudflareExamples } from '@/lib/cloudflare';
 
 type ExamplesPayload = {
   word?: string;
@@ -17,11 +17,7 @@ function normalizeReferenceExamples(value: unknown): string[] {
   }
 
   return Array.from(
-    new Set(
-      value
-        .map((item) => (typeof item === 'string' ? item.trim() : ''))
-        .filter(Boolean)
-    )
+    new Set(value.map((item) => (typeof item === 'string' ? item.trim() : '')).filter(Boolean))
   ).slice(0, 5);
 }
 
@@ -58,7 +54,10 @@ export async function POST(request: Request) {
     });
     return NextResponse.json({ examples });
   } catch (googleError: any) {
-    console.warn('Google AI (Gemma) failed, falling back to Cloudflare AI:', googleError.message || googleError);
+    console.warn(
+      'Google AI (Gemma) failed, falling back to Cloudflare AI:',
+      googleError.message || googleError
+    );
 
     // Fallback to Cloudflare AI
     try {
@@ -79,4 +78,3 @@ export async function POST(request: Request) {
     }
   }
 }
-

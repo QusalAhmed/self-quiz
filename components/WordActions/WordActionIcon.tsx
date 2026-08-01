@@ -1,5 +1,5 @@
-import type { CSSProperties, ReactNode } from 'react';
 import { ActionIcon, type ActionIconProps, Tooltip } from '@mantine/core';
+import type { CSSProperties, ReactNode } from 'react';
 
 type WordActionIconProps = {
   label: string;

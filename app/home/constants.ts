@@ -12,6 +12,7 @@ export const quizSources = {
   words: 'Regular',
   missed: 'Missed Words',
   srs: 'SRS Review',
+  fsrs: 'FSRS Review',
   srsPractice: 'SRS Practice',
 } as const;
 

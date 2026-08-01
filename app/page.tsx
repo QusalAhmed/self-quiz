@@ -1,9 +1,14 @@
 'use client';
 
-import { Container, SegmentedControl, Stack, useMantineColorScheme } from '@mantine/core';
+import {
+  Container,
+  SegmentedControl,
+  SimpleGrid,
+  Stack,
+  useMantineColorScheme,
+} from '@mantine/core';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  practiceDisplayModes,
   quizDirections,
   type PracticeDisplayKey,
   type QuizDirectionKey,
@@ -23,13 +28,14 @@ import {
   shuffle,
   toMutableWordRecord,
 } from '@/app/home/utils';
+import { EditWordModal } from '@/components/EditWordModal/EditWordModal';
 import { ClearMissedWordsModal } from '@/components/Home/ClearMissedWordsModal';
+import { CloudSyncCard } from '@/components/Home/CloudSyncCard';
 import { DailyUsageTimer } from '@/components/Home/DailyUsageTimer';
 import { HomeHeader } from '@/components/Home/HomeHeader';
 import { QuizModeSection } from '@/components/Home/QuizModeSection';
 import { StatsDashboard } from '@/components/Home/StatsDashboard';
 import { StudyModeSection } from '@/components/Home/StudyModeSection';
-import { EditWordModal } from '@/components/EditWordModal/EditWordModal';
 import { PwaRegister } from '@/components/PwaRegister/PwaRegister';
 import { type QuizItem } from '@/components/QuizPanel/QuizPanel';
 import {
@@ -37,12 +43,24 @@ import {
   buildMissedWordId,
   type AppDatabase,
   type GroupRecord,
+  type FsrsRecord,
   type MissedWordRecord,
   type SrsPracticeRecord,
   type WordDefinition,
   type WordRecord,
 } from '@/lib/db';
 import { definitionsToMeaning, getWordDefinitions, normalizeDefinitions } from '@/lib/definitions';
+import { mergeAiExamples, normalizeAiExampleCount, normalizeAiExamples } from '@/lib/examples';
+import {
+  buildFsrsId,
+  computeFsrs,
+  computeFsrsIntervals,
+  createInitialFsrsRecord,
+  formatInterval,
+  softDeleteFsrsRecord,
+  updateFsrsRecordContent,
+  type FsrsRating,
+} from '@/lib/fsrs';
 import {
   getActiveGroupNames,
   getWordGroups,
@@ -51,7 +69,13 @@ import {
   wordHasAnyGroup,
   wordHasGroup,
 } from '@/lib/groups';
-import { buildSrsId, computeSm2, createInitialSrsRecord, type SrsRating } from '@/lib/srs';
+import {
+  buildSrsId,
+  computeSm2,
+  computeSm2Intervals,
+  createInitialSrsRecord,
+  type SrsRating,
+} from '@/lib/srs';
 import { buildSrsPracticeId, createInitialSrsPracticeRecord } from '@/lib/srs-practice';
 import {
   performFullSync,
@@ -59,10 +83,10 @@ import {
   pushMissedWordToRemote,
   pushWordToRemote,
   pushSrsRecordToRemote,
+  pushFsrsRecordToRemote,
   pushSrsPracticeWordToRemote,
   setupOnlineSyncListener,
 } from '@/lib/sync';
-import { mergeAiExamples, normalizeAiExampleCount, normalizeAiExamples } from '@/lib/examples';
 import { resolveWordTextFromMainTable } from '@/lib/word-display';
 
 type WordWithDefinitions<T> = T & { definitions?: WordDefinition[] };
@@ -73,6 +97,7 @@ export default function HomePage() {
   const [groups, setGroups] = useState<GroupRecord[]>([]);
   const [missedWords, setMissedWords] = useState<MissedWordRecord[]>([]);
   const [srsRecords, setSrsRecords] = useState<import('@/lib/db').SrsRecord[]>([]);
+  const [fsrsRecords, setFsrsRecords] = useState<FsrsRecord[]>([]);
   const [srsPracticeWords, setSrsPracticeWords] = useState<SrsPracticeRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [mode, setMode] = useState<'study' | 'quiz'>('study');
@@ -100,9 +125,21 @@ export default function HomePage() {
     Record<string, boolean>
   >({});
   const [autoPronounceQuizWord, setAutoPronounceQuizWord] = useState(false);
-  const [exampleGenerationCounts, setExampleGenerationCounts] = useState<Record<string, number>>({});
+  const [exampleGenerationCounts, setExampleGenerationCounts] = useState<Record<string, number>>(
+    {}
+  );
 
   const customGroups = useMemo(() => getActiveGroupNames(groups), [groups]);
+
+  // Real-Time Due Timer: Ticks every 1 second to update FSRS/SRS due cards automatically
+  const [nowTicker, setNowTicker] = useState(() => new Date().toISOString());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNowTicker(new Date().toISOString());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Custom states for UI Enhancements
   const { colorScheme, setColorScheme } = useMantineColorScheme();
@@ -353,19 +390,74 @@ export default function HomePage() {
     [missedWordsForMode]
   );
 
-  // SRS records due for review (nextReviewAt <= now)
+  // SRS records due for review (nextReviewAt <= nowTicker)
   const srsDueRecords = useMemo(() => {
-    const now = new Date().toISOString();
     return srsRecords
-      .filter((r) => !r.isDeleted && r.quizMode === quizDirection && r.nextReviewAt <= now)
+      .filter((r) => !r.isDeleted && r.quizMode === quizDirection && r.nextReviewAt <= nowTicker)
       .map((record) => resolveWordTextFromMainTable(record, wordsById))
       .filter(
         (record): record is WordWithDefinitions<import('@/lib/db').SrsRecord> => record !== null
       )
       .sort((a, b) => a.nextReviewAt.localeCompare(b.nextReviewAt));
-  }, [srsRecords, quizDirection, wordsById]);
+  }, [srsRecords, quizDirection, wordsById, nowTicker]);
 
   const srsDueTodayCount = useMemo(() => srsDueRecords.length, [srsDueRecords]);
+
+  const srsNextDueText = useMemo(() => {
+    const futureCards = srsRecords
+      .filter((r) => !r.isDeleted && r.quizMode === quizDirection && r.nextReviewAt > nowTicker)
+      .sort((a, b) => a.nextReviewAt.localeCompare(b.nextReviewAt));
+
+    if (srsDueTodayCount > 0) {
+      if (futureCards.length > 0) {
+        const interval = formatInterval(futureCards[0].nextReviewAt, new Date(nowTicker));
+        return `Next in ${interval}`;
+      }
+      return 'All due now';
+    }
+
+    if (futureCards.length > 0) {
+      const interval = formatInterval(futureCards[0].nextReviewAt, new Date(nowTicker));
+      return `Next due in ${interval}`;
+    }
+
+    return srsRecords.some((r) => !r.isDeleted && r.quizMode === quizDirection)
+      ? 'All caught up'
+      : '';
+  }, [srsRecords, quizDirection, nowTicker, srsDueTodayCount]);
+
+  const fsrsDueRecords = useMemo(() => {
+    return fsrsRecords
+      .filter((r) => !r.isDeleted && r.quizMode === quizDirection && r.dueAt <= nowTicker)
+      .map((record) => resolveWordTextFromMainTable(record, wordsById))
+      .filter((record): record is WordWithDefinitions<FsrsRecord> => record !== null)
+      .sort((a, b) => a.dueAt.localeCompare(b.dueAt));
+  }, [fsrsRecords, quizDirection, wordsById, nowTicker]);
+
+  const fsrsDueTodayCount = useMemo(() => fsrsDueRecords.length, [fsrsDueRecords]);
+
+  const fsrsNextDueText = useMemo(() => {
+    const futureCards = fsrsRecords
+      .filter((r) => !r.isDeleted && r.quizMode === quizDirection && r.dueAt > nowTicker)
+      .sort((a, b) => a.dueAt.localeCompare(b.dueAt));
+
+    if (fsrsDueTodayCount > 0) {
+      if (futureCards.length > 0) {
+        const interval = formatInterval(futureCards[0].dueAt, new Date(nowTicker));
+        return `Next in ${interval}`;
+      }
+      return 'All due now';
+    }
+
+    if (futureCards.length > 0) {
+      const interval = formatInterval(futureCards[0].dueAt, new Date(nowTicker));
+      return `Next due in ${interval}`;
+    }
+
+    return fsrsRecords.some((r) => !r.isDeleted && r.quizMode === quizDirection)
+      ? 'All caught up'
+      : '';
+  }, [fsrsRecords, quizDirection, nowTicker, fsrsDueTodayCount]);
 
   const recentSrsPracticeWords = useMemo(() => {
     const cutoff = Date.now() - 24 * 60 * 60 * 1000;
@@ -387,10 +479,17 @@ export default function HomePage() {
   );
 
   const getCandidateWordId = useCallback(
-    (word: WordRecord | MissedWordRecord | import('@/lib/db').SrsRecord | SrsPracticeRecord) => {
+    (
+      word:
+        | WordRecord
+        | MissedWordRecord
+        | import('@/lib/db').SrsRecord
+        | FsrsRecord
+        | SrsPracticeRecord
+    ) => {
       if (quizSource === 'missed') return (word as MissedWordRecord).wordId;
-      if (quizSource === 'srs' || quizSource === 'srsPractice') {
-        return (word as import('@/lib/db').SrsRecord | SrsPracticeRecord).wordId;
+      if (quizSource === 'srs' || quizSource === 'fsrs' || quizSource === 'srsPractice') {
+        return (word as import('@/lib/db').SrsRecord | FsrsRecord | SrsPracticeRecord).wordId;
       }
       return word.id;
     },
@@ -481,14 +580,19 @@ export default function HomePage() {
   );
 
   const quizCandidates = useMemo(() => {
-    // SRS source ignores date range — scheduling is handled by the algorithm
-    if (quizSource === 'srs') {
-      let candidates: (WordRecord | MissedWordRecord | import('@/lib/db').SrsRecord)[] =
-        srsDueRecords;
+    // Review sources ignore date range — scheduling is handled by the algorithm
+    if (quizSource === 'srs' || quizSource === 'fsrs') {
+      const sourceRecords = quizSource === 'srs' ? srsDueRecords : fsrsDueRecords;
+      let candidates: (
+        | WordRecord
+        | MissedWordRecord
+        | import('@/lib/db').SrsRecord
+        | FsrsRecord
+      )[] = sourceRecords;
       if (quizGroupFilter !== 'all') {
         candidates = candidates.filter((item) => {
           const correspondingWord = words.find(
-            (w) => w.id === (item as import('@/lib/db').SrsRecord).wordId
+            (w) => w.id === (item as import('@/lib/db').SrsRecord | FsrsRecord).wordId
           );
           if (!correspondingWord) return quizGroupFilter === 'none';
           return quizGroupFilter === 'none'
@@ -520,7 +624,7 @@ export default function HomePage() {
       return [];
     }
 
-    let candidates: (WordRecord | MissedWordRecord)[]
+    let candidates: (WordRecord | MissedWordRecord)[];
 
     if (quizSource === 'missed') {
       candidates = missedWordsForMode.filter((word) => {
@@ -573,6 +677,7 @@ export default function HomePage() {
     words,
     missedWordsForMode,
     srsDueRecords,
+    fsrsDueRecords,
     recentSrsPracticeWords,
     quizRange,
     quizSource,
@@ -585,7 +690,10 @@ export default function HomePage() {
     const queue = shuffle(
       quizCandidates.map((word) => {
         const wordId = getCandidateWordId(word);
-        const definitions = normalizeDefinitions((word as { definitions?: WordDefinition[] }).definitions, word.meaning);
+        const definitions = normalizeDefinitions(
+          (word as { definitions?: WordDefinition[] }).definitions,
+          word.meaning
+        );
         return {
           id: wordId,
           word: word.word,
@@ -601,13 +709,17 @@ export default function HomePage() {
     setCompleted(queue.length === 0);
   }, [quizCandidates, getCandidateWordId, words]);
 
-  // Initialize quiz when candidates are available, only if quiz is empty
+  // Initialize quiz when candidates are available or when real-time due timer adds new cards
   useEffect(() => {
-    if (quizQueue.length === 0 && quizCandidates.length > 0) {
-      console.log('Initializing quiz with', quizCandidates.length, 'candidates');
+    if ((quizQueue.length === 0 || completed) && quizCandidates.length > 0) {
+      console.log(
+        'FSRS due timer / queue update: Initializing quiz with',
+        quizCandidates.length,
+        'candidates'
+      );
       resetQuiz();
     }
-  }, [quizCandidates.length, resetQuiz, quizQueue.length]);
+  }, [quizCandidates.length, resetQuiz, quizQueue.length, completed]);
 
   useEffect(() => {
     if (prevQuizDirectionRef.current === quizDirection) {
@@ -655,7 +767,10 @@ export default function HomePage() {
     const queue = shuffle(
       quizCandidates.map((word) => {
         const wordId = getCandidateWordId(word);
-        const definitions = normalizeDefinitions((word as { definitions?: WordDefinition[] }).definitions, word.meaning);
+        const definitions = normalizeDefinitions(
+          (word as { definitions?: WordDefinition[] }).definitions,
+          word.meaning
+        );
         return {
           id: wordId,
           word: word.word,
@@ -688,6 +803,7 @@ export default function HomePage() {
     let groupSubscription: { unsubscribe: () => void } | null = null;
     let missedSubscription: { unsubscribe: () => void } | null = null;
     let srsSubscription: { unsubscribe: () => void } | null = null;
+    let fsrsSubscription: { unsubscribe: () => void } | null = null;
     let srsPracticeSubscription: { unsubscribe: () => void } | null = null;
     let cleanupOnlineListener: (() => void) | null = null;
 
@@ -748,6 +864,18 @@ export default function HomePage() {
         setSrsRecords(docs.map((doc) => doc.toJSON() as import('@/lib/db').SrsRecord));
       });
 
+      const fsrsQuery = db.fsrsRecords.find({
+        selector: { isDeleted: { $ne: true } },
+        sort: [{ dueAt: 'asc' }],
+      });
+
+      fsrsSubscription = fsrsQuery.$.subscribe((docs) => {
+        if (!isMounted) {
+          return;
+        }
+        setFsrsRecords(docs.map((doc) => doc.toJSON() as FsrsRecord));
+      });
+
       const srsPracticeQuery = db.srsPracticeWords.find({
         selector: { isDeleted: { $ne: true } },
         sort: [{ practicedAt: 'desc' }],
@@ -772,6 +900,7 @@ export default function HomePage() {
         db.groups,
         db.srsRecords,
         db.srsPracticeWords,
+        db.fsrsRecords,
         () =>
           withSyncState(() =>
             performFullSync(
@@ -780,6 +909,7 @@ export default function HomePage() {
               db.groups,
               db.srsRecords,
               db.srsPracticeWords,
+              db.fsrsRecords,
               db.dailyUsage
             )
           ),
@@ -796,6 +926,7 @@ export default function HomePage() {
             db.groups,
             db.srsRecords,
             db.srsPracticeWords,
+            db.fsrsRecords,
             db.dailyUsage
           )
         );
@@ -807,7 +938,7 @@ export default function HomePage() {
       }
     };
 
-    load().then(() => console.log("Data loaded"));
+    load().then(() => console.log('Data loaded'));
 
     return () => {
       isMounted = false;
@@ -815,12 +946,58 @@ export default function HomePage() {
       groupSubscription?.unsubscribe();
       missedSubscription?.unsubscribe();
       srsSubscription?.unsubscribe();
+      fsrsSubscription?.unsubscribe();
       srsPracticeSubscription?.unsubscribe();
       cleanupOnlineListener?.();
     };
   }, []);
 
   const currentQuizItem = quizQueue[quizIndex] ?? null;
+
+  const srsIntervals = useMemo(() => {
+    if (!currentQuizItem || (quizSource !== 'fsrs' && quizSource !== 'srs')) {
+      return undefined;
+    }
+    const now = new Date();
+    if (quizSource === 'fsrs') {
+      const fsrsId = buildFsrsId(currentQuizItem.id, quizDirection as import('@/lib/db').QuizMode);
+      const existing = fsrsRecords.find((r) => r.id === fsrsId);
+      const record =
+        existing ||
+        createInitialFsrsRecord(
+          currentQuizItem.id,
+          quizDirection as import('@/lib/db').QuizMode,
+          currentQuizItem.word,
+          currentQuizItem.meaning,
+          now
+        );
+      const res = computeFsrsIntervals(record, now);
+      return {
+        again: res.again.intervalText,
+        hard: res.hard.intervalText,
+        good: res.good.intervalText,
+        easy: res.easy.intervalText,
+      };
+    }
+
+    const srsId = buildSrsId(currentQuizItem.id, quizDirection as import('@/lib/db').QuizMode);
+    const existing = srsRecords.find((r) => r.id === srsId);
+    const record =
+      existing ||
+      createInitialSrsRecord(
+        currentQuizItem.id,
+        quizDirection as import('@/lib/db').QuizMode,
+        currentQuizItem.word,
+        currentQuizItem.meaning
+      );
+    const res = computeSm2Intervals(record, now);
+    return {
+      again: res.again.intervalText,
+      hard: res.hard.intervalText,
+      good: res.good.intervalText,
+      easy: res.easy.intervalText,
+    };
+  }, [currentQuizItem, quizSource, quizDirection, fsrsRecords, srsRecords]);
   const [hideMissedMeanings, setHideMissedMeanings] = useState(false);
   const [revealedMissedWordIds, setRevealedMissedWordIds] = useState<Record<string, boolean>>({});
 
@@ -972,13 +1149,13 @@ export default function HomePage() {
           const examples = generatedByIndex.get(index);
           return examples && examples.length > 0
             ? {
-              ...definition,
-              examples: mergeAiExamples(currentExamples, examples, targetAiExampleCount),
-            }
+                ...definition,
+                examples: mergeAiExamples(currentExamples, examples, targetAiExampleCount),
+              }
             : {
-              ...definition,
-              examples: currentExamples,
-            };
+                ...definition,
+                examples: currentExamples,
+              };
         });
 
         if (
@@ -1002,10 +1179,10 @@ export default function HomePage() {
           prev.map((item) =>
             item.id === wordId
               ? {
-                ...item,
-                meaning: updated.meaning,
-                definitions: updated.definitions,
-              }
+                  ...item,
+                  meaning: updated.meaning,
+                  definitions: updated.definitions,
+                }
               : item
           )
         );
@@ -1068,9 +1245,30 @@ export default function HomePage() {
       // 'spelling'
     ];
     for (const qMode of quizModes) {
-      const srsRecord = createInitialSrsRecord(record.id, qMode, capitalizeWord(word), normalizedMeaning);
+      const srsRecord = createInitialSrsRecord(
+        record.id,
+        qMode,
+        capitalizeWord(word),
+        normalizedMeaning
+      );
       await database.srsRecords.upsert(srsRecord);
       void pushSrsRecordToRemote(database.srsRecords, srsRecord);
+    }
+
+    const fsrsQuizModes: import('@/lib/db').QuizMode[] = [
+      'wordToMeaning',
+      'meaningToWord',
+      'spelling',
+    ];
+    for (const qMode of fsrsQuizModes) {
+      const fsrsRecord = createInitialFsrsRecord(
+        record.id,
+        qMode,
+        capitalizeWord(word),
+        normalizedMeaning
+      );
+      await database.fsrsRecords.upsert(fsrsRecord);
+      void pushFsrsRecordToRemote(database.fsrsRecords, fsrsRecord);
     }
 
     if (normalizedDefinitions.length > 0) {
@@ -1106,7 +1304,10 @@ export default function HomePage() {
           }
 
           const data = await response.json();
-          const aiDefinitions = normalizeDefinitions(data?.definitions, String(data?.meaning ?? ''));
+          const aiDefinitions = normalizeDefinitions(
+            data?.definitions,
+            String(data?.meaning ?? '')
+          );
           const aiMeaning = definitionsToMeaning(aiDefinitions);
 
           if (!aiMeaning) {
@@ -1135,6 +1336,21 @@ export default function HomePage() {
 
           await database.words.upsert(updated);
           await pushWordToRemote(database.words, updated);
+          const fsrsDocs = await database.fsrsRecords
+            .find({
+              selector: { wordId: record.id },
+            })
+            .exec();
+          for (const fsrsDoc of fsrsDocs) {
+            const updatedFsrs = updateFsrsRecordContent(
+              fsrsDoc.toJSON() as FsrsRecord,
+              record.word,
+              aiMeaning,
+              updated.updatedAt
+            );
+            await database.fsrsRecords.upsert(updatedFsrs);
+            void pushFsrsRecordToRemote(database.fsrsRecords, updatedFsrs);
+          }
           await ensureMissingAiExamples(record.id);
 
           console.log('Definition updated for word:', record.word, '-', aiMeaning);
@@ -1164,6 +1380,16 @@ export default function HomePage() {
 
     await database.words.upsert(record);
     await pushWordToRemote(database.words, record);
+    const fsrsDocs = await database.fsrsRecords
+      .find({
+        selector: { wordId: id, isDeleted: { $ne: true } },
+      })
+      .exec();
+    for (const fsrsDoc of fsrsDocs) {
+      const deletedFsrs = softDeleteFsrsRecord(fsrsDoc.toJSON() as FsrsRecord, timestamp);
+      await database.fsrsRecords.upsert(deletedFsrs);
+      void pushFsrsRecordToRemote(database.fsrsRecords, deletedFsrs);
+    }
   };
 
   const handleEdit = async (
@@ -1207,14 +1433,29 @@ export default function HomePage() {
 
     await database.words.upsert(record);
     await pushWordToRemote(database.words, record);
+    const fsrsDocs = await database.fsrsRecords
+      .find({
+        selector: { wordId: id },
+      })
+      .exec();
+    for (const fsrsDoc of fsrsDocs) {
+      const updatedFsrs = updateFsrsRecordContent(
+        fsrsDoc.toJSON() as FsrsRecord,
+        word,
+        normalizedMeaning,
+        timestamp
+      );
+      await database.fsrsRecords.upsert(updatedFsrs);
+      void pushFsrsRecordToRemote(database.fsrsRecords, updatedFsrs);
+    }
     setQuizQueue((prev) =>
       prev.map((item) =>
         item.id === id
           ? {
-            ...item,
-            meaning: record.meaning,
-            definitions: record.definitions,
-          }
+              ...item,
+              meaning: record.meaning,
+              definitions: record.definitions,
+            }
           : item
       )
     );
@@ -1400,7 +1641,8 @@ export default function HomePage() {
         database.missedWords,
         database.groups,
         database.srsRecords,
-        database.srsPracticeWords
+        database.srsPracticeWords,
+        database.fsrsRecords
       );
     });
   }, [database, withSyncState]);
@@ -1418,24 +1660,33 @@ export default function HomePage() {
       return;
     }
 
-    const intervalId = window.setInterval(() => {
-      void runFullSync();
-    }, 10 * 60 * 1000);
+    const intervalId = window.setInterval(
+      () => {
+        void runFullSync();
+      },
+      10 * 60 * 1000
+    );
 
     return () => window.clearInterval(intervalId);
   }, [database, onlineStatus, runFullSync]);
 
   // Automatically refresh the page after 10 minutes of inactivity
   useEffect(() => {
-    let timerId = window.setTimeout(() => {
-      window.location.reload();
-    }, 10 * 60 * 1000);
+    let timerId = window.setTimeout(
+      () => {
+        window.location.reload();
+      },
+      10 * 60 * 1000
+    );
 
     const resetTimer = () => {
       window.clearTimeout(timerId);
-      timerId = window.setTimeout(() => {
-        window.location.reload();
-      }, 10 * 60 * 1000);
+      timerId = window.setTimeout(
+        () => {
+          window.location.reload();
+        },
+        10 * 60 * 1000
+      );
     };
 
     const events = ['mousemove', 'keydown', 'mousedown', 'touchstart'];
@@ -1459,20 +1710,63 @@ export default function HomePage() {
     async (rating: SrsRating) => {
       if (!database || !currentQuizItem) return;
 
-      const srsId = buildSrsId(currentQuizItem.id, quizDirection);
-      const existingDoc = await database.srsRecords.findOne(srsId).exec();
-
       const timestamp = new Date().toISOString();
       const now = new Date();
+
+      if (quizSource === 'fsrs') {
+        const fsrsId = buildFsrsId(
+          currentQuizItem.id,
+          quizDirection as import('@/lib/db').QuizMode
+        );
+        const existingDoc = await database.fsrsRecords.findOne(fsrsId).exec();
+        const currentState = existingDoc
+          ? (existingDoc.toJSON() as FsrsRecord)
+          : createInitialFsrsRecord(
+              currentQuizItem.id,
+              quizDirection as import('@/lib/db').QuizMode,
+              currentQuizItem.word,
+              currentQuizItem.meaning
+            );
+
+        const updated = {
+          ...computeFsrs(
+            currentState,
+            rating as FsrsRating,
+            now,
+            currentQuizItem.word,
+            currentQuizItem.meaning
+          ),
+          word: currentQuizItem.word,
+          meaning: currentQuizItem.meaning,
+          updatedAt: timestamp,
+          isDeleted: false,
+        };
+
+        await database.fsrsRecords.upsert(updated);
+        void pushFsrsRecordToRemote(database.fsrsRecords, updated);
+
+        // If card is rated 'again' or due within short learning window (<= 2 min),
+        // re-queue it to the end of the current quiz queue so it is reviewed in the same session without refresh
+        const isShortLearning = new Date(updated.dueAt).getTime() - now.getTime() <= 2 * 60 * 1000;
+        if (rating === 'again' || isShortLearning) {
+          setQuizQueue((prev) => [...prev, currentQuizItem]);
+        }
+
+        handleNext();
+        return;
+      }
+
+      const srsId = buildSrsId(currentQuizItem.id, quizDirection);
+      const existingDoc = await database.srsRecords.findOne(srsId).exec();
 
       let currentState = existingDoc
         ? (existingDoc.toJSON() as import('@/lib/db').SrsRecord)
         : createInitialSrsRecord(
-          currentQuizItem.id,
-          quizDirection as import('@/lib/db').QuizMode,
-          currentQuizItem.word,
-          currentQuizItem.meaning
-        );
+            currentQuizItem.id,
+            quizDirection as import('@/lib/db').QuizMode,
+            currentQuizItem.word,
+            currentQuizItem.meaning
+          );
 
       const { easeFactor, interval, repetitions, nextReviewAt } = computeSm2(
         currentState,
@@ -1534,25 +1828,10 @@ export default function HomePage() {
         }
       }
 
-      // const practiceRecord = {
-      //   ...createInitialSrsPracticeRecord(
-      //     currentQuizItem.id,
-      //     quizDirection as import('@/lib/db').QuizMode,
-      //     currentQuizItem.word,
-      //     currentQuizItem.meaning,
-      //     rating,
-      //     timestamp
-      //   ),
-      //   updatedAt: timestamp,
-      // };
-      //
-      // await database.srsPracticeWords.upsert(practiceRecord);
-      // void pushSrsPracticeWordToRemote(database.srsPracticeWords, practiceRecord);
-
       // Advance to next card automatically
       handleNext();
     },
-    [database, currentQuizItem, quizDirection, handleNext]
+    [database, currentQuizItem, quizDirection, quizSource, handleNext]
   );
 
   return (
@@ -1574,16 +1853,23 @@ export default function HomePage() {
           onToggleTheme={toggleTheme}
         />
 
-        <DailyUsageTimer />
+        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+          <DailyUsageTimer />
+          <CloudSyncCard
+            unsyncedCount={unsyncedCount}
+            onlineStatus={onlineStatus}
+            isSyncing={isSyncing}
+            onSyncNow={handleManualSync}
+          />
+        </SimpleGrid>
 
         <StatsDashboard
           totalWords={words.length}
           todayCount={todayCount}
           srsDueTodayCount={srsDueTodayCount}
-          unsyncedCount={unsyncedCount}
-          onlineStatus={onlineStatus}
-          isSyncing={isSyncing}
-          onSyncNow={handleManualSync}
+          fsrsDueTodayCount={fsrsDueTodayCount}
+          srsNextDueText={srsNextDueText}
+          fsrsNextDueText={fsrsNextDueText}
           onOpenAllWordsQuiz={() => {
             setMode('quiz');
             setQuizSource('words');
@@ -1599,6 +1885,10 @@ export default function HomePage() {
           onOpenSrsQuiz={() => {
             setMode('quiz');
             setQuizSource('srs');
+          }}
+          onOpenFsrsQuiz={() => {
+            setMode('quiz');
+            setQuizSource('fsrs');
           }}
         />
 
@@ -1688,6 +1978,7 @@ export default function HomePage() {
             onPrevious={handlePrevious}
             onRefreshExamples={handleRefreshExamples}
             onSrsRate={handleSrsRate}
+            srsIntervals={srsIntervals}
             onEditClick={(id) => setEditingQuizWordId(id)}
             onSetPracticeDisplayMode={setPracticeDisplayMode}
             onSetAutoPronounceQuizWord={setAutoPronounceQuizWord}
@@ -1723,12 +2014,12 @@ export default function HomePage() {
             prev.map((item) =>
               item.id === id
                 ? {
-                  ...item,
-                  word,
-                  meaning,
-                  definitions,
-                  tags: groups,
-                }
+                    ...item,
+                    word,
+                    meaning,
+                    definitions,
+                    tags: groups,
+                  }
                 : item
             )
           );

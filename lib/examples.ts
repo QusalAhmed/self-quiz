@@ -20,18 +20,17 @@ export function normalizeAiExampleCount(value: unknown): number {
   return Math.min(MAX_AI_EXAMPLE_COUNT, Math.max(MIN_AI_EXAMPLE_COUNT, Math.floor(numeric)));
 }
 
-export function normalizeAiExamples(value: unknown, targetCount = DEFAULT_AI_EXAMPLE_COUNT): string[] {
+export function normalizeAiExamples(
+  value: unknown,
+  targetCount = DEFAULT_AI_EXAMPLE_COUNT
+): string[] {
   const normalizedTarget = normalizeAiExampleCount(targetCount);
   if (!Array.isArray(value)) {
     return [];
   }
 
   return Array.from(
-    new Set(
-      value
-        .map((item) => (typeof item === 'string' ? item.trim() : ''))
-        .filter(Boolean)
-    )
+    new Set(value.map((item) => (typeof item === 'string' ? item.trim() : '')).filter(Boolean))
   ).slice(0, normalizedTarget);
 }
 
@@ -41,7 +40,10 @@ export function mergeAiExamples(
   targetCount = DEFAULT_AI_EXAMPLE_COUNT
 ): string[] {
   return normalizeAiExamples(
-    [...normalizeAiExamples(existingExamples, targetCount), ...normalizeAiExamples(nextExamples, targetCount)],
+    [
+      ...normalizeAiExamples(existingExamples, targetCount),
+      ...normalizeAiExamples(nextExamples, targetCount),
+    ],
     targetCount
   );
 }
@@ -56,9 +58,7 @@ export function getDefinitionExamples(
 }
 
 /** Flattened list of every example across all of a word's definitions. */
-export function getDisplayExamples(
-  record: Pick<WordRecord, 'definitions' | 'meaning'>
-): string[] {
+export function getDisplayExamples(record: Pick<WordRecord, 'definitions' | 'meaning'>): string[] {
   return getWordDefinitions(record).flatMap((definition) => getDefinitionExamples(definition));
 }
 

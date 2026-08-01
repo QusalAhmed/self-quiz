@@ -10,6 +10,7 @@ import { RxDBMigrationSchemaPlugin } from 'rxdb/plugins/migration-schema';
 import { RxDBQueryBuilderPlugin } from 'rxdb/plugins/query-builder';
 import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie';
 import { wrappedValidateAjvStorage } from 'rxdb/plugins/validate-ajv';
+import type { FsrsRecord } from './fsrs';
 import type { SrsRecord } from './srs';
 import type { SrsPracticeRecord } from './srs-practice';
 
@@ -47,6 +48,7 @@ export type GroupRecord = {
 export type QuizMode = 'wordToMeaning' | 'meaningToWord' | 'spelling';
 
 export type { SrsRecord };
+export type { FsrsRecord };
 export type { SrsPracticeRecord };
 
 export type MissedWordRecord = {
@@ -80,6 +82,7 @@ export type WordCollection = RxCollection<WordRecord>;
 export type MissedWordCollection = RxCollection<MissedWordRecord>;
 export type GroupCollection = RxCollection<GroupRecord>;
 export type SrsCollection = RxCollection<SrsRecord>;
+export type FsrsCollection = RxCollection<FsrsRecord>;
 export type SrsPracticeCollection = RxCollection<SrsPracticeRecord>;
 export type DailyUsageCollection = RxCollection<DailyUsageRecord>;
 export type AppDatabase = RxDatabase<{
@@ -87,6 +90,7 @@ export type AppDatabase = RxDatabase<{
   missedWords: MissedWordCollection;
   groups: GroupCollection;
   srsRecords: SrsCollection;
+  fsrsRecords: FsrsCollection;
   srsPracticeWords: SrsPracticeCollection;
   dailyUsage: DailyUsageCollection;
 }>;
@@ -270,6 +274,58 @@ const srsPracticeSchema: RxJsonSchema<SrsPracticeRecord> = {
   indexes: ['wordId', 'quizMode', 'practicedAt', 'updatedAt', 'isDeleted'],
 };
 
+const fsrsSchema: RxJsonSchema<FsrsRecord> = {
+  title: 'fsrs records schema',
+  version: 1,
+  description: 'FSRS scheduling data per word per quiz mode',
+  primaryKey: 'id',
+  type: 'object',
+  properties: {
+    id: { type: 'string', maxLength: 128 },
+    wordId: { type: 'string', maxLength: 64 },
+    quizMode: { type: 'string', maxLength: 16 },
+    word: { type: 'string', maxLength: 128 },
+    meaning: { type: 'string' },
+    dueAt: { type: 'string', maxLength: 32 },
+    stability: { type: 'number', minimum: 0 },
+    difficulty: { type: 'number', minimum: 0 },
+    elapsedDays: { type: 'number', minimum: 0 },
+    scheduledDays: { type: 'number', minimum: 0 },
+    learningSteps: { type: 'number', minimum: 0 },
+    reps: { type: 'number', minimum: 0 },
+    lapses: { type: 'number', minimum: 0 },
+    state: {
+      type: 'string',
+      enum: ['New', 'Learning', 'Review', 'Relearning'],
+    },
+    lastReviewedAt: { type: 'string', maxLength: 32 },
+    updatedAt: { type: 'string', maxLength: 32 },
+    lastSyncedAt: { type: 'string', default: '' },
+    isDeleted: { type: 'boolean', default: false },
+  },
+  required: [
+    'id',
+    'wordId',
+    'quizMode',
+    'word',
+    'meaning',
+    'dueAt',
+    'stability',
+    'difficulty',
+    'elapsedDays',
+    'scheduledDays',
+    'learningSteps',
+    'reps',
+    'lapses',
+    'state',
+    'lastReviewedAt',
+    'updatedAt',
+    'lastSyncedAt',
+    'isDeleted',
+  ],
+  indexes: ['wordId', 'quizMode', 'dueAt', 'updatedAt', 'isDeleted'],
+};
+
 const dailyUsageSchema: RxJsonSchema<DailyUsageRecord> = {
   title: 'daily usage schema',
   version: 1,
@@ -288,7 +344,6 @@ const dailyUsageSchema: RxJsonSchema<DailyUsageRecord> = {
   required: ['id', 'date', 'deviceId', 'seconds', 'updatedAt', 'lastSyncedAt', 'isDeleted'],
   indexes: ['date', 'deviceId', 'updatedAt', 'isDeleted'],
 };
-
 
 if (process.env.NODE_ENV === 'development') {
   addRxPlugin(RxDBDevModePlugin);
@@ -455,6 +510,12 @@ async function createDatabase(): Promise<AppDatabase> {
     },
     srsRecords: {
       schema: srsSchema,
+      migrationStrategies: {
+        1: (oldDoc) => ({ ...oldDoc }),
+      },
+    },
+    fsrsRecords: {
+      schema: fsrsSchema,
       migrationStrategies: {
         1: (oldDoc) => ({ ...oldDoc }),
       },

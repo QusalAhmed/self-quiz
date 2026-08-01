@@ -183,10 +183,7 @@ export function SrsPracticeVirtualList({
                         <IconVolume size={16} />
                       </WordActionIcon>
                       {onEditClick && (
-                        <WordActionIcon
-                          label="Edit word"
-                          onClick={() => onEditClick(word.wordId)}
-                        >
+                        <WordActionIcon label="Edit word" onClick={() => onEditClick(word.wordId)}>
                           <IconEdit size={16} />
                         </WordActionIcon>
                       )}
@@ -212,7 +209,10 @@ export function SrsPracticeVirtualList({
 
                   {isRevealed ? (
                     <div style={{ marginTop: 4 }}>
-                      <DefinitionsDisplay definitions={word.definitions} fallbackMeaning={word.meaning} />
+                      <DefinitionsDisplay
+                        definitions={word.definitions}
+                        fallbackMeaning={word.meaning}
+                      />
                     </div>
                   ) : (
                     <Button

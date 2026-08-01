@@ -18,9 +18,7 @@ export async function generateGoogleExamples(params: GenerateExamplesParams): Pr
   const model = process.env.GOOGLE_AI_MODEL || 'gemma-4-26b-a4b-it';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-  const partOfSpeechBlock = partOfSpeech
-    ? `\nSelected part of speech: ${partOfSpeech}.`
-    : '';
+  const partOfSpeechBlock = partOfSpeech ? `\nSelected part of speech: ${partOfSpeech}.` : '';
   const referenceBlock =
     referenceExamples.length > 0
       ? `\nReference user examples for this same meaning (use only as guidance, do not copy verbatim):\n${referenceExamples
@@ -28,8 +26,10 @@ export async function generateGoogleExamples(params: GenerateExamplesParams): Pr
           .join('\n')}\n`
       : '';
 
-  const systemInstruction = 'You output only raw JSON. No markdown. No explanation. No code fences. Just a JSON object. Reply with ONLY this JSON and nothing else: {"examples":["sentence 1","sentence 2","sentence 3"]}';
-  const promptText = `Give me up to ${targetCount} example sentences in English using the word "${word}" ` +
+  const systemInstruction =
+    'You output only raw JSON. No markdown. No explanation. No code fences. Just a JSON object. Reply with ONLY this JSON and nothing else: {"examples":["sentence 1","sentence 2","sentence 3"]}';
+  const promptText =
+    `Give me up to ${targetCount} example sentences in English using the word "${word}" ` +
     `(meaning: ${meaning}). Each sentence must clearly reflect this specific meaning.` +
     partOfSpeechBlock +
     ` Prefer ${targetCount} examples if possible, but return fewer if that is more natural or accurate.` +
@@ -73,12 +73,13 @@ export async function generateGoogleExamples(params: GenerateExamplesParams): Pr
   }
 
   const data = await response.json();
-  
+
   // Extract text from non-thought parts of the response candidates
-  const textParts = data.candidates?.[0]?.content?.parts
-    ?.filter((part: any) => !part.thought && part.text)
-    .map((part: any) => part.text)
-    .join('') || '';
+  const textParts =
+    data.candidates?.[0]?.content?.parts
+      ?.filter((part: any) => !part.thought && part.text)
+      .map((part: any) => part.text)
+      .join('') || '';
 
   if (!textParts) {
     throw new Error('Google AI response did not contain any non-thought text parts');

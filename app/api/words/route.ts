@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
 import { definitionsToMeaning, normalizeDefinitions } from '@/lib/definitions';
 import { normalizeAiExampleCount } from '@/lib/examples';
+import { supabase } from '@/lib/supabase';
 
 export const revalidate = 0; // Disable caching for this route
 

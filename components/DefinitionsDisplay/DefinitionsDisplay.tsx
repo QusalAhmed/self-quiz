@@ -53,7 +53,12 @@ export function DefinitionsDisplay({
   }
 
   return (
-    <Stack gap={gap} style={maxWidth ? { width: '100%', maxWidth, margin: isCenter ? '0 auto' : undefined } : undefined}>
+    <Stack
+      gap={gap}
+      style={
+        maxWidth ? { width: '100%', maxWidth, margin: isCenter ? '0 auto' : undefined } : undefined
+      }
+    >
       {normalized.map((definition, index) => {
         const examples = showExamples ? getDefinitionExamples(definition) : [];
         return (

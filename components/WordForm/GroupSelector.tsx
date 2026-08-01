@@ -1,6 +1,6 @@
-import type { KeyboardEvent } from 'react';
 import { ActionIcon, Group, MultiSelect, Text, TextInput, Tooltip } from '@mantine/core';
 import { IconCheck, IconPlus, IconX } from '@tabler/icons-react';
+import type { KeyboardEvent } from 'react';
 
 type GroupSelectorProps = {
   customGroups: string[];
@@ -42,7 +42,11 @@ export function GroupSelector({
     >
       {isAddingNewGroup ? (
         <TextInput
-          label={<Text size="xs" fw={600} c="dimmed">Create New Group</Text>}
+          label={
+            <Text size="xs" fw={600} c="dimmed">
+              Create New Group
+            </Text>
+          }
           placeholder="Group name, e.g. Verbs, SAT prep"
           value={newGroupName}
           onChange={(event) => onNewGroupNameChange(event.currentTarget.value)}
@@ -54,7 +58,11 @@ export function GroupSelector({
         />
       ) : (
         <MultiSelect
-          label={<Text size="xs" fw={600} c="dimmed">Groups (optional)</Text>}
+          label={
+            <Text size="xs" fw={600} c="dimmed">
+              Groups (optional)
+            </Text>
+          }
           placeholder="Choose one or more groups..."
           value={groups}
           onChange={onGroupsChange}

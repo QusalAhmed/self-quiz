@@ -1,6 +1,6 @@
 'use client';
 
-import { Card, Group, Text, Badge, Tooltip } from '@mantine/core';
+import { Badge, Card, Group, Text, Tooltip } from '@mantine/core';
 import { IconClock } from '@tabler/icons-react';
 import { useEffect, useRef, useState } from 'react';
 import { getDatabase, type DailyUsageRecord } from '@/lib/db';
@@ -52,58 +52,69 @@ export function DailyUsageTimer() {
   const [isActive, setIsActive] = useState(true);
   const [secondsToday, setSecondsToday] = useState(0);
 
-  // Refs holding mutable state that doesn't need re-renders
+  // Track active date to handle midnight rollover cleanly
+  const currentDateRef = useRef(getTodayDateString());
   const deviceIdRef = useRef('');
   const localSecondsRef = useRef(0); // seconds for THIS device today
   const allDeviceSecondsRef = useRef<Map<string, number>>(new Map()); // all devices today
   const secondsSinceLastPushRef = useRef(0);
+  const subscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Helper to load and subscribe to RxDB dailyUsage for a specific date string
+  const setupSubscriptionForDate = async (targetDate: string, deviceId: string) => {
+    if (subscriptionRef.current) {
+      subscriptionRef.current.unsubscribe();
+      subscriptionRef.current = null;
+    }
+
+    try {
+      const db = await getDatabase();
+      const todayQuery = db.dailyUsage.find({
+        selector: { date: targetDate, isDeleted: { $ne: true } },
+      });
+
+      subscriptionRef.current = todayQuery.$.subscribe((docs) => {
+        const deviceMap = new Map<string, number>();
+        for (const doc of docs) {
+          const rec = doc.toJSON() as DailyUsageRecord;
+          if (rec.date === targetDate && !rec.isDeleted) {
+            deviceMap.set(rec.deviceId, rec.seconds);
+          }
+        }
+        allDeviceSecondsRef.current = deviceMap;
+
+        // Sync local device seconds from database for this specific target date
+        const storedLocalSecs = deviceMap.get(deviceId) ?? 0;
+        localSecondsRef.current = storedLocalSecs;
+
+        // Display is the SUM of all devices for targetDate
+        const total = Array.from(deviceMap.values()).reduce((acc, s) => acc + s, 0);
+        setSecondsToday(total);
+      });
+    } catch (err) {
+      console.error('Failed to subscribe to daily usage RxDB query:', err);
+    }
+  };
 
   useEffect(() => {
     if (!mounted) return;
 
     const deviceId = getOrCreateDeviceId();
     deviceIdRef.current = deviceId;
-    let isMounted = true;
-    let subscription: { unsubscribe: () => void } | null = null;
+    const today = getTodayDateString();
+    currentDateRef.current = today;
 
-    const init = async () => {
-      const today = getTodayDateString();
-      const db = await getDatabase();
-
-      // Query all daily usage records for today to aggregate all devices
-      const todayQuery = db.dailyUsage.find({
-        selector: { date: today, isDeleted: { $ne: true } },
-      });
-
-      // Subscribe to live updates (picks up remote sync changes in real-time)
-      subscription = todayQuery.$.subscribe((docs) => {
-        if (!isMounted) return;
-        const deviceMap = new Map<string, number>();
-        for (const doc of docs) {
-          const rec = doc.toJSON() as DailyUsageRecord;
-          deviceMap.set(rec.deviceId, rec.seconds);
-        }
-        allDeviceSecondsRef.current = deviceMap;
-
-        // Update local device seconds from DB
-        const storedLocalSecs = deviceMap.get(deviceId) ?? 0;
-        localSecondsRef.current = storedLocalSecs;
-
-        // Display is the SUM of all devices
-        const total = Array.from(deviceMap.values()).reduce((acc, s) => acc + s, 0);
-        setSecondsToday(total);
-      });
-    };
-
-    void init();
+    void setupSubscriptionForDate(today, deviceId);
 
     return () => {
-      isMounted = false;
-      subscription?.unsubscribe();
+      if (subscriptionRef.current) {
+        subscriptionRef.current.unsubscribe();
+        subscriptionRef.current = null;
+      }
     };
   }, [mounted]);
 
@@ -134,14 +145,23 @@ export function DailyUsageTimer() {
 
     resetIdleTimeout();
 
-    const handleActivity = () => { resetIdleTimeout(); };
+    const handleActivity = () => {
+      resetIdleTimeout();
+    };
     const handleVisibilityChange = () => {
       isVisible = document.visibilityState === 'visible';
       if (isVisible) resetIdleTimeout();
       checkState();
     };
-    const handleFocus = () => { isFocused = true; resetIdleTimeout(); checkState(); };
-    const handleBlur = () => { isFocused = false; checkState(); };
+    const handleFocus = () => {
+      isFocused = true;
+      resetIdleTimeout();
+      checkState();
+    };
+    const handleBlur = () => {
+      isFocused = false;
+      checkState();
+    };
 
     const activityEvents = ['mousemove', 'keydown', 'mousedown', 'click', 'touchstart', 'scroll'];
     activityEvents.forEach((event) => {
@@ -155,7 +175,7 @@ export function DailyUsageTimer() {
     const pushToRemote = async () => {
       const deviceId = deviceIdRef.current;
       if (!deviceId) return;
-      const today = getTodayDateString();
+      const today = currentDateRef.current;
       const recordId = `${today}:${deviceId}`;
       try {
         const db = await getDatabase();
@@ -181,14 +201,39 @@ export function DailyUsageTimer() {
 
     // Persist to local DB every second, push to remote every REMOTE_PUSH_INTERVAL_SECS seconds
     const intervalId = setInterval(() => {
-      const currentlyActive = !isUserIdle && isVisible && isFocused;
-      if (!currentlyActive) return;
-
       const deviceId = deviceIdRef.current;
       if (!deviceId) return;
 
-      const today = getTodayDateString();
-      const recordId = `${today}:${deviceId}`;
+      const nowToday = getTodayDateString();
+
+      // MIDNIGHT ROLLOVER CHECK: If date changed (e.g. 11:59:59 PM -> 12:00:00 AM)
+      if (nowToday !== currentDateRef.current) {
+        console.log(
+          `Midnight rollover detected: Resetting study timer from ${currentDateRef.current} to ${nowToday}`
+        );
+
+        // 1. Flush previous day's final record
+        void pushToRemote();
+
+        // 2. Update active date ref and reset local counts for the new day
+        currentDateRef.current = nowToday;
+        localSecondsRef.current = 0;
+        allDeviceSecondsRef.current.clear();
+        allDeviceSecondsRef.current.set(deviceId, 0);
+
+        // 3. Reset UI display
+        setSecondsToday(0);
+
+        // 4. Switch RxDB live subscription to the new date
+        void setupSubscriptionForDate(nowToday, deviceId);
+        return;
+      }
+
+      const currentlyActive = !isUserIdle && isVisible && isFocused;
+      if (!currentlyActive) return;
+
+      const activeDate = currentDateRef.current;
+      const recordId = `${activeDate}:${deviceId}`;
       const nextSecs = localSecondsRef.current + 1;
       localSecondsRef.current = nextSecs;
 
@@ -197,14 +242,14 @@ export function DailyUsageTimer() {
       const total = Array.from(allDeviceSecondsRef.current.values()).reduce((acc, s) => acc + s, 0);
       setSecondsToday(total);
 
-      // Persist to local RxDB
+      // Persist to local RxDB for activeDate
       void (async () => {
         try {
           const db = await getDatabase();
           const timestamp = new Date().toISOString();
           const record: DailyUsageRecord = {
             id: recordId,
-            date: today,
+            date: activeDate,
             deviceId,
             seconds: nextSecs,
             updatedAt: timestamp,
@@ -225,7 +270,9 @@ export function DailyUsageTimer() {
     }, 1000);
 
     // Push to remote immediately on page hide / unload
-    const handlePageHide = () => { void pushToRemote(); };
+    const handlePageHide = () => {
+      void pushToRemote();
+    };
     const handleDocVisChange = () => {
       if (document.visibilityState === 'hidden') {
         void pushToRemote();

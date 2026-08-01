@@ -1,42 +1,36 @@
-import { ActionIcon, Card, Flex, Group, SimpleGrid, Text, Tooltip } from '@mantine/core';
-import {
-  IconBook,
-  IconBrain,
-  IconCloudCheck,
-  IconCloudUpload,
-  IconHistory,
-  IconRotateClockwise,
-} from '@tabler/icons-react';
+import { Card, Group, SimpleGrid, Text } from '@mantine/core';
+import { IconBook, IconBrain, IconHistory } from '@tabler/icons-react';
+import React from 'react';
 
 type StatsDashboardProps = {
   totalWords: number;
   todayCount: number;
   srsDueTodayCount: number;
-  unsyncedCount: number;
-  onlineStatus: boolean;
-  isSyncing: boolean;
-  onSyncNow: () => Promise<void> | void;
+  fsrsDueTodayCount: number;
+  srsNextDueText?: string;
+  fsrsNextDueText?: string;
   onOpenAllWordsQuiz: () => void;
   onOpenTodayQuiz: () => void;
   onOpenSrsQuiz: () => void;
+  onOpenFsrsQuiz: () => void;
 };
 
 export function StatsDashboard({
   totalWords,
   todayCount,
   srsDueTodayCount,
-  unsyncedCount,
-  onlineStatus,
-  isSyncing,
-  onSyncNow,
+  fsrsDueTodayCount,
+  srsNextDueText,
+  fsrsNextDueText,
   onOpenAllWordsQuiz,
   onOpenTodayQuiz,
   onOpenSrsQuiz,
+  onOpenFsrsQuiz,
 }: StatsDashboardProps) {
   return (
-    <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="md" verticalSpacing="xs" autoFlow="auto-fit">
+    <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="md" verticalSpacing="xs">
       <Card
-        className="glass-panel"
+        className="glass-panel hover-lift"
         radius="lg"
         padding="md"
         style={{ borderLeft: '4px solid #6366f1', cursor: 'pointer' }}
@@ -47,11 +41,7 @@ export function StatsDashboard({
             <Text size="xs" fw={700} c="dimmed" style={{ letterSpacing: '0.05em' }}>
               TOTAL WORDS
             </Text>
-            <Text
-              size="xl"
-              fw={800}
-              style={{ fontFamily: 'var(--font-title)', marginTop: '4px' }}
-            >
+            <Text size="xl" fw={800} style={{ fontFamily: 'var(--font-title)', marginTop: '4px' }}>
               {totalWords}
             </Text>
           </div>
@@ -60,7 +50,7 @@ export function StatsDashboard({
       </Card>
 
       <Card
-        className="glass-panel"
+        className="glass-panel hover-lift"
         radius="lg"
         padding="md"
         style={{ borderLeft: '4px solid #a855f7', cursor: 'pointer' }}
@@ -71,11 +61,7 @@ export function StatsDashboard({
             <Text size="xs" fw={700} c="dimmed" style={{ letterSpacing: '0.05em' }}>
               ADDED TODAY
             </Text>
-            <Text
-              size="xl"
-              fw={800}
-              style={{ fontFamily: 'var(--font-title)', marginTop: '4px' }}
-            >
+            <Text size="xl" fw={800} style={{ fontFamily: 'var(--font-title)', marginTop: '4px' }}>
               {todayCount}
             </Text>
           </div>
@@ -84,7 +70,7 @@ export function StatsDashboard({
       </Card>
 
       <Card
-        className="glass-panel"
+        className="glass-panel hover-lift"
         radius="lg"
         padding="md"
         style={{ borderLeft: '4px solid #8b5cf6', cursor: 'pointer' }}
@@ -95,62 +81,71 @@ export function StatsDashboard({
             <Text size="xs" fw={700} c="dimmed" style={{ letterSpacing: '0.05em' }}>
               SRS DUE TODAY
             </Text>
-            <Text
-              size="xl"
-              fw={800}
-              style={{
-                fontFamily: 'var(--font-title)',
-                marginTop: '4px',
-                color: srsDueTodayCount > 0 ? '#8b5cf6' : undefined,
-              }}
-            >
-              {srsDueTodayCount}
-            </Text>
+            <Group gap="xs" align="baseline">
+              <Text
+                size="xl"
+                fw={800}
+                style={{
+                  fontFamily: 'var(--font-title)',
+                  marginTop: '4px',
+                  color: srsDueTodayCount > 0 ? '#8b5cf6' : undefined,
+                }}
+              >
+                {srsDueTodayCount}
+              </Text>
+              {srsNextDueText && (
+                <Text
+                  size="xs"
+                  fw={700}
+                  c={srsDueTodayCount > 0 ? 'violet.4' : 'dimmed'}
+                  style={{ opacity: 0.95 }}
+                >
+                  • {srsNextDueText}
+                </Text>
+              )}
+            </Group>
           </div>
           <IconBrain size={28} style={{ opacity: 0.25, color: '#8b5cf6' }} />
         </Group>
       </Card>
 
       <Card
-        className="glass-panel"
+        className="glass-panel hover-lift"
         radius="lg"
         padding="md"
-        style={{ borderLeft: '4px solid #10b981' }}
+        style={{ borderLeft: '4px solid #06b6d4', cursor: 'pointer' }}
+        onClick={onOpenFsrsQuiz}
       >
         <Group justify="space-between" align="center">
           <div>
             <Text size="xs" fw={700} c="dimmed" style={{ letterSpacing: '0.05em' }}>
-              CLOUD SYNC
+              FSRS DUE TODAY
             </Text>
-            <Flex justify="flex-start" align="center" direction="row" wrap="wrap">
-              <Text size="lg" fw={700} c={unsyncedCount === 0 ? 'teal' : 'orange'} mt={4}>
-                {unsyncedCount === 0 ? 'Fully Synced' : `${unsyncedCount} Sync Pending`}
+            <Group gap="xs" align="baseline">
+              <Text
+                size="xl"
+                fw={800}
+                style={{
+                  fontFamily: 'var(--font-title)',
+                  marginTop: '4px',
+                  color: fsrsDueTodayCount > 0 ? '#06b6d4' : undefined,
+                }}
+              >
+                {fsrsDueTodayCount}
               </Text>
-              {onlineStatus && (
-                <Tooltip label={isSyncing ? 'Syncing…' : 'Sync now'} withArrow>
-                  <ActionIcon
-                    size="sm"
-                    variant="subtle"
-                    color="teal"
-                    mt={4}
-                    disabled={isSyncing}
-                    onClick={() => void onSyncNow()}
-                    aria-label="Sync now"
-                  >
-                    <IconRotateClockwise
-                      size={16}
-                      className={isSyncing ? 'sync-spin-icon' : undefined}
-                    />
-                  </ActionIcon>
-                </Tooltip>
+              {fsrsNextDueText && (
+                <Text
+                  size="xs"
+                  fw={700}
+                  c={fsrsDueTodayCount > 0 ? 'cyan.4' : 'dimmed'}
+                  style={{ opacity: 0.95 }}
+                >
+                  • {fsrsNextDueText}
+                </Text>
               )}
-            </Flex>
+            </Group>
           </div>
-          {unsyncedCount === 0 ? (
-            <IconCloudCheck size={28} style={{ opacity: 0.35, color: '#10b981' }} />
-          ) : (
-            <IconCloudUpload size={28} style={{ opacity: 0.35, color: '#f59e0b' }} />
-          )}
+          <IconBrain size={28} style={{ opacity: 0.25, color: '#06b6d4' }} />
         </Group>
       </Card>
     </SimpleGrid>
