@@ -697,6 +697,13 @@ export default function HomePage() {
     quizGroupFilter,
   ]);
 
+  const getFsrsRecordForWord = useCallback(
+    (wordId: string, mode: QuizDirectionKey): FsrsRecord | undefined => {
+      return fsrsRecords.find((f) => !f.isDeleted && f.wordId === wordId && f.quizMode === mode);
+    },
+    [fsrsRecords]
+  );
+
   const resetQuiz = useCallback(() => {
     const queue = shuffle(
       quizCandidates.map((word) => {
@@ -705,10 +712,7 @@ export default function HomePage() {
           (word as { definitions?: WordDefinition[] }).definitions,
           word.meaning
         );
-        const fsrsRecord =
-          'stability' in word
-            ? (word as FsrsRecord)
-            : fsrsDueRecords.find((f) => f.wordId === wordId && f.quizMode === quizDirection);
+        const fsrsRecord = getFsrsRecordForWord(wordId, quizDirection);
         return {
           id: wordId,
           word: word.word,
@@ -725,7 +729,7 @@ export default function HomePage() {
     setQuizIndex(0);
     setRevealed(false);
     setCompleted(queue.length === 0);
-  }, [quizCandidates, getCandidateWordId, words, fsrsDueRecords, quizDirection]);
+  }, [quizCandidates, getCandidateWordId, words, getFsrsRecordForWord, quizDirection]);
 
   // Initialize quiz when candidates are available or when real-time due timer adds new cards
   useEffect(() => {
@@ -789,6 +793,7 @@ export default function HomePage() {
           (word as { definitions?: WordDefinition[] }).definitions,
           word.meaning
         );
+        const fsrsRecord = getFsrsRecordForWord(wordId, quizDirection);
         return {
           id: wordId,
           word: word.word,
@@ -797,6 +802,7 @@ export default function HomePage() {
           tags: words.find((w) => w.id === wordId)?.customGroups || [],
           notes:
             words.find((w) => w.id === wordId)?.notes || (word as { notes?: string }).notes || '',
+          fsrsRecord,
         };
       })
     );
@@ -815,6 +821,7 @@ export default function HomePage() {
     quizDirection,
     quizGroupFilter,
     words,
+    getFsrsRecordForWord,
   ]);
 
   useEffect(() => {
@@ -1020,7 +1027,16 @@ export default function HomePage() {
     void backfill();
   }, [database, isLoading, words]);
 
-  const currentQuizItem = quizQueue[quizIndex] ?? null;
+  const rawCurrentQuizItem = quizQueue[quizIndex] ?? null;
+
+  const currentQuizItem = useMemo(() => {
+    if (!rawCurrentQuizItem) return null;
+    const fsrsRecord = getFsrsRecordForWord(rawCurrentQuizItem.id, quizDirection);
+    return {
+      ...rawCurrentQuizItem,
+      fsrsRecord: fsrsRecord || rawCurrentQuizItem.fsrsRecord,
+    };
+  }, [rawCurrentQuizItem, getFsrsRecordForWord, quizDirection]);
 
   const srsIntervals = useMemo(() => {
     if (!currentQuizItem || (quizSource !== 'fsrs' && quizSource !== 'srs')) {
