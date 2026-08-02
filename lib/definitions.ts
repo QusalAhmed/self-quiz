@@ -12,6 +12,13 @@ export const PARTS_OF_SPEECH = [
   'determiner',
 ] as const;
 
+export function sanitizeMeaning(text: string): string {
+  return text
+    .replace(/,\s*[\r\n]+/g, ', ')
+    .replace(/[\r\n]+/g, ', ')
+    .replace(/,\s*,/g, ',');
+}
+
 export function normalizeStringArray(value: unknown): string[] {
   return Array.isArray(value)
     ? value
@@ -29,7 +36,7 @@ export function normalizeDefinitions(definitions: unknown, fallbackMeaning = '')
     ? definitions
         .map((item) => {
           if (typeof item === 'string') {
-            const meaning = item.trim();
+            const meaning = sanitizeMeaning(item.trim());
             return meaning ? { meaning, partOfSpeech: '', examples: [], userExamples: [] } : null;
           }
 
@@ -44,12 +51,13 @@ export function normalizeDefinitions(definitions: unknown, fallbackMeaning = '')
             examples?: unknown;
             userExamples?: unknown;
           };
-          const meaning =
+          const rawMeaning =
             typeof value.meaning === 'string'
               ? value.meaning.trim()
               : typeof value.definition === 'string'
                 ? value.definition.trim()
                 : '';
+          const meaning = sanitizeMeaning(rawMeaning);
           const partOfSpeech =
             typeof value.partOfSpeech === 'string' ? value.partOfSpeech.trim() : '';
           const examples = normalizeStringArray(value.examples);
@@ -64,7 +72,7 @@ export function normalizeDefinitions(definitions: unknown, fallbackMeaning = '')
     return normalized;
   }
 
-  const meaning = fallbackMeaning.trim();
+  const meaning = sanitizeMeaning(fallbackMeaning.trim());
   return meaning ? [{ meaning, partOfSpeech: '', examples: [], userExamples: [] }] : [];
 }
 

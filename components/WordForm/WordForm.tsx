@@ -11,7 +11,7 @@ import {
   definitionsToFormValues,
 } from '@/components/WordForm/utils';
 import type { WordDefinition, WordRecord } from '@/lib/db';
-import { definitionsToMeaning, normalizeDefinitions } from '@/lib/definitions';
+import { definitionsToMeaning, normalizeDefinitions, sanitizeMeaning } from '@/lib/definitions';
 import { DEFAULT_AI_EXAMPLE_COUNT, normalizeAiExampleCount } from '@/lib/examples';
 
 export type { WordFormEditValues } from '@/components/WordForm/types';
@@ -126,7 +126,7 @@ export function WordForm({
   const parsedDefinitions = (): WordDefinition[] =>
     normalizeDefinitions(
       definitions.map((definition) => ({
-        meaning: definition.meaning,
+        meaning: sanitizeMeaning(definition.meaning),
         partOfSpeech: definition.partOfSpeech,
         examples: definition.examples,
         userExamples: definition.userExamples,
@@ -205,7 +205,13 @@ export function WordForm({
     index: number,
     value: Partial<Pick<DefinitionFormValue, 'meaning' | 'partOfSpeech'>>
   ) => {
-    setDefinitions((prev) => prev.map((item, i) => (i === index ? { ...item, ...value } : item)));
+    const updatedValue = { ...value };
+    if (updatedValue.meaning !== undefined) {
+      updatedValue.meaning = sanitizeMeaning(updatedValue.meaning);
+    }
+    setDefinitions((prev) =>
+      prev.map((item, i) => (i === index ? { ...item, ...updatedValue } : item))
+    );
   };
 
   const addDefinitionField = () => {
