@@ -666,22 +666,14 @@ export function QuizPanel({
   ) : null;
 
   const renderDefinitionsBlock = (showExamples: boolean) => (
-    <ScrollArea.Autosize
-      mah={420}
-      offsetScrollbars
-      scrollbarSize={8}
-      scrollHideDelay={500}
-      style={{ width: '100%' }}
-    >
-      <DefinitionsDisplay
-        definitions={definitions}
-        showExamples={showExamples}
-        align="center"
-        meaningSize="lg"
-        maxWidth={620}
-        emptyText="No definition available."
-      />
-    </ScrollArea.Autosize>
+    <DefinitionsDisplay
+      definitions={definitions}
+      showExamples={showExamples}
+      align="center"
+      meaningSize="lg"
+      maxWidth={620}
+      emptyText="No definition available."
+    />
   );
 
   // In meaningToWord mode the definition is shown as the *question*, before the word is

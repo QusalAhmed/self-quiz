@@ -1,7 +1,8 @@
-import { Badge, Group, Stack, Text } from '@mantine/core';
+import { Badge, Button, Collapse, Group, ScrollArea, Stack, Text } from '@mantine/core';
+import { IconChevronDown, IconChevronUp } from '@tabler/icons-react';
+import { useState } from 'react';
 import type { WordDefinition } from '@/lib/db';
 import { normalizeDefinitions } from '@/lib/definitions';
-import { getDefinitionExamples } from '@/lib/examples';
 
 export type DefinitionsDisplayProps = {
   definitions?: WordDefinition[];
@@ -17,8 +18,9 @@ export type DefinitionsDisplayProps = {
 };
 
 /**
- * Renders a word's definitions, each shown separately with its own part-of-speech badge
- * and example sentences (user-authored first, then AI-generated).
+ * Renders a word's definitions normally, each shown separately with its own part-of-speech badge.
+ * Contains a toggle button under each definition to open a dedicated scroller for examples.
+ * User-authored examples and AI-generated examples are differentiated by distinct text colors.
  */
 export function DefinitionsDisplay({
   definitions,
@@ -28,10 +30,15 @@ export function DefinitionsDisplay({
   align = 'left',
   meaningSize = 'sm',
   maxWidth,
-  gap = 'sm',
+  gap = 'md',
 }: DefinitionsDisplayProps) {
+  const [expandedIndices, setExpandedIndices] = useState<Record<number, boolean>>({});
   const normalized = normalizeDefinitions(definitions, fallbackMeaning);
   const isCenter = align === 'center';
+
+  const toggleExpand = (index: number) => {
+    setExpandedIndices((prev) => ({ ...prev, [index]: !prev[index] }));
+  };
 
   if (normalized.length === 0) {
     return (
@@ -60,15 +67,19 @@ export function DefinitionsDisplay({
       }
     >
       {normalized.map((definition, index) => {
-        const examples = showExamples ? getDefinitionExamples(definition) : [];
+        const userExamples = definition.userExamples || [];
+        const aiExamples = definition.examples || [];
+        const totalExamples = userExamples.length + aiExamples.length;
+        const isExpanded = Boolean(expandedIndices[index]);
+
         return (
-          <Stack key={`definition-${index}`} gap={4}>
-            <Group gap={6} align="center" wrap="nowrap">
+          <Stack key={`definition-${index}`} gap={6}>
+            <Group gap={6} align="flex-start" wrap="nowrap">
               <Text
                 size={meaningSize === 'lg' ? 'sm' : 'xs'}
                 fw={700}
                 c="dimmed"
-                style={{ lineHeight: 1.6, flexShrink: 0 }}
+                style={{ lineHeight: 1.6, flexShrink: 0, paddingTop: 2 }}
               >
                 {index + 1}.
               </Text>
@@ -78,14 +89,14 @@ export function DefinitionsDisplay({
                   color="indigo"
                   size={meaningSize === 'lg' ? 'sm' : 'xs'}
                   radius="sm"
-                  style={{ textTransform: 'none', flexShrink: 0 }}
+                  style={{ textTransform: 'none', flexShrink: 0, marginTop: 2 }}
                 >
                   {definition.partOfSpeech}
                 </Badge>
               )}
               <Text
                 size={meaningSize}
-                fw={meaningSize === 'lg' ? 500 : 600}
+                fw={meaningSize === 'lg' ? 600 : 600}
                 style={{
                   color: 'var(--text-secondary)',
                   lineHeight: 1.6,
@@ -97,22 +108,70 @@ export function DefinitionsDisplay({
                 {definition.meaning}
               </Text>
             </Group>
-            {examples.length > 0 && (
-              <Stack gap={2} pl={20}>
-                {examples.map((example, exampleIndex) => (
-                  <Text
-                    key={`definition-${index}-example-${exampleIndex}`}
-                    size="sm"
-                    style={{
-                      color: 'var(--text-muted)',
-                      lineHeight: 1.5,
-                      wordBreak: 'break-word',
-                      textAlign: 'left',
-                    }}
+
+            {showExamples && totalExamples > 0 && (
+              <Stack gap="xs" style={{ width: '100%' }} pl={{ base: 0, sm: 20 }}>
+                <Group justify={isCenter ? 'center' : 'flex-start'}>
+                  <Button
+                    variant="subtle"
+                    color="indigo"
+                    size="xs"
+                    radius="md"
+                    leftSection={
+                      isExpanded ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />
+                    }
+                    onClick={() => toggleExpand(index)}
+                    style={{ fontWeight: 600, height: 26, paddingLeft: 8, paddingRight: 8 }}
                   >
-                    {`• ${example}`}
-                  </Text>
-                ))}
+                    {isExpanded ? 'Hide Examples' : `Show Examples (${totalExamples})`}
+                  </Button>
+                </Group>
+
+                <Collapse expanded={isExpanded}>
+                  <ScrollArea.Autosize
+                    mah={180}
+                    offsetScrollbars
+                    scrollbarSize={6}
+                    type="auto"
+                    style={{ width: '100%' }}
+                  >
+                    <Stack gap={4} py={4} pl={20}>
+                      {/* User Authored Examples ("My Examples") — Purple / Grape Text */}
+                      {userExamples.map((example, exampleIndex) => (
+                        <Text
+                          key={`definition-${index}-user-example-${exampleIndex}`}
+                          size="sm"
+                          fw={500}
+                          style={{
+                            color: '#c084fc',
+                            lineHeight: 1.5,
+                            wordBreak: 'break-word',
+                            textAlign: 'left',
+                          }}
+                        >
+                          {`• ${example}`}
+                        </Text>
+                      ))}
+
+                      {/* AI Generated Examples — Indigo / Blue Text */}
+                      {aiExamples.map((example, exampleIndex) => (
+                        <Text
+                          key={`definition-${index}-ai-example-${exampleIndex}`}
+                          size="sm"
+                          fw={500}
+                          style={{
+                            color: '#818cf8',
+                            lineHeight: 1.5,
+                            wordBreak: 'break-word',
+                            textAlign: 'left',
+                          }}
+                        >
+                          {`• ${example}`}
+                        </Text>
+                      ))}
+                    </Stack>
+                  </ScrollArea.Autosize>
+                </Collapse>
               </Stack>
             )}
           </Stack>
