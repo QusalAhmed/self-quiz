@@ -34,34 +34,6 @@ export function FsrsCardViewer({
   onUndo,
   onPronounce,
 }: FsrsCardViewerProps) {
-  // Keyboard shortcuts: Alt + Space / Alt + Enter to reveal answer, Alt + Z / Alt + U to undo
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (!event.altKey) return;
-
-      const activeTag = document.activeElement?.tagName.toLowerCase();
-      if (activeTag === 'input' || activeTag === 'textarea') return;
-
-      if (!isRevealed && (event.code === 'Space' || event.code === 'Enter')) {
-        event.preventDefault();
-        onReveal();
-        return;
-      }
-
-      if (
-        canUndo &&
-        onUndo &&
-        (event.key === 'z' || event.key === 'Z' || event.key === 'u' || event.key === 'U')
-      ) {
-        event.preventDefault();
-        onUndo();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isRevealed, onReveal, canUndo, onUndo]);
-
   const totalCardsInQueue = newCount + learningCount + reviewCount;
   const progressPercent =
     totalCardsInQueue > 0
@@ -171,7 +143,7 @@ export function FsrsCardViewer({
             )}
 
             {canUndo && onUndo && (
-              <Tooltip label="Undo last card rating (Alt + Z / Alt + U)" withArrow>
+              <Tooltip label="Undo last card rating" withArrow>
                 <Button
                   variant="light"
                   color="grape"
@@ -181,7 +153,7 @@ export function FsrsCardViewer({
                   onClick={onUndo}
                   style={{ fontWeight: 800, height: 22, paddingLeft: 8, paddingRight: 8 }}
                 >
-                  Undo (Alt + Z)
+                  Undo
                 </Button>
               </Tooltip>
             )}
@@ -226,7 +198,7 @@ export function FsrsCardViewer({
 
           {!isRevealed && (
             <Text size="xs" c="dimmed" fw={600} style={{ letterSpacing: '0.04em' }}>
-              Press ALT + SPACE or click below to reveal answer
+              Click below to reveal answer
             </Text>
           )}
         </Stack>
