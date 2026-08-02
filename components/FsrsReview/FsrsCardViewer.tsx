@@ -125,21 +125,6 @@ export function FsrsCardViewer({
           </Group>
 
           <Group gap="xs" align="center">
-            {canUndo && onUndo && (
-              <Tooltip label="Undo last rating (Z / U)" withArrow>
-                <Button
-                  variant="subtle"
-                  color="grape"
-                  size="xs"
-                  radius="md"
-                  leftSection={<IconArrowBackUp size={14} />}
-                  onClick={onUndo}
-                  style={{ fontWeight: 700 }}
-                >
-                  Undo
-                </Button>
-              </Tooltip>
-            )}
             <FsrsCounterBadge
               newCount={newCount}
               learningCount={learningCount}
@@ -149,7 +134,57 @@ export function FsrsCardViewer({
         </Group>
 
         {/* Word Display (Front of Card - Quizlet & RemNote inspired) */}
-        <Stack align="center" gap="sm" py="lg">
+        <Stack align="center" gap="xs" py="md">
+          {/* FSRS Card Metadata & Undo Bar */}
+          <Group justify="center" gap={6} wrap="wrap" mb={4}>
+            <Badge
+              variant="light"
+              color={stateBadgeProps.color}
+              size="sm"
+              radius="md"
+              style={{ fontWeight: 800 }}
+            >
+              {stateBadgeProps.label}
+            </Badge>
+            <Badge variant="outline" color="violet" size="sm" radius="md">
+              Reps: {card.reps ?? 0}
+            </Badge>
+            <Badge variant="outline" color={card.lapses > 0 ? 'red' : 'gray'} size="sm" radius="md">
+              Lapses: {card.lapses ?? 0}
+            </Badge>
+
+            {typeof card.stability === 'number' && card.stability > 0 && (
+              <Badge variant="outline" color="teal" size="sm" radius="md">
+                Stab:{' '}
+                {card.stability < 1
+                  ? `${Math.round(card.stability * 24)}h`
+                  : `${card.stability.toFixed(1)}d`}
+              </Badge>
+            )}
+
+            {typeof card.difficulty === 'number' && card.difficulty > 0 && (
+              <Badge variant="outline" color="orange" size="sm" radius="md">
+                Diff: {card.difficulty.toFixed(1)}/10
+              </Badge>
+            )}
+
+            {canUndo && onUndo && (
+              <Tooltip label="Undo last card rating (Z / U)" withArrow>
+                <Button
+                  variant="light"
+                  color="grape"
+                  size="xs"
+                  radius="md"
+                  leftSection={<IconArrowBackUp size={14} />}
+                  onClick={onUndo}
+                  style={{ fontWeight: 800, height: 22, paddingLeft: 8, paddingRight: 8 }}
+                >
+                  Undo (Z)
+                </Button>
+              </Tooltip>
+            )}
+          </Group>
+
           <Group gap="sm" align="center" justify="center">
             <Title
               order={1}

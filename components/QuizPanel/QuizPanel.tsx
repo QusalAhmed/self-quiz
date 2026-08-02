@@ -36,7 +36,7 @@ import { quizDirections } from '@/app/home/constants';
 import { DefinitionsDisplay } from '@/components/DefinitionsDisplay/DefinitionsDisplay';
 import { RichNoteViewer } from '@/components/RichNoteViewer/RichNoteViewer';
 import { WordActionIcon } from '@/components/WordActions/WordActionIcon';
-import type { WordDefinition } from '@/lib/db';
+import type { FsrsRecord, WordDefinition } from '@/lib/db';
 import { normalizeDefinitions } from '@/lib/definitions';
 import type { SrsRating } from '@/lib/srs';
 
@@ -47,6 +47,7 @@ export type QuizItem = {
   definitions?: WordDefinition[];
   tags?: string[];
   notes?: string;
+  fsrsRecord?: FsrsRecord;
 };
 
 export type QuizDirection = 'wordToMeaning' | 'meaningToWord' | 'spelling';
@@ -567,61 +568,146 @@ export function QuizPanel({
       </Stack>
     ) : null;
 
-  const wordWithActions = (includeMissed: boolean) => (
-    <Group gap="sm" align="center" justify="center">
-      <Title
-        order={1}
-        style={{
-          fontFamily: 'var(--font-title)',
-          fontSize: '2.5rem',
-          fontWeight: 800,
-          letterSpacing: '-0.02em',
-          textAlign: 'center',
-        }}
-      >
-        {item.word}
-      </Title>
-      <Group gap={6}>
-        <WordActionIcon
-          label="Speak pronunciation"
-          color={isPlayingAudio ? 'indigo' : 'gray'}
-          size="lg"
-          onClick={() => handleSpeak(item.word)}
-          withArrow={false}
-        >
-          <IconVolume size={20} />
-        </WordActionIcon>
-        <WordActionIcon
-          label="Copy word"
-          size="lg"
-          onClick={() => navigator.clipboard.writeText(item.word)}
-          withArrow={false}
-        >
-          <IconCopy size={20} />
-        </WordActionIcon>
-        {onEditClick && (
-          <WordActionIcon
-            label="Edit word"
-            size="lg"
-            onClick={() => onEditClick(item.id)}
-            withArrow={false}
+  const fsrsRecord =
+    item?.fsrsRecord ||
+    (srsMode
+      ? {
+          state: 'New' as const,
+          reps: 0,
+          lapses: 0,
+          stability: 0,
+          difficulty: 0,
+        }
+      : undefined);
+
+  const fsrsMetaBar = (
+    <Group justify="center" gap={6} wrap="wrap" mb={4}>
+      {fsrsRecord && (
+        <>
+          <Badge
+            variant="light"
+            color={
+              fsrsRecord.state === 'New'
+                ? 'blue'
+                : fsrsRecord.state === 'Learning' || fsrsRecord.state === 'Relearning'
+                  ? 'orange'
+                  : 'teal'
+            }
+            size="sm"
+            radius="md"
+            style={{ fontWeight: 800 }}
           >
-            <IconEdit size={20} />
-          </WordActionIcon>
-        )}
-        {onDeleteFsrsRecord && (
-          <WordActionIcon
-            label="Delete FSRS record for this quiz mode"
-            color="red"
-            onClick={() => setConfirmDeleteFsrsOpened(true)}
-            withArrow={false}
+            {fsrsRecord.state === 'New'
+              ? '✨ New'
+              : fsrsRecord.state === 'Learning' || fsrsRecord.state === 'Relearning'
+                ? '⚡ Learning'
+                : '🧠 Review'}
+          </Badge>
+          <Badge variant="outline" color="violet" size="sm" radius="md">
+            Reps: {fsrsRecord.reps ?? 0}
+          </Badge>
+          <Badge
+            variant="outline"
+            color={fsrsRecord.lapses > 0 ? 'red' : 'gray'}
+            size="sm"
+            radius="md"
           >
-            <IconTrash size={20} />
-          </WordActionIcon>
-        )}
-        {includeMissed && markMissedAction}
-      </Group>
+            Lapses: {fsrsRecord.lapses ?? 0}
+          </Badge>
+
+          {typeof fsrsRecord.stability === 'number' && fsrsRecord.stability > 0 && (
+            <Badge variant="outline" color="teal" size="sm" radius="md">
+              Stab:{' '}
+              {fsrsRecord.stability < 1
+                ? `${Math.round(fsrsRecord.stability * 24)}h`
+                : `${fsrsRecord.stability.toFixed(1)}d`}
+            </Badge>
+          )}
+
+          {typeof fsrsRecord.difficulty === 'number' && fsrsRecord.difficulty > 0 && (
+            <Badge variant="outline" color="orange" size="sm" radius="md">
+              Diff: {fsrsRecord.difficulty.toFixed(1)}/10
+            </Badge>
+          )}
+        </>
+      )}
+
+      {canUndo && onUndo && (
+        <Tooltip label="Undo last card rating (Z / U)" withArrow>
+          <Button
+            variant="light"
+            color="grape"
+            size="xs"
+            radius="md"
+            leftSection={<IconArrowBackUp size={14} />}
+            onClick={onUndo}
+            style={{ fontWeight: 800, height: 22, paddingLeft: 8, paddingRight: 8 }}
+          >
+            Undo Rating (Z)
+          </Button>
+        </Tooltip>
+      )}
     </Group>
+  );
+
+  const wordWithActions = (includeMissed: boolean) => (
+    <Stack gap="xs" align="center" style={{ width: '100%' }}>
+      {fsrsMetaBar}
+      <Group gap="sm" align="center" justify="center">
+        <Title
+          order={1}
+          style={{
+            fontFamily: 'var(--font-title)',
+            fontSize: '2.5rem',
+            fontWeight: 800,
+            letterSpacing: '-0.02em',
+            textAlign: 'center',
+          }}
+        >
+          {item.word}
+        </Title>
+        <Group gap={6}>
+          <WordActionIcon
+            label="Speak pronunciation"
+            color={isPlayingAudio ? 'indigo' : 'gray'}
+            size="lg"
+            onClick={() => handleSpeak(item.word)}
+            withArrow={false}
+          >
+            <IconVolume size={20} />
+          </WordActionIcon>
+          <WordActionIcon
+            label="Copy word"
+            size="lg"
+            onClick={() => navigator.clipboard.writeText(item.word)}
+            withArrow={false}
+          >
+            <IconCopy size={20} />
+          </WordActionIcon>
+          {onEditClick && (
+            <WordActionIcon
+              label="Edit word"
+              size="lg"
+              onClick={() => onEditClick(item.id)}
+              withArrow={false}
+            >
+              <IconEdit size={20} />
+            </WordActionIcon>
+          )}
+          {onDeleteFsrsRecord && (
+            <WordActionIcon
+              label="Delete FSRS record for this quiz mode"
+              color="red"
+              onClick={() => setConfirmDeleteFsrsOpened(true)}
+              withArrow={false}
+            >
+              <IconTrash size={20} />
+            </WordActionIcon>
+          )}
+          {includeMissed && markMissedAction}
+        </Group>
+      </Group>
+    </Stack>
   );
 
   const examplesGenerationIndicator = isGeneratingExamples ? (
@@ -1021,33 +1107,16 @@ export function QuizPanel({
         </Stack>
 
         <Group justify="space-between" mt="sm">
-          <Group gap="xs">
-            <Button
-              variant="subtle"
-              color="gray"
-              onClick={onPrevious}
-              disabled={!hasPrevious}
-              radius="md"
-              leftSection={<IconChevronLeft size={18} />}
-            >
-              Back
-            </Button>
-            {canUndo && onUndo && (
-              <Tooltip label="Undo last rating (Press Z / U)" withArrow>
-                <Button
-                  variant="light"
-                  color="grape"
-                  size="sm"
-                  radius="md"
-                  leftSection={<IconArrowBackUp size={16} />}
-                  onClick={onUndo}
-                  style={{ fontWeight: 700 }}
-                >
-                  Undo Rating
-                </Button>
-              </Tooltip>
-            )}
-          </Group>
+          <Button
+            variant="subtle"
+            color="gray"
+            onClick={onPrevious}
+            disabled={!hasPrevious}
+            radius="md"
+            leftSection={<IconChevronLeft size={18} />}
+          >
+            Back
+          </Button>
 
           <Button
             onClick={() => {

@@ -705,6 +705,10 @@ export default function HomePage() {
           (word as { definitions?: WordDefinition[] }).definitions,
           word.meaning
         );
+        const fsrsRecord =
+          'stability' in word
+            ? (word as FsrsRecord)
+            : fsrsDueRecords.find((f) => f.wordId === wordId && f.quizMode === quizDirection);
         return {
           id: wordId,
           word: word.word,
@@ -713,6 +717,7 @@ export default function HomePage() {
           tags: words.find((w) => w.id === wordId)?.customGroups || [],
           notes:
             words.find((w) => w.id === wordId)?.notes || (word as { notes?: string }).notes || '',
+          fsrsRecord,
         };
       })
     );
@@ -720,7 +725,7 @@ export default function HomePage() {
     setQuizIndex(0);
     setRevealed(false);
     setCompleted(queue.length === 0);
-  }, [quizCandidates, getCandidateWordId, words]);
+  }, [quizCandidates, getCandidateWordId, words, fsrsDueRecords, quizDirection]);
 
   // Initialize quiz when candidates are available or when real-time due timer adds new cards
   useEffect(() => {
@@ -1896,7 +1901,7 @@ export default function HomePage() {
         // re-queue it to the end of the current quiz queue so it is reviewed in the same session without refresh
         const isShortLearning = new Date(updated.dueAt).getTime() - now.getTime() <= 2 * 60 * 1000;
         if (rating === 'again' || isShortLearning) {
-          setQuizQueue((prev) => [...prev, currentQuizItem]);
+          setQuizQueue((prev) => [...prev, { ...currentQuizItem, fsrsRecord: updated }]);
         }
 
         handleNext();
