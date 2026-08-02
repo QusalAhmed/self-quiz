@@ -57,6 +57,7 @@ export function WordList({
       definitions: getWordDefinitions(editingItem),
       groups: getWordGroups(editingItem),
       aiExampleCount: editingItem.aiExampleCount,
+      notes: editingItem.notes || '',
     };
   }, [editingItem]);
 

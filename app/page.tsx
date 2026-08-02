@@ -1429,8 +1429,11 @@ export default function HomePage() {
         item.id === id
           ? {
               ...item,
+              word: record.word,
               meaning: record.meaning,
               definitions: record.definitions,
+              tags: record.customGroups,
+              notes: record.notes,
             }
           : item
       )
@@ -1935,21 +1938,8 @@ export default function HomePage() {
           editingQuizWordId ? words.find((w) => w.id === editingQuizWordId) || null : null
         }
         customGroups={customGroups}
-        onSave={async (id, word, meaning, definitions, groups, aiExampleCount) => {
-          await handleEdit(id, word, meaning, definitions, groups, aiExampleCount);
-          setQuizQueue((prev) =>
-            prev.map((item) =>
-              item.id === id
-                ? {
-                    ...item,
-                    word,
-                    meaning,
-                    definitions,
-                    tags: groups,
-                  }
-                : item
-            )
-          );
+        onSave={async (id, word, meaning, definitions, groups, aiExampleCount, notes) => {
+          await handleEdit(id, word, meaning, definitions, groups, aiExampleCount, notes);
         }}
         onAddCustomGroup={handleAddCustomGroup}
       />
