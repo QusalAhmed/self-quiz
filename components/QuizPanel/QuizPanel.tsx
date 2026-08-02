@@ -816,8 +816,8 @@ export function QuizPanel({
           {quizDirection === 'wordToMeaning' && (
             <>
               {wordWithActions(true)}
-              {showUserExamplesButton}
-              {userExamplesBlock}
+              {!revealed && showUserExamplesButton}
+              {!revealed && userExamplesBlock}
               {examplesGenerationIndicator}
               {!revealed ? (
                 revealButton
@@ -835,8 +835,8 @@ export function QuizPanel({
           {quizDirection === 'meaningToWord' && (
             <>
               {revealed ? definitionsBlock : definitionsBlockNoSpoilers}
-              {showUserExamplesButton}
-              {userExamplesBlock}
+              {!revealed && showUserExamplesButton}
+              {!revealed && userExamplesBlock}
               {examplesGenerationIndicator}
               {!revealed ? (
                 revealButton
