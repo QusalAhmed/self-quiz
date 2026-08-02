@@ -46,6 +46,7 @@ import {
   type FsrsRecord,
   type MissedWordRecord,
   type SrsPracticeRecord,
+  type SrsRecord,
   type WordDefinition,
   type WordRecord,
 } from '@/lib/db';
@@ -128,6 +129,16 @@ export default function HomePage() {
   const [exampleGenerationCounts, setExampleGenerationCounts] = useState<Record<string, number>>(
     {}
   );
+  const [quizHistory, setQuizHistory] = useState<
+    Array<{
+      fsrsRecord?: FsrsRecord;
+      srsRecord?: SrsRecord;
+      previousQueue: QuizItem[];
+      previousIndex: number;
+      previousRevealed: boolean;
+      previousCompleted: boolean;
+    }>
+  >([]);
 
   const customGroups = useMemo(() => getActiveGroupNames(groups), [groups]);
 
@@ -1810,6 +1821,27 @@ export default function HomePage() {
     setColorScheme(colorScheme === 'dark' ? 'light' : 'dark');
   };
 
+  const handleUndoQuiz = useCallback(async () => {
+    if (!database || quizHistory.length === 0) return;
+
+    const last = quizHistory[quizHistory.length - 1];
+    setQuizHistory((prev) => prev.slice(0, -1));
+
+    if (last.fsrsRecord) {
+      await database.fsrsRecords.upsert(last.fsrsRecord);
+      void pushFsrsRecordToRemote(database.fsrsRecords, last.fsrsRecord);
+    }
+    if (last.srsRecord) {
+      await database.srsRecords.upsert(last.srsRecord);
+      void pushSrsRecordToRemote(database.srsRecords, last.srsRecord);
+    }
+
+    setQuizQueue(last.previousQueue);
+    setQuizIndex(last.previousIndex);
+    setRevealed(true);
+    setCompleted(last.previousCompleted);
+  }, [database, quizHistory]);
+
   const handleSrsRate = useCallback(
     async (rating: SrsRating) => {
       if (!database || !currentQuizItem) return;
@@ -1831,6 +1863,17 @@ export default function HomePage() {
               currentQuizItem.word,
               currentQuizItem.meaning
             );
+
+        setQuizHistory((prev) => [
+          ...prev,
+          {
+            fsrsRecord: currentState ? { ...currentState } : undefined,
+            previousQueue: [...quizQueue],
+            previousIndex: quizIndex,
+            previousRevealed: revealed,
+            previousCompleted: completed,
+          },
+        ]);
 
         const updated = {
           ...computeFsrs(
@@ -1871,6 +1914,17 @@ export default function HomePage() {
             currentQuizItem.word,
             currentQuizItem.meaning
           );
+
+      setQuizHistory((prev) => [
+        ...prev,
+        {
+          srsRecord: currentState ? { ...currentState } : undefined,
+          previousQueue: [...quizQueue],
+          previousIndex: quizIndex,
+          previousRevealed: revealed,
+          previousCompleted: completed,
+        },
+      ]);
 
       const { easeFactor, interval, repetitions, nextReviewAt } = computeSm2(
         currentState,
@@ -2102,6 +2156,8 @@ export default function HomePage() {
             }}
             onOpenClearAllMissed={() => setConfirmClearAllOpen(true)}
             onDeleteFsrsRecord={handleDeleteFsrsRecord}
+            canUndo={quizHistory.length > 0}
+            onUndo={handleUndoQuiz}
           />
         )}
       </Stack>

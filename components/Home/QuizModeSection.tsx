@@ -95,6 +95,8 @@ type QuizModeSectionProps = {
   onOpenSrsPracticeQuiz: () => void;
   onOpenClearAllMissed: () => void;
   onDeleteFsrsRecord?: (wordId: string, quizMode: QuizDirection) => void;
+  canUndo?: boolean;
+  onUndo?: () => void;
 };
 
 export function QuizModeSection({
@@ -148,6 +150,8 @@ export function QuizModeSection({
   onOpenSrsPracticeQuiz,
   onOpenClearAllMissed,
   onDeleteFsrsRecord,
+  canUndo,
+  onUndo,
 }: QuizModeSectionProps) {
   return (
     <Stack gap="lg" style={{ minHeight: '100vh' }}>
@@ -330,6 +334,8 @@ export function QuizModeSection({
         srsIntervals={quizSource === 'srs' || quizSource === 'fsrs' ? srsIntervals : undefined}
         onEditClick={onEditClick}
         onDeleteFsrsRecord={onDeleteFsrsRecord}
+        canUndo={canUndo}
+        onUndo={onUndo}
       />
 
       <Card

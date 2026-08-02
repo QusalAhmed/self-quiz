@@ -9,6 +9,14 @@ import {
   type FsrsRecord,
 } from '@/lib/fsrs';
 
+export interface FsrsReviewHistoryItem {
+  cardBefore: FsrsRecord;
+  cardAfter: FsrsRecord;
+  previousQueue: string[];
+  previousCurrentCardId: string | null;
+  previousIsRevealed: boolean;
+}
+
 export interface FsrsSliceState {
   cards: Record<string, FsrsRecord>;
   queue: string[];
@@ -18,6 +26,7 @@ export interface FsrsSliceState {
   syncStatus: 'idle' | 'syncing' | 'synced' | 'error';
   lastSyncError: string | null;
   reviewLogsCount: number;
+  history: FsrsReviewHistoryItem[];
 }
 
 const initialState: FsrsSliceState = {
@@ -29,6 +38,7 @@ const initialState: FsrsSliceState = {
   syncStatus: 'idle',
   lastSyncError: null,
   reviewLogsCount: 0,
+  history: [],
 };
 
 /**
@@ -99,6 +109,7 @@ export const fsrsSlice = createSlice({
       state.queue = dueQueue;
       state.currentCardId = dueQueue.length > 0 ? dueQueue[0] : null;
       state.isRevealed = false;
+      state.history = [];
     },
 
     /**
@@ -152,6 +163,15 @@ export const fsrsSlice = createSlice({
       const now = nowIso ? new Date(nowIso) : new Date();
       const updatedCard = computeFsrs(currentCard, rating, now);
 
+      // Record historical state before applying rating action
+      state.history.push({
+        cardBefore: { ...currentCard },
+        cardAfter: { ...updatedCard },
+        previousQueue: [...state.queue],
+        previousCurrentCardId: state.currentCardId,
+        previousIsRevealed: state.isRevealed,
+      });
+
       state.cards[cardId] = updatedCard;
       state.isRevealed = false;
       state.reviewLogsCount += 1;
@@ -172,6 +192,23 @@ export const fsrsSlice = createSlice({
     },
 
     /**
+     * Undo last card rating:
+     * Restores previous card state, queue, active card ID, and reveals answer so user can re-rate.
+     */
+    undoAnswer: (state) => {
+      const lastHistoryItem = state.history.pop();
+      if (!lastHistoryItem) return;
+
+      const { cardBefore, previousQueue, previousCurrentCardId } = lastHistoryItem;
+
+      state.cards[cardBefore.id] = cardBefore;
+      state.queue = previousQueue;
+      state.currentCardId = previousCurrentCardId;
+      state.isRevealed = true;
+      state.reviewLogsCount = Math.max(0, state.reviewLogsCount - 1);
+    },
+
+    /**
      * Reset review session state.
      */
     resetSession: (state) => {
@@ -181,6 +218,7 @@ export const fsrsSlice = createSlice({
       state.currentCardId = state.queue.length > 0 ? state.queue[0] : null;
       state.isRevealed = false;
       state.reviewLogsCount = 0;
+      state.history = [];
     },
   },
   extraReducers: (builder) => {
@@ -199,14 +237,30 @@ export const fsrsSlice = createSlice({
   },
 });
 
-export const { loadDeck, tickTimer, revealAnswer, hideAnswer, answerCard, resetSession } =
-  fsrsSlice.actions;
+export const {
+  loadDeck,
+  tickTimer,
+  revealAnswer,
+  hideAnswer,
+  answerCard,
+  undoAnswer,
+  resetSession,
+} = fsrsSlice.actions;
 
 // ---------------------------------------------------------------------------
 // Selectors
 // ---------------------------------------------------------------------------
 
 export const selectFsrsState = (state: { fsrs: FsrsSliceState }) => state.fsrs;
+
+export const selectCanUndo = (state: { fsrs: FsrsSliceState }): boolean => {
+  return state.fsrs.history.length > 0;
+};
+
+export const selectLastHistoryCardBefore = (state: { fsrs: FsrsSliceState }): FsrsRecord | null => {
+  const { history } = state.fsrs;
+  return history.length > 0 ? history[history.length - 1].cardBefore : null;
+};
 
 export const selectCurrentCard = (state: { fsrs: FsrsSliceState }): FsrsRecord | null => {
   const { currentCardId, cards } = state.fsrs;

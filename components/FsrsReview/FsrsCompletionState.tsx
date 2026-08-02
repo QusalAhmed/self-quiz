@@ -1,12 +1,10 @@
-'use client';
-
 import { Button, Card, Group, Stack, Text, Title } from '@mantine/core';
 import {
+  IconArrowBackUp,
   IconArrowLeft,
   IconCheck,
   IconConfetti,
   IconRotateClockwise,
-  IconSparkles,
 } from '@tabler/icons-react';
 import React from 'react';
 
@@ -14,12 +12,16 @@ export type FsrsCompletionStateProps = {
   reviewedCount: number;
   onRestartSession: () => void;
   onReturnToLibrary?: () => void;
+  canUndo?: boolean;
+  onUndo?: () => void;
 };
 
 export function FsrsCompletionState({
   reviewedCount,
   onRestartSession,
   onReturnToLibrary,
+  canUndo,
+  onUndo,
 }: FsrsCompletionStateProps) {
   return (
     <Card
@@ -115,7 +117,21 @@ export function FsrsCompletionState({
         </Group>
 
         {/* Action Buttons */}
-        <Group gap="md" mt="lg">
+        <Group gap="md" mt="lg" justify="center" wrap="wrap">
+          {canUndo && onUndo && (
+            <Button
+              size="lg"
+              radius="xl"
+              variant="light"
+              color="grape"
+              leftSection={<IconArrowBackUp size={20} />}
+              onClick={onUndo}
+              style={{ fontWeight: 700 }}
+            >
+              Undo Last Rating
+            </Button>
+          )}
+
           <Button
             size="lg"
             radius="xl"

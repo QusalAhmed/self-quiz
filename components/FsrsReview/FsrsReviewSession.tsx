@@ -9,13 +9,16 @@ import {
   loadDeck,
   resetSession,
   revealAnswer,
+  selectCanUndo,
   selectCardCounts,
   selectCurrentCard,
   selectCurrentIntervals,
   selectFsrsState,
   selectIsDeckComplete,
+  selectLastHistoryCardBefore,
   syncFsrsReviewLog,
   tickTimer,
+  undoAnswer,
 } from '@/lib/redux/slices/fsrsSlice';
 import { FsrsCardViewer } from './FsrsCardViewer';
 import { FsrsCompletionState } from './FsrsCompletionState';
@@ -39,6 +42,8 @@ export function FsrsReviewSession({
   const currentIntervals = useAppSelector(selectCurrentIntervals);
   const isRevealed = useAppSelector((state) => state.fsrs.isRevealed);
   const isDeckComplete = useAppSelector(selectIsDeckComplete);
+  const canUndo = useAppSelector(selectCanUndo);
+  const lastHistoryCardBefore = useAppSelector(selectLastHistoryCardBefore);
   const { newCount, learningCount, reviewCount } = useAppSelector(selectCardCounts);
   const { reviewLogsCount } = useAppSelector(selectFsrsState);
 
@@ -72,6 +77,13 @@ export function FsrsReviewSession({
     dispatch(syncFsrsReviewLog(currentCard));
   };
 
+  const handleUndo = () => {
+    if (!canUndo || !lastHistoryCardBefore) return;
+    const cardToRestore = lastHistoryCardBefore;
+    dispatch(undoAnswer());
+    dispatch(syncFsrsReviewLog(cardToRestore));
+  };
+
   const handleReveal = () => {
     dispatch(revealAnswer());
   };
@@ -87,6 +99,8 @@ export function FsrsReviewSession({
           reviewedCount={reviewLogsCount}
           onRestartSession={handleRestart}
           onReturnToLibrary={onReturnToLibrary}
+          canUndo={canUndo}
+          onUndo={handleUndo}
         />
       ) : (
         <FsrsCardViewer
@@ -96,8 +110,10 @@ export function FsrsReviewSession({
           newCount={newCount}
           learningCount={learningCount}
           reviewCount={reviewCount}
+          canUndo={canUndo}
           onReveal={handleReveal}
           onRate={handleRate}
+          onUndo={handleUndo}
           onPronounce={onPronounceWord}
         />
       )}

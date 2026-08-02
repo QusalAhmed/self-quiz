@@ -17,18 +17,19 @@ import {
   SimpleGrid,
 } from '@mantine/core';
 import {
+  IconArrowBackUp,
   IconAward,
-  IconBrain,
-  IconCopy,
-  IconRotateClockwise,
-  IconVolume,
-  IconChevronLeft,
-  IconChevronRight,
   IconBookmark,
   IconBookmarkOff,
+  IconBrain,
+  IconChevronLeft,
+  IconChevronRight,
+  IconCopy,
   IconEdit,
   IconNotes,
+  IconRotateClockwise,
   IconTrash,
+  IconVolume,
 } from '@tabler/icons-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { quizDirections } from '@/app/home/constants';
@@ -76,6 +77,8 @@ type QuizPanelProps = {
   onEditClick?: (id: string) => void;
   /** Called to delete FSRS record for selected quiz mode */
   onDeleteFsrsRecord?: (wordId: string, quizMode: QuizDirection) => void;
+  canUndo?: boolean;
+  onUndo?: () => void;
 };
 
 export function QuizPanel({
@@ -100,6 +103,8 @@ export function QuizPanel({
   srsIntervals,
   onEditClick,
   onDeleteFsrsRecord,
+  canUndo,
+  onUndo,
 }: QuizPanelProps) {
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [typedWord, setTypedWord] = useState('');
@@ -107,6 +112,26 @@ export function QuizPanel({
   const [showUserExamples, setShowUserExamples] = useState(false);
   const [confirmDeleteFsrsOpened, setConfirmDeleteFsrsOpened] = useState(false);
   const quizPanelRef = useRef<HTMLDivElement>(null);
+
+  // Keyboard shortcut: Z / U to undo last rating action
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const activeTag = document.activeElement?.tagName.toLowerCase();
+      if (activeTag === 'input' || activeTag === 'textarea') return;
+
+      if (
+        canUndo &&
+        onUndo &&
+        (event.key === 'z' || event.key === 'Z' || event.key === 'u' || event.key === 'U')
+      ) {
+        event.preventDefault();
+        onUndo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [canUndo, onUndo]);
   const lastAutoPronouncedKeyRef = useRef<string | null>(null);
 
   const scrollToCenter = () => {
@@ -996,16 +1021,33 @@ export function QuizPanel({
         </Stack>
 
         <Group justify="space-between" mt="sm">
-          <Button
-            variant="subtle"
-            color="gray"
-            onClick={onPrevious}
-            disabled={!hasPrevious}
-            radius="md"
-            leftSection={<IconChevronLeft size={18} />}
-          >
-            Back
-          </Button>
+          <Group gap="xs">
+            <Button
+              variant="subtle"
+              color="gray"
+              onClick={onPrevious}
+              disabled={!hasPrevious}
+              radius="md"
+              leftSection={<IconChevronLeft size={18} />}
+            >
+              Back
+            </Button>
+            {canUndo && onUndo && (
+              <Tooltip label="Undo last rating (Press Z / U)" withArrow>
+                <Button
+                  variant="light"
+                  color="grape"
+                  size="sm"
+                  radius="md"
+                  leftSection={<IconArrowBackUp size={16} />}
+                  onClick={onUndo}
+                  style={{ fontWeight: 700 }}
+                >
+                  Undo Rating
+                </Button>
+              </Tooltip>
+            )}
+          </Group>
 
           <Button
             onClick={() => {

@@ -4,10 +4,12 @@ import fsrsReducer, {
   loadDeck,
   resetSession,
   revealAnswer,
+  selectCanUndo,
   selectCardCounts,
   selectCurrentCard,
   selectIsDeckComplete,
   tickTimer,
+  undoAnswer,
 } from './slices/fsrsSlice';
 
 const baseDate = new Date('2026-01-01T12:00:00.000Z');
@@ -47,6 +49,30 @@ describe('fsrsSlice', () => {
     expect(updatedCard1.state).toBe('Learning');
     expect(state.isRevealed).toBe(false);
     expect(state.reviewLogsCount).toBe(1);
+  });
+
+  it('should allow undoing an answered card', () => {
+    let state = fsrsReducer(undefined, loadDeck([card1, card2]));
+    expect(selectCanUndo({ fsrs: state })).toBe(false);
+
+    state = fsrsReducer(state, revealAnswer());
+    state = fsrsReducer(
+      state,
+      answerCard({ cardId: card1.id, rating: 'good', nowIso: baseDate.toISOString() })
+    );
+
+    expect(selectCanUndo({ fsrs: state })).toBe(true);
+    expect(state.reviewLogsCount).toBe(1);
+    expect(state.currentCardId).toBe(card2.id);
+
+    // Perform Undo
+    state = fsrsReducer(state, undoAnswer());
+
+    expect(selectCanUndo({ fsrs: state })).toBe(false);
+    expect(state.cards[card1.id].reps).toBe(0);
+    expect(state.currentCardId).toBe(card1.id);
+    expect(state.isRevealed).toBe(true);
+    expect(state.reviewLogsCount).toBe(0);
   });
 
   it('should dynamically add cards to queue when timer ticks past dueAt', () => {

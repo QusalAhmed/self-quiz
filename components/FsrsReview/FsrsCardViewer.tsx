@@ -1,7 +1,7 @@
 'use client';
 
 import { Badge, Button, Card, Group, Progress, Stack, Text, Title, Tooltip } from '@mantine/core';
-import { IconEye, IconVolume } from '@tabler/icons-react';
+import { IconArrowBackUp, IconEye, IconVolume } from '@tabler/icons-react';
 import React, { useEffect } from 'react';
 import type { FsrsRating, FsrsRecord } from '@/lib/fsrs';
 import { FsrsCounterBadge } from './FsrsCounterBadge';
@@ -14,8 +14,10 @@ export type FsrsCardViewerProps = {
   newCount: number;
   learningCount: number;
   reviewCount: number;
+  canUndo?: boolean;
   onReveal: () => void;
   onRate: (rating: FsrsRating) => void;
+  onUndo?: () => void;
   onPronounce?: (text: string) => void;
 };
 
@@ -26,26 +28,37 @@ export function FsrsCardViewer({
   newCount,
   learningCount,
   reviewCount,
+  canUndo,
   onReveal,
   onRate,
+  onUndo,
   onPronounce,
 }: FsrsCardViewerProps) {
-  // Keyboard shortcut: Space / Enter to reveal answer
+  // Keyboard shortcuts: Space / Enter to reveal answer, Z / U to undo
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (isRevealed) return;
       const activeTag = document.activeElement?.tagName.toLowerCase();
       if (activeTag === 'input' || activeTag === 'textarea') return;
 
-      if (event.code === 'Space' || event.code === 'Enter') {
+      if (!isRevealed && (event.code === 'Space' || event.code === 'Enter')) {
         event.preventDefault();
         onReveal();
+        return;
+      }
+
+      if (
+        canUndo &&
+        onUndo &&
+        (event.key === 'z' || event.key === 'Z' || event.key === 'u' || event.key === 'U')
+      ) {
+        event.preventDefault();
+        onUndo();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isRevealed, onReveal]);
+  }, [isRevealed, onReveal, canUndo, onUndo]);
 
   const totalCardsInQueue = newCount + learningCount + reviewCount;
   const progressPercent =
@@ -99,7 +112,7 @@ export function FsrsCardViewer({
       />
 
       <Stack gap="md" style={{ flex: 1, justifyContent: 'space-between' }} mt="xs">
-        {/* Header Bar with Anki counter badge */}
+        {/* Header Bar with Anki counter badge & Undo button */}
         <Group justify="space-between" align="center" wrap="wrap" gap="xs">
           <Group gap={6} align="center">
             <Badge variant="light" color={stateBadgeProps.color} size="sm" radius="md">
@@ -111,11 +124,28 @@ export function FsrsCardViewer({
             </Text>
           </Group>
 
-          <FsrsCounterBadge
-            newCount={newCount}
-            learningCount={learningCount}
-            reviewCount={reviewCount}
-          />
+          <Group gap="xs" align="center">
+            {canUndo && onUndo && (
+              <Tooltip label="Undo last rating (Z / U)" withArrow>
+                <Button
+                  variant="subtle"
+                  color="grape"
+                  size="xs"
+                  radius="md"
+                  leftSection={<IconArrowBackUp size={14} />}
+                  onClick={onUndo}
+                  style={{ fontWeight: 700 }}
+                >
+                  Undo
+                </Button>
+              </Tooltip>
+            )}
+            <FsrsCounterBadge
+              newCount={newCount}
+              learningCount={learningCount}
+              reviewCount={reviewCount}
+            />
+          </Group>
         </Group>
 
         {/* Word Display (Front of Card - Quizlet & RemNote inspired) */}
@@ -216,6 +246,14 @@ export function FsrsCardViewer({
 
         {/* Bottom Keyboard Legend */}
         <Group justify="center" gap="lg" style={{ opacity: 0.65 }}>
+          {canUndo && (
+            <Text size="xs" fw={700}>
+              <Text span fw={900} c="pink.4">
+                Z / U
+              </Text>{' '}
+              Undo
+            </Text>
+          )}
           <Text size="xs" fw={700}>
             <Text span fw={900} c="grape.4">
               Space
