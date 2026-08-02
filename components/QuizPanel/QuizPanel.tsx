@@ -135,11 +135,16 @@ export function QuizPanel({
   }, [canUndo, onUndo]);
   const lastAutoPronouncedKeyRef = useRef<string | null>(null);
 
-  const scrollToCenter = () => {
+  const scrollToCenter = useCallback(() => {
     if (quizPanelRef.current) {
-      quizPanelRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const yOffset = -20;
+      const element = quizPanelRef.current;
+      const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
+      window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-  };
+  }, []);
 
   const handleSpeak = useCallback((text: string) => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
@@ -186,12 +191,13 @@ export function QuizPanel({
     return () => clearTimeout(timer);
   }, [autoPronounceWord, completed, handleSpeak, item, quizDirection, revealed]);
 
-  // Reset spelling state on new item or direction change
+  // Reset spelling state and scroll to top of quiz section on new item or direction change
   useEffect(() => {
     setSpellingState('idle');
     setTypedWord('');
     setShowUserExamples(false);
-  }, [item?.id, quizDirection]);
+    scrollToCenter();
+  }, [item?.id, quizDirection, scrollToCenter]);
 
   const handleCheckSpelling = useCallback(() => {
     if (!item) {
@@ -464,7 +470,10 @@ export function QuizPanel({
                   radius="lg"
                   variant="light"
                   color={color}
-                  onClick={() => onSrsRate(rating)}
+                  onClick={() => {
+                    onSrsRate(rating);
+                    scrollToCenter();
+                  }}
                   className={className}
                   style={{
                     fontWeight: 800,
@@ -577,7 +586,10 @@ export function QuizPanel({
             size="xs"
             radius="md"
             leftSection={<IconArrowBackUp size={14} />}
-            onClick={onUndo}
+            onClick={() => {
+              onUndo();
+              scrollToCenter();
+            }}
             style={{ fontWeight: 800, height: 22, paddingLeft: 8, paddingRight: 8 }}
           >
             Undo Rating
@@ -1047,7 +1059,10 @@ export function QuizPanel({
           <Button
             variant="subtle"
             color="gray"
-            onClick={onPrevious}
+            onClick={() => {
+              onPrevious();
+              scrollToCenter();
+            }}
             disabled={!hasPrevious}
             radius="md"
             leftSection={<IconChevronLeft size={18} />}
