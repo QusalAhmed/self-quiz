@@ -269,107 +269,6 @@ export function QuizPanel({
     };
   }, [quizDirection, revealed, completed, handleKeyPress]);
 
-  // Keyboard shortcut: Alt + Spacebar to reveal word/answer when unrevealed
-  useEffect(() => {
-    if (revealed || completed || quizDirection === 'spelling') return;
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const activeEl = document.activeElement;
-      if (activeEl) {
-        const tagName = activeEl.tagName.toLowerCase();
-        if (
-          tagName === 'input' ||
-          tagName === 'textarea' ||
-          activeEl.hasAttribute('contenteditable')
-        ) {
-          return;
-        }
-      }
-
-      if (event.altKey && (event.key === ' ' || event.code === 'Space')) {
-        event.preventDefault();
-        onReveal();
-        scrollToCenter();
-        setShowUserExamples(() => false);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [revealed, completed, quizDirection, onReveal, scrollToCenter]);
-
-  // Add keyboard shortcuts Alt + 1, 2, 3, 4 for rating when revealed in SRS/FSRS mode
-  useEffect(() => {
-    if (!srsMode || !revealed || !onSrsRate || completed) return;
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (!event.altKey) return;
-
-      const activeEl = document.activeElement;
-      if (activeEl) {
-        const tagName = activeEl.tagName.toLowerCase();
-        if (
-          tagName === 'input' ||
-          tagName === 'textarea' ||
-          activeEl.hasAttribute('contenteditable')
-        ) {
-          return;
-        }
-      }
-
-      switch (event.key) {
-        case '1':
-          event.preventDefault();
-          onSrsRate('again');
-          break;
-        case '2':
-          event.preventDefault();
-          onSrsRate('hard');
-          break;
-        case '3':
-          event.preventDefault();
-          onSrsRate('good');
-          break;
-        case '4':
-          event.preventDefault();
-          onSrsRate('easy');
-          break;
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [srsMode, revealed, onSrsRate, completed]);
-
-  // Add keyboard shortcut Alt + Z / Alt + U for Undo rating
-  useEffect(() => {
-    if (!canUndo || !onUndo || completed) return;
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (!event.altKey) return;
-
-      const activeEl = document.activeElement;
-      if (activeEl) {
-        const tagName = activeEl.tagName.toLowerCase();
-        if (
-          tagName === 'input' ||
-          tagName === 'textarea' ||
-          activeEl.hasAttribute('contenteditable')
-        ) {
-          return;
-        }
-      }
-
-      if (event.key === 'z' || event.key === 'Z' || event.key === 'u' || event.key === 'U') {
-        event.preventDefault();
-        onUndo();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [canUndo, onUndo, completed]);
-
   const KEYBOARD_ROWS = [
     ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
     ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'],
@@ -514,7 +413,7 @@ export function QuizPanel({
         <Group gap={6} align="center" mb={2}>
           <IconBrain size={15} style={{ color: '#a855f7' }} />
           <Text size="xs" fw={700} c="dimmed" style={{ letterSpacing: '0.06em' }}>
-            HOW WELL DID YOU RECALL THIS? (ALT + 1 to ALT + 4)
+            HOW WELL DID YOU RECALL THIS?
           </Text>
         </Group>
         <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="xs" style={{ width: '100%' }}>
@@ -523,7 +422,6 @@ export function QuizPanel({
               rating: 'again' as const,
               label: 'Again',
               color: 'red',
-              keyHint: 'Alt+1',
               className: 'rating-btn-again',
               defaultTooltip: 'Completely forgot — review again in 1 minute',
             },
@@ -531,7 +429,6 @@ export function QuizPanel({
               rating: 'hard' as const,
               label: 'Hard',
               color: 'orange',
-              keyHint: 'Alt+2',
               className: 'rating-btn-hard',
               defaultTooltip: 'Hard — remembered with effort',
             },
@@ -539,7 +436,6 @@ export function QuizPanel({
               rating: 'good' as const,
               label: 'Good',
               color: 'teal',
-              keyHint: 'Alt+3',
               className: 'rating-btn-good',
               defaultTooltip: 'Good — remembered correctly',
             },
@@ -547,15 +443,14 @@ export function QuizPanel({
               rating: 'easy' as const,
               label: 'Easy',
               color: 'indigo',
-              keyHint: 'Alt+4',
               className: 'rating-btn-easy',
               defaultTooltip: 'Easy — recalled instantly',
             },
-          ].map(({ rating, label, color, keyHint, className, defaultTooltip }) => {
+          ].map(({ rating, label, color, className, defaultTooltip }) => {
             const intervalText = srsIntervals?.[rating];
             const tooltipLabel = intervalText
-              ? `${label} — next review in ${intervalText} (Press ${keyHint})`
-              : `${defaultTooltip} (Press ${keyHint})`;
+              ? `${label} — next review in ${intervalText}`
+              : defaultTooltip;
 
             return (
               <Tooltip
@@ -601,24 +496,6 @@ export function QuizPanel({
                     <Text size="sm" fw={800} style={{ lineHeight: 1.15 }}>
                       {label}
                     </Text>
-
-                    {/* Key Hint Pill */}
-                    <Badge
-                      size="xs"
-                      variant="filled"
-                      color={color}
-                      circle
-                      style={{
-                        position: 'absolute',
-                        top: -6,
-                        right: -6,
-                        fontSize: '0.65rem',
-                        fontWeight: 900,
-                        boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
-                      }}
-                    >
-                      {keyHint}
-                    </Badge>
                   </Stack>
                 </Button>
               </Tooltip>
@@ -693,7 +570,7 @@ export function QuizPanel({
       )}
 
       {canUndo && onUndo && (
-        <Tooltip label="Undo last card rating (Alt + Z / Alt + U)" withArrow>
+        <Tooltip label="Undo last card rating" withArrow>
           <Button
             variant="light"
             color="grape"
@@ -703,7 +580,7 @@ export function QuizPanel({
             onClick={onUndo}
             style={{ fontWeight: 800, height: 22, paddingLeft: 8, paddingRight: 8 }}
           >
-            Undo Rating (Alt + Z)
+            Undo Rating
           </Button>
         </Tooltip>
       )}
