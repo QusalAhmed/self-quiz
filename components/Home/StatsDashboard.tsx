@@ -5,30 +5,24 @@ import React from 'react';
 type StatsDashboardProps = {
   totalWords: number;
   todayCount: number;
-  srsDueTodayCount: number;
   fsrsDueTodayCount: number;
-  srsNextDueText?: string;
   fsrsNextDueText?: string;
   onOpenAllWordsQuiz: () => void;
   onOpenTodayQuiz: () => void;
-  onOpenSrsQuiz: () => void;
   onOpenFsrsQuiz: () => void;
 };
 
 export function StatsDashboard({
   totalWords,
   todayCount,
-  srsDueTodayCount,
   fsrsDueTodayCount,
-  srsNextDueText,
   fsrsNextDueText,
   onOpenAllWordsQuiz,
   onOpenTodayQuiz,
-  onOpenSrsQuiz,
   onOpenFsrsQuiz,
 }: StatsDashboardProps) {
   return (
-    <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="md" verticalSpacing="xs">
+    <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md" verticalSpacing="xs">
       <Card
         className="glass-panel hover-lift"
         radius="lg"
@@ -73,53 +67,13 @@ export function StatsDashboard({
         className="glass-panel hover-lift"
         radius="lg"
         padding="md"
-        style={{ borderLeft: '4px solid #8b5cf6', cursor: 'pointer' }}
-        onClick={onOpenSrsQuiz}
-      >
-        <Group justify="space-between" align="center">
-          <div>
-            <Text size="xs" fw={700} c="dimmed" style={{ letterSpacing: '0.05em' }}>
-              SRS DUE TODAY
-            </Text>
-            <Group gap="xs" align="baseline">
-              <Text
-                size="xl"
-                fw={800}
-                c={srsDueTodayCount > 0 ? 'violet.6' : undefined}
-                style={{
-                  fontFamily: 'var(--font-title)',
-                  marginTop: '4px',
-                }}
-              >
-                {srsDueTodayCount}
-              </Text>
-              {srsNextDueText && (
-                <Text
-                  size="xs"
-                  fw={800}
-                  c={srsDueTodayCount > 0 ? 'violet.6' : 'dimmed'}
-                  style={{ opacity: 0.95 }}
-                >
-                  • {srsNextDueText}
-                </Text>
-              )}
-            </Group>
-          </div>
-          <IconBrain size={28} style={{ opacity: 0.35, color: '#8b5cf6' }} />
-        </Group>
-      </Card>
-
-      <Card
-        className="glass-panel hover-lift"
-        radius="lg"
-        padding="md"
         style={{ borderLeft: '4px solid #ec4899', cursor: 'pointer' }}
         onClick={onOpenFsrsQuiz}
       >
         <Group justify="space-between" align="center">
           <div>
             <Text size="xs" fw={700} c="dimmed" style={{ letterSpacing: '0.05em' }}>
-              FSRS DUE TODAY
+              DUE FOR REVIEW (FSRS)
             </Text>
             <Group gap="xs" align="baseline">
               <Text

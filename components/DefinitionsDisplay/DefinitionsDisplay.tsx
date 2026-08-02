@@ -75,6 +75,7 @@ export function DefinitionsDisplay({
         return (
           <Stack key={`definition-${index}`} gap={6}>
             <Text
+              component="div"
               size={meaningSize}
               fw={meaningSize === 'lg' ? 600 : 600}
               style={{
@@ -89,6 +90,7 @@ export function DefinitionsDisplay({
               </Text>
               {definition.partOfSpeech && (
                 <Badge
+                  component="span"
                   variant="light"
                   color="indigo"
                   size={meaningSize === 'lg' ? 'sm' : 'xs'}

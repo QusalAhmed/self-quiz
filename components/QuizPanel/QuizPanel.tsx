@@ -38,7 +38,7 @@ import { RichNoteViewer } from '@/components/RichNoteViewer/RichNoteViewer';
 import { WordActionIcon } from '@/components/WordActions/WordActionIcon';
 import type { FsrsRecord, WordDefinition } from '@/lib/db';
 import { normalizeDefinitions } from '@/lib/definitions';
-import type { SrsRating } from '@/lib/srs';
+import type { FsrsRating as SrsRating } from '@/lib/fsrs';
 
 export type QuizItem = {
   id: string;

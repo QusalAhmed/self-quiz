@@ -61,7 +61,7 @@ type QuizModeSectionProps = {
   revealedMissedWordIds: Record<string, boolean>;
   revealedSrsPracticeWordIds: Record<string, boolean>;
   missedWordsForMode: Array<MissedWordRecord & { definitions?: WordDefinition[] }>;
-  recentSrsPracticeWords: Array<SrsPracticeRecord & { definitions?: WordDefinition[] }>;
+  recentSrsPracticeWords?: Array<SrsPracticeRecord & { definitions?: WordDefinition[] }>;
   missedWordIdSet: Set<string>;
   generatingExampleWordIds: Record<string, boolean>;
   autoPronounceQuizWord: boolean;
@@ -77,8 +77,8 @@ type QuizModeSectionProps = {
   onNext: () => void;
   onPrevious: () => void;
   onRefreshExamples: (id: string) => Promise<void> | void;
-  onSrsRate?: (rating: import('@/lib/srs').SrsRating) => void;
-  srsIntervals?: Partial<Record<import('@/lib/srs').SrsRating, string>>;
+  onSrsRate?: (rating: import('@/lib/fsrs').FsrsRating) => void;
+  srsIntervals?: Partial<Record<import('@/lib/fsrs').FsrsRating, string>>;
   onEditClick: (id: string) => void;
   onSetPracticeDisplayMode: (value: PracticeDisplayKey) => void;
   onSetAutoPronounceQuizWord: (value: boolean) => void;
@@ -329,9 +329,9 @@ export function QuizModeSection({
           currentQuizItem ? Boolean(generatingExampleWordIds[currentQuizItem.id]) : false
         }
         autoPronounceWord={autoPronounceQuizWord}
-        srsMode={quizSource === 'srs' || quizSource === 'fsrs'}
-        onSrsRate={quizSource === 'srs' || quizSource === 'fsrs' ? onSrsRate : undefined}
-        srsIntervals={quizSource === 'srs' || quizSource === 'fsrs' ? srsIntervals : undefined}
+        srsMode={quizSource === 'fsrs'}
+        onSrsRate={quizSource === 'fsrs' ? onSrsRate : undefined}
+        srsIntervals={quizSource === 'fsrs' ? srsIntervals : undefined}
         onEditClick={onEditClick}
         onDeleteFsrsRecord={onDeleteFsrsRecord}
         canUndo={canUndo}
@@ -391,7 +391,7 @@ export function QuizModeSection({
             >
               {practiceDisplayMode === 'missed'
                 ? missedWordsForMode.length
-                : recentSrsPracticeWords.length}
+                : (recentSrsPracticeWords || []).length}
             </Badge>
           </Group>
 
@@ -507,7 +507,7 @@ export function QuizModeSection({
               generatingExampleWordIds={generatingExampleWordIds}
             />
           )
-        ) : recentSrsPracticeWords.length === 0 ? (
+        ) : (recentSrsPracticeWords || []).length === 0 ? (
           <EmptyPracticeState
             icon={<IconBrain size={24} style={{ color: '#8b5cf6', opacity: 0.5 }} />}
             title="No SRS practice words in the last 24 hours"
@@ -520,7 +520,7 @@ export function QuizModeSection({
           />
         ) : (
           <SrsPracticeVirtualList
-            words={recentSrsPracticeWords}
+            words={recentSrsPracticeWords || []}
             hideMeanings={hideSrsPracticeMeanings}
             revealedWordIds={revealedSrsPracticeWordIds}
             onRevealWord={(id) =>

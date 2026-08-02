@@ -11,14 +11,11 @@ export const quizRanges = {
 export const quizSources = {
   words: 'Regular',
   missed: 'Missed Words',
-  srs: 'SRS Review',
   fsrs: 'FSRS Review',
-  srsPractice: 'SRS Practice',
 } as const;
 
 export const practiceDisplayModes = {
   missed: 'Missed Words',
-  srs: 'SRS Practice',
 } as const;
 
 export const quizDirections = {
