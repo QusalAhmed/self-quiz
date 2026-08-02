@@ -578,6 +578,22 @@ export function QuizPanel({
         </>
       )}
 
+      {onRefreshExamples && item && (
+        <Tooltip label="Regenerate AI examples" withArrow>
+          <Button
+            variant="light"
+            color="indigo"
+            size="xs"
+            radius="md"
+            leftSection={<IconRotateClockwise size={14} />}
+            onClick={() => onRefreshExamples(item.id)}
+            style={{ fontWeight: 800, height: 22, paddingLeft: 8, paddingRight: 8 }}
+          >
+            Regenerate Examples
+          </Button>
+        </Tooltip>
+      )}
+
       {canUndo && onUndo && (
         <Tooltip label="Undo last card rating" withArrow>
           <Button
@@ -1030,20 +1046,6 @@ export function QuizPanel({
                 </Stack>
               )}
             </>
-          )}
-
-          {revealed && onRefreshExamples && (
-            <Group justify="center" mt="xs">
-              <Button
-                variant="subtle"
-                size="xs"
-                radius="md"
-                leftSection={<IconRotateClockwise size={14} />}
-                onClick={() => onRefreshExamples(item.id)}
-              >
-                Regenerate Examples
-              </Button>
-            </Group>
           )}
         </Stack>
 
