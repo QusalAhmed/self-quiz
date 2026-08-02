@@ -16,7 +16,7 @@ const RATING_BUTTONS = [
     rating: 'again' as const,
     label: 'Again',
     color: 'red',
-    keyHint: '1',
+    keyHint: 'Alt+1',
     className: 'rating-btn-again',
     defaultTooltip: 'Completely forgot — review again in 1 minute',
   },
@@ -24,7 +24,7 @@ const RATING_BUTTONS = [
     rating: 'hard' as const,
     label: 'Hard',
     color: 'orange',
-    keyHint: '2',
+    keyHint: 'Alt+2',
     className: 'rating-btn-hard',
     defaultTooltip: 'Hard — remembered with effort',
   },
@@ -32,7 +32,7 @@ const RATING_BUTTONS = [
     rating: 'good' as const,
     label: 'Good',
     color: 'teal',
-    keyHint: '3',
+    keyHint: 'Alt+3',
     className: 'rating-btn-good',
     defaultTooltip: 'Good — remembered correctly',
   },
@@ -40,31 +40,35 @@ const RATING_BUTTONS = [
     rating: 'easy' as const,
     label: 'Easy',
     color: 'indigo',
-    keyHint: '4',
+    keyHint: 'Alt+4',
     className: 'rating-btn-easy',
     defaultTooltip: 'Easy — recalled instantly',
   },
 ];
 
 export function FsrsRatingBar({ intervals, onRate, disabled = false }: FsrsRatingBarProps) {
-  // Add keyboard shortcuts 1, 2, 3, 4
+  // Add keyboard shortcuts Alt + 1, Alt + 2, Alt + 3, Alt + 4
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (disabled) return;
+      if (disabled || !event.altKey) return;
       const activeTag = document.activeElement?.tagName.toLowerCase();
       if (activeTag === 'input' || activeTag === 'textarea') return;
 
       switch (event.key) {
         case '1':
+          event.preventDefault();
           onRate('again');
           break;
         case '2':
+          event.preventDefault();
           onRate('hard');
           break;
         case '3':
+          event.preventDefault();
           onRate('good');
           break;
         case '4':
+          event.preventDefault();
           onRate('easy');
           break;
       }
@@ -79,7 +83,7 @@ export function FsrsRatingBar({ intervals, onRate, disabled = false }: FsrsRatin
       <Group gap={6} align="center" mb={2}>
         <IconBrain size={15} style={{ color: '#a855f7' }} />
         <Text size="xs" fw={700} c="dimmed" style={{ letterSpacing: '0.06em' }}>
-          RATE YOUR RECALL (SHORTCUTS 1 - 4)
+          RATE YOUR RECALL (ALT + 1 to ALT + 4)
         </Text>
       </Group>
 

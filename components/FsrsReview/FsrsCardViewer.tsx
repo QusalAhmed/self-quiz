@@ -34,9 +34,11 @@ export function FsrsCardViewer({
   onUndo,
   onPronounce,
 }: FsrsCardViewerProps) {
-  // Keyboard shortcuts: Space / Enter to reveal answer, Z / U to undo
+  // Keyboard shortcuts: Alt + Space / Alt + Enter to reveal answer, Alt + Z / Alt + U to undo
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (!event.altKey) return;
+
       const activeTag = document.activeElement?.tagName.toLowerCase();
       if (activeTag === 'input' || activeTag === 'textarea') return;
 
@@ -169,7 +171,7 @@ export function FsrsCardViewer({
             )}
 
             {canUndo && onUndo && (
-              <Tooltip label="Undo last card rating (Z / U)" withArrow>
+              <Tooltip label="Undo last card rating (Alt + Z / Alt + U)" withArrow>
                 <Button
                   variant="light"
                   color="grape"
@@ -179,7 +181,7 @@ export function FsrsCardViewer({
                   onClick={onUndo}
                   style={{ fontWeight: 800, height: 22, paddingLeft: 8, paddingRight: 8 }}
                 >
-                  Undo (Z)
+                  Undo (Alt + Z)
                 </Button>
               </Tooltip>
             )}
@@ -224,7 +226,7 @@ export function FsrsCardViewer({
 
           {!isRevealed && (
             <Text size="xs" c="dimmed" fw={600} style={{ letterSpacing: '0.04em' }}>
-              Press SPACE or click below to reveal answer
+              Press ALT + SPACE or click below to reveal answer
             </Text>
           )}
         </Stack>
