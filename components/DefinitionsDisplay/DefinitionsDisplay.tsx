@@ -74,13 +74,17 @@ export function DefinitionsDisplay({
 
         return (
           <Stack key={`definition-${index}`} gap={6}>
-            <Group gap={6} align="flex-start" wrap="nowrap">
-              <Text
-                size={meaningSize === 'lg' ? 'sm' : 'xs'}
-                fw={700}
-                c="dimmed"
-                style={{ lineHeight: 1.6, flexShrink: 0, paddingTop: 2 }}
-              >
+            <Text
+              size={meaningSize}
+              fw={meaningSize === 'lg' ? 600 : 600}
+              style={{
+                color: 'var(--text-secondary)',
+                lineHeight: 1.6,
+                wordBreak: 'break-word',
+                textAlign: 'left',
+              }}
+            >
+              <Text span size={meaningSize === 'lg' ? 'sm' : 'xs'} fw={700} c="dimmed" mr={6}>
                 {index + 1}.
               </Text>
               {definition.partOfSpeech && (
@@ -89,25 +93,18 @@ export function DefinitionsDisplay({
                   color="indigo"
                   size={meaningSize === 'lg' ? 'sm' : 'xs'}
                   radius="sm"
-                  style={{ textTransform: 'none', flexShrink: 0, marginTop: 2 }}
+                  mr={6}
+                  style={{
+                    textTransform: 'none',
+                    display: 'inline-flex',
+                    verticalAlign: 'baseline',
+                  }}
                 >
                   {definition.partOfSpeech}
                 </Badge>
               )}
-              <Text
-                size={meaningSize}
-                fw={meaningSize === 'lg' ? 600 : 600}
-                style={{
-                  color: 'var(--text-secondary)',
-                  lineHeight: 1.6,
-                  wordBreak: 'break-word',
-                  flex: 1,
-                  textAlign: 'left',
-                }}
-              >
-                {definition.meaning}
-              </Text>
-            </Group>
+              {definition.meaning}
+            </Text>
 
             {showExamples && totalExamples > 0 && (
               <Stack gap="xs" style={{ width: '100%' }} pl={{ base: 0, sm: 20 }}>
