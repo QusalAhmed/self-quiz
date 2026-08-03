@@ -2,7 +2,7 @@
 
 import { Container } from '@mantine/core';
 import React, { useEffect } from 'react';
-import type { FsrsRating, FsrsRecord } from '@/lib/fsrs';
+import { computeFsrs, type FsrsRating, type FsrsRecord } from '@/lib/fsrs';
 import { useAppDispatch, useAppSelector } from '@/lib/redux/hooks';
 import {
   answerCard,
@@ -70,11 +70,18 @@ export function FsrsReviewSession({
     if (!currentCard) return;
 
     const cardId = currentCard.id;
-    // Optimistic Local State Update (0ms latency, no page refresh!)
-    dispatch(answerCard({ cardId, rating }));
+    // Compute the post-rating updated card locally (same computation the reducer applies)
+    // so we can sync the correct updated state to the server.
+    const now = new Date();
+    const updatedCard = computeFsrs(currentCard, rating, now);
 
-    // Background Sync: Sends updated review log asynchronously to backend API
-    dispatch(syncFsrsReviewLog(currentCard));
+    // Optimistic Local State Update (0ms latency, no page refresh!)
+    dispatch(answerCard({ cardId, rating, nowIso: now.toISOString() }));
+
+    // Background Sync: Sends the updated (post-rating) card to the backend API.
+    // Previously this incorrectly sent `currentCard` (the pre-rating state),
+    // which caused FSRS data to appear reset to 'New' after clearing browser storage.
+    dispatch(syncFsrsReviewLog(updatedCard));
   };
 
   const handleUndo = () => {
