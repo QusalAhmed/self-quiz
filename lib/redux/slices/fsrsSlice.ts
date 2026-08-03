@@ -70,6 +70,7 @@ export const syncFsrsReviewLog = createAsyncThunk(
           last_reviewed_at: card.lastReviewedAt,
           updated_at: card.updatedAt,
           deleted: card.isDeleted,
+          last_rating: card.lastRating,
         }),
       });
 

@@ -6,8 +6,19 @@ import { DefinitionsDisplay } from '@/components/DefinitionsDisplay/DefinitionsD
 import { WordActionIcon } from '@/components/WordActions/WordActionIcon';
 import type { MissedWordRecord, WordDefinition } from '@/lib/db';
 
+export type MissedOrForgettingWordItem = {
+  id: string;
+  wordId: string;
+  word: string;
+  meaning: string;
+  missedCount?: number;
+  lastRating?: 'again' | 'hard' | 'good' | 'easy';
+  dueAt?: string;
+  definitions?: WordDefinition[];
+};
+
 type MissedWordVirtualListProps = {
-  words: Array<MissedWordRecord & { definitions?: WordDefinition[] }>;
+  words: MissedOrForgettingWordItem[];
   hideMissedMeanings: boolean;
   revealedMissedWordIds: Record<string, boolean>;
   onRevealMissedWord: (id: string) => void;
@@ -68,28 +79,44 @@ export function MissedWordVirtualList({
       >
         {rowVirtualizer.getVirtualItems().map((virtualRow) => {
           const word = words[virtualRow.index];
-          const count = word.missedCount;
-          const severity =
-            count >= 5
+          const count = word.missedCount ?? 1;
+          const isFsrsAgain = word.lastRating === 'again';
+          const isFsrsHard = word.lastRating === 'hard';
+
+          const severity = isFsrsAgain
+            ? {
+                color: '#ef4444',
+                bg: 'rgba(239,68,68,0.08)',
+                border: 'rgba(239,68,68,0.25)',
+                badgeColor: 'red' as const,
+              }
+            : isFsrsHard
               ? {
-                  color: '#ef4444',
-                  bg: 'rgba(239,68,68,0.08)',
-                  border: 'rgba(239,68,68,0.25)',
-                  badgeColor: 'red' as const,
+                  color: '#f97316',
+                  bg: 'rgba(249,115,22,0.07)',
+                  border: 'rgba(249,115,22,0.2)',
+                  badgeColor: 'orange' as const,
                 }
-              : count >= 3
+              : count >= 5
                 ? {
-                    color: '#f97316',
-                    bg: 'rgba(249,115,22,0.07)',
-                    border: 'rgba(249,115,22,0.2)',
-                    badgeColor: 'orange' as const,
+                    color: '#ef4444',
+                    bg: 'rgba(239,68,68,0.08)',
+                    border: 'rgba(239,68,68,0.25)',
+                    badgeColor: 'red' as const,
                   }
-                : {
-                    color: '#22c55e',
-                    bg: 'rgba(34,197,94,0.06)',
-                    border: 'rgba(34,197,94,0.18)',
-                    badgeColor: 'teal' as const,
-                  };
+                : count >= 3
+                  ? {
+                      color: '#f97316',
+                      bg: 'rgba(249,115,22,0.07)',
+                      border: 'rgba(249,115,22,0.2)',
+                      badgeColor: 'orange' as const,
+                    }
+                  : {
+                      color: '#22c55e',
+                      bg: 'rgba(34,197,94,0.06)',
+                      border: 'rgba(34,197,94,0.18)',
+                      badgeColor: 'teal' as const,
+                    };
 
           const isRevealed = !hideMissedMeanings || revealedMissedWordIds[word.id];
           const isGeneratingExamples = Boolean(generatingExampleWordIds[word.wordId]);
@@ -140,15 +167,44 @@ export function MissedWordVirtualList({
                       >
                         {word.word}
                       </Text>
-                      <Badge
-                        color={severity.badgeColor}
-                        variant="light"
-                        size="xs"
-                        radius="sm"
-                        style={{ fontWeight: 700, fontSize: '10px' }}
-                      >
-                        ×{count} missed
-                      </Badge>
+                      {isFsrsAgain && (
+                        <Badge
+                          color="red"
+                          variant="filled"
+                          size="xs"
+                          radius="sm"
+                          style={{ fontWeight: 700, fontSize: '10px' }}
+                        >
+                          FSRS Again
+                        </Badge>
+                      )}
+                      {isFsrsHard && (
+                        <Badge
+                          color="orange"
+                          variant="filled"
+                          size="xs"
+                          radius="sm"
+                          style={{ fontWeight: 700, fontSize: '10px' }}
+                        >
+                          FSRS Hard
+                        </Badge>
+                      )}
+                      {!word.lastRating && (
+                        <Badge
+                          color={severity.badgeColor}
+                          variant="light"
+                          size="xs"
+                          radius="sm"
+                          style={{ fontWeight: 700, fontSize: '10px' }}
+                        >
+                          ×{count} missed
+                        </Badge>
+                      )}
+                      {word.dueAt && (
+                        <Text size="xs" c="dimmed" style={{ fontSize: '11px' }}>
+                          Next review: {new Date(word.dueAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </Text>
+                      )}
                     </Group>
 
                     <Group gap={4} style={{ flexShrink: 0 }}>

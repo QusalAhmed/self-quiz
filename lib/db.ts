@@ -278,7 +278,7 @@ const srsPracticeSchema: RxJsonSchema<SrsPracticeRecord> = {
 
 const fsrsSchema: RxJsonSchema<FsrsRecord> = {
   title: 'fsrs records schema',
-  version: 1,
+  version: 2,
   description: 'FSRS scheduling data per word per quiz mode',
   primaryKey: 'id',
   type: 'object',
@@ -304,6 +304,7 @@ const fsrsSchema: RxJsonSchema<FsrsRecord> = {
     updatedAt: { type: 'string', maxLength: 32 },
     lastSyncedAt: { type: 'string', default: '' },
     isDeleted: { type: 'boolean', default: false },
+    lastRating: { type: 'string', maxLength: 16 },
   },
   required: [
     'id',
@@ -537,6 +538,7 @@ async function createDatabase(): Promise<AppDatabase> {
       schema: fsrsSchema,
       migrationStrategies: {
         1: (oldDoc) => ({ ...oldDoc }),
+        2: (oldDoc) => ({ ...oldDoc, lastRating: oldDoc.lastRating || '' }),
       },
     },
     srsPracticeWords: {

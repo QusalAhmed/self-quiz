@@ -12,10 +12,15 @@ export const quizSources = {
   words: 'Regular',
   missed: 'Missed Words',
   fsrs: 'FSRS Review',
+  fsrsForgetting: 'FSRS Missed (Again/Hard >6h)',
 } as const;
 
 export const practiceDisplayModes = {
-  missed: 'Missed Words',
+  allMissed: 'All Missed & Forgotten',
+  missed: 'Manual Missed Words',
+  fsrsAgainHard: 'FSRS Again & Hard (>6h)',
+  fsrsAgain: 'FSRS Again Only (>6h)',
+  fsrsHard: 'FSRS Hard Only (>6h)',
 } as const;
 
 export const quizDirections = {

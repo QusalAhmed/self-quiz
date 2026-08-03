@@ -24,6 +24,7 @@ export type FsrsRecord = {
   updatedAt: string;
   lastSyncedAt: string;
   isDeleted: boolean;
+  lastRating?: FsrsRating;
 };
 
 const scheduler = fsrs({ enable_fuzz: false });
@@ -71,7 +72,7 @@ function toCard(record: FsrsRecord): Card {
 function fromCard(
   base: Pick<
     FsrsRecord,
-    'id' | 'wordId' | 'quizMode' | 'word' | 'meaning' | 'lastSyncedAt' | 'isDeleted'
+    'id' | 'wordId' | 'quizMode' | 'word' | 'meaning' | 'lastSyncedAt' | 'isDeleted' | 'lastRating'
   >,
   card: Card,
   updatedAt: string
@@ -134,6 +135,7 @@ export function computeFsrs(
       meaning,
       lastSyncedAt: current.lastSyncedAt,
       isDeleted: false,
+      lastRating: rating,
     },
     result.card,
     now.toISOString()

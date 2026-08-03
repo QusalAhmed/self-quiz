@@ -23,7 +23,7 @@ import {
   IconTarget,
   IconVolume,
 } from '@tabler/icons-react';
-import type { ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import {
   practiceDisplayModes,
   quizDirections,
@@ -61,6 +61,7 @@ type QuizModeSectionProps = {
   revealedMissedWordIds: Record<string, boolean>;
   revealedSrsPracticeWordIds: Record<string, boolean>;
   missedWordsForMode: Array<MissedWordRecord & { definitions?: WordDefinition[] }>;
+  fsrsForgettingWordsForMode?: Array<import('@/lib/db').FsrsRecord & { definitions?: WordDefinition[] }>;
   recentSrsPracticeWords?: Array<SrsPracticeRecord & { definitions?: WordDefinition[] }>;
   missedWordIdSet: Set<string>;
   generatingExampleWordIds: Record<string, boolean>;
@@ -93,6 +94,7 @@ type QuizModeSectionProps = {
   onUnmarkMissed: (id: string) => Promise<void> | void;
   onTogglePracticeMissed: (word: SrsPracticeRecord) => void;
   onOpenSrsPracticeQuiz: () => void;
+  onStartForgettingQuiz?: () => void;
   onOpenClearAllMissed: () => void;
   onDeleteFsrsRecord?: (wordId: string, quizMode: QuizDirection) => void;
   canUndo?: boolean;
@@ -120,6 +122,7 @@ export function QuizModeSection({
   revealedMissedWordIds,
   revealedSrsPracticeWordIds,
   missedWordsForMode,
+  fsrsForgettingWordsForMode = [],
   recentSrsPracticeWords,
   missedWordIdSet,
   generatingExampleWordIds,
@@ -148,11 +151,37 @@ export function QuizModeSection({
   onUnmarkMissed,
   onTogglePracticeMissed,
   onOpenSrsPracticeQuiz,
+  onStartForgettingQuiz,
   onOpenClearAllMissed,
   onDeleteFsrsRecord,
   canUndo,
   onUndo,
 }: QuizModeSectionProps) {
+  const displayedMissedItems = useMemo(() => {
+    const fsrsWords = fsrsForgettingWordsForMode || [];
+    if (practiceDisplayMode === 'fsrsAgainHard') {
+      return fsrsWords;
+    }
+    if (practiceDisplayMode === 'fsrsAgain') {
+      return fsrsWords.filter((w) => w.lastRating === 'again');
+    }
+    if (practiceDisplayMode === 'fsrsHard') {
+      return fsrsWords.filter((w) => w.lastRating === 'hard');
+    }
+    if (practiceDisplayMode === 'missed') {
+      return missedWordsForMode;
+    }
+    // 'allMissed' or default: combine manual missed and fsrs forgetting words
+    const manualWordIds = new Set(missedWordsForMode.map((w) => w.wordId));
+    const combined = [...missedWordsForMode] as any[];
+    for (const fWord of fsrsWords) {
+      if (!manualWordIds.has(fWord.wordId)) {
+        combined.push(fWord);
+      }
+    }
+    return combined;
+  }, [practiceDisplayMode, missedWordsForMode, fsrsForgettingWordsForMode]);
+
   return (
     <Stack gap="lg" style={{ minHeight: '100vh' }}>
       <Card
@@ -380,18 +409,12 @@ export function QuizModeSection({
             </div>
             <Badge
               variant="gradient"
-              gradient={
-                practiceDisplayMode === 'missed'
-                  ? { from: 'red', to: 'orange' }
-                  : { from: 'violet', to: 'indigo' }
-              }
+              gradient={{ from: 'red', to: 'orange' }}
               size="md"
               radius="md"
               style={{ fontWeight: 800 }}
             >
-              {practiceDisplayMode === 'missed'
-                ? missedWordsForMode.length
-                : (recentSrsPracticeWords || []).length}
+              {displayedMissedItems.length}
             </Badge>
           </Group>
 
@@ -400,61 +423,39 @@ export function QuizModeSection({
               value={practiceDisplayMode}
               onChange={onSetPracticeDisplayMode}
             />
-            {practiceDisplayMode === 'missed' ? (
-              <Tooltip
-                label={hideMissedMeanings ? 'Show all meanings' : 'Hide all meanings'}
-                withArrow
+            <Tooltip
+              label={hideMissedMeanings ? 'Show all meanings' : 'Hide all meanings'}
+              withArrow
+            >
+              <ActionIcon
+                variant="subtle"
+                color="gray"
+                size="md"
+                radius="md"
+                onClick={() => {
+                  const nextVal = !hideMissedMeanings;
+                  onSetHideMissedMeanings(nextVal);
+                  if (nextVal) {
+                    onSetRevealedMissedWordIds({});
+                  }
+                }}
               >
-                <ActionIcon
-                  variant="subtle"
-                  color="gray"
-                  size="md"
-                  radius="md"
-                  onClick={() => {
-                    const nextVal = !hideMissedMeanings;
-                    onSetHideMissedMeanings(nextVal);
-                    if (nextVal) {
-                      onSetRevealedMissedWordIds({});
-                    }
-                  }}
-                >
-                  {hideMissedMeanings ? <IconEyeOff size={24} /> : <IconEye size={24} />}
-                </ActionIcon>
-              </Tooltip>
-            ) : (
-              <>
-                <Tooltip
-                  label={hideSrsPracticeMeanings ? 'Show all meanings' : 'Hide all meanings'}
-                  withArrow
-                >
-                  <ActionIcon
-                    variant="subtle"
-                    color="gray"
-                    size="md"
-                    radius="md"
-                    onClick={() => {
-                      const nextVal = !hideSrsPracticeMeanings;
-                      onSetHideSrsPracticeMeanings(nextVal);
-                      if (nextVal) {
-                        onSetRevealedSrsPracticeWordIds({});
-                      }
-                    }}
-                  >
-                    {hideSrsPracticeMeanings ? <IconEyeOff size={24} /> : <IconEye size={24} />}
-                  </ActionIcon>
-                </Tooltip>
-                <Button
-                  variant="light"
-                  color="indigo"
-                  size="xs"
-                  radius="md"
-                  leftSection={<IconBrain size={14} />}
-                  onClick={onOpenSrsPracticeQuiz}
-                >
-                  Quiz
-                </Button>
-              </>
-            )}
+                {hideMissedMeanings ? <IconEyeOff size={24} /> : <IconEye size={24} />}
+              </ActionIcon>
+            </Tooltip>
+
+            <Button
+              variant="light"
+              color="indigo"
+              size="xs"
+              radius="md"
+              leftSection={<IconBrain size={14} />}
+              onClick={onStartForgettingQuiz || onResetQuiz}
+              disabled={displayedMissedItems.length === 0}
+            >
+              Quiz
+            </Button>
+
             {practiceDisplayMode === 'missed' && missedWordsForMode.length > 0 && (
               <Button
                 variant="subtle"
@@ -473,65 +474,35 @@ export function QuizModeSection({
 
         <Divider
           style={{
-            borderColor:
-              practiceDisplayMode === 'missed' ? 'rgba(239,68,68,0.15)' : 'rgba(139,92,246,0.15)',
+            borderColor: 'rgba(239,68,68,0.15)',
             marginBottom: '16px',
           }}
         />
 
-        {practiceDisplayMode === 'missed' ? (
-          missedWordsForMode.length === 0 ? (
-            <EmptyPracticeState
-              icon={<IconTarget size={24} style={{ color: '#ef4444', opacity: 0.5 }} />}
-              title="No missed words yet"
-              description={
-                <>
-                  When you bookmark a word as missed during a quiz in{' '}
-                  {quizDirections[quizDirection]}, it will appear here for targeted practice.
-                </>
-              }
-              borderColor="rgba(239,68,68,0.2)"
-              backgroundColor="rgba(239,68,68,0.03)"
-              iconBackground="rgba(239,68,68,0.08)"
-            />
-          ) : (
-            <MissedWordVirtualList
-              words={missedWordsForMode}
-              hideMissedMeanings={hideMissedMeanings}
-              revealedMissedWordIds={revealedMissedWordIds}
-              onRevealMissedWord={(id) =>
-                onSetRevealedMissedWordIds((prev) => ({ ...prev, [id]: true }))
-              }
-              onRefreshExamples={onRefreshExamples}
-              onUnmarkMissed={onUnmarkMissed}
-              generatingExampleWordIds={generatingExampleWordIds}
-            />
-          )
-        ) : (recentSrsPracticeWords || []).length === 0 ? (
+        {displayedMissedItems.length === 0 ? (
           <EmptyPracticeState
-            icon={<IconBrain size={24} style={{ color: '#8b5cf6', opacity: 0.5 }} />}
-            title="No SRS practice words in the last 24 hours"
+            icon={<IconTarget size={24} style={{ color: '#ef4444', opacity: 0.5 }} />}
+            title="No missed or forgotten words in this view"
             description={
-              <>Rated SRS words will show up here for 24 hours so you can review them again.</>
+              <>
+                Words rated Again or Hard during FSRS quiz (with next review &gt; 6h) or bookmarked as missed in {quizDirections[quizDirection]} will appear here.
+              </>
             }
-            borderColor="rgba(139,92,246,0.2)"
-            backgroundColor="rgba(139,92,246,0.03)"
-            iconBackground="rgba(139,92,246,0.08)"
+            borderColor="rgba(239,68,68,0.2)"
+            backgroundColor="rgba(239,68,68,0.03)"
+            iconBackground="rgba(239,68,68,0.08)"
           />
         ) : (
-          <SrsPracticeVirtualList
-            words={recentSrsPracticeWords || []}
-            hideMeanings={hideSrsPracticeMeanings}
-            revealedWordIds={revealedSrsPracticeWordIds}
-            onRevealWord={(id) =>
-              onSetRevealedSrsPracticeWordIds((prev) => ({ ...prev, [id]: true }))
+          <MissedWordVirtualList
+            words={displayedMissedItems}
+            hideMissedMeanings={hideMissedMeanings}
+            revealedMissedWordIds={revealedMissedWordIds}
+            onRevealMissedWord={(id) =>
+              onSetRevealedMissedWordIds((prev) => ({ ...prev, [id]: true }))
             }
             onRefreshExamples={onRefreshExamples}
-            onToggleMissed={onTogglePracticeMissed}
+            onUnmarkMissed={onUnmarkMissed}
             generatingExampleWordIds={generatingExampleWordIds}
-            isMissedWord={(wordId) => missedWordIdSet.has(wordId)}
-            onEditClick={onEditClick}
-            onQuizWord={onOpenSrsPracticeQuiz}
           />
         )}
       </Card>

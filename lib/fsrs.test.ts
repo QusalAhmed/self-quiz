@@ -28,7 +28,7 @@ describe('createInitialFsrsRecord', () => {
 });
 
 describe('computeFsrs', () => {
-  it('schedules a new card into learning after a good review', () => {
+  it('schedules a new card into learning after a good review and stores lastRating', () => {
     const record = createInitialFsrsRecord('w1', 'wordToMeaning', 'Hello', 'A greeting', now);
     const updated = computeFsrs(record, 'good', now);
 
@@ -36,6 +36,16 @@ describe('computeFsrs', () => {
     expect(updated.reps).toBe(1);
     expect(updated.dueAt).toBe('2026-01-01T12:10:00.000Z');
     expect(updated.lastReviewedAt).toBe(now.toISOString());
+    expect(updated.lastRating).toBe('good');
+  });
+
+  it('stores again and hard lastRating correctly', () => {
+    const record = createInitialFsrsRecord('w1', 'wordToMeaning', 'Hello', 'A greeting', now);
+    const againCard = computeFsrs(record, 'again', now);
+    expect(againCard.lastRating).toBe('again');
+
+    const hardCard = computeFsrs(record, 'hard', now);
+    expect(hardCard.lastRating).toBe('hard');
   });
 });
 
