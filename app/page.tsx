@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  Box,
   Container,
   SegmentedControl,
   SimpleGrid,
@@ -38,6 +39,7 @@ import { StatsDashboard } from '@/components/Home/StatsDashboard';
 import { StudyModeSection } from '@/components/Home/StudyModeSection';
 import { PwaRegister } from '@/components/PwaRegister/PwaRegister';
 import { type QuizItem } from '@/components/QuizPanel/QuizPanel';
+import { AppSidebar } from '@/components/Sidebar/AppSidebar';
 import {
   getDatabase,
   buildMissedWordId,
@@ -1768,181 +1770,216 @@ export default function HomePage() {
   );
 
   return (
-    <Container size="md" py="xl">
-      <PwaRegister />
-
-      <ClearMissedWordsModal
-        opened={confirmClearAllOpen}
-        count={missedWordsForMode.length}
-        quizDirectionLabel={quizDirections[quizDirection]}
-        onClose={() => setConfirmClearAllOpen(false)}
-        onConfirm={handleConfirmClearAll}
-      />
-
-      <Stack gap="xl">
-        <HomeHeader
-          onlineStatus={onlineStatus}
-          colorScheme={colorScheme}
-          onToggleTheme={toggleTheme}
-        />
-
-        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
-          <DailyUsageTimer />
-          <CloudSyncCard
-            unsyncedCount={unsyncedCount}
-            onlineStatus={onlineStatus}
-            isSyncing={isSyncing}
-            onSyncNow={handleManualSync}
-          />
-        </SimpleGrid>
-
-        <StatsDashboard
-          totalWords={words.length}
-          todayCount={todayCount}
-          fsrsDueTodayCount={fsrsDueTodayCount}
-          fsrsNextDueText={fsrsNextDueText}
-          onOpenAllWordsQuiz={() => {
-            setMode('quiz');
-            setQuizSource('words');
-            setQuizRange('all');
-            setQuizGroupFilter('all');
-          }}
-          onOpenTodayQuiz={() => {
-            setMode('quiz');
-            setQuizSource('words');
-            setQuizRange('today');
-            setQuizGroupFilter('all');
-          }}
-          onOpenFsrsQuiz={() => {
-            setMode('quiz');
-            setQuizSource('fsrs');
-          }}
-        />
-
-        <SegmentedControl
-          value={mode}
-          onChange={(value) => setMode(value as 'study' | 'quiz')}
-          data={[
-            { label: 'Study Library', value: 'study' },
-            { label: 'Quiz Session', value: 'quiz' },
-          ]}
-          fullWidth
-          size="md"
-          radius="lg"
-          className="glass-panel"
-          style={{ padding: '4px' }}
-        />
-
-        {mode === 'study' && (
-          <StudyModeSection
-            isLoading={isLoading}
-            customGroups={customGroups}
-            words={words}
-            pagedWords={pagedWords}
-            filteredWordsCount={filteredWords.length}
-            totalPages={totalPages}
-            page={page}
-            searchQuery={searchQuery}
-            searchScope={searchScope}
-            groupFilter={groupFilter}
-            groupManagerOpen={groupManagerOpen}
-            groups={groups}
-            generatingExampleWordIds={generatingExampleWordIds}
-            onSubmitWord={handleAdd}
-            onAddCustomGroup={handleAddCustomGroup}
-            onEditExisting={handleEdit}
-            onDeleteWord={handleDelete}
-            onEditWord={handleEdit}
-            onRefreshExamples={handleRefreshExamples}
-            onCreateGroup={handleCreateGroup}
-            onRenameGroup={handleRenameGroup}
-            onDeleteGroup={handleDeleteGroup}
-            onOpenGroupManager={() => setGroupManagerOpen(true)}
-            onCloseGroupManager={() => setGroupManagerOpen(false)}
-            onSetSearchQuery={setSearchQuery}
-            onSetSearchScope={setSearchScope}
-            onSetGroupFilter={setGroupFilter}
-            onSetPage={setPage}
-          />
-        )}
-
-        {mode === 'quiz' && (
-          <QuizModeSection
-            quizRange={quizRange}
-            quizSource={quizSource}
-            quizDirection={quizDirection}
-            quizGroupFilter={quizGroupFilter}
-            customGroups={customGroups}
-            customStart={customStart}
-            customEnd={customEnd}
-            quizCandidatesCount={quizCandidates.length}
-            quizQueueLength={quizQueue.length}
-            currentQuizItem={currentQuizItem}
-            revealed={revealed}
-            completed={completed}
-            quizIndex={quizIndex}
-            isCurrentMarkedMissed={isCurrentMarkedMissed}
-            practiceDisplayMode={practiceDisplayMode}
-            hideMissedMeanings={hideMissedMeanings}
-            hideSrsPracticeMeanings={hideSrsPracticeMeanings}
-            revealedMissedWordIds={revealedMissedWordIds}
-            revealedSrsPracticeWordIds={revealedSrsPracticeWordIds}
-            missedWordsForMode={missedWordsForMode}
-            recentSrsPracticeWords={[]}
-            missedWordIdSet={missedWordIdSet}
-            generatingExampleWordIds={generatingExampleWordIds}
-            autoPronounceQuizWord={autoPronounceQuizWord}
-            onSetQuizRange={setQuizRange}
-            onSetQuizSource={setQuizSource}
-            onSetQuizDirection={setQuizDirection}
-            onSetQuizGroupFilter={setQuizGroupFilter}
-            onSetCustomStart={setCustomStart}
-            onSetCustomEnd={setCustomEnd}
-            onResetQuiz={resetQuiz}
-            onReveal={handleReveal}
-            onToggleMissed={handleToggleMissed}
-            onNext={handleNext}
-            onPrevious={handlePrevious}
-            onRefreshExamples={handleRefreshExamples}
-            onSrsRate={handleSrsRate}
-            srsIntervals={srsIntervals}
-            onEditClick={(id) => setEditingQuizWordId(id)}
-            onSetPracticeDisplayMode={setPracticeDisplayMode}
-            onSetAutoPronounceQuizWord={setAutoPronounceQuizWord}
-            onSetHideMissedMeanings={setHideMissedMeanings}
-            onSetHideSrsPracticeMeanings={setHideSrsPracticeMeanings}
-            onSetRevealedMissedWordIds={setRevealedMissedWordIds}
-            onSetRevealedSrsPracticeWordIds={setRevealedSrsPracticeWordIds}
-            onUnmarkMissed={handleUnmarkMissed}
-            onTogglePracticeMissed={(word) =>
-              void toggleMissedWordRecord(word.wordId, word.word, word.meaning, word.quizMode)
-            }
-            onOpenSrsPracticeQuiz={() => {
-              setMode('quiz');
-              setQuizSource('fsrs');
-              setQuizRange('all');
-              setQuizGroupFilter('all');
-            }}
-            onOpenClearAllMissed={() => setConfirmClearAllOpen(true)}
-            onDeleteFsrsRecord={handleDeleteFsrsRecord}
-            canUndo={quizHistory.length > 0}
-            onUndo={handleUndoQuiz}
-          />
-        )}
-      </Stack>
-
-      <EditWordModal
-        opened={editingQuizWordId !== null}
-        onClose={() => setEditingQuizWordId(null)}
-        wordRecord={
-          editingQuizWordId ? words.find((w) => w.id === editingQuizWordId) || null : null
-        }
-        customGroups={customGroups}
-        onSave={async (id, word, meaning, definitions, groups, aiExampleCount, notes) => {
-          await handleEdit(id, word, meaning, definitions, groups, aiExampleCount, notes);
+    <Box style={{ display: 'flex', minHeight: '100vh', width: '100%' }}>
+      <AppSidebar
+        mode={mode}
+        onSetMode={setMode}
+        onOpenAllWordsQuiz={() => {
+          setMode('quiz');
+          setQuizSource('words');
+          setQuizRange('all');
+          setQuizGroupFilter('all');
         }}
-        onAddCustomGroup={handleAddCustomGroup}
+        onOpenTodayQuiz={() => {
+          setMode('quiz');
+          setQuizSource('words');
+          setQuizRange('today');
+          setQuizGroupFilter('all');
+        }}
+        onOpenFsrsQuiz={() => {
+          setMode('quiz');
+          setQuizSource('fsrs');
+        }}
+        onOpenGroupManager={() => setGroupManagerOpen(true)}
+        totalWords={words.length}
+        todayCount={todayCount}
+        fsrsDueTodayCount={fsrsDueTodayCount}
+        colorScheme={colorScheme}
+        onToggleTheme={toggleTheme}
       />
-    </Container>
+
+      <Box style={{ flex: 1, minWidth: 0 }}>
+        <Container size="md" py="xl">
+          <PwaRegister />
+
+          <ClearMissedWordsModal
+            opened={confirmClearAllOpen}
+            count={missedWordsForMode.length}
+            quizDirectionLabel={quizDirections[quizDirection]}
+            onClose={() => setConfirmClearAllOpen(false)}
+            onConfirm={handleConfirmClearAll}
+          />
+
+          <Stack gap="xl">
+            <HomeHeader
+              onlineStatus={onlineStatus}
+              colorScheme={colorScheme}
+              onToggleTheme={toggleTheme}
+            />
+
+            <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+              <DailyUsageTimer />
+              <Box id="cloud-sync-card">
+                <CloudSyncCard
+                  unsyncedCount={unsyncedCount}
+                  onlineStatus={onlineStatus}
+                  isSyncing={isSyncing}
+                  onSyncNow={handleManualSync}
+                />
+              </Box>
+            </SimpleGrid>
+
+            <Box id="stats-dashboard">
+              <StatsDashboard
+                totalWords={words.length}
+                todayCount={todayCount}
+                fsrsDueTodayCount={fsrsDueTodayCount}
+                fsrsNextDueText={fsrsNextDueText}
+                onOpenAllWordsQuiz={() => {
+                  setMode('quiz');
+                  setQuizSource('words');
+                  setQuizRange('all');
+                  setQuizGroupFilter('all');
+                }}
+                onOpenTodayQuiz={() => {
+                  setMode('quiz');
+                  setQuizSource('words');
+                  setQuizRange('today');
+                  setQuizGroupFilter('all');
+                }}
+                onOpenFsrsQuiz={() => {
+                  setMode('quiz');
+                  setQuizSource('fsrs');
+                }}
+              />
+            </Box>
+
+            <SegmentedControl
+              value={mode}
+              onChange={(value) => setMode(value as 'study' | 'quiz')}
+              data={[
+                { label: 'Study Library', value: 'study' },
+                { label: 'Quiz Session', value: 'quiz' },
+              ]}
+              fullWidth
+              size="md"
+              radius="lg"
+              className="glass-panel"
+              style={{ padding: '4px' }}
+            />
+
+            {mode === 'study' && (
+              <StudyModeSection
+                isLoading={isLoading}
+                customGroups={customGroups}
+                words={words}
+                pagedWords={pagedWords}
+                filteredWordsCount={filteredWords.length}
+                totalPages={totalPages}
+                page={page}
+                searchQuery={searchQuery}
+                searchScope={searchScope}
+                groupFilter={groupFilter}
+                groupManagerOpen={groupManagerOpen}
+                groups={groups}
+                generatingExampleWordIds={generatingExampleWordIds}
+                onSubmitWord={handleAdd}
+                onAddCustomGroup={handleAddCustomGroup}
+                onEditExisting={handleEdit}
+                onDeleteWord={handleDelete}
+                onEditWord={handleEdit}
+                onRefreshExamples={handleRefreshExamples}
+                onCreateGroup={handleCreateGroup}
+                onRenameGroup={handleRenameGroup}
+                onDeleteGroup={handleDeleteGroup}
+                onOpenGroupManager={() => setGroupManagerOpen(true)}
+                onCloseGroupManager={() => setGroupManagerOpen(false)}
+                onSetSearchQuery={setSearchQuery}
+                onSetSearchScope={setSearchScope}
+                onSetGroupFilter={setGroupFilter}
+                onSetPage={setPage}
+              />
+            )}
+
+            {mode === 'quiz' && (
+              <QuizModeSection
+                quizRange={quizRange}
+                quizSource={quizSource}
+                quizDirection={quizDirection}
+                quizGroupFilter={quizGroupFilter}
+                customGroups={customGroups}
+                customStart={customStart}
+                customEnd={customEnd}
+                quizCandidatesCount={quizCandidates.length}
+                quizQueueLength={quizQueue.length}
+                currentQuizItem={currentQuizItem}
+                revealed={revealed}
+                completed={completed}
+                quizIndex={quizIndex}
+                isCurrentMarkedMissed={isCurrentMarkedMissed}
+                practiceDisplayMode={practiceDisplayMode}
+                hideMissedMeanings={hideMissedMeanings}
+                hideSrsPracticeMeanings={hideSrsPracticeMeanings}
+                revealedMissedWordIds={revealedMissedWordIds}
+                revealedSrsPracticeWordIds={revealedSrsPracticeWordIds}
+                missedWordsForMode={missedWordsForMode}
+                recentSrsPracticeWords={[]}
+                missedWordIdSet={missedWordIdSet}
+                generatingExampleWordIds={generatingExampleWordIds}
+                autoPronounceQuizWord={autoPronounceQuizWord}
+                onSetQuizRange={setQuizRange}
+                onSetQuizSource={setQuizSource}
+                onSetQuizDirection={setQuizDirection}
+                onSetQuizGroupFilter={setQuizGroupFilter}
+                onSetCustomStart={setCustomStart}
+                onSetCustomEnd={setCustomEnd}
+                onResetQuiz={resetQuiz}
+                onReveal={handleReveal}
+                onToggleMissed={handleToggleMissed}
+                onNext={handleNext}
+                onPrevious={handlePrevious}
+                onRefreshExamples={handleRefreshExamples}
+                onSrsRate={handleSrsRate}
+                srsIntervals={srsIntervals}
+                onEditClick={(id) => setEditingQuizWordId(id)}
+                onSetPracticeDisplayMode={setPracticeDisplayMode}
+                onSetAutoPronounceQuizWord={setAutoPronounceQuizWord}
+                onSetHideMissedMeanings={setHideMissedMeanings}
+                onSetHideSrsPracticeMeanings={setHideSrsPracticeMeanings}
+                onSetRevealedMissedWordIds={setRevealedMissedWordIds}
+                onSetRevealedSrsPracticeWordIds={setRevealedSrsPracticeWordIds}
+                onUnmarkMissed={handleUnmarkMissed}
+                onTogglePracticeMissed={(word) =>
+                  void toggleMissedWordRecord(word.wordId, word.word, word.meaning, word.quizMode)
+                }
+                onOpenSrsPracticeQuiz={() => {
+                  setMode('quiz');
+                  setQuizSource('fsrs');
+                  setQuizRange('all');
+                  setQuizGroupFilter('all');
+                }}
+                onOpenClearAllMissed={() => setConfirmClearAllOpen(true)}
+                onDeleteFsrsRecord={handleDeleteFsrsRecord}
+                canUndo={quizHistory.length > 0}
+                onUndo={handleUndoQuiz}
+              />
+            )}
+          </Stack>
+
+          <EditWordModal
+            opened={editingQuizWordId !== null}
+            onClose={() => setEditingQuizWordId(null)}
+            wordRecord={
+              editingQuizWordId ? words.find((w) => w.id === editingQuizWordId) || null : null
+            }
+            customGroups={customGroups}
+            onSave={async (id, word, meaning, definitions, groups, aiExampleCount, notes) => {
+              await handleEdit(id, word, meaning, definitions, groups, aiExampleCount, notes);
+            }}
+            onAddCustomGroup={handleAddCustomGroup}
+          />
+        </Container>
+      </Box>
+    </Box>
   );
 }

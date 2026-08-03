@@ -1,0 +1,282 @@
+'use client';
+
+import {
+  ActionIcon,
+  Badge,
+  Box,
+  Divider,
+  Drawer,
+  Group,
+  NavLink,
+  Paper,
+  Stack,
+  Text,
+  Title,
+  Tooltip,
+} from '@mantine/core';
+import {
+  IconBook,
+  IconBrain,
+  IconCards,
+  IconChartBar,
+  IconCloudUpload,
+  IconMenu2,
+  IconMoon,
+  IconPlus,
+  IconRotateClockwise,
+  IconSun,
+  IconTags,
+} from '@tabler/icons-react';
+import React, { useState } from 'react';
+
+export type AppSidebarProps = {
+  mode: 'study' | 'quiz';
+  onSetMode: (mode: 'study' | 'quiz') => void;
+  onOpenAllWordsQuiz: () => void;
+  onOpenTodayQuiz: () => void;
+  onOpenFsrsQuiz: () => void;
+  onOpenGroupManager: () => void;
+  totalWords: number;
+  todayCount: number;
+  fsrsDueTodayCount: number;
+  colorScheme: 'light' | 'dark' | 'auto';
+  onToggleTheme: () => void;
+};
+
+export function AppSidebar({
+  mode,
+  onSetMode,
+  onOpenAllWordsQuiz,
+  onOpenTodayQuiz,
+  onOpenFsrsQuiz,
+  onOpenGroupManager,
+  totalWords,
+  todayCount,
+  fsrsDueTodayCount,
+  colorScheme,
+  onToggleTheme,
+}: AppSidebarProps) {
+  const [mobileOpened, setMobileOpened] = useState(false);
+
+  const handleLinkClick = (action: () => void) => {
+    action();
+    setMobileOpened(false);
+  };
+
+  const scrollToSection = (id: string) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  const renderNavContent = () => (
+    <Stack justify="space-between" style={{ height: '100%', padding: '16px 12px' }}>
+      {/* Top Branding Section */}
+      <Stack gap="sm">
+        <Group justify="flex-start" align="center">
+          <Box
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 10,
+              background: 'var(--accent-gradient)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#fff',
+              boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)',
+            }}
+          >
+            <IconBrain size={22} />
+          </Box>
+          <Stack gap={0}>
+            <Title order={4} style={{ fontSize: '1.02rem', lineHeight: 1.2 }}>
+              <span className="text-gradient">Word Memorizer</span>
+            </Title>
+            <Text size="xs" c="dimmed" style={{ fontSize: '0.7rem' }}>
+              Vocabulary Companion
+            </Text>
+          </Stack>
+        </Group>
+
+        <Divider my="xs" style={{ borderColor: 'var(--card-border)' }} />
+
+        {/* Navigation Section */}
+        <Stack gap={4}>
+          <Text size="xs" fw={700} c="dimmed" style={{ letterSpacing: '0.05em', paddingLeft: 8 }}>
+            NAVIGATION
+          </Text>
+
+          <NavLink
+            label="Study Library"
+            description="Manage & search words"
+            leftSection={<IconBook size={18} />}
+            rightSection={
+              <Badge size="xs" variant="light" color="indigo">
+                {totalWords}
+              </Badge>
+            }
+            active={mode === 'study'}
+            onClick={() => handleLinkClick(() => onSetMode('study'))}
+            style={{ borderRadius: 8 }}
+          />
+
+          <NavLink
+            label="Quiz & Flashcards"
+            description="Interactive review session"
+            leftSection={<IconBrain size={18} />}
+            active={mode === 'quiz'}
+            childrenOffset={24}
+            defaultOpened
+            style={{ borderRadius: 8 }}
+          >
+            <NavLink
+              label="All Words Quiz"
+              leftSection={<IconCards size={16} />}
+              onClick={() => handleLinkClick(onOpenAllWordsQuiz)}
+              style={{ borderRadius: 6 }}
+            />
+            <NavLink
+              label="Today's Words"
+              leftSection={<IconPlus size={16} />}
+              rightSection={
+                todayCount > 0 ? (
+                  <Badge size="xs" color="teal">
+                    {todayCount}
+                  </Badge>
+                ) : null
+              }
+              onClick={() => handleLinkClick(onOpenTodayQuiz)}
+              style={{ borderRadius: 6 }}
+            />
+            <NavLink
+              label="FSRS Review"
+              leftSection={<IconRotateClockwise size={16} />}
+              rightSection={
+                fsrsDueTodayCount > 0 ? (
+                  <Badge size="xs" color="violet">
+                    {fsrsDueTodayCount} due
+                  </Badge>
+                ) : null
+              }
+              onClick={() => handleLinkClick(onOpenFsrsQuiz)}
+              style={{ borderRadius: 6 }}
+            />
+          </NavLink>
+
+          <Divider my={6} style={{ borderColor: 'var(--card-border)' }} />
+
+          <Text size="xs" fw={700} c="dimmed" style={{ letterSpacing: '0.05em', paddingLeft: 8, marginTop: 4 }}>
+            QUICK ACCESS
+          </Text>
+
+          <NavLink
+            label="Group Manager"
+            leftSection={<IconTags size={18} />}
+            onClick={() => handleLinkClick(onOpenGroupManager)}
+            style={{ borderRadius: 8 }}
+          />
+
+          <NavLink
+            label="Dashboard & Stats"
+            leftSection={<IconChartBar size={18} />}
+            onClick={() =>
+              handleLinkClick(() => scrollToSection('stats-dashboard'))
+            }
+            style={{ borderRadius: 8 }}
+          />
+
+          <NavLink
+            label="Cloud Sync"
+            leftSection={<IconCloudUpload size={18} />}
+            onClick={() =>
+              handleLinkClick(() => scrollToSection('cloud-sync-card'))
+            }
+            style={{ borderRadius: 8 }}
+          />
+        </Stack>
+      </Stack>
+
+      {/* Bottom Footer Section */}
+      <Stack gap="xs">
+        <Divider style={{ borderColor: 'var(--card-border)' }} />
+        <Paper
+          p="xs"
+          radius="md"
+          style={{
+            background: 'rgba(99, 102, 241, 0.05)',
+            border: '1px solid var(--card-border)',
+          }}
+        >
+          <Group justify="space-between" align="center">
+            <Stack gap={0}>
+              <Text size="xs" fw={700}>
+                Theme
+              </Text>
+              <Text size="xs" c="dimmed" style={{ fontSize: '0.7rem' }}>
+                {colorScheme === 'dark' ? 'Dark Mode' : 'Light Mode'}
+              </Text>
+            </Stack>
+
+            <Tooltip label="Toggle Theme">
+              <ActionIcon
+                variant="subtle"
+                color="indigo"
+                size="md"
+                radius="md"
+                onClick={onToggleTheme}
+              >
+                {colorScheme === 'dark' ? <IconSun size={18} /> : <IconMoon size={18} />}
+              </ActionIcon>
+            </Tooltip>
+          </Group>
+        </Paper>
+      </Stack>
+    </Stack>
+  );
+
+  return (
+    <>
+      {/* Permanent Desktop Sidebar */}
+      <Box component="aside" className="desktop-sidebar glass-panel" id="app-desktop-sidebar">
+        {renderNavContent()}
+      </Box>
+
+      {/* Floating Action Button on Mobile (hidden when drawer is open) */}
+      {!mobileOpened && (
+        <Box className="mobile-fab-container">
+          <Tooltip label="Open Navigation Menu" position="top">
+            <ActionIcon
+              className="mobile-fab-btn btn-premium"
+              size="xl"
+              radius="xl"
+              aria-label="Open Navigation"
+              id="mobile-sidebar-toggle-btn"
+              onClick={() => setMobileOpened(true)}
+            >
+              <IconMenu2 size={24} />
+            </ActionIcon>
+          </Tooltip>
+        </Box>
+      )}
+
+      {/* Mobile Sidebar Drawer */}
+      <Drawer
+        opened={mobileOpened}
+        onClose={() => setMobileOpened(false)}
+        size="285px"
+        padding={0}
+        withCloseButton={false}
+        styles={{
+          content: {
+            background: 'var(--card-bg)',
+            backdropFilter: 'blur(16px)',
+          },
+        }}
+      >
+        {renderNavContent()}
+      </Drawer>
+    </>
+  );
+}
