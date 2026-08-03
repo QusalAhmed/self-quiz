@@ -35,6 +35,7 @@ export function RichNoteViewer({ content, title = 'Note' }: RichNoteViewerProps)
             fontSize: '0.875rem',
             lineHeight: '1.6',
             color: 'var(--text-primary)',
+            overflowX: 'auto',
           }}
           dangerouslySetInnerHTML={{ __html: content }}
         />
