@@ -219,6 +219,7 @@ export function RichNoteEditor({ value, onChange, minHeight = 140 }: RichNoteEdi
           <RichTextEditor.Underline />
           <RichTextEditor.Strikethrough />
           <RichTextEditor.Code />
+          <RichTextEditor.ClearFormatting />
         </RichTextEditor.ControlsGroup>
 
         <RichTextEditor.ControlsGroup>

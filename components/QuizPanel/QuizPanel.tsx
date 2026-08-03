@@ -34,6 +34,7 @@ import {
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { quizDirections } from '@/app/home/constants';
 import { DefinitionsDisplay } from '@/components/DefinitionsDisplay/DefinitionsDisplay';
+import { RATING_BUTTON_INFO } from '@/components/FsrsReview';
 import { RichNoteViewer } from '@/components/RichNoteViewer/RichNoteViewer';
 import { WordActionIcon } from '@/components/WordActions/WordActionIcon';
 import type { FsrsRecord, WordDefinition } from '@/lib/db';
@@ -423,46 +424,30 @@ export function QuizPanel({
           </Text>
         </Group>
         <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="xs" style={{ width: '100%' }}>
-          {[
-            {
-              rating: 'again' as const,
-              label: 'Again',
-              color: 'red',
-              className: 'rating-btn-again',
-              defaultTooltip: 'Completely forgot — review again in 1 minute',
-            },
-            {
-              rating: 'hard' as const,
-              label: 'Hard',
-              color: 'orange',
-              className: 'rating-btn-hard',
-              defaultTooltip: 'Hard — remembered with effort',
-            },
-            {
-              rating: 'good' as const,
-              label: 'Good',
-              color: 'teal',
-              className: 'rating-btn-good',
-              defaultTooltip: 'Good — remembered correctly',
-            },
-            {
-              rating: 'easy' as const,
-              label: 'Easy',
-              color: 'indigo',
-              className: 'rating-btn-easy',
-              defaultTooltip: 'Easy — recalled instantly',
-            },
-          ].map(({ rating, label, color, className, defaultTooltip }) => {
+          {RATING_BUTTON_INFO.map(({ rating, label, color, className, situation, description }) => {
             const intervalText = srsIntervals?.[rating];
-            const tooltipLabel = intervalText
-              ? `${label} — next review in ${intervalText}`
-              : defaultTooltip;
 
             return (
               <Tooltip
                 key={rating}
-                label={tooltipLabel}
+                label={
+                  <Stack gap={2} p={2} style={{ maxWidth: 220 }}>
+                    <Text size="xs" fw={700}>
+                      {label} — {situation}
+                    </Text>
+                    <Text size="xs" style={{ opacity: 0.9 }}>
+                      {description}
+                    </Text>
+                    {intervalText && (
+                      <Text size="xs" c="dimmed" style={{ fontSize: '0.72rem', marginTop: 2 }}>
+                        Next review in: {intervalText}
+                      </Text>
+                    )}
+                  </Stack>
+                }
                 withArrow
+                multiline
+                w={220}
                 transitionProps={{ duration: 150 }}
               >
                 <Button

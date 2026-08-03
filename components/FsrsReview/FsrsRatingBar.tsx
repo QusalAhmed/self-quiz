@@ -1,8 +1,8 @@
 'use client';
 
-import { Badge, Button, Group, SimpleGrid, Stack, Text, Tooltip } from '@mantine/core';
+import { Button, Group, SimpleGrid, Stack, Text, Tooltip } from '@mantine/core';
 import { IconBrain } from '@tabler/icons-react';
-import React, { useEffect } from 'react';
+import React from 'react';
 import type { FsrsRating } from '@/lib/fsrs';
 
 export type FsrsRatingBarProps = {
@@ -11,34 +11,38 @@ export type FsrsRatingBarProps = {
   disabled?: boolean;
 };
 
-const RATING_BUTTONS = [
+export const RATING_BUTTON_INFO = [
   {
     rating: 'again' as const,
     label: 'Again',
     color: 'red',
     className: 'rating-btn-again',
-    defaultTooltip: 'Completely forgot — review again in 1 minute',
+    situation: 'Forgot or incorrect answer',
+    description: 'Select when you could not recall the answer or got it wrong.',
   },
   {
     rating: 'hard' as const,
     label: 'Hard',
     color: 'orange',
     className: 'rating-btn-hard',
-    defaultTooltip: 'Hard — remembered with effort',
+    situation: 'Remembered with significant effort',
+    description: 'Select when you recalled the answer, but it required heavy effort or hesitation.',
   },
   {
     rating: 'good' as const,
     label: 'Good',
     color: 'teal',
     className: 'rating-btn-good',
-    defaultTooltip: 'Good — remembered correctly',
+    situation: 'Recalled correctly with normal effort',
+    description: 'Select when you remembered the answer correctly with expected recall effort.',
   },
   {
     rating: 'easy' as const,
     label: 'Easy',
     color: 'indigo',
     className: 'rating-btn-easy',
-    defaultTooltip: 'Easy — recalled instantly',
+    situation: 'Instantly remembered with zero effort',
+    description: 'Select when the answer was effortless and immediately obvious.',
   },
 ];
 
@@ -53,17 +57,30 @@ export function FsrsRatingBar({ intervals, onRate, disabled = false }: FsrsRatin
       </Group>
 
       <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="xs" style={{ width: '100%' }}>
-        {RATING_BUTTONS.map(({ rating, label, color, className, defaultTooltip }) => {
+        {RATING_BUTTON_INFO.map(({ rating, label, color, className, situation, description }) => {
           const intervalText = intervals?.[rating]?.intervalText;
-          const tooltipLabel = intervalText
-            ? `${label} — next review in ${intervalText}`
-            : defaultTooltip;
 
           return (
             <Tooltip
               key={rating}
-              label={tooltipLabel}
+              label={
+                <Stack gap={2} p={2} style={{ maxWidth: 220 }}>
+                  <Text size="xs" fw={700}>
+                    {label} — {situation}
+                  </Text>
+                  <Text size="xs" style={{ opacity: 0.9 }}>
+                    {description}
+                  </Text>
+                  {intervalText && (
+                    <Text size="xs" c="dimmed" style={{ fontSize: '0.72rem', marginTop: 2 }}>
+                      Next review in: {intervalText}
+                    </Text>
+                  )}
+                </Stack>
+              }
               withArrow
+              multiline
+              w={220}
               transitionProps={{ duration: 150 }}
             >
               <Button
