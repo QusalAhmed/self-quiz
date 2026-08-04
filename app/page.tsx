@@ -1,33 +1,26 @@
 'use client';
 
-import {
-  Box,
-  Container,
-  SegmentedControl,
-  SimpleGrid,
-  Stack,
-  useMantineColorScheme,
-} from '@mantine/core';
+import { Box, Container, SegmentedControl, SimpleGrid, Stack, useMantineColorScheme, } from '@mantine/core';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  quizDirections,
-  type PracticeDisplayKey,
-  type QuizDirectionKey,
-  type QuizRangeKey,
-  type QuizSourceKey,
+    type PracticeDisplayKey,
+    type QuizDirectionKey,
+    quizDirections,
+    type QuizRangeKey,
+    type QuizSourceKey,
 } from '@/app/home/constants';
 import {
-  capitalizeWord,
-  getInitialCustomEnd,
-  getInitialCustomStart,
-  getMissingAiExampleDefinitionIndexes,
-  getRangeEnd,
-  getRangeStart,
-  mergeExamplesIntoDefinitions,
-  requestExamples,
-  requestExamplesForDefinitions,
-  shuffle,
-  toMutableWordRecord,
+    capitalizeWord,
+    getInitialCustomEnd,
+    getInitialCustomStart,
+    getMissingAiExampleDefinitionIndexes,
+    getRangeEnd,
+    getRangeStart,
+    mergeExamplesIntoDefinitions,
+    requestExamples,
+    requestExamplesForDefinitions,
+    shuffle,
+    toMutableWordRecord,
 } from '@/app/home/utils';
 import { EditWordModal } from '@/components/EditWordModal/EditWordModal';
 import { ClearMissedWordsModal } from '@/components/Home/ClearMissedWordsModal';
@@ -41,46 +34,44 @@ import { PwaRegister } from '@/components/PwaRegister/PwaRegister';
 import { type QuizItem } from '@/components/QuizPanel/QuizPanel';
 import { AppSidebar } from '@/components/Sidebar/AppSidebar';
 import {
-  getDatabase,
-  buildMissedWordId,
-  type AppDatabase,
-  type GroupRecord,
-  type FsrsRecord,
-  type MissedWordRecord,
-  type SrsPracticeRecord,
-  type SrsRecord,
-  type WordDefinition,
-  type WordRecord,
+    type AppDatabase,
+    buildMissedWordId,
+    type FsrsRecord,
+    getDatabase,
+    type GroupRecord,
+    type MissedWordRecord,
+    type SrsRecord,
+    type WordDefinition,
+    type WordRecord,
 } from '@/lib/db';
 import { definitionsToMeaning, getWordDefinitions, normalizeDefinitions } from '@/lib/definitions';
 import { mergeAiExamples, normalizeAiExampleCount, normalizeAiExamples } from '@/lib/examples';
 import {
-  buildFsrsId,
-  computeFsrs,
-  computeFsrsIntervals,
-  createInitialFsrsRecord,
-  formatInterval,
-  softDeleteFsrsRecord,
-  updateFsrsRecordContent,
-  type FsrsRating,
+    buildFsrsId,
+    computeFsrs,
+    computeFsrsIntervals,
+    createInitialFsrsRecord,
+    formatInterval,
+    type FsrsRating,
+    softDeleteFsrsRecord,
+    updateFsrsRecordContent,
 } from '@/lib/fsrs';
 import {
-  getActiveGroupNames,
-  getWordGroups,
-  removeGroupFromWordGroups,
-  replaceGroupInWordGroups,
-  wordHasAnyGroup,
-  wordHasGroup,
+    getActiveGroupNames,
+    getWordGroups,
+    removeGroupFromWordGroups,
+    replaceGroupInWordGroups,
+    wordHasAnyGroup,
+    wordHasGroup,
 } from '@/lib/groups';
 import {
-  performFullSync,
-  pushGroupToRemote,
-  pushMissedWordToRemote,
-  pushWordToRemote,
-  pushSrsRecordToRemote,
-  pushFsrsRecordToRemote,
-  pushSrsPracticeWordToRemote,
-  setupOnlineSyncListener,
+    performFullSync,
+    pushFsrsRecordToRemote,
+    pushGroupToRemote,
+    pushMissedWordToRemote,
+    pushSrsRecordToRemote,
+    pushWordToRemote,
+    setupOnlineSyncListener,
 } from '@/lib/sync';
 import { resolveWordTextFromMainTable } from '@/lib/word-display';
 
@@ -542,7 +533,7 @@ export default function HomePage() {
 
   const quizCandidates = useMemo(() => {
     if (quizSource === 'fsrsForgetting') {
-      let candidates: (WordRecord | MissedWordRecord | FsrsRecord)[] = [];
+      let candidates: (WordRecord | MissedWordRecord | FsrsRecord)[];
       if (practiceDisplayMode === 'fsrsAgain') {
         candidates = fsrsForgettingWordsForMode.filter((w) => w.lastRating === 'again');
       } else if (practiceDisplayMode === 'fsrsHard') {
@@ -577,8 +568,7 @@ export default function HomePage() {
 
     // Review sources ignore date range — scheduling is handled by the algorithm
     if (quizSource === 'fsrs' || (quizSource as string) === 'srs') {
-      const sourceRecords = fsrsDueRecords;
-      let candidates: (WordRecord | MissedWordRecord | FsrsRecord)[] = sourceRecords;
+        let candidates: (WordRecord | MissedWordRecord | FsrsRecord)[] = fsrsDueRecords;
       if (quizGroupFilter !== 'all') {
         candidates = candidates.filter((item) => {
           const correspondingWord = words.find((w) => w.id === (item as FsrsRecord).wordId);
@@ -792,10 +782,8 @@ export default function HomePage() {
     let wordSubscription: { unsubscribe: () => void } | null = null;
     let groupSubscription: { unsubscribe: () => void } | null = null;
     let missedSubscription: { unsubscribe: () => void } | null = null;
-    let srsSubscription: { unsubscribe: () => void } | null = null;
-    let fsrsSubscription: { unsubscribe: () => void } | null = null;
-    let srsPracticeSubscription: { unsubscribe: () => void } | null = null;
-    let cleanupOnlineListener: (() => void) | null = null;
+      let fsrsSubscription: { unsubscribe: () => void } | null = null;
+      let cleanupOnlineListener: (() => void) | null = null;
 
     const load = async () => {
       const db = await getDatabase();
@@ -916,40 +904,40 @@ export default function HomePage() {
     };
   }, []);
   // Auto-backfill missing SRS and FSRS records for meaningToWord and spelling modes across all words
-  useEffect(() => {
-    if (!database || isLoading || words.length === 0) {
-      return;
-    }
-
-    const backfill = async () => {
-      const allModes: import('@/lib/db').QuizMode[] = [
-        'wordToMeaning',
-        'meaningToWord',
-        'spelling',
-      ];
-
-      for (const wordRecord of words) {
-        if (wordRecord.isDeleted) continue;
-
-        for (const qMode of allModes) {
-          const fsrsId = buildFsrsId(wordRecord.id, qMode);
-          const fsrsDoc = await database.fsrsRecords.findOne(fsrsId).exec();
-          if (!fsrsDoc) {
-            const newFsrs = createInitialFsrsRecord(
-              wordRecord.id,
-              qMode,
-              wordRecord.word,
-              wordRecord.meaning
-            );
-            await database.fsrsRecords.upsert(newFsrs);
-            void pushFsrsRecordToRemote(database.fsrsRecords, newFsrs);
-          }
-        }
-      }
-    };
-
-    void backfill();
-  }, [database, isLoading, words]);
+  // useEffect(() => {
+  //   if (!database || isLoading || words.length === 0) {
+  //     return;
+  //   }
+  //
+  //   const backfill = async () => {
+  //     const allModes: import('@/lib/db').QuizMode[] = [
+  //       'wordToMeaning',
+  //       'meaningToWord',
+  //       'spelling',
+  //     ];
+  //
+  //     for (const wordRecord of words) {
+  //       if (wordRecord.isDeleted) continue;
+  //
+  //       for (const qMode of allModes) {
+  //         const fsrsId = buildFsrsId(wordRecord.id, qMode);
+  //         const fsrsDoc = await database.fsrsRecords.findOne(fsrsId).exec();
+  //         if (!fsrsDoc) {
+  //           const newFsrs = createInitialFsrsRecord(
+  //             wordRecord.id,
+  //             qMode,
+  //             wordRecord.word,
+  //             wordRecord.meaning
+  //           );
+  //           await database.fsrsRecords.upsert(newFsrs);
+  //           void pushFsrsRecordToRemote(database.fsrsRecords, newFsrs);
+  //         }
+  //       }
+  //     }
+  //   };
+  //
+  //   void backfill();
+  // }, [database, isLoading, words]);
 
   const rawCurrentQuizItem = quizQueue[quizIndex] ?? null;
 

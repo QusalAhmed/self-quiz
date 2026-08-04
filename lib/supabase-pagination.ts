@@ -17,6 +17,7 @@ export async function fetchAllSupabaseRows<T = unknown>(
     const { data, error } = await supabase
       .from(tableName)
       .select(selectQuery)
+      .eq('deleted', false)
       .range(from, from + PAGE_SIZE - 1);
 
     if (error) {

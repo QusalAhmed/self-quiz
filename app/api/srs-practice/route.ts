@@ -58,6 +58,7 @@ export async function GET(request: NextRequest) {
         .from('srs_practice_words')
         .select('*')
         .eq('id', id)
+        .eq('deleted', false)
         .single();
 
       if (error) {
