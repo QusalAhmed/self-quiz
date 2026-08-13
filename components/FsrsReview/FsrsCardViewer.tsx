@@ -2,6 +2,7 @@
 
 import { Badge, Button, Card, Group, Progress, Stack, Text, Title, Tooltip } from '@mantine/core';
 import { IconArrowBackUp, IconEye, IconVolume } from '@tabler/icons-react';
+import { motion } from 'framer-motion';
 import React, { useEffect } from 'react';
 import type { FsrsRating, FsrsRecord } from '@/lib/fsrs';
 import { FsrsCounterBadge } from './FsrsCounterBadge';
@@ -107,151 +108,230 @@ export function FsrsCardViewer({
           </Group>
         </Group>
 
-        {/* Word Display (Front of Card - Quizlet & RemNote inspired) */}
-        <Stack align="center" gap="xs" py="md">
-          {/* FSRS Card Metadata & Undo Bar */}
-          <Group justify="center" gap={6} wrap="wrap" mb={4}>
-            <Badge
-              variant="light"
-              color={stateBadgeProps.color}
-              size="sm"
-              radius="md"
-              style={{ fontWeight: 800 }}
-            >
-              {stateBadgeProps.label}
-            </Badge>
-            <Badge variant="outline" color="violet" size="sm" radius="md">
-              Reps: {card.reps ?? 0}
-            </Badge>
-            <Badge variant="outline" color={card.lapses > 0 ? 'red' : 'gray'} size="sm" radius="md">
-              Lapses: {card.lapses ?? 0}
-            </Badge>
-
-            {typeof card.stability === 'number' && card.stability > 0 && (
-              <Badge variant="outline" color="teal" size="sm" radius="md">
-                Stab:{' '}
-                {card.stability < 1
-                  ? `${Math.round(card.stability * 24)}h`
-                  : `${card.stability.toFixed(1)}d`}
-              </Badge>
-            )}
-
-            {typeof card.difficulty === 'number' && card.difficulty > 0 && (
-              <Badge variant="outline" color="orange" size="sm" radius="md">
-                Diff: {card.difficulty.toFixed(1)}/10
-              </Badge>
-            )}
-
-            {canUndo && onUndo && (
-              <Tooltip label="Undo last card rating" withArrow>
-                <Button
-                  variant="light"
-                  color="grape"
-                  size="xs"
-                  radius="md"
-                  leftSection={<IconArrowBackUp size={14} />}
-                  onClick={onUndo}
-                  style={{ fontWeight: 800, height: 22, paddingLeft: 8, paddingRight: 8 }}
-                >
-                  Undo
-                </Button>
-              </Tooltip>
-            )}
-          </Group>
-
-          <Group gap="sm" align="center" justify="center">
-            <Title
-              order={1}
+        <div style={{ perspective: '1200px', width: '100%', flex: 1, display: 'flex' }}>
+          <motion.div
+            key={card.wordId || card.dueAt}
+            initial={false}
+            animate={{ rotateY: isRevealed ? 180 : 0 }}
+            transition={{
+              duration: 0.6,
+              ease: [0.23, 1, 0.32, 1],
+            }}
+            style={{
+              transformStyle: 'preserve-3d',
+              position: 'relative',
+              width: '100%',
+              display: 'grid',
+              gridTemplateColumns: '1fr',
+              gridTemplateRows: '1fr',
+              alignItems: 'center',
+            }}
+          >
+            {/* FRONT FACE (UNREVEALED) */}
+            <div
               style={{
-                fontFamily: 'var(--font-title)',
-                fontSize: '2.75rem',
-                fontWeight: 800,
-                letterSpacing: '-0.02em',
-                textAlign: 'center',
-                background: 'linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'currentColor',
+                gridArea: '1 / 1',
+                backfaceVisibility: 'hidden',
+                WebkitBackfaceVisibility: 'hidden',
+                transform: 'rotateY(0deg)',
+                pointerEvents: isRevealed ? 'none' : 'auto',
+                width: '100%',
               }}
             >
-              {card.word}
-            </Title>
+              <Stack align="center" gap="md" py="md">
+                {/* FSRS Card Metadata & Undo Bar */}
+                <Group justify="center" gap={6} wrap="wrap" mb={4}>
+                  <Badge
+                    variant="light"
+                    color={stateBadgeProps.color}
+                    size="sm"
+                    radius="md"
+                    style={{ fontWeight: 800 }}
+                  >
+                    {stateBadgeProps.label}
+                  </Badge>
+                  <Badge variant="outline" color="violet" size="sm" radius="md">
+                    Reps: {card.reps ?? 0}
+                  </Badge>
+                  <Badge
+                    variant="outline"
+                    color={card.lapses > 0 ? 'red' : 'gray'}
+                    size="sm"
+                    radius="md"
+                  >
+                    Lapses: {card.lapses ?? 0}
+                  </Badge>
 
-            {onPronounce && (
-              <Tooltip label="Pronounce word" withArrow>
-                <Button
-                  variant="light"
-                  color="violet"
-                  size="sm"
-                  radius="xl"
-                  p={8}
-                  onClick={() => onPronounce(card.word)}
-                  aria-label="Pronounce word"
+                  {typeof card.stability === 'number' && card.stability > 0 && (
+                    <Badge variant="outline" color="teal" size="sm" radius="md">
+                      Stab:{' '}
+                      {card.stability < 1
+                        ? `${Math.round(card.stability * 24)}h`
+                        : `${card.stability.toFixed(1)}d`}
+                    </Badge>
+                  )}
+
+                  {typeof card.difficulty === 'number' && card.difficulty > 0 && (
+                    <Badge variant="outline" color="orange" size="sm" radius="md">
+                      Diff: {card.difficulty.toFixed(1)}/10
+                    </Badge>
+                  )}
+
+                  {canUndo && onUndo && (
+                    <Tooltip label="Undo last card rating" withArrow>
+                      <Button
+                        variant="light"
+                        color="grape"
+                        size="xs"
+                        radius="md"
+                        leftSection={<IconArrowBackUp size={14} />}
+                        onClick={onUndo}
+                        style={{ fontWeight: 800, height: 22, paddingLeft: 8, paddingRight: 8 }}
+                      >
+                        Undo
+                      </Button>
+                    </Tooltip>
+                  )}
+                </Group>
+
+                <Group gap="sm" align="center" justify="center">
+                  <Title
+                    order={1}
+                    style={{
+                      fontFamily: 'var(--font-title)',
+                      fontSize: '2.75rem',
+                      fontWeight: 800,
+                      letterSpacing: '-0.02em',
+                      textAlign: 'center',
+                      background: 'linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%)',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'currentColor',
+                    }}
+                  >
+                    {card.word}
+                  </Title>
+
+                  {onPronounce && (
+                    <Tooltip label="Pronounce word" withArrow>
+                      <Button
+                        variant="light"
+                        color="violet"
+                        size="sm"
+                        radius="xl"
+                        p={8}
+                        onClick={() => onPronounce(card.word)}
+                        aria-label="Pronounce word"
+                        style={{
+                          boxShadow: '0 4px 12px rgba(168, 85, 247, 0.2)',
+                        }}
+                      >
+                        <IconVolume size={20} />
+                      </Button>
+                    </Tooltip>
+                  )}
+                </Group>
+
+                <Text size="xs" c="dimmed" fw={600} style={{ letterSpacing: '0.04em' }}>
+                  Click below to reveal answer
+                </Text>
+
+                <Stack align="center" py="sm" style={{ width: '100%' }}>
+                  <Button
+                    size="lg"
+                    radius="xl"
+                    variant="gradient"
+                    gradient={{ from: 'violet', to: 'grape', deg: 135 }}
+                    leftSection={<IconEye size={22} />}
+                    onClick={onReveal}
+                    style={{
+                      width: '100%',
+                      maxWidth: 320,
+                      fontWeight: 800,
+                      fontSize: '1.05rem',
+                      boxShadow: '0 6px 20px rgba(168, 85, 247, 0.35)',
+                      fontFamily: 'var(--font-title)',
+                    }}
+                  >
+                    Show Answer (Space)
+                  </Button>
+                </Stack>
+              </Stack>
+            </div>
+
+            {/* BACK FACE (REVEALED) */}
+            <div
+              style={{
+                gridArea: '1 / 1',
+                backfaceVisibility: 'hidden',
+                WebkitBackfaceVisibility: 'hidden',
+                transform: 'rotateY(180deg)',
+                pointerEvents: isRevealed ? 'auto' : 'none',
+                width: '100%',
+              }}
+            >
+              <Stack gap="md" style={{ width: '100%' }}>
+                <Group justify="center" gap={6} wrap="wrap" mb={2}>
+                  <Badge
+                    variant="light"
+                    color={stateBadgeProps.color}
+                    size="sm"
+                    radius="md"
+                    style={{ fontWeight: 800 }}
+                  >
+                    {stateBadgeProps.label}
+                  </Badge>
+                  <Title
+                    order={3}
+                    style={{
+                      fontFamily: 'var(--font-title)',
+                      fontWeight: 800,
+                      textAlign: 'center',
+                    }}
+                  >
+                    {card.word}
+                  </Title>
+                  {onPronounce && (
+                    <Tooltip label="Pronounce word" withArrow>
+                      <Button
+                        variant="subtle"
+                        color="violet"
+                        size="xs"
+                        radius="xl"
+                        p={4}
+                        onClick={() => onPronounce(card.word)}
+                      >
+                        <IconVolume size={16} />
+                      </Button>
+                    </Tooltip>
+                  )}
+                </Group>
+
+                <Card
+                  radius="lg"
+                  padding="md"
                   style={{
-                    boxShadow: '0 4px 12px rgba(168, 85, 247, 0.2)',
+                    background: 'rgba(168, 85, 247, 0.08)',
+                    borderLeft: '4px solid #a855f7',
+                    border: '1px solid rgba(168, 85, 247, 0.2)',
+                    borderLeftWidth: 4,
                   }}
                 >
-                  <IconVolume size={20} />
-                </Button>
-              </Tooltip>
-            )}
-          </Group>
+                  <Group justify="space-between" align="center" mb={6}>
+                    <Text size="xs" fw={800} c="grape.4" style={{ letterSpacing: '0.05em' }}>
+                      DEFINITION / MEANING
+                    </Text>
+                  </Group>
 
-          {!isRevealed && (
-            <Text size="xs" c="dimmed" fw={600} style={{ letterSpacing: '0.04em' }}>
-              Click below to reveal answer
-            </Text>
-          )}
-        </Stack>
+                  <Text size="lg" fw={800} style={{ lineHeight: 1.45 }}>
+                    {card.meaning}
+                  </Text>
+                </Card>
 
-        {/* Revealed Answer (Back of Card - RemNote & Anki style) */}
-        {isRevealed ? (
-          <Stack gap="md" style={{ width: '100%' }} className="fsrs-answer-anim">
-            <Card
-              radius="lg"
-              padding="md"
-              style={{
-                background: 'rgba(168, 85, 247, 0.08)',
-                borderLeft: '4px solid #a855f7',
-                border: '1px solid rgba(168, 85, 247, 0.2)',
-                borderLeftWidth: 4,
-              }}
-            >
-              <Group justify="space-between" align="center" mb={6}>
-                <Text size="xs" fw={800} c="grape.4" style={{ letterSpacing: '0.05em' }}>
-                  DEFINITION / MEANING
-                </Text>
-              </Group>
-
-              <Text size="lg" fw={800} style={{ lineHeight: 1.45 }}>
-                {card.meaning}
-              </Text>
-            </Card>
-
-            <FsrsRatingBar intervals={intervals} onRate={onRate} />
-          </Stack>
-        ) : (
-          /* Reveal Action Button (Quizlet style CTA) */
-          <Stack align="center" py="sm">
-            <Button
-              size="lg"
-              radius="xl"
-              variant="gradient"
-              gradient={{ from: 'violet', to: 'grape', deg: 135 }}
-              leftSection={<IconEye size={22} />}
-              onClick={onReveal}
-              style={{
-                width: '100%',
-                maxWidth: 320,
-                fontWeight: 800,
-                fontSize: '1.05rem',
-                boxShadow: '0 6px 20px rgba(168, 85, 247, 0.35)',
-                fontFamily: 'var(--font-title)',
-              }}
-            >
-              Show Answer (Space)
-            </Button>
-          </Stack>
-        )}
+                <FsrsRatingBar intervals={intervals} onRate={onRate} />
+              </Stack>
+            </div>
+          </motion.div>
+        </div>
 
         {/* Bottom Keyboard Legend */}
         <Group justify="center" gap="lg" style={{ opacity: 0.65 }}>
