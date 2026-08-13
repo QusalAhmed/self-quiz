@@ -39,7 +39,7 @@ describe('computeFsrs', () => {
     expect(updated.lastRating).toBe('good');
   });
 
-  it('stores again and hard lastRating correctly and preserves lastRating on good or easy review', () => {
+  it('stores again and hard lastRating correctly and updates lastRating on subsequent reviews', () => {
     const record = createInitialFsrsRecord('w1', 'wordToMeaning', 'Hello', 'A greeting', now);
     const againCard = computeFsrs(record, 'again', now);
     expect(againCard.lastRating).toBe('again');
@@ -47,12 +47,12 @@ describe('computeFsrs', () => {
     const hardCard = computeFsrs(record, 'hard', now);
     expect(hardCard.lastRating).toBe('hard');
 
-    // Subsequent good/easy reviews on an again card should preserve lastRating as again
+    // Subsequent good/easy reviews update lastRating to the latest rating given
     const goodAfterAgain = computeFsrs(againCard, 'good', now);
-    expect(goodAfterAgain.lastRating).toBe('again');
+    expect(goodAfterAgain.lastRating).toBe('good');
 
     const easyAfterAgain = computeFsrs(againCard, 'easy', now);
-    expect(easyAfterAgain.lastRating).toBe('again');
+    expect(easyAfterAgain.lastRating).toBe('easy');
   });
 });
 

@@ -49,6 +49,19 @@ describe('fsrsSlice', () => {
     expect(updatedCard1.state).toBe('Learning');
     expect(state.isRevealed).toBe(false);
     expect(state.reviewLogsCount).toBe(1);
+    expect(state.queue).not.toContain(card1.id);
+  });
+
+  it('should remove card from session queue without re-queuing when answered again', () => {
+    let state = fsrsReducer(undefined, loadDeck([card1, card2]));
+    state = fsrsReducer(
+      state,
+      answerCard({ cardId: card1.id, rating: 'again', nowIso: baseDate.toISOString() })
+    );
+
+    expect(state.queue).toHaveLength(1);
+    expect(state.queue[0]).toBe(card2.id);
+    expect(state.currentCardId).toBe(card2.id);
   });
 
   it('should allow undoing an answered card', () => {

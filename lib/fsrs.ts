@@ -126,8 +126,6 @@ export function computeFsrs(
 ): FsrsRecord {
   const card = toCard(current);
   const result = scheduler.next(card, now, RATING_TO_ENUM[rating]);
-  const updatedLastRating =
-    rating === 'again' || rating === 'hard' ? rating : current.lastRating || rating;
 
   return fromCard(
     {
@@ -138,7 +136,7 @@ export function computeFsrs(
       meaning,
       lastSyncedAt: current.lastSyncedAt,
       isDeleted: false,
-      lastRating: updatedLastRating,
+      lastRating: rating,
     },
     result.card,
     now.toISOString()

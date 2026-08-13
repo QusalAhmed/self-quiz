@@ -168,18 +168,8 @@ export function QuizModeSection({
     if (practiceDisplayMode === 'fsrsHard') {
       return fsrsWords.filter((w) => w.lastRating === 'hard');
     }
-    if (practiceDisplayMode === 'missed') {
-      return missedWordsForMode;
-    }
-    // 'allMissed' or default: combine manual missed and fsrs forgetting words
-    const manualWordIds = new Set(missedWordsForMode.map((w) => w.wordId));
-    const combined = [...missedWordsForMode] as any[];
-    for (const fWord of fsrsWords) {
-      if (!manualWordIds.has(fWord.wordId)) {
-        combined.push(fWord);
-      }
-    }
-    return combined;
+    // 'allMissed' or 'missed' or default: manual missed words
+    return missedWordsForMode;
   }, [practiceDisplayMode, missedWordsForMode, fsrsForgettingWordsForMode]);
 
   return (

@@ -177,18 +177,8 @@ export const fsrsSlice = createSlice({
       state.isRevealed = false;
       state.reviewLogsCount += 1;
 
-      // Update active queue
-      const currentQueue = state.queue.filter((id) => id !== cardId);
-      const isStillDue = updatedCard.dueAt <= now.toISOString();
-
-      if (isStillDue) {
-        // Re-queue card for immediate learning review step
-        state.queue = [...currentQueue, cardId];
-      } else {
-        // Card scheduled into future
-        state.queue = currentQueue;
-      }
-
+      // Update active queue (remove answered card from current session queue)
+      state.queue = state.queue.filter((id) => id !== cardId);
       state.currentCardId = state.queue.length > 0 ? state.queue[0] : null;
     },
 

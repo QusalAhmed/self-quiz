@@ -540,17 +540,9 @@ export default function HomePage() {
         candidates = fsrsForgettingWordsForMode.filter((w) => w.lastRating === 'hard');
       } else if (practiceDisplayMode === 'fsrsAgainHard') {
         candidates = fsrsForgettingWordsForMode;
-      } else if (practiceDisplayMode === 'missed') {
-        candidates = missedWordsForMode;
       } else {
-        // 'allMissed' or default: combine manual missed and fsrs forgetting words
-        const manualWordIds = new Set(missedWordsForMode.map((w) => w.wordId));
-        candidates = [...missedWordsForMode];
-        for (const fWord of fsrsForgettingWordsForMode) {
-          if (!manualWordIds.has(fWord.wordId)) {
-            candidates.push(fWord as any);
-          }
-        }
+        // 'allMissed' or default: missed words
+        candidates = missedWordsForMode;
       }
 
       if (quizGroupFilter !== 'all') {
@@ -1796,13 +1788,6 @@ export default function HomePage() {
 
       await database.fsrsRecords.upsert(updated);
       void pushFsrsRecordToRemote(database.fsrsRecords, updated);
-
-      // If card is rated 'again' or due within short learning window (<= 2 min),
-      // re-queue it to the end of the current quiz queue so it is reviewed in the same session without refresh
-      const isShortLearning = new Date(updated.dueAt).getTime() - now.getTime() <= 2 * 60 * 1000;
-      if (rating === 'again' || isShortLearning) {
-        setQuizQueue((prev) => [...prev, { ...currentQuizItem, fsrsRecord: updated }]);
-      }
 
       handleNext();
     },
