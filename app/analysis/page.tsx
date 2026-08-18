@@ -17,19 +17,25 @@ import { useRouter } from 'next/navigation';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AnalysisHeader,
+  CategoryAnalysis,
   DifficultWordsTable,
   EmptyAnalysisState,
   FsrsMemoryHealth,
   InsightsAndRecommendations,
   KpiOverview,
   LearningProgressChart,
+  LearningStateDistribution,
   RetentionAnalysis,
   ReviewLogSection,
   SectionStatusBadge,
   StrongestWordsTable,
   StudyActivityHeatmap,
   StudyEfficiency,
+  StudyTimeAnalytics,
+  TimeToMasteryCard,
   VocabularyGrowth,
+  WordDifficultyVsTime,
+  WordTimeAnalysis,
 } from '@/components/Analysis';
 import { EditWordModal } from '@/components/EditWordModal/EditWordModal';
 import { GroupManager } from '@/components/GroupManager/GroupManager';
@@ -90,6 +96,7 @@ export default function AnalysisPage() {
   }, []);
 
   const customGroups = useMemo(() => getActiveGroupNames(groups), [groups]);
+  const wordsById = useMemo(() => new Map(words.map((w) => [w.id, w])), [words]);
 
   // RxDB Live Subscriptions
   useEffect(() => {
@@ -161,12 +168,18 @@ export default function AnalysisPage() {
               return;
             }
             setDailyUsage(docs.map((d) => d.toJSON() as DailyUsageRecord));
-            setIsLoading(false);
           });
 
-        setupSupabaseReplication(db);
+        // Initialize cloud sync
+        try {
+          setupSupabaseReplication(db);
+        } catch {
+          // ignore
+        }
+
+        setIsLoading(false);
       } catch (err) {
-        console.error('Failed to initialize analysis database subscriptions:', err);
+        console.error('Failed to load database in AnalysisPage:', err);
         if (isMounted) {
           setIsLoading(false);
         }
@@ -186,7 +199,7 @@ export default function AnalysisPage() {
     };
   }, []);
 
-  // Compute Analytics Result with Memoization
+  // Compute full analytics result
   const analysis = useMemo(() => {
     return calculateAnalysis({
       words,
@@ -200,23 +213,28 @@ export default function AnalysisPage() {
     });
   }, [words, fsrsRecords, dailyUsage, missedWords, groups, reviewLogs, filters, nowTicker]);
 
-  // Sidebar counters
-  const todayCount = useMemo(() => {
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    return words.filter((w) => new Date(w.createdAt) >= todayStart).length;
-  }, [words]);
+  // Derived counts for sidebar
+  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const todayCount = useMemo(
+    () => words.filter((w) => !w.isDeleted && w.createdAt.startsWith(todayStr)).length,
+    [words, todayStr]
+  );
 
   const fsrsDueTodayCount = useMemo(() => {
-    return fsrsRecords.filter((r) => !r.isDeleted && r.dueAt <= nowTicker).length;
-  }, [fsrsRecords, nowTicker]);
+    const nowTime = new Date().getTime();
+    return fsrsRecords.filter((r) => {
+      if (r.isDeleted) return false;
+      if (!r.dueAt) return true;
+      return new Date(r.dueAt).getTime() <= nowTime;
+    }).length;
+  }, [fsrsRecords]);
 
-  // Word selection for edit modal
+  // Word selection for Edit Modal
   const handleSelectWord = useCallback(
     (wordId: string) => {
-      const match = words.find((w) => w.id === wordId);
-      if (match) {
-        setSelectedWordRecord(match);
+      const found = words.find((w) => w.id === wordId);
+      if (found) {
+        setSelectedWordRecord(found);
       }
     },
     [words]
@@ -225,34 +243,31 @@ export default function AnalysisPage() {
   const handleEditWord = useCallback(
     async (
       id: string,
-      wordText: string,
-      meaningText: string,
-      definitionsList: WordDefinition[],
-      customGroupsList: string[],
-      aiExampleCount: number,
-      notesText?: string
+      word: string,
+      meaning: string,
+      definitions?: WordDefinition[],
+      customGroupNames?: string[],
+      aiExampleCount?: number,
+      notes?: string
     ) => {
       if (!database) {
         return;
       }
-      const existingDoc = await database.words.findOne(id).exec();
-      if (!existingDoc) {
+      const existing = await database.words.findOne(id).exec();
+      if (!existing) {
         return;
       }
-
       const timestamp = new Date().toISOString();
-      const updated = {
-        ...existingDoc.toJSON(),
-        word: wordText,
-        meaning: meaningText,
-        definitions: definitionsList,
-        customGroups: customGroupsList,
-        aiExampleCount,
-        notes: notesText || '',
+      await database.words.upsert({
+        ...existing.toJSON(),
+        word,
+        meaning,
+        definitions: definitions || existing.definitions,
+        customGroups: customGroupNames || existing.customGroups,
+        aiExampleCount: aiExampleCount !== undefined ? aiExampleCount : existing.aiExampleCount,
+        notes: notes !== undefined ? notes : existing.notes,
         updatedAt: timestamp,
-      };
-
-      await database.words.upsert(updated);
+      });
     },
     [database]
   );
@@ -266,14 +281,12 @@ export default function AnalysisPage() {
       if (!trimmed) {
         return;
       }
-      const existing = await database.groups
-        .findOne({ selector: { name: trimmed, isDeleted: { $ne: true } } })
-        .exec();
-      if (existing) {
+      const existing = await database.groups.find().exec();
+      if (existing.some((g) => g.name.toLowerCase() === trimmed.toLowerCase() && !g.isDeleted)) {
         return;
       }
       const timestamp = new Date().toISOString();
-      await database.groups.upsert({
+      await database.groups.insert({
         id: crypto.randomUUID(),
         name: trimmed,
         createdAt: timestamp,
@@ -397,40 +410,95 @@ export default function AnalysisPage() {
                   {/* 2. High-Value Overview KPI Cards */}
                   <KpiOverview kpis={analysis.kpis} />
 
-                  {/* 3. Learning Progress & Knowledge Breakdown Chart */}
+                  {/* 3. Vocabulary Growth & Learning Trajectory */}
                   <LearningProgressChart
                     data={analysis.timeSeries}
+                    weeklyData={analysis.timeSeriesWeekly}
+                    monthlyData={analysis.timeSeriesMonthly}
+                    vocabularyGrowth={analysis.vocabularyGrowth}
                     totalWords={analysis.totalWordsCount}
                     masteredWords={analysis.kpis.wordsMastered.value}
                     statusInfo={analysis.statuses.progress}
                   />
 
-                  {/* 4. Retention & Response Quality Analysis */}
+                  {/* 4. Words by Learning State (Interactive) */}
+                  <LearningStateDistribution
+                    data={analysis.stateDistribution}
+                    activeFilter={filters.stateFilter}
+                    onSelectState={(state) => setFilters((f) => ({ ...f, stateFilter: state }))}
+                    statusInfo={analysis.statuses.stateDistribution}
+                  />
+
+                  {/* 5. Study Time Over Time & Pacing */}
+                  <StudyTimeAnalytics
+                    data={analysis.timeSeries}
+                    weeklyData={analysis.timeSeriesWeekly}
+                    monthlyData={analysis.timeSeriesMonthly}
+                    totalStudyTimeMetric={analysis.kpis.totalStudyTimeSec}
+                    efficiency={analysis.efficiency}
+                    totalReviews={analysis.totalReviewsCount}
+                    activeStudyDays={analysis.activity.daysStudied}
+                    statusInfo={analysis.statuses.studyTime}
+                  />
+
+                  {/* 6. Time Spent Per Word (Ranked Table & Top Consuming Chart) */}
+                  <WordTimeAnalysis
+                    words={analysis.timeSpentPerWord}
+                    allWordsMap={wordsById}
+                    onSelectWord={(w) => setSelectedWordRecord(w)}
+                    statusInfo={analysis.statuses.wordTime}
+                  />
+
+                  {/* 7. Time-to-Mastery Trajectory & Fastest/Slowest Words */}
+                  <TimeToMasteryCard
+                    data={analysis.timeToMastery}
+                    allWordsMap={wordsById}
+                    onSelectWord={(w) => setSelectedWordRecord(w)}
+                    statusInfo={analysis.statuses.timeToMastery}
+                  />
+
+                  {/* 8. Word Difficulty vs Study Effort Scatter */}
+                  <WordDifficultyVsTime
+                    data={analysis.wordEffortPoints}
+                    allWordsMap={wordsById}
+                    onSelectWord={(w) => setSelectedWordRecord(w)}
+                    statusInfo={analysis.statuses.difficultyVsTime}
+                  />
+
+                  {/* 9. Category & Tag Analysis (when applicable) */}
+                  {analysis.categoryComparisons.length > 0 && (
+                    <CategoryAnalysis
+                      categories={analysis.categoryComparisons}
+                      statusInfo={analysis.statuses.categoryComparison}
+                    />
+                  )}
+
+                  {/* 10. Retention & Response Quality Analysis */}
                   <RetentionAnalysis
                     distribution={analysis.ratingDistribution}
                     statusInfo={analysis.statuses.retention}
                   />
 
-                  {/* 5. FSRS Memory Health & Diagnostics */}
+                  {/* 11. FSRS Memory Health & Diagnostics */}
                   <FsrsMemoryHealth
                     memoryHealth={analysis.memoryHealth}
                     statusInfo={analysis.statuses.memoryHealth}
                   />
 
-                  {/* 6. Study Consistency & Habit Heatmap */}
+                  {/* 12. Study Consistency & Habit Heatmap */}
                   <StudyActivityHeatmap
                     activity={analysis.activity}
                     statusInfo={analysis.statuses.activity}
                   />
 
-                  {/* 7. Patterns, Insights & Actionable Recommendations */}
+                  {/* 13. Patterns, Insights & Actionable Recommendations */}
                   <InsightsAndRecommendations
                     insights={analysis.insights}
                     recommendations={analysis.recommendations}
                     statusInfo={analysis.statuses.insights}
                   />
 
-                  {/* 8 & 9. Difficult Words vs Strongest Words Tabs */}
+                  {/* 14. Difficult Words vs Strongest Words Tabs */}
                   <Card className="glass-panel" radius="xl" padding="md">
                     <Stack gap="md">
                       <Group justify="space-between" align="center" wrap="wrap">
@@ -472,7 +540,7 @@ export default function AnalysisPage() {
                     </Stack>
                   </Card>
 
-                  {/* 10 & 11. Vocabulary Growth Velocity & Study Efficiency */}
+                  {/* 15. Vocabulary Growth Velocity & Study Efficiency */}
                   <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
                     <VocabularyGrowth
                       growth={analysis.vocabularyGrowth}
@@ -486,7 +554,7 @@ export default function AnalysisPage() {
                     />
                   </SimpleGrid>
 
-                  {/* 12. Historical Review Log & Audit Section */}
+                  {/* 16. Historical Review Log & Audit Section */}
                   <ReviewLogSection
                     reviewLogs={reviewLogs}
                     words={words}
@@ -505,8 +573,8 @@ export default function AnalysisPage() {
             onClose={() => setSelectedWordRecord(null)}
             wordRecord={selectedWordRecord}
             customGroups={customGroups}
-            onSave={async (id, w, m, d, g, c, n) => {
-              await handleEditWord(id, w, m, d, g, c, n);
+            onSave={async (id, w, m, d, g, aiCount, n) => {
+              await handleEditWord(id, w, m, d, g, aiCount, n);
               setSelectedWordRecord(null);
             }}
             onAddCustomGroup={(g) => void handleAddGroup(g)}

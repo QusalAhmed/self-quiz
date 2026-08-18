@@ -382,6 +382,17 @@ describe('Analysis Calculator', () => {
       expect(result.ratingDistribution.totalRatings).toBe(2);
       expect(result.ratingDistribution.successfulRecallRate).toBe(50);
       expect(result.statuses.retention.status).toBe('limited_data');
+
+      // Test new deep analytics outputs
+      expect(result.timeSeriesWeekly.length).toBeGreaterThan(0);
+      expect(result.stateDistribution.states.length).toBe(5);
+      expect(result.stateDistribution.states.find((s) => s.state === 'Mastered')).toBeDefined();
+      expect(result.timeSpentPerWord.length).toBe(3);
+      expect(result.wordEffortPoints.length).toBeGreaterThan(0);
+      expect(result.statuses.stateDistribution.status).toBe('available');
+      expect(result.statuses.studyTime.status).toBeDefined();
+      expect(result.statuses.wordTime.status).toBeDefined();
+      expect(result.statuses.timeToMastery.status).toBeDefined();
     });
 
     it('handles empty database gracefully', () => {
@@ -400,6 +411,9 @@ describe('Analysis Calculator', () => {
       expect(result.kpis.currentStreak.value).toBe(0);
       expect(result.difficultWords).toEqual([]);
       expect(result.strongestWords).toEqual([]);
+      expect(result.timeSpentPerWord).toEqual([]);
+      expect(result.wordEffortPoints).toEqual([]);
+      expect(result.stateDistribution.states.length).toBe(5);
       expect(result.statuses.overview.status).toBe('unavailable');
       expect(result.statuses.progress.status).toBe('no_activity');
       expect(result.insights.length).toBeGreaterThan(0);

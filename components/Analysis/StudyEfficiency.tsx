@@ -12,7 +12,14 @@ import {
   Title,
   Tooltip,
 } from '@mantine/core';
-import { IconBolt, IconCheck, IconClock, IconHelpCircle, IconSparkles } from '@tabler/icons-react';
+import {
+  IconBolt,
+  IconCheck,
+  IconClock,
+  IconHelpCircle,
+  IconSparkles,
+  IconTrophy,
+} from '@tabler/icons-react';
 import React from 'react';
 import type { SectionStatusInfo, StudyEfficiencyData } from '@/lib/analysis/types';
 import { SectionStatusBadge } from './SectionStatusBadge';
@@ -29,6 +36,7 @@ export function StudyEfficiency({ efficiency, statusInfo }: StudyEfficiencyProps
     successfulReviewsPerMinute,
     reviewsPerMasteredWord,
     studyMinutesPerMasteredWord,
+    wordsMasteredPerHour,
   } = efficiency;
 
   return (
@@ -53,16 +61,13 @@ export function StudyEfficiency({ efficiency, statusInfo }: StudyEfficiencyProps
               </Tooltip>
             </Group>
             <Text size="xs" c="dimmed">
-              Time investment per card, review throughput, and study time required per mastered
-              word.
+              Time investment per card, review throughput, and study time required per mastered word.
             </Text>
           </div>
-
-          <SectionStatusBadge statusInfo={statusInfo} size="md" />
         </Group>
 
         {/* Efficiency Grid */}
-        <SimpleGrid cols={{ base: 1, xs: 2, sm: 3, md: 5 }} spacing="sm">
+        <SimpleGrid cols={{ base: 1, xs: 2, sm: 3, md: 6 }} spacing="sm">
           {/* Reviews Per Minute */}
           <Paper
             p="md"
@@ -146,6 +151,35 @@ export function StudyEfficiency({ efficiency, statusInfo }: StudyEfficiencyProps
               </Text>
               <Text size="xs" c="dimmed">
                 Effective recall rate
+              </Text>
+            </Stack>
+          </Paper>
+
+          {/* Mastered Words / Hour */}
+          <Paper
+            p="md"
+            radius="lg"
+            style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)' }}
+          >
+            <Stack gap={2}>
+              <Group justify="space-between">
+                <Text size="xs" c="dimmed" fw={600}>
+                  WORDS / HOUR
+                </Text>
+                <IconTrophy size={18} style={{ color: '#10b981', opacity: 0.6 }} />
+              </Group>
+              <Text
+                size="xl"
+                fw={800}
+                style={{ fontFamily: 'var(--font-title)', color: '#10b981' }}
+              >
+                {wordsMasteredPerHour > 0 ? wordsMasteredPerHour : '--'}{' '}
+                <Text component="span" size="xs" c="dimmed">
+                  words/hr
+                </Text>
+              </Text>
+              <Text size="xs" c="dimmed">
+                Mastery velocity
               </Text>
             </Stack>
           </Paper>

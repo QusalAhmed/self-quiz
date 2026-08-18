@@ -3,7 +3,8 @@ import type { FsrsRating } from '@/lib/fsrs';
 
 export type DateRangePreset = '7d' | '30d' | '90d' | '1y' | 'all' | 'custom';
 export type ComparisonPeriod = 'previous_period' | 'prev_30d' | 'prev_90d' | 'none';
-export type WordStateFilter = 'all' | 'Mastered' | 'Review' | 'Learning' | 'New';
+export type WordStateFilter = 'all' | 'Mastered' | 'Review' | 'Learning' | 'Relearning' | 'New';
+export type AggregationPeriod = 'daily' | 'weekly' | 'monthly';
 
 export type AnalysisFilters = {
   datePreset: DateRangePreset;
@@ -13,6 +14,7 @@ export type AnalysisFilters = {
   quizMode: 'all' | QuizMode;
   groupFilter: string; // 'all' or specific group name
   stateFilter: WordStateFilter;
+  difficultyRange?: [number, number];
 };
 
 export type KpiMetric = {
@@ -43,13 +45,31 @@ export type TimeSeriesDataPoint = {
   date: string; // YYYY-MM-DD
   label: string; // e.g. "Aug 12"
   totalWords: number;
+  wordsAdded: number;
+  wordsLearningEntered: number;
   masteredWords: number;
   reviewWords: number;
   learningWords: number;
   newWords: number;
   reviewsCount: number;
   studyMinutes: number;
+  studySeconds: number;
+  avgReviewDurationSec: number;
   recallRate?: number;
+};
+
+export type LearningStateCount = {
+  state: 'New' | 'Learning' | 'Review' | 'Relearning' | 'Mastered';
+  count: number;
+  percent: number; // 0..100
+  color: string;
+  description: string;
+};
+
+export type LearningStateDistributionData = {
+  states: LearningStateCount[];
+  totalWords: number;
+  masteryRuleDescription: string;
 };
 
 export type RatingDistribution = {
@@ -117,6 +137,9 @@ export type ProblematicWordItem = {
   retrievability: number;
   reps: number;
   lapses: number;
+  againCount: number;
+  totalTimeSec: number;
+  avgDurationSec: number;
   lastRating?: FsrsRating;
   lastReviewedAt?: string;
   dueAt?: string;
@@ -134,10 +157,80 @@ export type StrongWordItem = {
   retrievability: number;
   reps: number;
   lapses: number;
+  totalTimeSec: number;
+  avgDurationSec: number;
   lastRating?: FsrsRating;
   lastReviewedAt?: string;
   dueAt?: string;
   tags: string[];
+};
+
+export type WordTimeSpentItem = {
+  id: string; // wordId
+  word: string;
+  meaning: string;
+  definitions?: WordRecord['definitions'];
+  totalTimeSec: number;
+  avgDurationSec: number;
+  reviewsCount: number;
+  lapses: number;
+  difficulty: number;
+  stability: number;
+  retrievability: number;
+  state: 'New' | 'Learning' | 'Review' | 'Relearning' | 'Mastered';
+  tags: string[];
+};
+
+export type TimeToMasteryData = {
+  avgDaysToMastery: number;
+  medianDaysToMastery: number;
+  avgReviewsBeforeMastery: number;
+  avgStudyTimeBeforeMasterySec: number;
+  masteredWordsCount: number;
+  fastestMasteredWords: {
+    id: string;
+    word: string;
+    meaning: string;
+    days: number;
+    reviews: number;
+    studyTimeSec: number;
+  }[];
+  slowestMasteredWords: {
+    id: string;
+    word: string;
+    meaning: string;
+    days: number;
+    reviews: number;
+    studyTimeSec: number;
+  }[];
+  hasSufficientData: boolean;
+};
+
+export type WordEffortPoint = {
+  id: string;
+  word: string;
+  meaning: string;
+  difficulty: number; // 1..10
+  totalTimeSec: number;
+  reviewsCount: number;
+  lapses: number;
+  avgDurationSec: number;
+  stability: number;
+  retrievability: number;
+  state: string;
+};
+
+export type CategoryComparisonItem = {
+  category: string;
+  totalWords: number;
+  masteredWords: number;
+  masteryRate: number; // 0..100%
+  retentionRate: number; // 0..100%
+  avgDifficulty: number;
+  reviewsCount: number;
+  totalStudyTimeSec: number;
+  avgTimePerWordSec: number;
+  lapses: number;
 };
 
 export type VocabularyGrowthData = {
@@ -157,6 +250,8 @@ export type StudyEfficiencyData = {
   successfulReviewsPerMinute: number;
   reviewsPerMasteredWord: number;
   studyMinutesPerMasteredWord: number;
+  wordsMasteredPerHour: number;
+  efficiencyTrendPercent?: number;
   hasSufficientData: boolean;
 };
 
@@ -193,6 +288,12 @@ export type SectionStatusInfo = {
 export type AnalysisSectionKey =
   | 'overview'
   | 'progress'
+  | 'stateDistribution'
+  | 'studyTime'
+  | 'wordTime'
+  | 'timeToMastery'
+  | 'difficultyVsTime'
+  | 'categoryComparison'
   | 'retention'
   | 'memoryHealth'
   | 'activity'
@@ -204,6 +305,14 @@ export type AnalysisSectionKey =
 export type AnalysisResult = {
   kpis: KpiOverviewData;
   timeSeries: TimeSeriesDataPoint[];
+  timeSeriesWeekly: TimeSeriesDataPoint[];
+  timeSeriesMonthly: TimeSeriesDataPoint[];
+  stateDistribution: LearningStateDistributionData;
+  timeSpentPerWord: WordTimeSpentItem[];
+  topTimeConsumingWords: WordTimeSpentItem[];
+  timeToMastery: TimeToMasteryData;
+  wordEffortPoints: WordEffortPoint[];
+  categoryComparisons: CategoryComparisonItem[];
   ratingDistribution: RatingDistribution;
   memoryHealth: FsrsMemoryHealthData;
   activity: ActivitySummary;
