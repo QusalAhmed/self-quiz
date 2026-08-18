@@ -57,11 +57,7 @@ function TableControlGroup({ editor }: { editor: Editor | null }) {
           <Menu.Item
             leftSection={<IconTablePlus size={16} />}
             onClick={() =>
-              editor
-                .chain()
-                .focus()
-                .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
-                .run()
+              editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
             }
           >
             Insert Table (3×3)
@@ -251,7 +247,8 @@ export function RichNoteEditor({ value, onChange, minHeight = 140 }: RichNoteEdi
                 }
               }}
               style={{
-                color: !editor || editor.isEmpty ? undefined : 'var(--mantine-color-red-6, #e03131)',
+                color:
+                  !editor || editor.isEmpty ? undefined : 'var(--mantine-color-red-6, #e03131)',
               }}
             >
               <IconTrash size={16} />
@@ -264,4 +261,3 @@ export function RichNoteEditor({ value, onChange, minHeight = 140 }: RichNoteEdi
     </RichTextEditor>
   );
 }
-

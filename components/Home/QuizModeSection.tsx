@@ -61,7 +61,9 @@ type QuizModeSectionProps = {
   revealedMissedWordIds: Record<string, boolean>;
   revealedSrsPracticeWordIds: Record<string, boolean>;
   missedWordsForMode: Array<MissedWordRecord & { definitions?: WordDefinition[] }>;
-  fsrsForgettingWordsForMode?: Array<import('@/lib/db').FsrsRecord & { definitions?: WordDefinition[] }>;
+  fsrsForgettingWordsForMode?: Array<
+    import('@/lib/db').FsrsRecord & { definitions?: WordDefinition[] }
+  >;
   recentSrsPracticeWords?: Array<SrsPracticeRecord & { definitions?: WordDefinition[] }>;
   missedWordIdSet: Set<string>;
   generatingExampleWordIds: Record<string, boolean>;
@@ -475,7 +477,8 @@ export function QuizModeSection({
             title="No missed or forgotten words in this view"
             description={
               <>
-                Words rated Again or Hard during FSRS quiz (with next review &gt; 6h) or bookmarked as missed in {quizDirections[quizDirection]} will appear here.
+                Words rated Again or Hard during FSRS quiz (with next review &gt; 6h) or bookmarked
+                as missed in {quizDirections[quizDirection]} will appear here.
               </>
             }
             borderColor="rgba(239,68,68,0.2)"

@@ -167,7 +167,12 @@ export function AppSidebar({
 
           <Divider my={6} style={{ borderColor: 'var(--card-border)' }} />
 
-          <Text size="xs" fw={700} c="dimmed" style={{ letterSpacing: '0.05em', paddingLeft: 8, marginTop: 4 }}>
+          <Text
+            size="xs"
+            fw={700}
+            c="dimmed"
+            style={{ letterSpacing: '0.05em', paddingLeft: 8, marginTop: 4 }}
+          >
             QUICK ACCESS
           </Text>
 
@@ -181,18 +186,14 @@ export function AppSidebar({
           <NavLink
             label="Dashboard & Stats"
             leftSection={<IconChartBar size={18} />}
-            onClick={() =>
-              handleLinkClick(() => scrollToSection('stats-dashboard'))
-            }
+            onClick={() => handleLinkClick(() => scrollToSection('stats-dashboard'))}
             style={{ borderRadius: 8 }}
           />
 
           <NavLink
             label="Cloud Sync"
             leftSection={<IconCloudUpload size={18} />}
-            onClick={() =>
-              handleLinkClick(() => scrollToSection('cloud-sync-card'))
-            }
+            onClick={() => handleLinkClick(() => scrollToSection('cloud-sync-card'))}
             style={{ borderRadius: 8 }}
           />
         </Stack>

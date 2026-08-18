@@ -30,6 +30,7 @@ import {
   IconTrash,
   IconVolume,
 } from '@tabler/icons-react';
+import { motion } from 'framer-motion';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { quizDirections } from '@/app/home/constants';
 import { DefinitionsDisplay } from '@/components/DefinitionsDisplay/DefinitionsDisplay';
@@ -38,7 +39,6 @@ import { RichNoteViewer } from '@/components/RichNoteViewer/RichNoteViewer';
 import { WordActionIcon } from '@/components/WordActions/WordActionIcon';
 import type { FsrsRecord, WordDefinition } from '@/lib/db';
 import { normalizeDefinitions } from '@/lib/definitions';
-import { motion } from 'framer-motion';
 import type { FsrsRating as SrsRating } from '@/lib/fsrs';
 
 export type QuizItem = {

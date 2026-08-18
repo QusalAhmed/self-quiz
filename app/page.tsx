@@ -64,16 +64,13 @@ import {
     wordHasAnyGroup,
     wordHasGroup,
 } from '@/lib/groups';
-import {
-    performFullSync,
-    pushFsrsRecordToRemote,
-    pushGroupToRemote,
-    pushMissedWordToRemote,
-    pushSrsRecordToRemote,
-    pushWordToRemote,
-    setupOnlineSyncListener,
-} from '@/lib/sync';
 import { resolveWordTextFromMainTable } from '@/lib/word-display';
+import {
+  setupSupabaseReplication,
+  type ReplicationsHolder,
+  type SyncCollectionKey,
+  type UnifiedSyncState,
+} from '@/lib/replication';
 
 type WordWithDefinitions<T> = T & { definitions?: WordDefinition[] };
 
@@ -139,7 +136,9 @@ export default function HomePage() {
   const { colorScheme, setColorScheme } = useMantineColorScheme();
   const [onlineStatus, setOnlineStatus] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [syncState, setSyncState] = useState<UnifiedSyncState | undefined>(undefined);
   const syncInProgressRef = useRef(false);
+  const replicationsRef = useRef<ReplicationsHolder | null>(null);
 
   const withSyncState = useCallback(async (task: () => Promise<void>) => {
     if (syncInProgressRef.current || !navigator.onLine) {
@@ -177,8 +176,12 @@ export default function HomePage() {
         return;
       }
 
-      const existing = groups.find((g) => !g.isDeleted && g.name === trimmed);
-      if (existing) {
+      const existingDoc = await database.groups
+        .findOne({
+          selector: { name: trimmed, isDeleted: { $ne: true } },
+        })
+        .exec();
+      if (existingDoc) {
         return;
       }
 
@@ -193,9 +196,8 @@ export default function HomePage() {
       };
 
       await database.groups.upsert(record);
-      await pushGroupToRemote(database.groups, record);
     },
-    [database, groups]
+    [database]
   );
 
   const handleAddCustomGroup = useCallback(
@@ -238,7 +240,6 @@ export default function HomePage() {
         updatedAt: timestamp,
       };
       await database.groups.upsert(updatedGroup);
-      await pushGroupToRemote(database.groups, updatedGroup);
 
       const allWords = await database.words.find().exec();
       for (const wordDoc of allWords) {
@@ -253,7 +254,6 @@ export default function HomePage() {
           updatedAt: timestamp,
         };
         await database.words.upsert(nextRecord);
-        await pushWordToRemote(database.words, nextRecord);
       }
     },
     [database, groups]
@@ -278,7 +278,6 @@ export default function HomePage() {
         updatedAt: timestamp,
       };
       await database.groups.upsert(deletedGroup);
-      await pushGroupToRemote(database.groups, deletedGroup);
 
       const allWords = await database.words.find().exec();
       for (const wordDoc of allWords) {
@@ -293,7 +292,6 @@ export default function HomePage() {
           updatedAt: timestamp,
         };
         await database.words.upsert(nextRecord);
-        await pushWordToRemote(database.words, nextRecord);
       }
     },
     [database]
@@ -361,8 +359,11 @@ export default function HomePage() {
 
   // Compute Stats dashboard numbers
   const unsyncedCount = useMemo(() => {
-    return words.filter((word) => !word.lastSyncedAt || word.lastSyncedAt < word.updatedAt).length;
-  }, [words]);
+    if (syncState !== undefined) {
+      return syncState.pendingCount;
+    }
+    return 0;
+  }, [syncState]);
 
   const todayCount = useMemo(() => {
     const todayStart = new Date();
@@ -470,7 +471,6 @@ export default function HomePage() {
           isDeleted: false,
         };
         await database.missedWords.upsert(updated);
-        await pushMissedWordToRemote(database.missedWords, updated);
         return;
       }
 
@@ -488,7 +488,6 @@ export default function HomePage() {
       };
 
       await database.missedWords.upsert(record);
-      await pushMissedWordToRemote(database.missedWords, record);
     },
     [database]
   );
@@ -513,7 +512,6 @@ export default function HomePage() {
       };
 
       await database.missedWords.upsert(record);
-      await pushMissedWordToRemote(database.missedWords, record);
     },
     [database]
   );
@@ -834,53 +832,42 @@ export default function HomePage() {
         setFsrsRecords(docs.map((doc) => doc.toJSON() as FsrsRecord));
       });
 
+      // Initialize automatic two-way Supabase replication
+      const replications = setupSupabaseReplication(db);
+      replicationsRef.current = replications;
+
+      const unsubscribeSyncState = replications.subscribeSyncState((newState) => {
+        if (!isMounted) return;
+        setSyncState(newState);
+      });
+
       // Mark UI as ready immediately — local DB is available
       if (isMounted) {
         setIsLoading(false);
       }
 
-      // Set up online listener before kicking off background sync
-      cleanupOnlineListener = setupOnlineSyncListener(
-        db.words,
-        db.missedWords,
-        db.groups,
-        db.srsRecords,
-        db.srsPracticeWords,
-        db.fsrsRecords,
-        () =>
-          withSyncState(() =>
-            performFullSync(
-              db.words,
-              db.missedWords,
-              db.groups,
-              db.srsRecords,
-              db.srsPracticeWords,
-              db.fsrsRecords,
-              db.dailyUsage
-            )
-          ),
-        db.dailyUsage
-      );
+      const handleOnline = () => {
+        void withSyncState(async () => {
+          await replicationsRef.current?.reSyncAll();
+          await replicationsRef.current?.awaitInSync();
+        });
+      };
+      if (typeof window !== 'undefined') {
+        window.addEventListener('online', handleOnline);
+        cleanupOnlineListener = () => {
+          window.removeEventListener('online', handleOnline);
+        };
+      }
 
       // Sync in background — does not block UI rendering
       if (navigator.onLine) {
-        console.log('App started online: Starting background sync...');
-        void withSyncState(() =>
-          performFullSync(
-            db.words,
-            db.missedWords,
-            db.groups,
-            db.srsRecords,
-            db.srsPracticeWords,
-            db.fsrsRecords,
-            db.dailyUsage
-          )
-        );
+        console.log('App started online: Starting background replication...');
+        void withSyncState(async () => {
+          await replicationsRef.current?.reSyncAll();
+          await replicationsRef.current?.awaitInSync();
+        });
       } else {
         console.log('App started offline: Using local data. Will sync when online.');
-        // Flush outboxes eagerly when offline — they guard against future
-        // online reconnects. The online listener will trigger the full sync.
-        // Nothing more to do here; local DB is already loaded above.
       }
     };
 
@@ -893,8 +880,9 @@ export default function HomePage() {
       missedSubscription?.unsubscribe();
       fsrsSubscription?.unsubscribe();
       cleanupOnlineListener?.();
+      void replicationsRef.current?.cancelAll();
     };
-  }, []);
+  }, [withSyncState]);
   // Auto-backfill missing SRS and FSRS records for meaningToWord and spelling modes across all words
   // useEffect(() => {
   //   if (!database || isLoading || words.length === 0) {
@@ -1012,10 +1000,14 @@ export default function HomePage() {
       }
 
       const existingGroups = await database.groups.find().exec();
-      const existingNames = new Set(existingGroups.filter((g) => !g.isDeleted).map((g) => g.name));
+      const existingNames = new Set(
+        existingGroups
+          .filter((g) => !g.isDeleted)
+          .map((g) => g.name.trim().toLowerCase())
+      );
 
       for (const name of legacyNames) {
-        if (existingNames.has(name)) {
+        if (existingNames.has(name.toLowerCase())) {
           continue;
         }
         const timestamp = new Date().toISOString();
@@ -1028,7 +1020,6 @@ export default function HomePage() {
           lastSyncedAt: '',
         };
         await database.groups.upsert(record);
-        await pushGroupToRemote(database.groups, record);
       }
 
       if (typeof window !== 'undefined' && legacyNames.size > 0) {
@@ -1142,7 +1133,6 @@ export default function HomePage() {
         };
 
         await database.words.upsert(updated);
-        await pushWordToRemote(database.words, updated);
         setQuizQueue((prev) =>
           prev.map((item) =>
             item.id === wordId
@@ -1206,7 +1196,6 @@ export default function HomePage() {
     };
 
     await database.words.upsert(record);
-    await pushWordToRemote(database.words, record);
 
     // Auto-enqueue word into FSRS for all quiz modes
 
@@ -1223,7 +1212,6 @@ export default function HomePage() {
         normalizedMeaning
       );
       await database.fsrsRecords.upsert(fsrsRecord);
-      void pushFsrsRecordToRemote(database.fsrsRecords, fsrsRecord);
     }
 
     if (normalizedDefinitions.length > 0) {
@@ -1290,7 +1278,6 @@ export default function HomePage() {
           };
 
           await database.words.upsert(updated);
-          await pushWordToRemote(database.words, updated);
           const fsrsDocs = await database.fsrsRecords
             .find({
               selector: { wordId: record.id },
@@ -1304,7 +1291,6 @@ export default function HomePage() {
               updated.updatedAt
             );
             await database.fsrsRecords.upsert(updatedFsrs);
-            void pushFsrsRecordToRemote(database.fsrsRecords, updatedFsrs);
           }
           await ensureMissingAiExamples(record.id);
 
@@ -1334,7 +1320,6 @@ export default function HomePage() {
     };
 
     await database.words.upsert(record);
-    await pushWordToRemote(database.words, record);
     const fsrsDocs = await database.fsrsRecords
       .find({
         selector: { wordId: id, isDeleted: { $ne: true } },
@@ -1343,7 +1328,6 @@ export default function HomePage() {
     for (const fsrsDoc of fsrsDocs) {
       const deletedFsrs = softDeleteFsrsRecord(fsrsDoc.toJSON() as FsrsRecord, timestamp);
       await database.fsrsRecords.upsert(deletedFsrs);
-      void pushFsrsRecordToRemote(database.fsrsRecords, deletedFsrs);
     }
   };
 
@@ -1362,11 +1346,10 @@ export default function HomePage() {
         const timestamp = new Date().toISOString();
 
         if (doc) {
-          const updatedDoc = await doc.patch({
+          await doc.patch({
             isDeleted: true,
             updatedAt: timestamp,
           });
-          void pushFsrsRecordToRemote(database.fsrsRecords, updatedDoc.toJSON() as FsrsRecord);
         } else {
           const record: FsrsRecord = {
             ...createInitialFsrsRecord(
@@ -1380,7 +1363,6 @@ export default function HomePage() {
             updatedAt: timestamp,
           };
           await database.fsrsRecords.upsert(record);
-          void pushFsrsRecordToRemote(database.fsrsRecords, record);
         }
 
         setFsrsRecords((prev) => prev.filter((r) => r.id !== fsrsId));
@@ -1441,7 +1423,6 @@ export default function HomePage() {
     };
 
     await database.words.upsert(record);
-    await pushWordToRemote(database.words, record);
     const fsrsDocs = await database.fsrsRecords
       .find({
         selector: { wordId: id },
@@ -1455,7 +1436,6 @@ export default function HomePage() {
         timestamp
       );
       await database.fsrsRecords.upsert(updatedFsrs);
-      void pushFsrsRecordToRemote(database.fsrsRecords, updatedFsrs);
     }
     setQuizQueue((prev) =>
       prev.map((item) =>
@@ -1527,7 +1507,6 @@ export default function HomePage() {
             updatedAt: new Date().toISOString(),
           };
           await database.words.upsert(updated);
-          await pushWordToRemote(database.words, updated);
         }
       }
 
@@ -1558,7 +1537,6 @@ export default function HomePage() {
       };
 
       await database.words.upsert(updated);
-      await pushWordToRemote(database.words, updated);
       setQuizQueue((prev) =>
         prev.map((item) => (item.id === id ? { ...item, definitions: updatedDefinitions } : item))
       );
@@ -1594,7 +1572,6 @@ export default function HomePage() {
         updatedAt: new Date().toISOString(),
       };
       await database.fsrsRecords.upsert(updated);
-      void pushFsrsRecordToRemote(database.fsrsRecords, updated);
     }
   };
 
@@ -1614,7 +1591,6 @@ export default function HomePage() {
         updatedAt: timestamp,
       };
       await database.missedWords.upsert(record);
-      await pushMissedWordToRemote(database.missedWords, record);
     }
   };
 
@@ -1658,14 +1634,8 @@ export default function HomePage() {
       return;
     }
     await withSyncState(async () => {
-      await performFullSync(
-        database.words,
-        database.missedWords,
-        database.groups,
-        database.srsRecords,
-        database.srsPracticeWords,
-        database.fsrsRecords
-      );
+      await replicationsRef.current?.reSyncAll();
+      await replicationsRef.current?.awaitInSync();
     });
   }, [database, withSyncState]);
 
@@ -1676,6 +1646,36 @@ export default function HomePage() {
     console.log('User triggered manual sync...');
     await runFullSync();
   };
+
+  const handleTogglePause = useCallback(async () => {
+    if (!replicationsRef.current) return;
+    if (replicationsRef.current.isPaused()) {
+      await replicationsRef.current.resumeAll();
+    } else {
+      await replicationsRef.current.pauseAll();
+    }
+  }, []);
+
+  const handleVerifyInSync = useCallback(async () => {
+    if (!replicationsRef.current) return false;
+    return await replicationsRef.current.awaitInSync();
+  }, []);
+
+  const handleSyncCollection = useCallback((collection: SyncCollectionKey) => {
+    replicationsRef.current?.reSyncCollection(collection);
+  }, []);
+
+  const handlePauseCollection = useCallback(async (collection: SyncCollectionKey) => {
+    await replicationsRef.current?.pauseCollection(collection);
+  }, []);
+
+  const handleResumeCollection = useCallback(async (collection: SyncCollectionKey) => {
+    await replicationsRef.current?.resumeCollection(collection);
+  }, []);
+
+  const handleClearActivities = useCallback(() => {
+    replicationsRef.current?.clearActivities();
+  }, []);
 
   useEffect(() => {
     if (!database || !onlineStatus) {
@@ -1736,11 +1736,9 @@ export default function HomePage() {
 
     if (last.fsrsRecord) {
       await database.fsrsRecords.upsert(last.fsrsRecord);
-      void pushFsrsRecordToRemote(database.fsrsRecords, last.fsrsRecord);
     }
     if (last.srsRecord) {
       await database.srsRecords.upsert(last.srsRecord);
-      void pushSrsRecordToRemote(database.srsRecords, last.srsRecord);
     }
 
     setQuizQueue(last.previousQueue);
@@ -1787,7 +1785,6 @@ export default function HomePage() {
       };
 
       await database.fsrsRecords.upsert(updated);
-      void pushFsrsRecordToRemote(database.fsrsRecords, updated);
 
       handleNext();
     },
@@ -1855,10 +1852,23 @@ export default function HomePage() {
               <DailyUsageTimer />
               <Box id="cloud-sync-card">
                 <CloudSyncCard
+                  syncState={syncState}
                   unsyncedCount={unsyncedCount}
                   onlineStatus={onlineStatus}
                   isSyncing={isSyncing}
                   onSyncNow={handleManualSync}
+                  onTogglePause={handleTogglePause}
+                  onVerifyInSync={handleVerifyInSync}
+                  onSyncCollection={handleSyncCollection}
+                  onPauseCollection={handlePauseCollection}
+                  onResumeCollection={handleResumeCollection}
+                  onClearActivities={handleClearActivities}
+                  collectionCounts={{
+                    words: words.length,
+                    groups: groups.length,
+                    missedWords: missedWords.length,
+                    fsrsRecords: fsrsRecords.length,
+                  }}
                 />
               </Box>
             </SimpleGrid>

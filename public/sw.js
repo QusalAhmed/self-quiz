@@ -1,5 +1,5 @@
 // Auto-generated at build time — do not edit manually.
-const CACHE_VERSION = 'mr6ooxmx';
+const CACHE_VERSION = 'msxdvdwr';
 const STATIC_CACHE = 'self-quiz-static-' + CACHE_VERSION;
 const RUNTIME_CACHE = 'self-quiz-runtime-' + CACHE_VERSION;
 // App shell and critical static assets to precache on install
@@ -64,12 +64,11 @@ self.addEventListener('fetch', (event) => {
   // because the app code already checks navigator.onLine before calling them.
   if (isApiRequest(url)) {
     event.respondWith(
-      fetch(event.request).catch(
-        () =>
-          new Response(JSON.stringify({ error: 'offline' }), {
-            status: 503,
-            headers: { 'Content-Type': 'application/json' },
-          })
+      fetch(event.request).catch(() =>
+        new Response(JSON.stringify({ error: 'offline' }), {
+          status: 503,
+          headers: { 'Content-Type': 'application/json' },
+        })
       )
     );
     return;

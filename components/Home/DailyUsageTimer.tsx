@@ -4,7 +4,6 @@ import { Badge, Card, Group, Text, Tooltip } from '@mantine/core';
 import { IconClock } from '@tabler/icons-react';
 import { useEffect, useRef, useState } from 'react';
 import { getDatabase, type DailyUsageRecord } from '@/lib/db';
-import { pushDailyUsageToRemote } from '@/lib/sync';
 
 const DEVICE_ID_KEY = 'self_quiz_device_id';
 
@@ -44,8 +43,8 @@ const formatDuration = (totalSeconds: number) => {
   return parts.join(' ');
 };
 
-// How often (in seconds) we push local usage record to remote
-const REMOTE_PUSH_INTERVAL_SECS = 30;
+// How often (in seconds) we persist local usage to RxDB (which triggers remote sync)
+const SAVE_INTERVAL_SECS = 30;
 
 export function DailyUsageTimer() {
   const [mounted, setMounted] = useState(false);
@@ -55,10 +54,43 @@ export function DailyUsageTimer() {
   // Track active date to handle midnight rollover cleanly
   const currentDateRef = useRef(getTodayDateString());
   const deviceIdRef = useRef('');
-  const localSecondsRef = useRef(0); // seconds for THIS device today
+  const localSecondsRef = useRef(0); // in-memory seconds for THIS device today
+  const lastSavedSecondsRef = useRef(0); // last seconds value persisted to DB
   const allDeviceSecondsRef = useRef<Map<string, number>>(new Map()); // all devices today
-  const secondsSinceLastPushRef = useRef(0);
+  const secondsSinceLastSaveRef = useRef(0);
   const subscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
+
+  // Helper to persist in-memory usage to local RxDB (which triggers replication)
+  const flushUsageToDb = async () => {
+    const deviceId = deviceIdRef.current;
+    if (!deviceId) return;
+    const today = currentDateRef.current;
+    const recordId = `${today}:${deviceId}`;
+    const currentSecs = localSecondsRef.current;
+
+    // Skip if nothing new to save
+    if (currentSecs === lastSavedSecondsRef.current) {
+      return;
+    }
+    lastSavedSecondsRef.current = currentSecs;
+
+    try {
+      const db = await getDatabase();
+      const timestamp = new Date().toISOString();
+      const record: DailyUsageRecord = {
+        id: recordId,
+        date: today,
+        deviceId,
+        seconds: currentSecs,
+        updatedAt: timestamp,
+        lastSyncedAt: '',
+        isDeleted: false,
+      };
+      await db.dailyUsage.upsert(record);
+    } catch (err) {
+      console.error('Failed to save daily usage to local DB:', err);
+    }
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -87,12 +119,19 @@ export function DailyUsageTimer() {
         }
         allDeviceSecondsRef.current = deviceMap;
 
-        // Sync local device seconds from database for this specific target date
+        // Keep the local count as the maximum of stored and in-flight in-memory seconds
         const storedLocalSecs = deviceMap.get(deviceId) ?? 0;
-        localSecondsRef.current = storedLocalSecs;
+        localSecondsRef.current = Math.max(localSecondsRef.current, storedLocalSecs);
+        lastSavedSecondsRef.current = Math.max(lastSavedSecondsRef.current, storedLocalSecs);
 
-        // Display is the SUM of all devices for targetDate
-        const total = Array.from(deviceMap.values()).reduce((acc, s) => acc + s, 0);
+        // Display is the sum of other devices + current local seconds
+        let total = 0;
+        for (const [dId, s] of deviceMap.entries()) {
+          total += dId === deviceId ? localSecondsRef.current : s;
+        }
+        if (!deviceMap.has(deviceId)) {
+          total += localSecondsRef.current;
+        }
         setSecondsToday(total);
       });
     } catch (err) {
@@ -128,6 +167,10 @@ export function DailyUsageTimer() {
     const checkState = () => {
       const currentlyActive = !isUserIdle && isVisible && isFocused;
       setIsActive(currentlyActive);
+      if (!currentlyActive) {
+        // Save immediately when switching from active to idle/hidden/blurred
+        void flushUsageToDb();
+      }
     };
 
     let idleTimeoutId: NodeJS.Timeout;
@@ -150,7 +193,9 @@ export function DailyUsageTimer() {
     };
     const handleVisibilityChange = () => {
       isVisible = document.visibilityState === 'visible';
-      if (isVisible) resetIdleTimeout();
+      if (isVisible) {
+        resetIdleTimeout();
+      }
       checkState();
     };
     const handleFocus = () => {
@@ -171,35 +216,7 @@ export function DailyUsageTimer() {
     window.addEventListener('focus', handleFocus);
     window.addEventListener('blur', handleBlur);
 
-    // Push local device record to remote (throttled to every REMOTE_PUSH_INTERVAL_SECS)
-    const pushToRemote = async () => {
-      const deviceId = deviceIdRef.current;
-      if (!deviceId) return;
-      const today = currentDateRef.current;
-      const recordId = `${today}:${deviceId}`;
-      try {
-        const db = await getDatabase();
-        const existing = await db.dailyUsage.findOne(recordId).exec();
-        const currentSecs = existing
-          ? (existing.toJSON() as DailyUsageRecord).seconds
-          : localSecondsRef.current;
-        const record: DailyUsageRecord = {
-          id: recordId,
-          date: today,
-          deviceId,
-          seconds: currentSecs,
-          updatedAt: new Date().toISOString(),
-          lastSyncedAt: '',
-          isDeleted: false,
-        };
-        await pushDailyUsageToRemote(db.dailyUsage, record);
-      } catch (err) {
-        console.error('Failed to push daily usage to remote:', err);
-      }
-      secondsSinceLastPushRef.current = 0;
-    };
-
-    // Persist to local DB every second, push to remote every REMOTE_PUSH_INTERVAL_SECS seconds
+    // Timer interval: updates UI every 1s in memory, throttles DB saves to every SAVE_INTERVAL_SECS
     const intervalId = setInterval(() => {
       const deviceId = deviceIdRef.current;
       if (!deviceId) return;
@@ -213,11 +230,13 @@ export function DailyUsageTimer() {
         );
 
         // 1. Flush previous day's final record
-        void pushToRemote();
+        void flushUsageToDb();
 
         // 2. Update active date ref and reset local counts for the new day
         currentDateRef.current = nowToday;
         localSecondsRef.current = 0;
+        lastSavedSecondsRef.current = 0;
+        secondsSinceLastSaveRef.current = 0;
         allDeviceSecondsRef.current.clear();
         allDeviceSecondsRef.current.set(deviceId, 0);
 
@@ -232,64 +251,44 @@ export function DailyUsageTimer() {
       const currentlyActive = !isUserIdle && isVisible && isFocused;
       if (!currentlyActive) return;
 
-      const activeDate = currentDateRef.current;
-      const recordId = `${activeDate}:${deviceId}`;
       const nextSecs = localSecondsRef.current + 1;
       localSecondsRef.current = nextSecs;
 
-      // Update all-devices map for display
+      // Update in-memory map & UI display immediately
       allDeviceSecondsRef.current.set(deviceId, nextSecs);
-      const total = Array.from(allDeviceSecondsRef.current.values()).reduce((acc, s) => acc + s, 0);
+      let total = 0;
+      for (const s of allDeviceSecondsRef.current.values()) {
+        total += s;
+      }
       setSecondsToday(total);
 
-      // Persist to local RxDB for activeDate
-      void (async () => {
-        try {
-          const db = await getDatabase();
-          const timestamp = new Date().toISOString();
-          const record: DailyUsageRecord = {
-            id: recordId,
-            date: activeDate,
-            deviceId,
-            seconds: nextSecs,
-            updatedAt: timestamp,
-            lastSyncedAt: '',
-            isDeleted: false,
-          };
-          await db.dailyUsage.upsert(record);
-        } catch (err) {
-          console.error('Failed to persist daily usage to local DB:', err);
-        }
-      })();
-
-      // Throttled remote push
-      secondsSinceLastPushRef.current += 1;
-      if (secondsSinceLastPushRef.current >= REMOTE_PUSH_INTERVAL_SECS) {
-        void pushToRemote();
+      // Throttled persistence to DB / remote replication (every SAVE_INTERVAL_SECS)
+      secondsSinceLastSaveRef.current += 1;
+      if (secondsSinceLastSaveRef.current >= SAVE_INTERVAL_SECS) {
+        secondsSinceLastSaveRef.current = 0;
+        void flushUsageToDb();
       }
     }, 1000);
 
-    // Push to remote immediately on page hide / unload
+    // Save immediately on page hide / unload
     const handlePageHide = () => {
-      void pushToRemote();
-    };
-    const handleDocVisChange = () => {
-      if (document.visibilityState === 'hidden') {
-        void pushToRemote();
-      }
+      void flushUsageToDb();
     };
     window.addEventListener('pagehide', handlePageHide);
-    document.addEventListener('visibilitychange', handleDocVisChange);
+    window.addEventListener('beforeunload', handlePageHide);
 
     return () => {
+      // Flush any unsaved seconds on unmount
+      void flushUsageToDb();
+
       activityEvents.forEach((event) => {
         window.removeEventListener(event, handleActivity);
       });
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      document.removeEventListener('visibilitychange', handleDocVisChange);
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('blur', handleBlur);
       window.removeEventListener('pagehide', handlePageHide);
+      window.removeEventListener('beforeunload', handlePageHide);
       clearTimeout(idleTimeoutId);
       clearInterval(intervalId);
     };

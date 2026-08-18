@@ -937,7 +937,10 @@ export async function pushDailyUsageToRemote(
     console.log('Successfully synced daily usage to remote:', record.id);
   } catch (error) {
     enqueueDailyUsageOutbox(record);
-    console.warn('Network notice: Error pushing daily usage to remote (record queued to outbox):', error);
+    console.warn(
+      'Network notice: Error pushing daily usage to remote (record queued to outbox):',
+      error
+    );
   }
 }
 

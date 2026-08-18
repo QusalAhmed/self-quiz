@@ -5,7 +5,7 @@ import {
   type RxDatabase,
   type RxJsonSchema,
 } from 'rxdb';
-import { RxDBDevModePlugin, disableWarnings } from 'rxdb/plugins/dev-mode';
+import { RxDBDevModePlugin } from 'rxdb/plugins/dev-mode';
 import { RxDBMigrationSchemaPlugin } from 'rxdb/plugins/migration-schema';
 import { RxDBQueryBuilderPlugin } from 'rxdb/plugins/query-builder';
 import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie';
@@ -348,21 +348,7 @@ const dailyUsageSchema: RxJsonSchema<DailyUsageRecord> = {
   indexes: ['date', 'deviceId', 'updatedAt', 'isDeleted'],
 };
 
-if (typeof window !== 'undefined') {
-  const originalWarn = console.warn;
-  console.warn = function (...args: any[]) {
-    if (
-      typeof args[0] === 'string' &&
-      (args[0].includes('RxDB Open Core RxStorage') || args[0].includes('RxDB dev-mode warning'))
-    ) {
-      return;
-    }
-    originalWarn.apply(console, args);
-  };
-}
-
-if (process.env.NODE_ENV === 'development') {
-  disableWarnings();
+if (process.env.NODE_ENV !== 'production') {
   addRxPlugin(RxDBDevModePlugin);
 }
 addRxPlugin(RxDBMigrationSchemaPlugin);
@@ -373,7 +359,7 @@ let databasePromise: Promise<AppDatabase> | null = null;
 async function createDatabase(): Promise<AppDatabase> {
   const baseStorage = getRxStorageDexie();
   const storage =
-    process.env.NODE_ENV === 'development'
+    process.env.NODE_ENV !== 'production'
       ? wrappedValidateAjvStorage({ storage: baseStorage })
       : baseStorage;
 

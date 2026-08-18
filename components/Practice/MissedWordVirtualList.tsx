@@ -202,7 +202,13 @@ export function MissedWordVirtualList({
                       )}
                       {word.dueAt && (
                         <Text size="xs" c="dimmed" style={{ fontSize: '11px' }}>
-                          Next review: {new Date(word.dueAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          Next review:{' '}
+                          {new Date(word.dueAt).toLocaleString(undefined, {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
                         </Text>
                       )}
                     </Group>

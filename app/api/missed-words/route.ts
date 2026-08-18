@@ -54,11 +54,7 @@ export async function GET(request: NextRequest) {
     const id = searchParams.get('id');
 
     if (id) {
-      const { data, error } = await supabase
-      .from('missed_words')
-      .select('*')
-      .eq('id', id)
-      .single();
+      const { data, error } = await supabase.from('missed_words').select('*').eq('id', id).single();
 
       if (error) {
         console.error('Supabase error:', error);

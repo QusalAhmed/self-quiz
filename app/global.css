@@ -564,4 +564,85 @@ h6 {
   padding: 0 !important;
 }
 
+/* --- RxDB Cloud Sync UI Animations & Styles --- */
+@keyframes syncSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
 
+.sync-spin-icon {
+  animation: syncSpin 0.9s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes syncPulseGreen {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6);
+  }
+  70% {
+    transform: scale(1.15);
+    box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+.sync-pulse-dot {
+  animation: syncPulseGreen 2s infinite ease-in-out;
+}
+
+@keyframes syncPulseBlue {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+  }
+  70% {
+    transform: scale(1.2);
+    box-shadow: 0 0 0 7px rgba(59, 130, 246, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+  }
+}
+
+.sync-pulse-syncing {
+  animation: syncPulseBlue 1.2s infinite ease-in-out;
+}
+
+.sync-collection-card {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+}
+
+.sync-collection-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px -4px rgba(99, 102, 241, 0.12);
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+.sync-activity-timeline-item {
+  position: relative;
+  padding-left: 24px;
+}
+
+.sync-activity-timeline-item::before {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 10px;
+  bottom: -14px;
+  width: 2px;
+  background: var(--card-border);
+}
+
+.sync-activity-timeline-item:last-child::before {
+  display: none;
+}
