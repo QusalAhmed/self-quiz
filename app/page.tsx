@@ -26,7 +26,6 @@ import { EditWordModal } from '@/components/EditWordModal/EditWordModal';
 import { ClearMissedWordsModal } from '@/components/Home/ClearMissedWordsModal';
 import { CloudSyncCard } from '@/components/Home/CloudSyncCard';
 import { DailyUsageTimer } from '@/components/Home/DailyUsageTimer';
-import { HomeHeader } from '@/components/Home/HomeHeader';
 import { QuizModeSection } from '@/components/Home/QuizModeSection';
 import { StatsDashboard } from '@/components/Home/StatsDashboard';
 import { StudyModeSection } from '@/components/Home/StudyModeSection';
@@ -1980,11 +1979,6 @@ export default function HomePage() {
           />
 
           <Stack gap="xl">
-            <HomeHeader
-              onlineStatus={onlineStatus}
-              colorScheme={colorScheme}
-              onToggleTheme={toggleTheme}
-            />
 
             <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
               <DailyUsageTimer />
