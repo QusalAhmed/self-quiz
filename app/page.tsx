@@ -42,10 +42,12 @@ import {
     type MissedWordRecord,
     type SrsRecord,
     type WordDefinition,
+    type WordFamilyMemberRecord,
     type WordRecord,
 } from '@/lib/db';
 import { definitionsToMeaning, getWordDefinitions, normalizeDefinitions } from '@/lib/definitions';
 import { mergeAiExamples, normalizeAiExampleCount, normalizeAiExamples } from '@/lib/examples';
+import { buildWordFamilyId, type WordFamilyMember } from '@/lib/word-family';
 import {
     buildFsrsId,
     computeFsrs,
@@ -80,6 +82,10 @@ export default function HomePage() {
   const [groups, setGroups] = useState<GroupRecord[]>([]);
   const [missedWords, setMissedWords] = useState<MissedWordRecord[]>([]);
   const [fsrsRecords, setFsrsRecords] = useState<FsrsRecord[]>([]);
+  const [wordFamilies, setWordFamilies] = useState<Record<string, WordFamilyMemberRecord[]>>({});
+  const [generatingWordFamilyWordIds, setGeneratingWordFamilyWordIds] = useState<
+    Record<string, boolean>
+  >({});
   const [isLoading, setIsLoading] = useState(true);
   const [mode, setMode] = useState<'study' | 'quiz'>('study');
   const [quizRange, setQuizRange] = useState<QuizRangeKey>('all');
@@ -772,8 +778,9 @@ export default function HomePage() {
     let wordSubscription: { unsubscribe: () => void } | null = null;
     let groupSubscription: { unsubscribe: () => void } | null = null;
     let missedSubscription: { unsubscribe: () => void } | null = null;
-      let fsrsSubscription: { unsubscribe: () => void } | null = null;
-      let cleanupOnlineListener: (() => void) | null = null;
+    let fsrsSubscription: { unsubscribe: () => void } | null = null;
+    let wordFamilySubscription: { unsubscribe: () => void } | null = null;
+    let cleanupOnlineListener: (() => void) | null = null;
 
     const load = async () => {
       const db = await getDatabase();
@@ -832,6 +839,25 @@ export default function HomePage() {
         setFsrsRecords(docs.map((doc) => doc.toJSON() as FsrsRecord));
       });
 
+      const wordFamilyQuery = db.wordFamilies.find({
+        selector: { isDeleted: { $ne: true } },
+      });
+
+      wordFamilySubscription = wordFamilyQuery.$.subscribe((docs) => {
+        if (!isMounted) {
+          return;
+        }
+        const map: Record<string, WordFamilyMemberRecord[]> = {};
+        for (const doc of docs) {
+          const item = doc.toJSON() as WordFamilyMemberRecord;
+          if (!map[item.wordId]) {
+            map[item.wordId] = [];
+          }
+          map[item.wordId].push(item);
+        }
+        setWordFamilies(map);
+      });
+
       // Initialize automatic two-way Supabase replication
       const replications = setupSupabaseReplication(db);
       replicationsRef.current = replications;
@@ -879,6 +905,7 @@ export default function HomePage() {
       groupSubscription?.unsubscribe();
       missedSubscription?.unsubscribe();
       fsrsSubscription?.unsubscribe();
+      wordFamilySubscription?.unsubscribe();
       cleanupOnlineListener?.();
       void replicationsRef.current?.cancelAll();
     };
@@ -1158,6 +1185,97 @@ export default function HomePage() {
     [database]
   );
 
+  const fetchAndStoreWordFamily = useCallback(
+    async (wordId: string, word: string, meaning?: string) => {
+      if (!database) {
+        return;
+      }
+      if (!navigator.onLine) {
+        console.warn('Device is offline, skipping word family fetch for:', word);
+        return;
+      }
+
+      setGeneratingWordFamilyWordIds((prev) => ({ ...prev, [wordId]: true }));
+      try {
+        const response = await fetch('/api/word-family', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ word, meaning }),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.warn('Word family API error for word:', word, response.status, errorText);
+          return;
+        }
+
+        const data = await response.json();
+        const members: WordFamilyMember[] = data?.members || [];
+        const normalizedMainWord = word.trim().toLowerCase();
+        const validMembers = members.filter(
+          (m) => m.word.trim().toLowerCase() !== normalizedMainWord
+        );
+        if (validMembers.length === 0) {
+          return;
+        }
+
+        const timestamp = new Date().toISOString();
+        for (const member of validMembers) {
+          const memberRecord: WordFamilyMemberRecord = {
+            id: buildWordFamilyId(wordId, member.word),
+            wordId,
+            word: capitalizeWord(member.word),
+            partOfSpeech: member.partOfSpeech.toLowerCase().trim(),
+            banglaDefinition: member.banglaDefinition.trim(),
+            englishDefinition: member.englishDefinition.trim(),
+            examples: Array.isArray(member.examples) ? member.examples : [],
+            createdAt: timestamp,
+            updatedAt: timestamp,
+            isDeleted: false,
+            lastSyncedAt: '',
+          };
+          await database.wordFamilies.upsert(memberRecord);
+        }
+      } catch (error) {
+        console.error('Error generating and storing word family for:', word, error);
+      } finally {
+        setGeneratingWordFamilyWordIds((prev) => {
+          const { [wordId]: _removed, ...rest } = prev;
+          return rest;
+        });
+      }
+    },
+    [database]
+  );
+
+  const handleRefreshWordFamily = useCallback(
+    async (wordId: string, word: string) => {
+      const wordDoc = words.find((w) => w.id === wordId);
+      await fetchAndStoreWordFamily(wordId, word, wordDoc?.meaning);
+    },
+    [fetchAndStoreWordFamily, words]
+  );
+
+  const handleDeleteWordFamilyMember = useCallback(
+    async (memberId: string) => {
+      if (!database) {
+        return;
+      }
+      try {
+        const doc = await database.wordFamilies.findOne(memberId).exec();
+        if (doc) {
+          await doc.patch({
+            isDeleted: true,
+            updatedAt: new Date().toISOString(),
+          });
+        }
+      } catch (err) {
+        console.error('Failed to delete word family member:', memberId, err);
+      }
+    },
+    [database]
+  );
+
   const handleAdd = async (
     word: string,
     meaning: string,
@@ -1213,6 +1331,11 @@ export default function HomePage() {
       );
       await database.fsrsRecords.upsert(fsrsRecord);
     }
+
+    // Generate word family members using AI in background
+    void fetchAndStoreWordFamily(record.id, record.word, normalizedMeaning).catch((error) => {
+      console.error('Error generating word family after add:', error);
+    });
 
     if (normalizedDefinitions.length > 0) {
       void ensureMissingAiExamples(record.id).catch((error) => {
@@ -1328,6 +1451,21 @@ export default function HomePage() {
     for (const fsrsDoc of fsrsDocs) {
       const deletedFsrs = softDeleteFsrsRecord(fsrsDoc.toJSON() as FsrsRecord, timestamp);
       await database.fsrsRecords.upsert(deletedFsrs);
+    }
+
+    const familyDocs = await database.wordFamilies
+      .find({
+        selector: { wordId: id, isDeleted: { $ne: true } },
+      })
+      .exec();
+    for (const familyDoc of familyDocs) {
+      const data = familyDoc.toJSON();
+      await database.wordFamilies.upsert({
+        ...data,
+        examples: Array.from(data.examples || []),
+        isDeleted: true,
+        updatedAt: timestamp,
+      });
     }
   };
 
@@ -1867,6 +2005,10 @@ export default function HomePage() {
                     words: words.length,
                     groups: groups.length,
                     missedWords: missedWords.length,
+                    wordFamilies: Object.values(wordFamilies).reduce(
+                      (acc, list) => acc + list.length,
+                      0
+                    ),
                     fsrsRecords: fsrsRecords.length,
                   }}
                 />
@@ -1927,12 +2069,16 @@ export default function HomePage() {
                 groupManagerOpen={groupManagerOpen}
                 groups={groups}
                 generatingExampleWordIds={generatingExampleWordIds}
+                generatingWordFamilyWordIds={generatingWordFamilyWordIds}
+                wordFamilies={wordFamilies}
                 onSubmitWord={handleAdd}
                 onAddCustomGroup={handleAddCustomGroup}
                 onEditExisting={handleEdit}
                 onDeleteWord={handleDelete}
                 onEditWord={handleEdit}
                 onRefreshExamples={handleRefreshExamples}
+                onRefreshWordFamily={handleRefreshWordFamily}
+                onDeleteWordFamilyMember={handleDeleteWordFamilyMember}
                 onCreateGroup={handleCreateGroup}
                 onRenameGroup={handleRenameGroup}
                 onDeleteGroup={handleDeleteGroup}

@@ -79,9 +79,24 @@ export function buildMissedWordId(wordId: string, quizMode: QuizMode): string {
   return `${wordId}:${quizMode}`;
 }
 
+export type WordFamilyMemberRecord = {
+  id: string;
+  wordId: string;
+  word: string;
+  partOfSpeech: string;
+  banglaDefinition: string;
+  englishDefinition: string;
+  examples: string[];
+  createdAt: string;
+  updatedAt: string;
+  isDeleted: boolean;
+  lastSyncedAt: string;
+};
+
 export type WordCollection = RxCollection<WordRecord>;
 export type MissedWordCollection = RxCollection<MissedWordRecord>;
 export type GroupCollection = RxCollection<GroupRecord>;
+export type WordFamilyCollection = RxCollection<WordFamilyMemberRecord>;
 export type SrsCollection = RxCollection<SrsRecord>;
 export type FsrsCollection = RxCollection<FsrsRecord>;
 export type SrsPracticeCollection = RxCollection<SrsPracticeRecord>;
@@ -90,6 +105,7 @@ export type AppDatabase = RxDatabase<{
   words: WordCollection;
   missedWords: MissedWordCollection;
   groups: GroupCollection;
+  wordFamilies: WordFamilyCollection;
   srsRecords: SrsCollection;
   fsrsRecords: FsrsCollection;
   srsPracticeWords: SrsPracticeCollection;
@@ -329,6 +345,45 @@ const fsrsSchema: RxJsonSchema<FsrsRecord> = {
   indexes: ['wordId', 'quizMode', 'dueAt', 'updatedAt', 'isDeleted'],
 };
 
+const wordFamilySchema: RxJsonSchema<WordFamilyMemberRecord> = {
+  title: 'word family schema',
+  version: 1,
+  description: 'Word family members derived from a root/added vocabulary word',
+  primaryKey: 'id',
+  type: 'object',
+  properties: {
+    id: { type: 'string', maxLength: 128 },
+    wordId: { type: 'string', maxLength: 64 },
+    word: { type: 'string', maxLength: 128 },
+    partOfSpeech: { type: 'string', maxLength: 64 },
+    banglaDefinition: { type: 'string' },
+    englishDefinition: { type: 'string' },
+    examples: {
+      type: 'array',
+      items: { type: 'string' },
+      default: [],
+    },
+    createdAt: { type: 'string', maxLength: 32 },
+    updatedAt: { type: 'string', maxLength: 32 },
+    isDeleted: { type: 'boolean', default: false },
+    lastSyncedAt: { type: 'string', default: '' },
+  },
+  required: [
+    'id',
+    'wordId',
+    'word',
+    'partOfSpeech',
+    'banglaDefinition',
+    'englishDefinition',
+    'examples',
+    'createdAt',
+    'updatedAt',
+    'isDeleted',
+    'lastSyncedAt',
+  ],
+  indexes: ['wordId', 'word', 'updatedAt', 'isDeleted'],
+};
+
 const dailyUsageSchema: RxJsonSchema<DailyUsageRecord> = {
   title: 'daily usage schema',
   version: 1,
@@ -535,6 +590,12 @@ async function createDatabase(): Promise<AppDatabase> {
     },
     dailyUsage: {
       schema: dailyUsageSchema,
+      migrationStrategies: {
+        1: (oldDoc) => ({ ...oldDoc }),
+      },
+    },
+    wordFamilies: {
+      schema: wordFamilySchema,
       migrationStrategies: {
         1: (oldDoc) => ({ ...oldDoc }),
       },

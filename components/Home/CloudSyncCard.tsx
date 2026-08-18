@@ -32,6 +32,7 @@ import {
   IconCloudUpload,
   IconDatabase,
   IconFolders,
+  IconHierarchy,
   IconInfoCircle,
   IconListCheck,
   IconPlayerPause,
@@ -64,6 +65,7 @@ export type CloudSyncCardProps = {
     words?: number;
     groups?: number;
     missedWords?: number;
+    wordFamilies?: number;
     fsrsRecords?: number;
     srsPracticeWords?: number;
     dailyUsage?: number;
@@ -74,6 +76,7 @@ const collectionIcons: Record<SyncCollectionKey, React.ComponentType<{ size?: nu
   words: IconDatabase,
   groups: IconFolders,
   missedWords: IconListCheck,
+  wordFamilies: IconHierarchy,
   fsrsRecords: IconBrain,
   srsPracticeWords: IconArrowsShuffle,
   dailyUsage: IconClock,

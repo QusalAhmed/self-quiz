@@ -9,6 +9,7 @@ import type {
   MissedWordRecord,
   QuizMode,
   SrsPracticeRecord,
+  WordFamilyMemberRecord,
   WordRecord,
 } from './db';
 import { definitionsToMeaning, mergeLegacyFlatExamples, normalizeDefinitions } from './definitions';
@@ -24,6 +25,7 @@ export type SyncCollectionKey =
   | 'words'
   | 'groups'
   | 'missedWords'
+  | 'wordFamilies'
   | 'fsrsRecords'
   | 'srsPracticeWords'
   | 'dailyUsage';
@@ -80,6 +82,7 @@ export type ReplicationsHolder = {
   words: RxReplicationState<WordRecord, SupabaseCheckpoint>;
   groups: RxReplicationState<GroupRecord, SupabaseCheckpoint>;
   missedWords: RxReplicationState<MissedWordRecord, SupabaseCheckpoint>;
+  wordFamilies: RxReplicationState<WordFamilyMemberRecord, SupabaseCheckpoint>;
   fsrsRecords: RxReplicationState<FsrsRecord, SupabaseCheckpoint>;
   srsPracticeWords: RxReplicationState<SrsPracticeRecord, SupabaseCheckpoint>;
   dailyUsage: RxReplicationState<DailyUsageRecord, SupabaseCheckpoint>;
@@ -203,6 +206,46 @@ export function pushMissedWordModifier(doc: MissedWordRecord): any {
     meaning: doc.meaning,
     missed_at: doc.missedAt,
     missed_count: doc.missedCount,
+    updated_at: doc.updatedAt,
+    deleted: doc.isDeleted,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Word Family Modifiers
+// ---------------------------------------------------------------------------
+export function pullWordFamilyModifier(row: any): WithDeleted<WordFamilyMemberRecord> {
+  const isDeleted = typeof row.deleted === 'boolean' ? row.deleted : (row._deleted ?? false);
+  const examples = Array.isArray(row.examples)
+    ? row.examples.map((e: unknown) => (typeof e === 'string' ? e.trim() : '')).filter(Boolean)
+    : [];
+
+  return {
+    id: row.id,
+    wordId: row.word_id || row.wordId,
+    word: row.word,
+    partOfSpeech: row.part_of_speech || row.partOfSpeech || '',
+    banglaDefinition: row.bangla_definition || row.banglaDefinition || '',
+    englishDefinition: row.english_definition || row.englishDefinition || '',
+    examples,
+    createdAt: row.created_at || row.createdAt || new Date().toISOString(),
+    updatedAt: row.updated_at || row.updatedAt || new Date().toISOString(),
+    lastSyncedAt: row.updated_at || row.updatedAt || new Date().toISOString(),
+    isDeleted,
+    _deleted: isDeleted,
+  };
+}
+
+export function pushWordFamilyModifier(doc: WordFamilyMemberRecord): any {
+  return {
+    id: doc.id,
+    word_id: doc.wordId,
+    word: doc.word,
+    part_of_speech: doc.partOfSpeech,
+    bangla_definition: doc.banglaDefinition,
+    english_definition: doc.englishDefinition,
+    examples: doc.examples || [],
+    created_at: doc.createdAt,
     updated_at: doc.updatedAt,
     deleted: doc.isDeleted,
   };
@@ -451,6 +494,14 @@ export function setupSupabaseReplication(db: AppDatabase): ReplicationsHolder {
     pushModifier: pushMissedWordModifier,
   });
 
+  const wordFamilies = createSupabaseCollectionReplication<WordFamilyMemberRecord>({
+    replicationIdentifier: 'supabase-sync-word-families',
+    collection: db.wordFamilies,
+    tableName: 'word_families',
+    pullModifier: pullWordFamilyModifier,
+    pushModifier: pushWordFamilyModifier,
+  });
+
   const fsrsRecords = createSupabaseCollectionReplication<FsrsRecord>({
     replicationIdentifier: 'supabase-sync-fsrs-records',
     collection: db.fsrsRecords,
@@ -479,6 +530,7 @@ export function setupSupabaseReplication(db: AppDatabase): ReplicationsHolder {
     words,
     groups,
     missedWords,
+    wordFamilies,
     fsrsRecords,
     srsPracticeWords,
     dailyUsage,
@@ -488,6 +540,7 @@ export function setupSupabaseReplication(db: AppDatabase): ReplicationsHolder {
     words: { label: 'Words', tableName: 'words' },
     groups: { label: 'Groups', tableName: 'groups' },
     missedWords: { label: 'Missed Words', tableName: 'missed_words' },
+    wordFamilies: { label: 'Word Families', tableName: 'word_families' },
     fsrsRecords: { label: 'FSRS Records', tableName: 'fsrs_records' },
     srsPracticeWords: { label: 'SRS Practice', tableName: 'srs_practice_words' },
     dailyUsage: { label: 'Daily Usage', tableName: 'daily_usage' },
@@ -499,6 +552,7 @@ export function setupSupabaseReplication(db: AppDatabase): ReplicationsHolder {
     words: db.words,
     groups: db.groups,
     missedWords: db.missedWords,
+    wordFamilies: db.wordFamilies,
     fsrsRecords: db.fsrsRecords,
     srsPracticeWords: db.srsPracticeWords,
     dailyUsage: db.dailyUsage,
@@ -544,6 +598,18 @@ export function setupSupabaseReplication(db: AppDatabase): ReplicationsHolder {
         key: 'missedWords',
         label: 'Missed Words',
         tableName: 'missed_words',
+        isActive: false,
+        isPaused: false,
+        error: null,
+        lastSyncedAt: null,
+        sentCount: 0,
+        receivedCount: 0,
+        pendingCount: 0,
+      },
+      wordFamilies: {
+        key: 'wordFamilies',
+        label: 'Word Families',
+        tableName: 'word_families',
         isActive: false,
         isPaused: false,
         error: null,
@@ -851,6 +917,7 @@ export function setupSupabaseReplication(db: AppDatabase): ReplicationsHolder {
     words,
     groups,
     missedWords,
+    wordFamilies,
     fsrsRecords,
     srsPracticeWords,
     dailyUsage,

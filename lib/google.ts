@@ -1,4 +1,5 @@
 import { normalizeAiExamples } from './examples';
+import { normalizeWordFamilyMembers, type WordFamilyMember } from './word-family';
 
 export type GenerateExamplesParams = {
   word: string;
@@ -7,6 +8,93 @@ export type GenerateExamplesParams = {
   partOfSpeech: string;
   referenceExamples: string[];
 };
+
+export type GenerateWordFamilyParams = {
+  word: string;
+  meaning?: string;
+};
+
+export async function generateGoogleWordFamily(
+  params: GenerateWordFamilyParams
+): Promise<WordFamilyMember[]> {
+  const { word, meaning } = params;
+  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  if (!apiKey) {
+    throw new Error('Google AI API key is not configured');
+  }
+
+  const model = process.env.GOOGLE_AI_MODEL || 'gemma-4-26b-a4b-it';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+  const meaningBlock = meaning ? `\nContext/meaning of root word: ${meaning}` : '';
+  const systemInstruction =
+    'You are an expert lexicographer. You output only raw JSON. No markdown code fences. No explanation. Reply with ONLY a JSON object having key "members", where each item is an object with: "word" (string), "partOfSpeech" (e.g. noun, verb, adjective, adverb), "banglaDefinition" (accurate meaning in Bengali / বাংলা অর্থ), "englishDefinition" (clear meaning in English), and "examples" (array of 1-2 practical English example sentences). Do NOT include the main/root word itself in the members list.';
+  const promptText =
+    `Provide all derivative/related words belonging to the word family of "${word}" across different parts of speech (noun, verb, adjective, adverb, etc.).${meaningBlock}\nIMPORTANT: Do NOT include the base/main word "${word}" itself in the list; provide only other family members.\nFor each word in the family, provide: word, partOfSpeech, banglaDefinition, englishDefinition, and examples.\nReply with JSON ONLY:\n{"members":[{"word":"...","partOfSpeech":"...","banglaDefinition":"...","englishDefinition":"...","examples":["..."]}]}`;
+
+  const payload = {
+    contents: [
+      {
+        role: 'user',
+        parts: [
+          {
+            text: promptText,
+          },
+        ],
+      },
+    ],
+    systemInstruction: {
+      parts: [
+        {
+          text: systemInstruction,
+        },
+      ],
+    },
+    generationConfig: {
+      responseMimeType: 'application/json',
+    },
+  };
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.warn('Google AI HTTP error:', response.status, errorText);
+    throw new Error(`Google AI HTTP error: ${response.status} - ${errorText}`);
+  }
+
+  const data = await response.json();
+  const textParts =
+    data.candidates?.[0]?.content?.parts
+      ?.filter((part: any) => !part.thought && part.text)
+      .map((part: any) => part.text)
+      .join('') || '';
+
+  if (!textParts) {
+    throw new Error('Google AI response did not contain any non-thought text parts');
+  }
+
+  let parsed: any;
+  try {
+    parsed = JSON.parse(textParts);
+  } catch (err) {
+    console.warn('Failed to parse Google AI response as JSON:', textParts);
+    throw new Error('Google AI response was not valid JSON');
+  }
+
+  const members = normalizeWordFamilyMembers(parsed, word);
+  if (!members || members.length === 0) {
+    throw new Error('Google AI returned empty word family members');
+  }
+
+  return members;
+}
 
 export async function generateGoogleExamples(params: GenerateExamplesParams): Promise<string[]> {
   const { word, meaning, targetCount, partOfSpeech, referenceExamples } = params;
@@ -100,3 +188,4 @@ export async function generateGoogleExamples(params: GenerateExamplesParams): Pr
 
   return examples;
 }
+

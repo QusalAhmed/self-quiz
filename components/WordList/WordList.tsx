@@ -6,9 +6,10 @@ import { RichNoteViewer } from '@/components/RichNoteViewer/RichNoteViewer';
 import { WordActionIcon } from '@/components/WordActions/WordActionIcon';
 import { WordForm } from '@/components/WordForm/WordForm';
 import { formatDate, formatRelativeShort } from '@/lib/dateUtils';
-import type { WordDefinition, WordRecord } from '@/lib/db';
+import type { WordDefinition, WordFamilyMemberRecord, WordRecord } from '@/lib/db';
 import { getWordDefinitions } from '@/lib/definitions';
 import { getWordGroups } from '@/lib/groups';
+import { WordFamilySection } from '@/components/WordFamily/WordFamilySection';
 
 type WordListProps = {
   words: WordRecord[];
@@ -23,9 +24,13 @@ type WordListProps = {
     notes?: string
   ) => Promise<void> | void;
   onRefreshExamples: (id: string) => Promise<void> | void;
+  onRefreshWordFamily?: (wordId: string, word: string) => Promise<void> | void;
+  onDeleteWordFamilyMember?: (memberId: string) => Promise<void> | void;
   customGroups: string[];
   onAddCustomGroup?: (group: string) => void;
   generatingExampleWordIds?: Record<string, boolean>;
+  generatingWordFamilyWordIds?: Record<string, boolean>;
+  wordFamilies?: Record<string, WordFamilyMemberRecord[]>;
 };
 
 export function WordList({
@@ -33,9 +38,13 @@ export function WordList({
   onDelete,
   onEdit,
   onRefreshExamples,
+  onRefreshWordFamily,
+  onDeleteWordFamilyMember,
   customGroups,
   onAddCustomGroup,
   generatingExampleWordIds = {},
+  generatingWordFamilyWordIds = {},
+  wordFamilies = {},
 }: WordListProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -231,6 +240,14 @@ export function WordList({
                   <DefinitionsDisplay
                     definitions={definitions}
                     emptyText="Fetching definition..."
+                  />
+                  <WordFamilySection
+                    wordId={item.id}
+                    word={item.word}
+                    members={wordFamilies[item.id] || []}
+                    isLoading={generatingWordFamilyWordIds[item.id]}
+                    onRefresh={onRefreshWordFamily}
+                    onDeleteMember={onDeleteWordFamilyMember}
                   />
                   {isGeneratingExamples && (
                     <Text size="xs" c="dimmed" mt={6}>

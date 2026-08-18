@@ -213,3 +213,36 @@ CREATE POLICY "Allow anonymous update daily_usage" ON public.daily_usage
 
 CREATE POLICY "Allow anonymous delete daily_usage" ON public.daily_usage
   FOR DELETE USING (true);
+
+-- Create the word_families table
+CREATE TABLE IF NOT EXISTS public.word_families (
+  id TEXT PRIMARY KEY,
+  word_id TEXT NOT NULL,
+  word TEXT NOT NULL,
+  part_of_speech TEXT NOT NULL DEFAULT '',
+  bangla_definition TEXT DEFAULT '',
+  english_definition TEXT DEFAULT '',
+  examples JSONB DEFAULT '[]'::jsonb,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  deleted BOOLEAN DEFAULT FALSE
+);
+
+CREATE INDEX IF NOT EXISTS idx_word_families_word_id ON public.word_families(word_id);
+CREATE INDEX IF NOT EXISTS idx_word_families_word ON public.word_families(word);
+CREATE INDEX IF NOT EXISTS idx_word_families_deleted ON public.word_families(deleted);
+CREATE INDEX IF NOT EXISTS idx_word_families_updated_at ON public.word_families(updated_at);
+
+ALTER TABLE public.word_families ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow anonymous select word_families" ON public.word_families
+  FOR SELECT USING (true);
+
+CREATE POLICY "Allow anonymous insert word_families" ON public.word_families
+  FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Allow anonymous update word_families" ON public.word_families
+  FOR UPDATE USING (true);
+
+CREATE POLICY "Allow anonymous delete word_families" ON public.word_families
+  FOR DELETE USING (true);

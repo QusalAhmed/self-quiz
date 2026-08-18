@@ -17,7 +17,7 @@ import { IconBook, IconCheck, IconSearch, IconTags } from '@tabler/icons-react';
 import { GroupManager } from '@/components/GroupManager/GroupManager';
 import { WordForm } from '@/components/WordForm/WordForm';
 import { WordList } from '@/components/WordList/WordList';
-import type { GroupRecord, WordDefinition, WordRecord } from '@/lib/db';
+import type { GroupRecord, WordDefinition, WordFamilyMemberRecord, WordRecord } from '@/lib/db';
 
 type StudyModeSectionProps = {
   isLoading: boolean;
@@ -33,6 +33,8 @@ type StudyModeSectionProps = {
   groupManagerOpen: boolean;
   groups: GroupRecord[];
   generatingExampleWordIds: Record<string, boolean>;
+  generatingWordFamilyWordIds?: Record<string, boolean>;
+  wordFamilies?: Record<string, WordFamilyMemberRecord[]>;
   onSubmitWord: (
     word: string,
     meaning: string,
@@ -62,6 +64,8 @@ type StudyModeSectionProps = {
     notes?: string
   ) => Promise<void> | void;
   onRefreshExamples: (id: string) => Promise<void> | void;
+  onRefreshWordFamily?: (wordId: string, word: string) => Promise<void> | void;
+  onDeleteWordFamilyMember?: (memberId: string) => Promise<void> | void;
   onCreateGroup: (name: string) => Promise<void> | void;
   onRenameGroup: (id: string, newName: string) => Promise<void> | void;
   onDeleteGroup: (id: string) => Promise<void> | void;
@@ -87,12 +91,16 @@ export function StudyModeSection({
   groupManagerOpen,
   groups,
   generatingExampleWordIds,
+  generatingWordFamilyWordIds = {},
+  wordFamilies = {},
   onSubmitWord,
   onAddCustomGroup,
   onEditExisting,
   onDeleteWord,
   onEditWord,
   onRefreshExamples,
+  onRefreshWordFamily,
+  onDeleteWordFamilyMember,
   onCreateGroup,
   onRenameGroup,
   onDeleteGroup,
@@ -254,9 +262,13 @@ export function StudyModeSection({
         onDelete={onDeleteWord}
         onEdit={onEditWord}
         onRefreshExamples={onRefreshExamples}
+        onRefreshWordFamily={onRefreshWordFamily}
+        onDeleteWordFamilyMember={onDeleteWordFamilyMember}
         customGroups={customGroups}
         onAddCustomGroup={onAddCustomGroup}
         generatingExampleWordIds={generatingExampleWordIds}
+        generatingWordFamilyWordIds={generatingWordFamilyWordIds}
+        wordFamilies={wordFamilies}
       />
 
       <GroupManager
