@@ -22,13 +22,15 @@ import {
   IconX,
 } from '@tabler/icons-react';
 import React from 'react';
-import type { RatingDistribution } from '@/lib/analysis/types';
+import type { RatingDistribution, SectionStatusInfo } from '@/lib/analysis/types';
+import { SectionStatusBadge } from './SectionStatusBadge';
 
 type RetentionAnalysisProps = {
   distribution: RatingDistribution;
+  statusInfo?: SectionStatusInfo;
 };
 
-export function RetentionAnalysis({ distribution }: RetentionAnalysisProps) {
+export function RetentionAnalysis({ distribution, statusInfo }: RetentionAnalysisProps) {
   const {
     againCount,
     hardCount,
@@ -60,8 +62,8 @@ export function RetentionAnalysis({ distribution }: RetentionAnalysisProps) {
       color: '#6366f1',
       badgeColor: 'indigo',
       icon: IconMoodSmile,
-      description: 'Successful recall with normal cognitive effort.',
-      effect: 'Steadily builds memory stability according to FSRS target.',
+      description: 'Successful recall with normal effort.',
+      effect: 'Steadily builds stability and expands interval.',
     },
     {
       label: 'Hard',
@@ -70,8 +72,8 @@ export function RetentionAnalysis({ distribution }: RetentionAnalysisProps) {
       color: '#f59e0b',
       badgeColor: 'yellow',
       icon: IconClock,
-      description: 'Recalled with significant hesitation or difficulty.',
-      effect: 'Increases card difficulty and assigns a shorter interval.',
+      description: 'Recalled with hesitation or significant effort.',
+      effect: 'Increases difficulty slightly and limits interval growth.',
     },
     {
       label: 'Again',
@@ -95,6 +97,7 @@ export function RetentionAnalysis({ distribution }: RetentionAnalysisProps) {
               <Title order={3} style={{ fontSize: '1.2rem' }}>
                 Memory Retention & Response Quality
               </Title>
+              <SectionStatusBadge statusInfo={statusInfo} />
               <Tooltip
                 label="Measures how reliably you recall vocabulary words upon review. 90%+ is the gold standard for long-term mastery."
                 multiline

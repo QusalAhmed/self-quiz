@@ -3,13 +3,17 @@ import {
   pullFsrsModifier,
   pullGroupModifier,
   pullMissedWordModifier,
+  pullReviewLogModifier,
   pullSrsPracticeModifier,
+  pullWordFamilyModifier,
   pullWordModifier,
   pushDailyUsageModifier,
   pushFsrsModifier,
   pushGroupModifier,
   pushMissedWordModifier,
+  pushReviewLogModifier,
   pushSrsPracticeModifier,
+  pushWordFamilyModifier,
   pushWordModifier,
 } from './replication';
 
@@ -105,29 +109,59 @@ describe('Supabase Replication Modifiers', () => {
       expect(pulled.id).toBe('w1:wordToMeaning');
       expect(pulled.wordId).toBe('w1');
       expect(pulled.missedCount).toBe(3);
+      expect(pulled.isDeleted).toBe(false);
 
       const pushed = pushMissedWordModifier(pulled);
-      expect(pushed.word_id).toBe('w1');
-      expect(pushed.quiz_mode).toBe('wordToMeaning');
+      expect(pushed.id).toBe('w1:wordToMeaning');
       expect(pushed.missed_count).toBe(3);
+      expect(pushed.deleted).toBe(false);
+    });
+  });
+
+  describe('Word Families', () => {
+    it('correctly pulls and pushes word family records', () => {
+      const remote = {
+        id: 'wf1',
+        word_id: 'w1',
+        word: 'abatement',
+        part_of_speech: 'noun',
+        bangla_definition: 'হ্রাস',
+        english_definition: 'reduction',
+        examples: ['Noise abatement'],
+        created_at: '2026-08-17T00:00:00.000Z',
+        updated_at: '2026-08-17T01:00:00.000Z',
+        deleted: false,
+      };
+      const pulled = pullWordFamilyModifier(remote);
+      expect(pulled.id).toBe('wf1');
+      expect(pulled.wordId).toBe('w1');
+      expect(pulled.word).toBe('abatement');
+      expect(pulled.partOfSpeech).toBe('noun');
+      expect(pulled.examples).toEqual(['Noise abatement']);
+
+      const pushed = pushWordFamilyModifier(pulled);
+      expect(pushed.id).toBe('wf1');
+      expect(pushed.word_id).toBe('w1');
+      expect(pushed.word).toBe('abatement');
+      expect(pushed.part_of_speech).toBe('noun');
     });
   });
 
   describe('FSRS Records', () => {
     it('correctly pulls and pushes FSRS records', () => {
       const remote = {
-        id: 'w1:meaningToWord',
+        id: 'w1:fsrs:wordToMeaning',
         word_id: 'w1',
-        quiz_mode: 'meaningToWord',
+        quiz_mode: 'wordToMeaning',
         word: 'abate',
-        meaning: 'become less intense',
-        due_at: '2026-08-18T00:00:00.000Z',
-        stability: 2.5,
-        difficulty: 4.0,
-        elapsed_days: 1,
-        scheduled_days: 2,
+        meaning: 'less intense',
+        due_at: '2026-08-20T00:00:00.000Z',
+        stability: 4.5,
+        difficulty: 3.2,
+        elapsed_days: 2,
+        scheduled_days: 5,
         learning_steps: 0,
-        reps: 2,
+        reps: 3,
         lapses: 0,
         state: 'Review',
         last_reviewed_at: '2026-08-17T00:00:00.000Z',
@@ -136,14 +170,15 @@ describe('Supabase Replication Modifiers', () => {
         last_rating: 'good',
       };
       const pulled = pullFsrsModifier(remote);
-      expect(pulled.id).toBe('w1:meaningToWord');
-      expect(pulled.wordId).toBe('w1');
-      expect(pulled.stability).toBe(2.5);
+      expect(pulled.id).toBe('w1:fsrs:wordToMeaning');
+      expect(pulled.stability).toBe(4.5);
+      expect(pulled.difficulty).toBe(3.2);
+      expect(pulled.state).toBe('Review');
       expect(pulled.lastRating).toBe('good');
 
       const pushed = pushFsrsModifier(pulled);
-      expect(pushed.word_id).toBe('w1');
-      expect(pushed.due_at).toBe('2026-08-18T00:00:00.000Z');
+      expect(pushed.id).toBe('w1:fsrs:wordToMeaning');
+      expect(pushed.stability).toBe(4.5);
       expect(pushed.last_rating).toBe('good');
     });
   });
@@ -151,22 +186,21 @@ describe('Supabase Replication Modifiers', () => {
   describe('SRS Practice Words', () => {
     it('correctly pulls and pushes SRS practice records', () => {
       const remote = {
-        id: 'w1:spelling',
+        id: 'w1:srs_practice:wordToMeaning',
         word_id: 'w1',
-        quiz_mode: 'spelling',
+        quiz_mode: 'wordToMeaning',
         word: 'abate',
-        meaning: 'become less intense',
+        meaning: 'less intense',
         difficulty: 'easy',
         practiced_at: '2026-08-17T00:00:00.000Z',
         updated_at: '2026-08-17T01:00:00.000Z',
         deleted: false,
       };
       const pulled = pullSrsPracticeModifier(remote);
-      expect(pulled.id).toBe('w1:spelling');
+      expect(pulled.id).toBe('w1:srs_practice:wordToMeaning');
       expect(pulled.difficulty).toBe('easy');
 
       const pushed = pushSrsPracticeModifier(pulled);
-      expect(pushed.word_id).toBe('w1');
       expect(pushed.difficulty).toBe('easy');
     });
   });
@@ -191,23 +225,85 @@ describe('Supabase Replication Modifiers', () => {
     });
   });
 
+  describe('Review Logs', () => {
+    it('correctly pulls and pushes immutable review logs', () => {
+      const remote = {
+        id: 'rl-1',
+        word_id: 'w1',
+        card_id: 'w1:fsrs:wordToMeaning',
+        quiz_mode: 'wordToMeaning',
+        word: 'abate',
+        meaning: 'less intense',
+        rating: 'good',
+        state_before: 'Review',
+        state_after: 'Review',
+        reviewed_at: '2026-08-18T10:00:00.000Z',
+        duration_ms: 2500,
+        stability: 12.5,
+        difficulty: 4.2,
+        elapsed_days: 5,
+        scheduled_days: 12,
+        due_at: '2026-08-30T10:00:00.000Z',
+        previous_due_at: '2026-08-18T10:00:00.000Z',
+        lapses: 0,
+        reps: 5,
+        retrievability: 0.92,
+        created_at: '2026-08-18T10:00:00.000Z',
+        updated_at: '2026-08-18T10:00:00.000Z',
+        deleted: false,
+      };
+
+      const pulled = pullReviewLogModifier(remote);
+      expect(pulled.id).toBe('rl-1');
+      expect(pulled.wordId).toBe('w1');
+      expect(pulled.cardId).toBe('w1:fsrs:wordToMeaning');
+      expect(pulled.rating).toBe('good');
+      expect(pulled.stateBefore).toBe('Review');
+      expect(pulled.stateAfter).toBe('Review');
+      expect(pulled.durationMs).toBe(2500);
+      expect(pulled.stability).toBe(12.5);
+      expect(pulled.difficulty).toBe(4.2);
+      expect(pulled.scheduledDays).toBe(12);
+      expect(pulled.retrievability).toBe(0.92);
+      expect(pulled.isDeleted).toBe(false);
+
+      const pushed = pushReviewLogModifier(pulled);
+      expect(pushed.id).toBe('rl-1');
+      expect(pushed.word_id).toBe('w1');
+      expect(pushed.card_id).toBe('w1:fsrs:wordToMeaning');
+      expect(pushed.rating).toBe('good');
+      expect(pushed.state_before).toBe('Review');
+      expect(pushed.state_after).toBe('Review');
+      expect(pushed.duration_ms).toBe(2500);
+      expect(pushed.stability).toBe(12.5);
+      expect(pushed.difficulty).toBe(4.2);
+      expect(pushed.scheduled_days).toBe(12);
+      expect(pushed.retrievability).toBe(0.92);
+      expect(pushed.deleted).toBe(false);
+    });
+  });
+
   describe('RxDB Sync State Structures', () => {
-    it('defines the 6 required sync collection keys correctly', () => {
+    it('defines the 8 required sync collection keys correctly', () => {
       const keys = [
         'words',
         'groups',
         'missedWords',
+        'wordFamilies',
         'fsrsRecords',
         'srsPracticeWords',
         'dailyUsage',
+        'reviewLogs',
       ];
-      expect(keys.length).toBe(6);
+      expect(keys.length).toBe(8);
       expect(keys).toContain('words');
       expect(keys).toContain('groups');
       expect(keys).toContain('missedWords');
+      expect(keys).toContain('wordFamilies');
       expect(keys).toContain('fsrsRecords');
       expect(keys).toContain('srsPracticeWords');
       expect(keys).toContain('dailyUsage');
+      expect(keys).toContain('reviewLogs');
     });
   });
 });

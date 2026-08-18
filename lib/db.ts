@@ -10,7 +10,7 @@ import { RxDBMigrationSchemaPlugin } from 'rxdb/plugins/migration-schema';
 import { RxDBQueryBuilderPlugin } from 'rxdb/plugins/query-builder';
 import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie';
 import { wrappedValidateAjvStorage } from 'rxdb/plugins/validate-ajv';
-import type { FsrsRecord } from './fsrs';
+import type { FsrsCardState, FsrsRating, FsrsRecord } from './fsrs';
 import type { SrsRecord } from './srs';
 import type { SrsPracticeRecord } from './srs-practice';
 
@@ -51,6 +51,33 @@ export type QuizMode = 'wordToMeaning' | 'meaningToWord' | 'spelling';
 export type { SrsRecord };
 export type { FsrsRecord };
 export type { SrsPracticeRecord };
+
+export type ReviewLogRecord = {
+  id: string;
+  wordId: string;
+  cardId: string;
+  quizMode: QuizMode;
+  word: string;
+  meaning: string;
+  rating: FsrsRating;
+  stateBefore: FsrsCardState;
+  stateAfter: FsrsCardState;
+  reviewedAt: string;
+  durationMs: number;
+  stability: number;
+  difficulty: number;
+  elapsedDays: number;
+  scheduledDays: number;
+  dueAt: string;
+  previousDueAt?: string;
+  lapses: number;
+  reps: number;
+  retrievability?: number;
+  createdAt: string;
+  updatedAt: string;
+  isDeleted: boolean;
+  lastSyncedAt: string;
+};
 
 export type MissedWordRecord = {
   id: string;
@@ -101,6 +128,7 @@ export type SrsCollection = RxCollection<SrsRecord>;
 export type FsrsCollection = RxCollection<FsrsRecord>;
 export type SrsPracticeCollection = RxCollection<SrsPracticeRecord>;
 export type DailyUsageCollection = RxCollection<DailyUsageRecord>;
+export type ReviewLogCollection = RxCollection<ReviewLogRecord>;
 export type AppDatabase = RxDatabase<{
   words: WordCollection;
   missedWords: MissedWordCollection;
@@ -110,6 +138,7 @@ export type AppDatabase = RxDatabase<{
   fsrsRecords: FsrsCollection;
   srsPracticeWords: SrsPracticeCollection;
   dailyUsage: DailyUsageCollection;
+  reviewLogs: ReviewLogCollection;
 }>;
 
 const wordSchema: RxJsonSchema<WordRecord> = {
@@ -403,6 +432,77 @@ const dailyUsageSchema: RxJsonSchema<DailyUsageRecord> = {
   indexes: ['date', 'deviceId', 'updatedAt', 'isDeleted'],
 };
 
+const reviewLogSchema: RxJsonSchema<ReviewLogRecord> = {
+  title: 'review log schema',
+  version: 1,
+  description: 'Immutable historical review logs for spaced repetition events',
+  primaryKey: 'id',
+  type: 'object',
+  properties: {
+    id: { type: 'string', maxLength: 128 },
+    wordId: { type: 'string', maxLength: 64 },
+    cardId: { type: 'string', maxLength: 128 },
+    quizMode: { type: 'string', maxLength: 16 },
+    word: { type: 'string', maxLength: 128 },
+    meaning: { type: 'string' },
+    rating: {
+      type: 'string',
+      maxLength: 16,
+      enum: ['again', 'hard', 'good', 'easy'],
+    },
+    stateBefore: {
+      type: 'string',
+      maxLength: 16,
+      enum: ['New', 'Learning', 'Review', 'Relearning'],
+    },
+    stateAfter: {
+      type: 'string',
+      maxLength: 16,
+      enum: ['New', 'Learning', 'Review', 'Relearning'],
+    },
+    reviewedAt: { type: 'string', maxLength: 32 },
+    durationMs: { type: 'number', minimum: 0, default: 0 },
+    stability: { type: 'number', minimum: 0 },
+    difficulty: { type: 'number', minimum: 0 },
+    elapsedDays: { type: 'number', minimum: 0 },
+    scheduledDays: { type: 'number', minimum: 0 },
+    dueAt: { type: 'string', maxLength: 32 },
+    previousDueAt: { type: 'string', maxLength: 32 },
+    lapses: { type: 'number', minimum: 0 },
+    reps: { type: 'number', minimum: 0 },
+    retrievability: { type: 'number', minimum: 0 },
+    createdAt: { type: 'string', maxLength: 32 },
+    updatedAt: { type: 'string', maxLength: 32 },
+    isDeleted: { type: 'boolean', default: false },
+    lastSyncedAt: { type: 'string', default: '' },
+  },
+  required: [
+    'id',
+    'wordId',
+    'cardId',
+    'quizMode',
+    'word',
+    'meaning',
+    'rating',
+    'stateBefore',
+    'stateAfter',
+    'reviewedAt',
+    'durationMs',
+    'stability',
+    'difficulty',
+    'elapsedDays',
+    'scheduledDays',
+    'dueAt',
+    'lapses',
+    'reps',
+    'createdAt',
+    'updatedAt',
+    'isDeleted',
+    'lastSyncedAt',
+  ],
+  indexes: ['wordId', 'cardId', 'reviewedAt', 'rating', 'updatedAt', 'isDeleted'],
+};
+
 if (process.env.NODE_ENV !== 'production') {
   addRxPlugin(RxDBDevModePlugin);
 }
@@ -596,6 +696,12 @@ async function createDatabase(): Promise<AppDatabase> {
     },
     wordFamilies: {
       schema: wordFamilySchema,
+      migrationStrategies: {
+        1: (oldDoc) => ({ ...oldDoc }),
+      },
+    },
+    reviewLogs: {
+      schema: reviewLogSchema,
       migrationStrategies: {
         1: (oldDoc) => ({ ...oldDoc }),
       },

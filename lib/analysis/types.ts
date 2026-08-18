@@ -180,6 +180,27 @@ export type LearningRecommendation = {
   category: 'pacing' | 'retention' | 'backlog' | 'habits';
 };
 
+export type SectionDataStatus = 'available' | 'limited_data' | 'unavailable' | 'no_activity';
+
+export type SectionStatusInfo = {
+  status: SectionDataStatus;
+  label: string;
+  badgeColor: 'teal' | 'yellow' | 'gray' | 'blue' | 'indigo';
+  message: string;
+  sampleCount?: number;
+};
+
+export type AnalysisSectionKey =
+  | 'overview'
+  | 'progress'
+  | 'retention'
+  | 'memoryHealth'
+  | 'activity'
+  | 'wordsBreakdown'
+  | 'growth'
+  | 'efficiency'
+  | 'insights';
+
 export type AnalysisResult = {
   kpis: KpiOverviewData;
   timeSeries: TimeSeriesDataPoint[];
@@ -192,6 +213,7 @@ export type AnalysisResult = {
   efficiency: StudyEfficiencyData;
   insights: LearningInsight[];
   recommendations: LearningRecommendation[];
+  statuses: Record<AnalysisSectionKey, SectionStatusInfo>;
   hasData: boolean;
   totalWordsCount: number;
   totalCardsCount: number;

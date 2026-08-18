@@ -10,3 +10,5 @@ export * from './VocabularyGrowth';
 export * from './StudyEfficiency';
 export * from './InsightsAndRecommendations';
 export * from './EmptyAnalysisState';
+export * from './SectionStatusBadge';
+export * from './ReviewLogSection';

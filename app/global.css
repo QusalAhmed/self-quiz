@@ -320,33 +320,29 @@ h6 {
 }
 
 /* Custom Segmented Control active tab indicator highlight */
-.mantine-SegmentedControl-indicator {
-  background: var(--accent-gradient) !important;
-  box-shadow: 0 4px 14px 0 rgb(99, 102, 241, 0.25) !important;
-}
+/* .mantine-SegmentedControl-indicator { */
+  /* background: var(--accent-gradient) !important; */
+  /* box-shadow: 0 4px 14px 0 rgba(98, 232, 9, 0.25) !important; */
+/* } */
 
 /* Maintain crisp white text contrast for the active tab label */
-.mantine-SegmentedControl-control[data-active],
+/* .mantine-SegmentedControl-control[data-active],
 .mantine-SegmentedControl-control[data-active] .mantine-SegmentedControl-label,
 .mantine-SegmentedControl-label[data-active],
 .mantine-SegmentedControl-label[data-active='true'] {
   color: #ffffff !important;
   font-weight: 700 !important;
   transition: color 0.2s ease !important;
-}
+} */
 
 /* Tabs component active styling */
-.mantine-Tabs-tab[data-active],
+/* .mantine-Tabs-tab[data-active],
 .mantine-Tabs-tab[data-active] .mantine-Tabs-tabLabel,
 .mantine-Tabs-tab[data-active] .mantine-Tabs-tabSection {
   color: #ffffff !important;
   font-weight: 700 !important;
-}
+} */
 
-/* Responsive header card layout */
-.header-panel {
-  /* ensure internal content can wrap cleanly */
-}
 
 .header-panel .header-inner {
   width: 100%;

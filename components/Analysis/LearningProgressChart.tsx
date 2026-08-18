@@ -15,18 +15,21 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import type { TimeSeriesDataPoint } from '@/lib/analysis/types';
+import type { SectionStatusInfo, TimeSeriesDataPoint } from '@/lib/analysis/types';
+import { SectionStatusBadge } from './SectionStatusBadge';
 
 type LearningProgressChartProps = {
   data: TimeSeriesDataPoint[];
   totalWords: number;
   masteredWords: number;
+  statusInfo?: SectionStatusInfo;
 };
 
 export function LearningProgressChart({
   data,
   totalWords: _totalWords,
   masteredWords: _masteredWords,
+  statusInfo,
 }: LearningProgressChartProps) {
   const [viewMode, setViewMode] = useState<'cumulative' | 'breakdown' | 'reviews'>('cumulative');
 
@@ -40,9 +43,12 @@ export function LearningProgressChart({
         {/* Header & Mode Switcher */}
         <Group justify="space-between" align="center" wrap="wrap">
           <div>
-            <Title order={3} style={{ fontSize: '1.2rem' }}>
-              Learning Progress & Trends
-            </Title>
+            <Group gap="xs" align="center">
+              <Title order={3} style={{ fontSize: '1.2rem' }}>
+                Learning Progress & Trends
+              </Title>
+              <SectionStatusBadge statusInfo={statusInfo} />
+            </Group>
             <Text size="xs" c="dimmed">
               {viewMode === 'cumulative'
                 ? 'Cumulative vocabulary growth and mastered word trajectory over time.'

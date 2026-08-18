@@ -14,20 +14,21 @@ import {
 } from '@mantine/core';
 import { IconBolt, IconCheck, IconClock, IconHelpCircle, IconSparkles } from '@tabler/icons-react';
 import React from 'react';
-import type { StudyEfficiencyData } from '@/lib/analysis/types';
+import type { SectionStatusInfo, StudyEfficiencyData } from '@/lib/analysis/types';
+import { SectionStatusBadge } from './SectionStatusBadge';
 
 type StudyEfficiencyProps = {
   efficiency: StudyEfficiencyData;
+  statusInfo?: SectionStatusInfo;
 };
 
-export function StudyEfficiency({ efficiency }: StudyEfficiencyProps) {
+export function StudyEfficiency({ efficiency, statusInfo }: StudyEfficiencyProps) {
   const {
     reviewsPerMinute,
     avgReviewDurationSec,
     successfulReviewsPerMinute,
     reviewsPerMasteredWord,
     studyMinutesPerMasteredWord,
-    hasSufficientData,
   } = efficiency;
 
   return (
@@ -40,6 +41,7 @@ export function StudyEfficiency({ efficiency }: StudyEfficiencyProps) {
               <Title order={3} style={{ fontSize: '1.2rem' }}>
                 Study Efficiency & Time Economics
               </Title>
+              <SectionStatusBadge statusInfo={statusInfo} />
               <Tooltip
                 label="Evaluates how efficiently your study time translates into memory consolidation and mastered vocabulary."
                 multiline
@@ -56,9 +58,7 @@ export function StudyEfficiency({ efficiency }: StudyEfficiencyProps) {
             </Text>
           </div>
 
-          <Badge variant="light" color={hasSufficientData ? 'teal' : 'gray'} size="md">
-            {hasSufficientData ? 'Active Data' : 'Initial Phase'}
-          </Badge>
+          <SectionStatusBadge statusInfo={statusInfo} size="md" />
         </Group>
 
         {/* Efficiency Grid */}

@@ -8,6 +8,7 @@ import type {
   GroupRecord,
   MissedWordRecord,
   QuizMode,
+  ReviewLogRecord,
   SrsPracticeRecord,
   WordFamilyMemberRecord,
   WordRecord,
@@ -28,7 +29,8 @@ export type SyncCollectionKey =
   | 'wordFamilies'
   | 'fsrsRecords'
   | 'srsPracticeWords'
-  | 'dailyUsage';
+  | 'dailyUsage'
+  | 'reviewLogs';
 
 export type SingleCollectionSyncState = {
   key: SyncCollectionKey;
@@ -86,6 +88,7 @@ export type ReplicationsHolder = {
   fsrsRecords: RxReplicationState<FsrsRecord, SupabaseCheckpoint>;
   srsPracticeWords: RxReplicationState<SrsPracticeRecord, SupabaseCheckpoint>;
   dailyUsage: RxReplicationState<DailyUsageRecord, SupabaseCheckpoint>;
+  reviewLogs: RxReplicationState<ReviewLogRecord, SupabaseCheckpoint>;
   cancelAll: () => Promise<void>;
   reSyncAll: () => Promise<void>;
   pauseAll: () => Promise<void>;
@@ -366,6 +369,68 @@ export function pushDailyUsageModifier(doc: DailyUsageRecord): any {
 }
 
 // ---------------------------------------------------------------------------
+// Review Log Modifiers
+// ---------------------------------------------------------------------------
+export function pullReviewLogModifier(row: any): WithDeleted<ReviewLogRecord> {
+  const isDeleted = typeof row.deleted === 'boolean' ? row.deleted : (row._deleted ?? false);
+  return {
+    id: row.id,
+    wordId: row.word_id || row.wordId,
+    cardId: row.card_id || row.cardId,
+    quizMode: (row.quiz_mode || row.quizMode || 'wordToMeaning') as QuizMode,
+    word: row.word,
+    meaning: row.meaning ?? '',
+    rating: row.rating,
+    stateBefore: row.state_before || row.stateBefore || 'New',
+    stateAfter: row.state_after || row.stateAfter || 'New',
+    reviewedAt: row.reviewed_at || row.reviewedAt || new Date().toISOString(),
+    durationMs: row.duration_ms ?? row.durationMs ?? 0,
+    stability: row.stability ?? 0,
+    difficulty: row.difficulty ?? 0,
+    elapsedDays: row.elapsed_days ?? row.elapsedDays ?? 0,
+    scheduledDays: row.scheduled_days ?? row.scheduledDays ?? 0,
+    dueAt: row.due_at || row.dueAt || new Date().toISOString(),
+    previousDueAt: row.previous_due_at || row.previousDueAt || undefined,
+    lapses: row.lapses ?? 0,
+    reps: row.reps ?? 0,
+    retrievability: row.retrievability ?? 0,
+    createdAt: row.created_at || row.createdAt || new Date().toISOString(),
+    updatedAt: row.updated_at || row.updatedAt || new Date().toISOString(),
+    lastSyncedAt: row.updated_at || row.updatedAt || new Date().toISOString(),
+    isDeleted,
+    _deleted: isDeleted,
+  };
+}
+
+export function pushReviewLogModifier(doc: ReviewLogRecord): any {
+  return {
+    id: doc.id,
+    word_id: doc.wordId,
+    card_id: doc.cardId,
+    quiz_mode: doc.quizMode,
+    word: doc.word,
+    meaning: doc.meaning,
+    rating: doc.rating,
+    state_before: doc.stateBefore,
+    state_after: doc.stateAfter,
+    reviewed_at: doc.reviewedAt,
+    duration_ms: doc.durationMs,
+    stability: doc.stability,
+    difficulty: doc.difficulty,
+    elapsed_days: doc.elapsedDays,
+    scheduled_days: doc.scheduledDays,
+    due_at: doc.dueAt,
+    previous_due_at: doc.previousDueAt || null,
+    lapses: doc.lapses,
+    reps: doc.reps,
+    retrievability: doc.retrievability ?? 0,
+    created_at: doc.createdAt,
+    updated_at: doc.updatedAt,
+    deleted: doc.isDeleted,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Replicate Collection Helper
 // ---------------------------------------------------------------------------
 export function createSupabaseCollectionReplication<T>({
@@ -540,6 +605,14 @@ export function setupSupabaseReplication(db: AppDatabase): ReplicationsHolder {
     pushModifier: pushDailyUsageModifier,
   });
 
+  const reviewLogs = createSupabaseCollectionReplication<ReviewLogRecord>({
+    replicationIdentifier: 'supabase-sync-review-logs',
+    collection: db.reviewLogs,
+    tableName: 'review_logs',
+    pullModifier: pullReviewLogModifier,
+    pushModifier: pushReviewLogModifier,
+  });
+
   const replicationMap: Record<SyncCollectionKey, RxReplicationState<any, SupabaseCheckpoint>> = {
     words,
     groups,
@@ -548,6 +621,7 @@ export function setupSupabaseReplication(db: AppDatabase): ReplicationsHolder {
     fsrsRecords,
     srsPracticeWords,
     dailyUsage,
+    reviewLogs,
   };
 
   const collectionLabels: Record<SyncCollectionKey, { label: string; tableName: string }> = {
@@ -558,6 +632,7 @@ export function setupSupabaseReplication(db: AppDatabase): ReplicationsHolder {
     fsrsRecords: { label: 'FSRS Records', tableName: 'fsrs_records' },
     srsPracticeWords: { label: 'SRS Practice', tableName: 'srs_practice_words' },
     dailyUsage: { label: 'Daily Usage', tableName: 'daily_usage' },
+    reviewLogs: { label: 'Review Logs', tableName: 'review_logs' },
   };
 
   const allReplications = Object.values(replicationMap);
@@ -570,6 +645,7 @@ export function setupSupabaseReplication(db: AppDatabase): ReplicationsHolder {
     fsrsRecords: db.fsrsRecords,
     srsPracticeWords: db.srsPracticeWords,
     dailyUsage: db.dailyUsage,
+    reviewLogs: db.reviewLogs,
   };
 
   // Initialize unified state
@@ -660,6 +736,18 @@ export function setupSupabaseReplication(db: AppDatabase): ReplicationsHolder {
         key: 'dailyUsage',
         label: 'Daily Usage',
         tableName: 'daily_usage',
+        isActive: false,
+        isPaused: false,
+        error: null,
+        lastSyncedAt: null,
+        sentCount: 0,
+        receivedCount: 0,
+        pendingCount: 0,
+      },
+      reviewLogs: {
+        key: 'reviewLogs',
+        label: 'Review Logs',
+        tableName: 'review_logs',
         isActive: false,
         isPaused: false,
         error: null,
@@ -960,6 +1048,7 @@ export function setupSupabaseReplication(db: AppDatabase): ReplicationsHolder {
     fsrsRecords,
     srsPracticeWords,
     dailyUsage,
+    reviewLogs,
     cancelAll,
     reSyncAll,
     pauseAll,

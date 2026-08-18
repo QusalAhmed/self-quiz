@@ -306,6 +306,82 @@ describe('Analysis Calculator', () => {
       // Insights & recommendations are generated
       expect(result.insights.length).toBeGreaterThan(0);
       expect(result.recommendations.length).toBeGreaterThan(0);
+
+      // Section statuses
+      expect(result.statuses.overview.status).toBe('available');
+      expect(result.statuses.progress.status).toBe('available');
+    });
+
+    it('calculates metrics accurately when review logs are provided', () => {
+      const reviewLogs: import('@/lib/db').ReviewLogRecord[] = [
+        {
+          id: 'log-1',
+          wordId: '1',
+          cardId: '1:fsrs:wordToMeaning',
+          quizMode: 'wordToMeaning',
+          word: 'Abate',
+          meaning: 'To decrease',
+          rating: 'good',
+          stateBefore: 'Review',
+          stateAfter: 'Review',
+          reviewedAt: '2026-08-18T10:00:00.000Z',
+          durationMs: 1800,
+          stability: 35,
+          difficulty: 3,
+          elapsedDays: 10,
+          scheduledDays: 35,
+          dueAt: '2026-09-22T10:00:00.000Z',
+          lapses: 0,
+          reps: 6,
+          retrievability: 0.95,
+          createdAt: '2026-08-18T10:00:00.000Z',
+          updatedAt: '2026-08-18T10:00:00.000Z',
+          lastSyncedAt: '',
+          isDeleted: false,
+        },
+        {
+          id: 'log-2',
+          wordId: '2',
+          cardId: '2:fsrs:wordToMeaning',
+          quizMode: 'wordToMeaning',
+          word: 'Aberration',
+          meaning: 'Deviation',
+          rating: 'again',
+          stateBefore: 'Review',
+          stateAfter: 'Learning',
+          reviewedAt: '2026-08-18T11:00:00.000Z',
+          durationMs: 3200,
+          stability: 2,
+          difficulty: 8,
+          elapsedDays: 1,
+          scheduledDays: 1,
+          dueAt: '2026-08-19T11:00:00.000Z',
+          lapses: 3,
+          reps: 4,
+          retrievability: 0.5,
+          createdAt: '2026-08-18T11:00:00.000Z',
+          updatedAt: '2026-08-18T11:00:00.000Z',
+          lastSyncedAt: '',
+          isDeleted: false,
+        },
+      ];
+
+      const result = calculateAnalysis({
+        words: sampleWords,
+        fsrsRecords: sampleFsrs,
+        dailyUsage: sampleDailyUsage,
+        missedWords: sampleMissed,
+        reviewLogs,
+        filters: defaultFilters,
+        now: fixedNow,
+      });
+
+      expect(result.totalReviewsCount).toBe(2);
+      expect(result.ratingDistribution.goodCount).toBe(1);
+      expect(result.ratingDistribution.againCount).toBe(1);
+      expect(result.ratingDistribution.totalRatings).toBe(2);
+      expect(result.ratingDistribution.successfulRecallRate).toBe(50);
+      expect(result.statuses.retention.status).toBe('limited_data');
     });
 
     it('handles empty database gracefully', () => {
@@ -324,6 +400,8 @@ describe('Analysis Calculator', () => {
       expect(result.kpis.currentStreak.value).toBe(0);
       expect(result.difficultWords).toEqual([]);
       expect(result.strongestWords).toEqual([]);
+      expect(result.statuses.overview.status).toBe('unavailable');
+      expect(result.statuses.progress.status).toBe('no_activity');
       expect(result.insights.length).toBeGreaterThan(0);
       expect(result.recommendations.length).toBeGreaterThan(0);
     });

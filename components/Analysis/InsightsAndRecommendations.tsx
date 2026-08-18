@@ -3,16 +3,19 @@
 import { Badge, Card, Group, Paper, SimpleGrid, Stack, Text, Title } from '@mantine/core';
 import { IconAlertTriangle, IconBulb, IconInfoCircle, IconSparkles } from '@tabler/icons-react';
 import React from 'react';
-import type { LearningInsight, LearningRecommendation } from '@/lib/analysis/types';
+import type { LearningInsight, LearningRecommendation, SectionStatusInfo } from '@/lib/analysis/types';
+import { SectionStatusBadge } from './SectionStatusBadge';
 
 type InsightsAndRecommendationsProps = {
   insights: LearningInsight[];
   recommendations: LearningRecommendation[];
+  statusInfo?: SectionStatusInfo;
 };
 
 export function InsightsAndRecommendations({
   insights,
   recommendations,
+  statusInfo,
 }: InsightsAndRecommendationsProps) {
   const getInsightIcon = (type: LearningInsight['type']) => {
     switch (type) {
@@ -50,6 +53,7 @@ export function InsightsAndRecommendations({
               <Title order={3} style={{ fontSize: '1.2rem' }}>
                 Patterns & Learning Insights
               </Title>
+              <SectionStatusBadge statusInfo={statusInfo} />
               <Badge variant="light" color="indigo" size="sm">
                 {insights.length} detected
               </Badge>

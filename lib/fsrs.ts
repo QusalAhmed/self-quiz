@@ -241,3 +241,72 @@ export function softDeleteFsrsRecord(
 export function fsrsRecordToCard(record: FsrsRecord): Card {
   return toCard(record);
 }
+
+const FACTOR = 19 / 81; // 0.2345679 -> at t = S, R = 0.90 (90% target retention)
+
+export function computeRetrievability(
+  stability: number,
+  lastReviewedAt?: string,
+  now: Date = new Date()
+): number {
+  if (!stability || stability <= 0) {
+    return 1;
+  }
+  if (!lastReviewedAt) {
+    return 1;
+  }
+  const reviewDate = new Date(lastReviewedAt);
+  if (isNaN(reviewDate.getTime())) {
+    return 1;
+  }
+  const elapsedMs = Math.max(0, now.getTime() - reviewDate.getTime());
+  const elapsedDays = elapsedMs / (1000 * 60 * 60 * 24);
+  const power = -0.5;
+  const r = (1 + FACTOR * (elapsedDays / Math.max(stability, 0.1))) ** power;
+  return Math.min(1, Math.max(0, r));
+}
+
+export function createReviewLogEvent({
+  currentState,
+  updatedCard,
+  rating,
+  durationMs = 0,
+  now = new Date(),
+}: {
+  currentState: FsrsRecord;
+  updatedCard: FsrsRecord;
+  rating: FsrsRating;
+  durationMs?: number;
+  now?: Date;
+}): import('./db').ReviewLogRecord {
+  const timestamp = now.toISOString();
+  return {
+    id:
+      typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+    wordId: currentState.wordId,
+    cardId: currentState.id,
+    quizMode: currentState.quizMode,
+    word: currentState.word,
+    meaning: currentState.meaning,
+    rating,
+    stateBefore: currentState.state,
+    stateAfter: updatedCard.state,
+    reviewedAt: timestamp,
+    durationMs: Math.max(0, Math.round(durationMs)),
+    stability: updatedCard.stability,
+    difficulty: updatedCard.difficulty,
+    elapsedDays: updatedCard.elapsedDays,
+    scheduledDays: updatedCard.scheduledDays,
+    dueAt: updatedCard.dueAt,
+    previousDueAt: currentState.dueAt,
+    lapses: updatedCard.lapses,
+    reps: updatedCard.reps,
+    retrievability: computeRetrievability(currentState.stability, currentState.lastReviewedAt, now),
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    isDeleted: false,
+    lastSyncedAt: '',
+  };
+}

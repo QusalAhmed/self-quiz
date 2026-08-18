@@ -4,6 +4,7 @@ import type {
   GroupRecord,
   MissedWordRecord,
   QuizMode,
+  ReviewLogRecord,
   WordRecord,
 } from '@/lib/db';
 import { generateInsights, generateRecommendations } from './insights';
@@ -11,6 +12,7 @@ import type {
   ActivitySummary,
   AnalysisFilters,
   AnalysisResult,
+  AnalysisSectionKey,
   ComparisonPeriod,
   DateRangePreset,
   FsrsMemoryHealthData,
@@ -19,6 +21,7 @@ import type {
   KpiOverviewData,
   ProblematicWordItem,
   RatingDistribution,
+  SectionStatusInfo,
   StrongWordItem,
   StudyEfficiencyData,
   TimeSeriesDataPoint,
@@ -192,6 +195,7 @@ export function calculateAnalysis({
   dailyUsage,
   missedWords,
   groups: _groups,
+  reviewLogs = [],
   filters,
   now = new Date(),
 }: {
@@ -200,6 +204,7 @@ export function calculateAnalysis({
   dailyUsage: DailyUsageRecord[];
   missedWords: MissedWordRecord[];
   groups?: GroupRecord[];
+  reviewLogs?: ReviewLogRecord[];
   filters: AnalysisFilters;
   now?: Date;
 }): AnalysisResult {
@@ -207,6 +212,7 @@ export function calculateAnalysis({
   const activeFsrs = fsrsRecords.filter((f) => !f.isDeleted);
   const activeMissed = missedWords.filter((m) => !m.isDeleted);
   const activeUsage = dailyUsage.filter((u) => !u.isDeleted);
+  const activeReviewLogs = reviewLogs.filter((l) => !l.isDeleted);
 
   const wordsById = new Map<string, WordRecord>(activeWords.map((w) => [w.id, w]));
 
@@ -270,6 +276,25 @@ export function calculateAnalysis({
     return true;
   });
 
+  // Filtered Review Logs (Historical Source of Truth)
+  const filteredReviewLogs = activeReviewLogs.filter((log) => {
+    if (!matchesQuizMode(log.quizMode)) {
+      return false;
+    }
+    const parentWord = wordsById.get(log.wordId);
+    if (!matchesGroup(parentWord)) {
+      return false;
+    }
+    return true;
+  });
+
+  const currentStartMs = currentStart.getTime();
+  const currentEndMs = currentEnd.getTime();
+  const periodReviewLogs = filteredReviewLogs.filter((l) => {
+    const t = new Date(l.reviewedAt).getTime();
+    return t >= currentStartMs && t <= currentEndMs;
+  });
+
   // Calculate Daily Usage map (sum across all devices per date string)
   const usageByDate = new Map<string, number>();
   for (const usage of activeUsage) {
@@ -291,8 +316,6 @@ export function calculateAnalysis({
   let reviewCount = 0;
   let learningCount = 0;
   let newCount = 0;
-  let totalReviewsCompleted = 0;
-  let totalLapses = 0;
   let totalStabilitySum = 0;
   let totalDifficultySum = 0;
   let totalRetrievabilitySum = 0;
@@ -322,9 +345,6 @@ export function calculateAnalysis({
     } else {
       newCount += 1;
     }
-
-    totalReviewsCompleted += card.reps || 0;
-    totalLapses += card.lapses || 0;
 
     const r = computeRetrievability(card.stability, card.lastReviewedAt, now);
     totalRetrievabilitySum += r;
@@ -364,18 +384,6 @@ export function calculateAnalysis({
     const dueMs = card.dueAt ? new Date(card.dueAt).getTime() : 0;
     if (dueMs <= next24hMs && r < 0.85 && card.reps > 0) {
       approachingForgettingCount += 1;
-    }
-
-    if (card.lastRating) {
-      if (card.lastRating === 'again') {
-        ratingCounts.again += 1;
-      } else if (card.lastRating === 'hard') {
-        ratingCounts.hard += 1;
-      } else if (card.lastRating === 'good') {
-        ratingCounts.good += 1;
-      } else if (card.lastRating === 'easy') {
-        ratingCounts.easy += 1;
-      }
     }
 
     const parentWord = wordsById.get(card.wordId);
@@ -446,6 +454,58 @@ export function calculateAnalysis({
   problematicCandidates.sort((a, b) => b.problemScore - a.problemScore);
   strongCandidates.sort((a, b) => b.stability - a.stability || b.retrievability - a.retrievability);
 
+  // Review logs vs fallback card reps
+  let totalReviewsCompleted = 0;
+  let totalLapses = 0;
+
+  if (periodReviewLogs.length > 0) {
+    // Exact review event historical counts for selected date period
+    totalReviewsCompleted = periodReviewLogs.length;
+    for (const log of periodReviewLogs) {
+      if (log.rating === 'again') {
+        ratingCounts.again += 1;
+        totalLapses += 1;
+      } else if (log.rating === 'hard') {
+        ratingCounts.hard += 1;
+      } else if (log.rating === 'good') {
+        ratingCounts.good += 1;
+      } else if (log.rating === 'easy') {
+        ratingCounts.easy += 1;
+      }
+    }
+  } else if (filteredReviewLogs.length > 0 && filters.datePreset === 'all') {
+    totalReviewsCompleted = filteredReviewLogs.length;
+    for (const log of filteredReviewLogs) {
+      if (log.rating === 'again') {
+        ratingCounts.again += 1;
+        totalLapses += 1;
+      } else if (log.rating === 'hard') {
+        ratingCounts.hard += 1;
+      } else if (log.rating === 'good') {
+        ratingCounts.good += 1;
+      } else if (log.rating === 'easy') {
+        ratingCounts.easy += 1;
+      }
+    }
+  } else {
+    // Fallback if review logs have not yet accumulated historical events
+    for (const card of filteredFsrs) {
+      totalReviewsCompleted += card.reps || 0;
+      totalLapses += card.lapses || 0;
+      if (card.lastRating) {
+        if (card.lastRating === 'again') {
+          ratingCounts.again += 1;
+        } else if (card.lastRating === 'hard') {
+          ratingCounts.hard += 1;
+        } else if (card.lastRating === 'good') {
+          ratingCounts.good += 1;
+        } else if (card.lastRating === 'easy') {
+          ratingCounts.easy += 1;
+        }
+      }
+    }
+  }
+
   // Ratings calculation
   const totalRatings =
     ratingCounts.again + ratingCounts.hard + ratingCounts.good + ratingCounts.easy;
@@ -480,18 +540,32 @@ export function calculateAnalysis({
     totalTrackedCards: cardCount,
   };
 
-  // TimeSeries Data Generation for selected date range
-  const timeSeries: TimeSeriesDataPoint[] = [];
-  const startDay = new Date(currentStart);
-  const endDay = new Date(currentEnd);
-
-  // Group study usage and review events by day
+  // Group review events by day for time series and heatmap
   const reviewsByDay = new Map<string, number>();
-  for (const card of filteredFsrs) {
-    if (card.lastReviewedAt) {
-      const dateKey = card.lastReviewedAt.split('T')[0];
-      const prev = reviewsByDay.get(dateKey) || 0;
-      reviewsByDay.set(dateKey, prev + 1);
+  const recallByDay = new Map<string, { good: number; total: number }>();
+
+  if (filteredReviewLogs.length > 0) {
+    for (const log of filteredReviewLogs) {
+      if (log.reviewedAt) {
+        const dateKey = log.reviewedAt.split('T')[0];
+        const prev = reviewsByDay.get(dateKey) || 0;
+        reviewsByDay.set(dateKey, prev + 1);
+
+        const rec = recallByDay.get(dateKey) || { good: 0, total: 0 };
+        rec.total += 1;
+        if (log.rating === 'good' || log.rating === 'easy') {
+          rec.good += 1;
+        }
+        recallByDay.set(dateKey, rec);
+      }
+    }
+  } else {
+    for (const card of filteredFsrs) {
+      if (card.lastReviewedAt) {
+        const dateKey = card.lastReviewedAt.split('T')[0];
+        const prev = reviewsByDay.get(dateKey) || 0;
+        reviewsByDay.set(dateKey, prev + 1);
+      }
     }
   }
 
@@ -499,6 +573,11 @@ export function calculateAnalysis({
   const sortedWords = [...filteredWords].sort(
     (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
   );
+
+  // TimeSeries Data Generation for selected date range
+  const timeSeries: TimeSeriesDataPoint[] = [];
+  const startDay = new Date(currentStart);
+  const endDay = new Date(currentEnd);
 
   const curDay = new Date(startDay);
   while (curDay <= endDay) {
@@ -518,6 +597,11 @@ export function calculateAnalysis({
 
     const studySec = usageByDate.get(dateKey) || 0;
     const revs = reviewsByDay.get(dateKey) || 0;
+    const dayRecall = recallByDay.get(dateKey);
+    const recallRate =
+      dayRecall && dayRecall.total > 0
+        ? Math.round((dayRecall.good / dayRecall.total) * 100)
+        : undefined;
 
     timeSeries.push({
       date: dateKey,
@@ -529,6 +613,7 @@ export function calculateAnalysis({
       newWords: Math.max(0, totalWordsUpToNow - (masteredCount + reviewCount + learningCount)),
       reviewsCount: revs,
       studyMinutes: Math.round((studySec / 60) * 10) / 10,
+      recallRate,
     });
 
     curDay.setDate(curDay.getDate() + 1);
@@ -694,15 +779,30 @@ export function calculateAnalysis({
 
     prevStudyTimeSec = prevStudySec;
     prevStudyDays = prevActiveDays;
-    // Approximations for previous state based on historical ratio
+
+    if (filteredReviewLogs.length > 0) {
+      const prevPeriodLogs = filteredReviewLogs.filter((l) => {
+        const t = new Date(l.reviewedAt).getTime();
+        return t >= prevStartMs && t <= prevEndMs;
+      });
+      prevReviews = prevPeriodLogs.length;
+      if (prevPeriodLogs.length > 0) {
+        const prevGood = prevPeriodLogs.filter(
+          (l) => l.rating === 'good' || l.rating === 'easy'
+        ).length;
+        prevRetention = Math.round((prevGood / prevPeriodLogs.length) * 1000) / 10;
+      }
+    } else {
+      prevReviews = Math.max(0, Math.round(totalReviewsCompleted * 0.8));
+      prevRetention = Math.max(
+        50,
+        Math.round(ratingDistribution.successfulRecallRate * 0.95 * 10) / 10
+      );
+    }
+
     prevMastered = Math.max(0, Math.round(masteredCount * 0.85));
     prevLearning = Math.max(0, Math.round(learningCount * 0.9));
-    prevRetention = Math.max(
-      50,
-      Math.round(ratingDistribution.successfulRecallRate * 0.95 * 10) / 10
-    );
-    prevReviews = Math.max(0, Math.round(totalReviewsCompleted * 0.8));
-    prevAvgReviews = prevActiveDays > 0 ? Math.round((prevReviews / prevActiveDays) * 10) / 10 : 0;
+    prevAvgReviews = prevActiveDays > 0 && prevReviews !== undefined ? Math.round((prevReviews / prevActiveDays) * 10) / 10 : 0;
   }
 
   // Build KPI Cards Data
@@ -739,7 +839,7 @@ export function calculateAnalysis({
       value: totalReviewsCompleted,
       formattedValue: totalReviewsCompleted.toLocaleString(),
       subtitle: `${totalLapses} lapses recorded`,
-      helperTooltip: 'Total number of flashcard review reps completed across all modes.',
+      helperTooltip: 'Total number of flashcard review events completed in this period.',
       ...calculateTrend(totalReviewsCompleted, prevReviews, true),
     },
     activeStudyDays: {
@@ -843,8 +943,228 @@ export function calculateAnalysis({
     difficultWordsCount: problematicCandidates.length,
   });
 
+  // Section Data Statuses System
+  const statuses: Record<AnalysisSectionKey, SectionStatusInfo> = {
+    overview: {
+      status:
+        totalReviewsCompleted >= 10
+          ? 'available'
+          : totalReviewsCompleted > 0
+            ? 'limited_data'
+            : filteredWords.length > 0
+              ? 'no_activity'
+              : 'unavailable',
+      label:
+        totalReviewsCompleted >= 10
+          ? 'Available'
+          : totalReviewsCompleted > 0
+            ? 'Limited data'
+            : 'No activity',
+      badgeColor:
+        totalReviewsCompleted >= 10
+          ? 'teal'
+          : totalReviewsCompleted > 0
+            ? 'yellow'
+            : 'gray',
+      message:
+        totalReviewsCompleted >= 10
+          ? `Calculated from ${totalReviewsCompleted} verified review events in selected period.`
+          : totalReviewsCompleted > 0
+            ? 'Limited data — metrics will gain statistical confidence as you complete more reviews.'
+            : 'No review activity recorded yet for this period.',
+      sampleCount: totalReviewsCompleted,
+    },
+    progress: {
+      status: filteredWords.length > 0 ? 'available' : 'no_activity',
+      label: filteredWords.length > 0 ? 'Available' : 'No activity',
+      badgeColor: filteredWords.length > 0 ? 'teal' : 'gray',
+      message:
+        filteredWords.length > 0
+          ? `Tracking ${filteredWords.length} vocabulary words across learning stages.`
+          : 'Add words to your dictionary to begin tracking vocabulary growth.',
+      sampleCount: filteredWords.length,
+    },
+    retention: {
+      status:
+        totalRatings >= 15
+          ? 'available'
+          : totalRatings > 0
+            ? 'limited_data'
+            : 'no_activity',
+      label:
+        totalRatings >= 15
+          ? 'Available'
+          : totalRatings > 0
+            ? 'Limited data'
+            : 'No activity',
+      badgeColor:
+        totalRatings >= 15
+          ? 'teal'
+          : totalRatings > 0
+            ? 'yellow'
+            : 'gray',
+      message:
+        totalRatings >= 15
+          ? `High statistical accuracy based on ${totalRatings} review events.`
+          : totalRatings > 0
+            ? `Limited sample (${totalRatings} ratings) — retention trend solidifies after ~15 reviews.`
+            : 'Complete flashcard reviews to see your memory retention distribution.',
+      sampleCount: totalRatings,
+    },
+    memoryHealth: {
+      status:
+        filteredFsrs.length >= 3 && filteredFsrs.some((c) => c.reps > 0)
+          ? 'available'
+          : filteredFsrs.length > 0
+            ? 'limited_data'
+            : 'no_activity',
+      label:
+        filteredFsrs.length >= 3 && filteredFsrs.some((c) => c.reps > 0)
+          ? 'Available'
+          : filteredFsrs.length > 0
+            ? 'Limited data'
+            : 'No activity',
+      badgeColor:
+        filteredFsrs.length >= 3 && filteredFsrs.some((c) => c.reps > 0)
+          ? 'teal'
+          : filteredFsrs.length > 0
+            ? 'yellow'
+            : 'gray',
+      message: filteredFsrs.some((c) => c.reps > 0)
+        ? `FSRS-4.5 stability and difficulty computed across ${filteredFsrs.length} cards.`
+        : 'Initial FSRS parameters — memory parameters calibrate with each review.',
+      sampleCount: filteredFsrs.length,
+    },
+    activity: {
+      status:
+        activeStudyDaysCount >= 3 || totalUsageSecondsInPeriod >= 300
+          ? 'available'
+          : activeStudyDaysCount > 0
+            ? 'limited_data'
+            : 'no_activity',
+      label:
+        activeStudyDaysCount >= 3 || totalUsageSecondsInPeriod >= 300
+          ? 'Available'
+          : activeStudyDaysCount > 0
+            ? 'Limited data'
+            : 'No activity',
+      badgeColor:
+        activeStudyDaysCount >= 3 || totalUsageSecondsInPeriod >= 300
+          ? 'teal'
+          : activeStudyDaysCount > 0
+            ? 'yellow'
+            : 'gray',
+      message:
+        activeStudyDaysCount > 0
+          ? `${activeStudyDaysCount} active study days logged in period.`
+          : 'No study activity logged yet in this date range.',
+      sampleCount: activeStudyDaysCount,
+    },
+    wordsBreakdown: {
+      status:
+        problematicCandidates.length > 0 || strongCandidates.length > 0
+          ? 'available'
+          : filteredFsrs.some((c) => c.reps > 0)
+            ? 'limited_data'
+            : 'no_activity',
+      label:
+        problematicCandidates.length > 0 || strongCandidates.length > 0
+          ? 'Available'
+          : filteredFsrs.some((c) => c.reps > 0)
+            ? 'Limited data'
+            : 'No activity',
+      badgeColor:
+        problematicCandidates.length > 0 || strongCandidates.length > 0
+          ? 'teal'
+          : filteredFsrs.some((c) => c.reps > 0)
+            ? 'yellow'
+            : 'gray',
+      message:
+        problematicCandidates.length > 0 || strongCandidates.length > 0
+          ? `Identified ${problematicCandidates.length} difficult and ${strongCandidates.length} strong words.`
+          : 'More reviews needed to distinguish difficult vs mastered words.',
+    },
+    growth: {
+      status:
+        filteredWords.length >= 5
+          ? 'available'
+          : filteredWords.length > 0
+            ? 'limited_data'
+            : 'no_activity',
+      label:
+        filteredWords.length >= 5
+          ? 'Available'
+          : filteredWords.length > 0
+            ? 'Limited data'
+            : 'No activity',
+      badgeColor:
+        filteredWords.length >= 5
+          ? 'teal'
+          : filteredWords.length > 0
+            ? 'yellow'
+            : 'gray',
+      message:
+        filteredWords.length > 0
+          ? `Vocabulary acquisition rate calculated from ${filteredWords.length} words.`
+          : 'Add words to view vocabulary velocity metrics.',
+      sampleCount: filteredWords.length,
+    },
+    efficiency: {
+      status:
+        totalReviewsCompleted >= 10 && studyMinutesTotal >= 2
+          ? 'available'
+          : totalReviewsCompleted > 0 || studyMinutesTotal > 0
+            ? 'limited_data'
+            : 'unavailable',
+      label:
+        totalReviewsCompleted >= 10 && studyMinutesTotal >= 2
+          ? 'Available'
+          : totalReviewsCompleted > 0 || studyMinutesTotal > 0
+            ? 'Limited data'
+            : 'Unavailable',
+      badgeColor:
+        totalReviewsCompleted >= 10 && studyMinutesTotal >= 2
+          ? 'teal'
+          : totalReviewsCompleted > 0 || studyMinutesTotal > 0
+            ? 'yellow'
+            : 'gray',
+      message:
+        totalReviewsCompleted >= 10 && studyMinutesTotal >= 2
+          ? 'Study velocity and duration metrics calculated with high precision.'
+          : 'Requires at least 10 reviews and 2+ minutes of tracked study time for precision.',
+      sampleCount: totalReviewsCompleted,
+    },
+    insights: {
+      status:
+        totalReviewsCompleted >= 10 || filteredWords.length >= 10
+          ? 'available'
+          : totalReviewsCompleted > 0
+            ? 'limited_data'
+            : 'no_activity',
+      label:
+        totalReviewsCompleted >= 10 || filteredWords.length >= 10
+          ? 'Available'
+          : totalReviewsCompleted > 0
+            ? 'Limited data'
+            : 'No activity',
+      badgeColor:
+        totalReviewsCompleted >= 10 || filteredWords.length >= 10
+          ? 'teal'
+          : totalReviewsCompleted > 0
+            ? 'yellow'
+            : 'gray',
+      message:
+        totalReviewsCompleted >= 10
+          ? 'Actionable recommendations generated from verified memory history.'
+          : 'Early recommendations based on initial activity.',
+    },
+  };
+
   const hasData =
-    filteredWords.length > 0 || filteredFsrs.length > 0 || totalUsageSecondsInPeriod > 0;
+    filteredWords.length > 0 ||
+    filteredFsrs.length > 0 ||
+    filteredReviewLogs.length > 0 ||
+    totalUsageSecondsInPeriod > 0;
 
   return {
     kpis,
@@ -858,6 +1178,7 @@ export function calculateAnalysis({
     efficiency,
     insights,
     recommendations,
+    statuses,
     hasData,
     totalWordsCount: filteredWords.length,
     totalCardsCount: filteredFsrs.length,

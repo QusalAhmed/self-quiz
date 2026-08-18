@@ -33,6 +33,7 @@ import {
   IconDatabase,
   IconFolders,
   IconHierarchy,
+  IconHistory,
   IconInfoCircle,
   IconListCheck,
   IconPlayerPause,
@@ -69,6 +70,7 @@ export type CloudSyncCardProps = {
     fsrsRecords?: number;
     srsPracticeWords?: number;
     dailyUsage?: number;
+    reviewLogs?: number;
   };
 };
 
@@ -80,6 +82,7 @@ const collectionIcons: Record<SyncCollectionKey, React.ComponentType<{ size?: nu
   fsrsRecords: IconBrain,
   srsPracticeWords: IconArrowsShuffle,
   dailyUsage: IconClock,
+  reviewLogs: IconHistory,
 };
 
 function formatRelativeTime(isoString: string | null): string {

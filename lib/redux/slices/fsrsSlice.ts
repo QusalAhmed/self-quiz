@@ -2,9 +2,6 @@ import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import {
   computeFsrs,
   computeFsrsIntervals,
-  createInitialFsrsRecord,
-  formatInterval,
-  type FsrsCardState,
   type FsrsRating,
   type FsrsRecord,
 } from '@/lib/fsrs';
@@ -159,7 +156,9 @@ export const fsrsSlice = createSlice({
     ) => {
       const { cardId, rating, nowIso } = action.payload;
       const currentCard = state.cards[cardId];
-      if (!currentCard) return;
+      if (!currentCard) {
+        return;
+      }
 
       const now = nowIso ? new Date(nowIso) : new Date();
       const updatedCard = computeFsrs(currentCard, rating, now);
@@ -188,7 +187,9 @@ export const fsrsSlice = createSlice({
      */
     undoAnswer: (state) => {
       const lastHistoryItem = state.history.pop();
-      if (!lastHistoryItem) return;
+      if (!lastHistoryItem) {
+        return;
+      }
 
       const { cardBefore, previousQueue, previousCurrentCardId } = lastHistoryItem;
 
@@ -262,7 +263,9 @@ export const selectCurrentIntervals = (state: {
   fsrs: FsrsSliceState;
 }): Record<FsrsRating, { dueAt: string; intervalText: string }> | null => {
   const card = selectCurrentCard(state);
-  if (!card) return null;
+  if (!card) {
+    return null;
+  }
   const now = new Date(state.fsrs.nowIso);
   return computeFsrsIntervals(card, now);
 };
@@ -275,7 +278,9 @@ export const selectCardCounts = (state: { fsrs: FsrsSliceState }) => {
 
   queue.forEach((id) => {
     const card = cards[id];
-    if (!card) return;
+    if (!card) {
+      return;
+    }
     if (card.state === 'New' && card.reps === 0) {
       newCount += 1;
     } else if (card.state === 'Learning' || card.state === 'Relearning') {

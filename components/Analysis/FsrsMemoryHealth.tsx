@@ -22,13 +22,15 @@ import {
   IconShieldCheck,
 } from '@tabler/icons-react';
 import React from 'react';
-import type { FsrsMemoryHealthData } from '@/lib/analysis/types';
+import type { FsrsMemoryHealthData, SectionStatusInfo } from '@/lib/analysis/types';
+import { SectionStatusBadge } from './SectionStatusBadge';
 
 type FsrsMemoryHealthProps = {
   memoryHealth: FsrsMemoryHealthData;
+  statusInfo?: SectionStatusInfo;
 };
 
-export function FsrsMemoryHealth({ memoryHealth }: FsrsMemoryHealthProps) {
+export function FsrsMemoryHealth({ memoryHealth, statusInfo }: FsrsMemoryHealthProps) {
   const {
     avgStabilityDays,
     avgDifficulty,
@@ -53,6 +55,7 @@ export function FsrsMemoryHealth({ memoryHealth }: FsrsMemoryHealthProps) {
               <Title order={3} style={{ fontSize: '1.2rem' }}>
                 FSRS Memory Diagnostics & Health
               </Title>
+              <SectionStatusBadge statusInfo={statusInfo} />
               <Tooltip
                 label="FSRS tracks memory across 3 pillars: Stability (how long memory lasts), Difficulty (inherent card complexity), and Retrievability (current recall probability)."
                 multiline

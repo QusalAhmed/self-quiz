@@ -14,13 +14,15 @@ import {
 } from '@mantine/core';
 import { IconFlame } from '@tabler/icons-react';
 import React, { useMemo } from 'react';
-import type { ActivitySummary, HeatmapDay } from '@/lib/analysis/types';
+import type { ActivitySummary, HeatmapDay, SectionStatusInfo } from '@/lib/analysis/types';
+import { SectionStatusBadge } from './SectionStatusBadge';
 
 type StudyActivityHeatmapProps = {
   activity: ActivitySummary;
+  statusInfo?: SectionStatusInfo;
 };
 
-export function StudyActivityHeatmap({ activity }: StudyActivityHeatmapProps) {
+export function StudyActivityHeatmap({ activity, statusInfo }: StudyActivityHeatmapProps) {
   const {
     daysStudied,
     totalCalendarDays,
@@ -77,6 +79,29 @@ export function StudyActivityHeatmap({ activity }: StudyActivityHeatmapProps) {
     return weeks;
   }, [heatmapDays]);
 
+  // Compute month labels positions across columns
+  const monthLabels = useMemo(() => {
+    const labels: { colIndex: number; name: string }[] = [];
+    let lastMonth = -1;
+
+    calendarWeeks.forEach((week, colIdx) => {
+      const validDay = week.find((d) => d.date);
+      if (validDay) {
+        const d = new Date(validDay.date);
+        const m = d.getMonth();
+        if (m !== lastMonth) {
+          labels.push({
+            colIndex: colIdx,
+            name: d.toLocaleDateString('en-US', { month: 'short' }),
+          });
+          lastMonth = m;
+        }
+      }
+    });
+
+    return labels;
+  }, [calendarWeeks]);
+
   const levelColors: Record<number, string> = {
     0: 'rgba(156, 163, 175, 0.15)',
     1: '#a5b4fc',
@@ -97,6 +122,7 @@ export function StudyActivityHeatmap({ activity }: StudyActivityHeatmapProps) {
               <Title order={3} style={{ fontSize: '1.2rem' }}>
                 Study Consistency & Habit Heatmap
               </Title>
+              <SectionStatusBadge statusInfo={statusInfo} />
               <Badge variant="light" color="indigo" size="sm">
                 Past 1 Year
               </Badge>

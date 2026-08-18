@@ -24,6 +24,8 @@ import {
   KpiOverview,
   LearningProgressChart,
   RetentionAnalysis,
+  ReviewLogSection,
+  SectionStatusBadge,
   StrongestWordsTable,
   StudyActivityHeatmap,
   StudyEfficiency,
@@ -42,10 +44,12 @@ import {
   getDatabase,
   type GroupRecord,
   type MissedWordRecord,
+  type ReviewLogRecord,
   type WordDefinition,
   type WordRecord,
 } from '@/lib/db';
 import { getActiveGroupNames, replaceGroupInWordGroups, wordHasGroup } from '@/lib/groups';
+import { setupSupabaseReplication } from '@/lib/replication';
 
 export default function AnalysisPage() {
   const router = useRouter();
@@ -56,6 +60,7 @@ export default function AnalysisPage() {
   const [groups, setGroups] = useState<GroupRecord[]>([]);
   const [missedWords, setMissedWords] = useState<MissedWordRecord[]>([]);
   const [fsrsRecords, setFsrsRecords] = useState<FsrsRecord[]>([]);
+  const [reviewLogs, setReviewLogs] = useState<ReviewLogRecord[]>([]);
   const [dailyUsage, setDailyUsage] = useState<DailyUsageRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -93,6 +98,7 @@ export default function AnalysisPage() {
     let groupSubscription: { unsubscribe: () => void } | null = null;
     let missedSubscription: { unsubscribe: () => void } | null = null;
     let fsrsSubscription: { unsubscribe: () => void } | null = null;
+    let reviewLogSubscription: { unsubscribe: () => void } | null = null;
     let usageSubscription: { unsubscribe: () => void } | null = null;
 
     const loadDb = async () => {
@@ -139,6 +145,15 @@ export default function AnalysisPage() {
             setFsrsRecords(docs.map((d) => d.toJSON() as FsrsRecord));
           });
 
+        reviewLogSubscription = db.reviewLogs
+          .find({ selector: { isDeleted: { $ne: true } } })
+          .$.subscribe((docs) => {
+            if (!isMounted) {
+              return;
+            }
+            setReviewLogs(docs.map((d) => d.toJSON() as ReviewLogRecord));
+          });
+
         usageSubscription = db.dailyUsage
           .find({ selector: { isDeleted: { $ne: true } } })
           .$.subscribe((docs) => {
@@ -148,6 +163,8 @@ export default function AnalysisPage() {
             setDailyUsage(docs.map((d) => d.toJSON() as DailyUsageRecord));
             setIsLoading(false);
           });
+
+        setupSupabaseReplication(db);
       } catch (err) {
         console.error('Failed to initialize analysis database subscriptions:', err);
         if (isMounted) {
@@ -164,6 +181,7 @@ export default function AnalysisPage() {
       groupSubscription?.unsubscribe();
       missedSubscription?.unsubscribe();
       fsrsSubscription?.unsubscribe();
+      reviewLogSubscription?.unsubscribe();
       usageSubscription?.unsubscribe();
     };
   }, []);
@@ -176,10 +194,11 @@ export default function AnalysisPage() {
       dailyUsage,
       missedWords,
       groups,
+      reviewLogs,
       filters,
       now: new Date(nowTicker),
     });
-  }, [words, fsrsRecords, dailyUsage, missedWords, groups, filters, nowTicker]);
+  }, [words, fsrsRecords, dailyUsage, missedWords, groups, reviewLogs, filters, nowTicker]);
 
   // Sidebar counters
   const todayCount = useMemo(() => {
@@ -383,30 +402,44 @@ export default function AnalysisPage() {
                     data={analysis.timeSeries}
                     totalWords={analysis.totalWordsCount}
                     masteredWords={analysis.kpis.wordsMastered.value}
+                    statusInfo={analysis.statuses.progress}
                   />
 
                   {/* 4. Retention & Response Quality Analysis */}
-                  <RetentionAnalysis distribution={analysis.ratingDistribution} />
+                  <RetentionAnalysis
+                    distribution={analysis.ratingDistribution}
+                    statusInfo={analysis.statuses.retention}
+                  />
 
                   {/* 5. FSRS Memory Health & Diagnostics */}
-                  <FsrsMemoryHealth memoryHealth={analysis.memoryHealth} />
+                  <FsrsMemoryHealth
+                    memoryHealth={analysis.memoryHealth}
+                    statusInfo={analysis.statuses.memoryHealth}
+                  />
 
                   {/* 6. Study Consistency & Habit Heatmap */}
-                  <StudyActivityHeatmap activity={analysis.activity} />
+                  <StudyActivityHeatmap
+                    activity={analysis.activity}
+                    statusInfo={analysis.statuses.activity}
+                  />
 
                   {/* 7. Patterns, Insights & Actionable Recommendations */}
                   <InsightsAndRecommendations
                     insights={analysis.insights}
                     recommendations={analysis.recommendations}
+                    statusInfo={analysis.statuses.insights}
                   />
 
                   {/* 8 & 9. Difficult Words vs Strongest Words Tabs */}
                   <Card className="glass-panel" radius="xl" padding="md">
                     <Stack gap="md">
                       <Group justify="space-between" align="center" wrap="wrap">
-                        <Title order={3} style={{ fontSize: '1.2rem' }}>
-                          Vocabulary Breakdown by Memory Strength
-                        </Title>
+                        <Group gap="xs" align="center">
+                          <Title order={3} style={{ fontSize: '1.2rem' }}>
+                            Vocabulary Breakdown by Memory Strength
+                          </Title>
+                          <SectionStatusBadge statusInfo={analysis.statuses.wordsBreakdown} />
+                        </Group>
                         <SegmentedControl
                           size="xs"
                           radius="md"
@@ -445,9 +478,22 @@ export default function AnalysisPage() {
                       growth={analysis.vocabularyGrowth}
                       totalWords={analysis.totalWordsCount}
                       masteredWords={analysis.kpis.wordsMastered.value}
+                      statusInfo={analysis.statuses.growth}
                     />
-                    <StudyEfficiency efficiency={analysis.efficiency} />
+                    <StudyEfficiency
+                      efficiency={analysis.efficiency}
+                      statusInfo={analysis.statuses.efficiency}
+                    />
                   </SimpleGrid>
+
+                  {/* 12. Historical Review Log & Audit Section */}
+                  <ReviewLogSection
+                    reviewLogs={reviewLogs}
+                    words={words}
+                    customGroups={customGroups}
+                    statusInfo={analysis.statuses.overview}
+                    onSelectWord={handleSelectWord}
+                  />
                 </>
               )}
             </Stack>

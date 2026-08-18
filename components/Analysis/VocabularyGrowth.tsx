@@ -15,15 +15,22 @@ import {
 } from '@mantine/core';
 import { IconClock, IconHelpCircle, IconPlus, IconTarget, IconTrophy } from '@tabler/icons-react';
 import React from 'react';
-import type { VocabularyGrowthData } from '@/lib/analysis/types';
+import type { SectionStatusInfo, VocabularyGrowthData } from '@/lib/analysis/types';
+import { SectionStatusBadge } from './SectionStatusBadge';
 
 type VocabularyGrowthProps = {
   growth: VocabularyGrowthData;
   totalWords: number;
   masteredWords: number;
+  statusInfo?: SectionStatusInfo;
 };
 
-export function VocabularyGrowth({ growth, totalWords, masteredWords }: VocabularyGrowthProps) {
+export function VocabularyGrowth({
+  growth,
+  totalWords,
+  masteredWords,
+  statusInfo,
+}: VocabularyGrowthProps) {
   const {
     wordsAddedInPeriod,
     wordsMasteredInPeriod,
@@ -46,6 +53,7 @@ export function VocabularyGrowth({ growth, totalWords, masteredWords }: Vocabula
               <Title order={3} style={{ fontSize: '1.2rem' }}>
                 Vocabulary Growth Velocity
               </Title>
+              <SectionStatusBadge statusInfo={statusInfo} />
               <Tooltip
                 label="Tracks your rate of acquiring new words and converting them to long-term memory mastery."
                 multiline

@@ -58,6 +58,7 @@ import {
   computeFsrs,
   computeFsrsIntervals,
   createInitialFsrsRecord,
+  createReviewLogEvent,
   formatInterval,
   type FsrsRating,
   softDeleteFsrsRecord,
@@ -88,6 +89,7 @@ export default function HomePage() {
   const [groups, setGroups] = useState<GroupRecord[]>([]);
   const [missedWords, setMissedWords] = useState<MissedWordRecord[]>([]);
   const [fsrsRecords, setFsrsRecords] = useState<FsrsRecord[]>([]);
+  const [reviewLogsCount, setReviewLogsCount] = useState<number>(0);
   const [wordFamilies, setWordFamilies] = useState<Record<string, WordFamilyMemberRecord[]>>({});
   const [generatingWordFamilyWordIds, setGeneratingWordFamilyWordIds] = useState<
     Record<string, boolean>
@@ -107,6 +109,7 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchScope, setSearchScope] = useState<'word' | 'wordAndDefinition'>('word');
   const [page, setPage] = useState(1);
+  const cardPresentedAtRef = useRef<number>(Date.now());
 
   // Custom Groups states
   const [groupManagerOpen, setGroupManagerOpen] = useState(false);
@@ -787,6 +790,7 @@ export default function HomePage() {
     let missedSubscription: { unsubscribe: () => void } | null = null;
     let fsrsSubscription: { unsubscribe: () => void } | null = null;
     let wordFamilySubscription: { unsubscribe: () => void } | null = null;
+    let reviewLogSubscription: { unsubscribe: () => void } | null = null;
     let cleanupOnlineListener: (() => void) | null = null;
     let unsubscribeSyncState: (() => void) | null = null;
 
@@ -866,6 +870,17 @@ export default function HomePage() {
         setWordFamilies(map);
       });
 
+      const reviewLogQuery = db.reviewLogs.find({
+        selector: { isDeleted: { $ne: true } },
+      });
+
+      reviewLogSubscription = reviewLogQuery.$.subscribe((docs) => {
+        if (!isMounted) {
+          return;
+        }
+        setReviewLogsCount(docs.length);
+      });
+
       // Initialize automatic two-way Supabase replication
       const replications = setupSupabaseReplication(db);
       replicationsRef.current = replications;
@@ -914,10 +929,15 @@ export default function HomePage() {
       missedSubscription?.unsubscribe();
       fsrsSubscription?.unsubscribe();
       wordFamilySubscription?.unsubscribe();
+      reviewLogSubscription?.unsubscribe();
       cleanupOnlineListener?.();
       unsubscribeSyncState?.();
     };
   }, [withSyncState]);
+
+  useEffect(() => {
+    cardPresentedAtRef.current = Date.now();
+  }, [quizIndex]);
 
   const rawCurrentQuizItem = quizQueue[quizIndex] ?? null;
 
@@ -1862,6 +1882,7 @@ export default function HomePage() {
 
       const timestamp = new Date().toISOString();
       const now = new Date();
+      const durationMs = Math.max(0, Date.now() - cardPresentedAtRef.current);
 
       const fsrsId = buildFsrsId(currentQuizItem.id, quizDirection as import('@/lib/db').QuizMode);
       const existingDoc = await database.fsrsRecords.findOne(fsrsId).exec();
@@ -1894,6 +1915,20 @@ export default function HomePage() {
       };
 
       await database.fsrsRecords.upsert(updated);
+
+      const reviewLog = createReviewLogEvent({
+        currentState,
+        updatedCard: updated,
+        rating,
+        durationMs,
+        now,
+      });
+
+      try {
+        await database.reviewLogs.insert(reviewLog);
+      } catch (err) {
+        console.error('Failed to insert review log event:', err);
+      }
 
       handleNext();
     },
@@ -1975,6 +2010,7 @@ export default function HomePage() {
                       0
                     ),
                     fsrsRecords: fsrsRecords.length,
+                    reviewLogs: reviewLogsCount,
                   }}
                 />
               </Box>

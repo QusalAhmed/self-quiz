@@ -2,7 +2,12 @@
 
 import { Container } from '@mantine/core';
 import React, { useEffect } from 'react';
-import { computeFsrs, type FsrsRating, type FsrsRecord } from '@/lib/fsrs';
+import {
+  computeFsrs,
+  createReviewLogEvent,
+  type FsrsRating,
+  type FsrsRecord,
+} from '@/lib/fsrs';
 import { useAppDispatch, useAppSelector } from '@/lib/redux/hooks';
 import {
   answerCard,
@@ -47,12 +52,19 @@ export function FsrsReviewSession({
   const { newCount, learningCount, reviewCount } = useAppSelector(selectCardCounts);
   const { reviewLogsCount } = useAppSelector(selectFsrsState);
 
+  const cardPresentedAtRef = React.useRef<number>(Date.now());
+
   // 1. Load initial deck into Redux client state
   useEffect(() => {
     if (initialDeck && initialDeck.length > 0) {
       dispatch(loadDeck(initialDeck));
     }
   }, [initialDeck, dispatch]);
+
+  // Track card presentation time
+  useEffect(() => {
+    cardPresentedAtRef.current = Date.now();
+  }, [currentCard?.id]);
 
   // 2. Real-Time Due Timer: Client-side ticker running every 1 second.
   // When a card's due timestamp <= current time (e.g. 1-minute learning step),
@@ -62,30 +74,52 @@ export function FsrsReviewSession({
       dispatch(tickTimer(new Date().toISOString()));
     }, 1000);
 
-    return () => clearInterval(timerId);
+    return () => {
+      clearInterval(timerId);
+    };
   }, [dispatch]);
 
   // Handle rating a card
   const handleRate = (rating: FsrsRating) => {
-    if (!currentCard) return;
+    if (!currentCard) {
+      return;
+    }
 
     const cardId = currentCard.id;
     // Compute the post-rating updated card locally (same computation the reducer applies)
     // so we can sync the correct updated state to the server.
     const now = new Date();
+    const durationMs = Math.max(0, Date.now() - cardPresentedAtRef.current);
     const updatedCard = computeFsrs(currentCard, rating, now);
 
     // Optimistic Local State Update (0ms latency, no page refresh!)
     dispatch(answerCard({ cardId, rating, nowIso: now.toISOString() }));
 
+    // Create and persist historical review log in RxDB
+    const reviewLog = createReviewLogEvent({
+      currentState: currentCard,
+      updatedCard,
+      rating,
+      durationMs,
+      now,
+    });
+
+    void import('@/lib/db').then(async ({ getDatabase }) => {
+      const db = await getDatabase();
+      await db.reviewLogs.insert(reviewLog);
+      await db.fsrsRecords.upsert(updatedCard);
+    }).catch((err) => {
+      console.error('Failed to persist review log in FsrsReviewSession:', err);
+    });
+
     // Background Sync: Sends the updated (post-rating) card to the backend API.
-    // Previously this incorrectly sent `currentCard` (the pre-rating state),
-    // which caused FSRS data to appear reset to 'New' after clearing browser storage.
     dispatch(syncFsrsReviewLog(updatedCard));
   };
 
   const handleUndo = () => {
-    if (!canUndo || !lastHistoryCardBefore) return;
+    if (!canUndo || !lastHistoryCardBefore) {
+      return;
+    }
     const cardToRestore = lastHistoryCardBefore;
     dispatch(undoAnswer());
     dispatch(syncFsrsReviewLog(cardToRestore));

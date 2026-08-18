@@ -20,6 +20,7 @@ import {
   IconCards,
   IconChartBar,
   IconCloudUpload,
+  IconHistory,
   IconMenu2,
   IconMoon,
   IconPlus,
@@ -62,6 +63,7 @@ export function AppSidebar({
   const pathname = usePathname();
   const isWordsPage = pathname === '/words';
   const isAnalysisPage = pathname === '/analysis';
+  const isReviewLogPage = pathname === '/review-log';
 
   const handleLinkClick = (action: () => void) => {
     action();
@@ -69,7 +71,7 @@ export function AppSidebar({
   };
 
   const scrollToSection = (id: string) => {
-    if (isWordsPage || isAnalysisPage) {
+    if (isWordsPage || isAnalysisPage || isReviewLogPage) {
       router.push(`/#${id}`);
       return;
     }
@@ -142,6 +144,26 @@ export function AppSidebar({
             leftSection={<IconChartBar size={18} />}
             active={isAnalysisPage}
             onClick={() => handleLinkClick(() => router.push('/analysis'))}
+            style={{ borderRadius: 8 }}
+          />
+
+          <NavLink
+            label="Review Log"
+            description="Historical audit & inspect"
+            leftSection={<IconHistory size={18} />}
+            active={isReviewLogPage}
+            onClick={() =>
+              handleLinkClick(() => {
+                if (isAnalysisPage) {
+                  const el = document.getElementById('review-log');
+                  if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }
+                } else {
+                  router.push('/analysis#review-log');
+                }
+              })
+            }
             style={{ borderRadius: 8 }}
           />
 
