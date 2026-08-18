@@ -27,6 +27,7 @@ import {
   IconSun,
   IconTags,
 } from '@tabler/icons-react';
+import { usePathname, useRouter } from 'next/navigation';
 import React, { useState } from 'react';
 
 export type AppSidebarProps = {
@@ -57,6 +58,9 @@ export function AppSidebar({
   onToggleTheme,
 }: AppSidebarProps) {
   const [mobileOpened, setMobileOpened] = useState(false);
+  const router = useRouter();
+  const pathname = usePathname();
+  const isWordsPage = pathname === '/words';
 
   const handleLinkClick = (action: () => void) => {
     action();
@@ -64,6 +68,10 @@ export function AppSidebar({
   };
 
   const scrollToSection = (id: string) => {
+    if (isWordsPage) {
+      router.push(`/#${id}`);
+      return;
+    }
     const el = document.getElementById(id);
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -74,7 +82,12 @@ export function AppSidebar({
     <Stack justify="space-between" style={{ height: '100%', padding: '16px 12px' }}>
       {/* Top Branding Section */}
       <Stack gap="sm">
-        <Group justify="flex-start" align="center">
+        <Group
+          justify="flex-start"
+          align="center"
+          style={{ cursor: 'pointer' }}
+          onClick={() => handleLinkClick(() => router.push('/'))}
+        >
           <Box
             style={{
               width: 36,
@@ -109,16 +122,33 @@ export function AppSidebar({
           </Text>
 
           <NavLink
-            label="Study Library"
-            description="Manage & search words"
+            label="Dictionary Explorer"
+            description="Virtual list & full details"
             leftSection={<IconBook size={18} />}
             rightSection={
-              <Badge size="xs" variant="light" color="indigo">
+              <Badge size="xs" variant="filled" color="indigo">
                 {totalWords}
               </Badge>
             }
-            active={mode === 'study'}
-            onClick={() => handleLinkClick(() => onSetMode('study'))}
+            active={isWordsPage}
+            onClick={() => handleLinkClick(() => router.push('/words'))}
+            style={{ borderRadius: 8 }}
+          />
+
+          <NavLink
+            label="Study & Practice"
+            description="Manage & add words"
+            leftSection={<IconCards size={18} />}
+            active={!isWordsPage && mode === 'study'}
+            onClick={() =>
+              handleLinkClick(() => {
+                if (isWordsPage) {
+                  router.push('/');
+                } else {
+                  onSetMode('study');
+                }
+              })
+            }
             style={{ borderRadius: 8 }}
           />
 
@@ -126,7 +156,7 @@ export function AppSidebar({
             label="Quiz & Flashcards"
             description="Interactive review session"
             leftSection={<IconBrain size={18} />}
-            active={mode === 'quiz'}
+            active={!isWordsPage && mode === 'quiz'}
             childrenOffset={24}
             defaultOpened
             style={{ borderRadius: 8 }}
@@ -134,7 +164,12 @@ export function AppSidebar({
             <NavLink
               label="All Words Quiz"
               leftSection={<IconCards size={16} />}
-              onClick={() => handleLinkClick(onOpenAllWordsQuiz)}
+              onClick={() =>
+                handleLinkClick(() => {
+                  if (isWordsPage) router.push('/');
+                  onOpenAllWordsQuiz();
+                })
+              }
               style={{ borderRadius: 6 }}
             />
             <NavLink
@@ -147,7 +182,12 @@ export function AppSidebar({
                   </Badge>
                 ) : null
               }
-              onClick={() => handleLinkClick(onOpenTodayQuiz)}
+              onClick={() =>
+                handleLinkClick(() => {
+                  if (isWordsPage) router.push('/');
+                  onOpenTodayQuiz();
+                })
+              }
               style={{ borderRadius: 6 }}
             />
             <NavLink
@@ -160,7 +200,12 @@ export function AppSidebar({
                   </Badge>
                 ) : null
               }
-              onClick={() => handleLinkClick(onOpenFsrsQuiz)}
+              onClick={() =>
+                handleLinkClick(() => {
+                  if (isWordsPage) router.push('/');
+                  onOpenFsrsQuiz();
+                })
+              }
               style={{ borderRadius: 6 }}
             />
           </NavLink>

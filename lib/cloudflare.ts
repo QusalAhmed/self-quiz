@@ -94,7 +94,10 @@ function parseWordFamilyFromRawText(rawText: unknown, excludeWord?: string): Wor
   return [];
 }
 
-function extractWordFamilyFromAiResponse(result: unknown, excludeWord?: string): WordFamilyMember[] {
+function extractWordFamilyFromAiResponse(
+  result: unknown,
+  excludeWord?: string
+): WordFamilyMember[] {
   if (Array.isArray(result)) {
     return normalizeWordFamilyMembers(result, excludeWord);
   }
@@ -115,7 +118,10 @@ function extractWordFamilyFromAiResponse(result: unknown, excludeWord?: string):
     }
 
     if (value.choices?.[0]?.message?.content) {
-      const choiceMembers = parseWordFamilyFromRawText(value.choices[0].message.content, excludeWord);
+      const choiceMembers = parseWordFamilyFromRawText(
+        value.choices[0].message.content,
+        excludeWord
+      );
       if (choiceMembers.length > 0) {
         return choiceMembers;
       }
@@ -231,8 +237,7 @@ export async function generateCloudflareWordFamily(
     },
     {
       role: 'user',
-      content:
-        `Provide all derivative/related words belonging to the word family of "${word}" across various parts of speech (noun, verb, adjective, adverb, etc.).${meaningBlock}\nIMPORTANT: Do NOT include the base/main word "${word}" itself in the list; provide only other family members.\nFor each word in the family, give its part of speech, accurate Bengali/Bangla definition (বাংলা অর্থ), English definition, and 1-2 practical example sentences in English.\nReply with ONLY this JSON structure and nothing else:\n{"members":[{"word":"...","partOfSpeech":"...","banglaDefinition":"...","englishDefinition":"...","examples":["..."]}]}`,
+      content: `Provide all derivative/related words belonging to the word family of "${word}" across various parts of speech (noun, verb, adjective, adverb, etc.).${meaningBlock}\nIMPORTANT: Do NOT include the base/main word "${word}" itself in the list; provide only other family members.\nFor each word in the family, give its part of speech, accurate Bengali/Bangla definition (বাংলা অর্থ), English definition, and 1-2 practical example sentences in English.\nReply with ONLY this JSON structure and nothing else:\n{"members":[{"word":"...","partOfSpeech":"...","banglaDefinition":"...","englishDefinition":"...","examples":["..."]}]}`,
     },
   ];
 
@@ -334,4 +339,3 @@ export async function generateCloudflareExamples(
 
   return examples;
 }
-

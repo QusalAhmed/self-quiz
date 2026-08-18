@@ -614,20 +614,10 @@ export function CloudSyncCard({
                   }
 
                   return (
-                    <Card
-                      key={col.key}
-                      className="sync-collection-card"
-                      padding="xs"
-                      radius="md"
-                    >
+                    <Card key={col.key} className="sync-collection-card" padding="xs" radius="md">
                       <Group justify="space-between" align="center" wrap="nowrap">
                         <Group gap="sm" wrap="nowrap">
-                          <ThemeIcon
-                            size="md"
-                            radius="md"
-                            variant="light"
-                            color={colStatusColor}
-                          >
+                          <ThemeIcon size="md" radius="md" variant="light" color={colStatusColor}>
                             <IconComponent size={18} />
                           </ThemeIcon>
                           <div>
@@ -704,7 +694,7 @@ export function CloudSyncCard({
                   )}
                 </Group>
 
-                {(!syncState?.activities || syncState.activities.length === 0) ? (
+                {!syncState?.activities || syncState.activities.length === 0 ? (
                   <Paper p="lg" radius="md" withBorder ta="center">
                     <IconActivity size={28} style={{ opacity: 0.3, margin: '0 auto 8px' }} />
                     <Text size="sm" c="dimmed">
@@ -818,4 +808,3 @@ export function CloudSyncCard({
     </>
   );
 }
-

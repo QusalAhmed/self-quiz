@@ -1,6 +1,6 @@
+import type { RxCollection, WithDeleted } from 'rxdb';
 import { replicateRxCollection, type RxReplicationState } from 'rxdb/plugins/replication';
 import { Subject } from 'rxjs';
-import type { RxCollection, WithDeleted } from 'rxdb';
 import type {
   AppDatabase,
   DailyUsageRecord,
@@ -388,23 +388,31 @@ export function createSupabaseCollectionReplication<T>({
 
   // Listen to Supabase Realtime events for live sync
   if (typeof window !== 'undefined') {
+    const channelName = `rxdb-${tableName}`;
+    try {
+      const existing = supabase
+        .getChannels()
+        .find((c) => c.topic === `realtime:${channelName}` || c.topic === channelName);
+      if (existing) {
+        void supabase.removeChannel(existing);
+      }
+    } catch {
+      // ignore
+    }
+
     supabase
-      .channel(`rxdb-${tableName}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: tableName },
-        (payload) => {
-          const row = (
-            payload.new && Object.keys(payload.new).length > 0 ? payload.new : payload.old
-          ) as any;
-          if (row && row.id && row.updated_at) {
-            pullStream$.next({
-              documents: [pullModifier(row)],
-              checkpoint: { id: row.id, updated_at: row.updated_at },
-            });
-          }
+      .channel(channelName)
+      .on('postgres_changes', { event: '*', schema: 'public', table: tableName }, (payload) => {
+        const row = (
+          payload.new && Object.keys(payload.new).length > 0 ? payload.new : payload.old
+        ) as any;
+        if (row && row.id && row.updated_at) {
+          pullStream$.next({
+            documents: [pullModifier(row)],
+            checkpoint: { id: row.id, updated_at: row.updated_at },
+          });
         }
-      )
+      })
       .subscribe();
   }
 
@@ -469,7 +477,13 @@ export function createSupabaseCollectionReplication<T>({
 // ---------------------------------------------------------------------------
 // Main Setup Function
 // ---------------------------------------------------------------------------
+let activeReplicationHolder: ReplicationsHolder | null = null;
+let activeDatabase: AppDatabase | null = null;
+
 export function setupSupabaseReplication(db: AppDatabase): ReplicationsHolder {
+  if (activeReplicationHolder && activeDatabase === db) {
+    return activeReplicationHolder;
+  }
   const words = createSupabaseCollectionReplication<WordRecord>({
     replicationIdentifier: 'supabase-sync-words',
     collection: db.words,
@@ -796,8 +810,33 @@ export function setupSupabaseReplication(db: AppDatabase): ReplicationsHolder {
   });
 
   const cancelAll = async () => {
+    if (activeReplicationHolder === holder) {
+      activeReplicationHolder = null;
+      activeDatabase = null;
+    }
     subscriptions.forEach((sub) => sub.unsubscribe());
     await Promise.all(allReplications.map((rep) => rep.cancel()));
+    if (typeof window !== 'undefined') {
+      const channelNames = [
+        'rxdb-words',
+        'rxdb-groups',
+        'rxdb-missed_words',
+        'rxdb-word_families',
+        'rxdb-fsrs_records',
+        'rxdb-srs_practice_words',
+        'rxdb-daily_usage',
+      ];
+      try {
+        const channels = supabase
+          .getChannels()
+          .filter((c) =>
+            channelNames.some((name) => c.topic === `realtime:${name}` || c.topic === name)
+          );
+        await Promise.all(channels.map((ch) => supabase.removeChannel(ch)));
+      } catch {
+        // ignore
+      }
+    }
   };
 
   const reSyncAll = async () => {
@@ -913,7 +952,7 @@ export function setupSupabaseReplication(db: AppDatabase): ReplicationsHolder {
     notify();
   };
 
-  return {
+  const holder: ReplicationsHolder = {
     words,
     groups,
     missedWords,
@@ -935,4 +974,9 @@ export function setupSupabaseReplication(db: AppDatabase): ReplicationsHolder {
     subscribeSyncState,
     clearActivities,
   };
+
+  activeReplicationHolder = holder;
+  activeDatabase = db;
+
+  return holder;
 }

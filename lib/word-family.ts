@@ -10,6 +10,47 @@ export function buildWordFamilyId(wordId: string, memberWord: string): string {
   return `${wordId}:${memberWord.trim().toLowerCase()}`;
 }
 
+export function isWordFamilyId(id: string): boolean {
+  return id.includes(':');
+}
+
+export function parseWordFamilyId(id: string): { rootWordId: string; memberWord: string } | null {
+  const parts = id.split(':');
+  if (parts.length < 2) {
+    return null;
+  }
+  return { rootWordId: parts[0], memberWord: parts[1] };
+}
+
+export function wordFamilyMemberToMeaning(member: {
+  banglaDefinition?: string;
+  englishDefinition?: string;
+}): string {
+  const bangla = member.banglaDefinition?.trim() || '';
+  const english = member.englishDefinition?.trim() || '';
+  if (bangla && english) {
+    return `${bangla} (${english})`;
+  }
+  return bangla || english;
+}
+
+export function wordFamilyMemberToDefinitions(member: {
+  banglaDefinition?: string;
+  englishDefinition?: string;
+  partOfSpeech?: string;
+  examples?: string[];
+}) {
+  const meaning = wordFamilyMemberToMeaning(member);
+  return [
+    {
+      meaning,
+      partOfSpeech: member.partOfSpeech || '',
+      examples: member.examples || [],
+      userExamples: [],
+    },
+  ];
+}
+
 export function normalizeWordFamilyMembers(raw: unknown, excludeWord?: string): WordFamilyMember[] {
   if (!raw) {
     return [];

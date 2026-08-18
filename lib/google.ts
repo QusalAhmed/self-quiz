@@ -29,8 +29,7 @@ export async function generateGoogleWordFamily(
   const meaningBlock = meaning ? `\nContext/meaning of root word: ${meaning}` : '';
   const systemInstruction =
     'You are an expert lexicographer. You output only raw JSON. No markdown code fences. No explanation. Reply with ONLY a JSON object having key "members", where each item is an object with: "word" (string), "partOfSpeech" (e.g. noun, verb, adjective, adverb), "banglaDefinition" (accurate meaning in Bengali / বাংলা অর্থ), "englishDefinition" (clear meaning in English), and "examples" (array of 1-2 practical English example sentences). Do NOT include the main/root word itself in the members list.';
-  const promptText =
-    `Provide all derivative/related words belonging to the word family of "${word}" across different parts of speech (noun, verb, adjective, adverb, etc.).${meaningBlock}\nIMPORTANT: Do NOT include the base/main word "${word}" itself in the list; provide only other family members.\nFor each word in the family, provide: word, partOfSpeech, banglaDefinition, englishDefinition, and examples.\nReply with JSON ONLY:\n{"members":[{"word":"...","partOfSpeech":"...","banglaDefinition":"...","englishDefinition":"...","examples":["..."]}]}`;
+  const promptText = `Provide all derivative/related words belonging to the word family of "${word}" across different parts of speech (noun, verb, adjective, adverb, etc.).${meaningBlock}\nIMPORTANT: Do NOT include the base/main word "${word}" itself in the list; provide only other family members.\nFor each word in the family, provide: word, partOfSpeech, banglaDefinition, englishDefinition, and examples.\nReply with JSON ONLY:\n{"members":[{"word":"...","partOfSpeech":"...","banglaDefinition":"...","englishDefinition":"...","examples":["..."]}]}`;
 
   const payload = {
     contents: [
@@ -188,4 +187,3 @@ export async function generateGoogleExamples(params: GenerateExamplesParams): Pr
 
   return examples;
 }
-

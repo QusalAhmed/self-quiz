@@ -45,8 +45,7 @@ export async function POST(request: Request) {
         );
         return NextResponse.json(
           {
-            error:
-              cfError?.message || 'Failed to generate word family using AI services',
+            error: cfError?.message || 'Failed to generate word family using AI services',
           },
           { status: 502 }
         );

@@ -64,16 +64,15 @@ export function WordFamilySection({
 }: WordFamilySectionProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
-  const [deleteConfirmMember, setDeleteConfirmMember] = useState<{ id: string; word: string } | null>(
-    null
-  );
+  const [deleteConfirmMember, setDeleteConfirmMember] = useState<{
+    id: string;
+    word: string;
+  } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   // Exclude main word from family members
   const normalizedWord = word.trim().toLowerCase();
-  const validMembers = members.filter(
-    (m) => m.word.trim().toLowerCase() !== normalizedWord
-  );
+  const validMembers = members.filter((m) => m.word.trim().toLowerCase() !== normalizedWord);
 
   const handleConfirmDelete = async () => {
     if (!deleteConfirmMember || !onDeleteMember) {
@@ -325,7 +324,8 @@ export function WordFamilySection({
         <Stack gap="md">
           <Text size="sm" c="dimmed" style={{ lineHeight: 1.6 }}>
             Are you sure you want to remove{' '}
-            <strong style={{ color: 'var(--text-primary)' }}>{deleteConfirmMember?.word}</strong> from the word family of{' '}
+            <strong style={{ color: 'var(--text-primary)' }}>{deleteConfirmMember?.word}</strong>{' '}
+            from the word family of{' '}
             <strong style={{ color: 'var(--mantine-color-indigo-4)' }}>{word}</strong>?
           </Text>
           <Group justify="flex-end" gap="sm">

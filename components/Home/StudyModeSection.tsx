@@ -13,7 +13,8 @@ import {
   TextInput,
   Title,
 } from '@mantine/core';
-import { IconBook, IconCheck, IconSearch, IconTags } from '@tabler/icons-react';
+import { IconBook, IconCheck, IconExternalLink, IconSearch, IconTags } from '@tabler/icons-react';
+import { useRouter } from 'next/navigation';
 import { GroupManager } from '@/components/GroupManager/GroupManager';
 import { WordForm } from '@/components/WordForm/WordForm';
 import { WordList } from '@/components/WordList/WordList';
@@ -111,6 +112,8 @@ export function StudyModeSection({
   onSetGroupFilter,
   onSetPage,
 }: StudyModeSectionProps) {
+  const router = useRouter();
+
   return (
     <Stack gap="lg">
       <WordForm
@@ -132,7 +135,7 @@ export function StudyModeSection({
         }}
       >
         <Stack gap="md">
-          <Group justify="space-between" align="center">
+          <Group justify="space-between" align="center" wrap="wrap">
             <Group gap="xs">
               <IconBook size={22} style={{ color: '#a855f7' }} />
               <Title
@@ -147,6 +150,16 @@ export function StudyModeSection({
               </Title>
             </Group>
             <Group gap="xs">
+              <Button
+                variant="filled"
+                color="indigo"
+                size="xs"
+                radius="md"
+                leftSection={<IconExternalLink size={14} />}
+                onClick={() => router.push('/words')}
+              >
+                Virtual Dictionary Page
+              </Button>
               <Button
                 variant="light"
                 color="grape"

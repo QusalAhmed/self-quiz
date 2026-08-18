@@ -4,12 +4,12 @@ import { useMemo, useState } from 'react';
 import { DefinitionsDisplay } from '@/components/DefinitionsDisplay/DefinitionsDisplay';
 import { RichNoteViewer } from '@/components/RichNoteViewer/RichNoteViewer';
 import { WordActionIcon } from '@/components/WordActions/WordActionIcon';
+import { WordFamilySection } from '@/components/WordFamily/WordFamilySection';
 import { WordForm } from '@/components/WordForm/WordForm';
 import { formatDate, formatRelativeShort } from '@/lib/dateUtils';
 import type { WordDefinition, WordFamilyMemberRecord, WordRecord } from '@/lib/db';
 import { getWordDefinitions } from '@/lib/definitions';
 import { getWordGroups } from '@/lib/groups';
-import { WordFamilySection } from '@/components/WordFamily/WordFamilySection';
 
 type WordListProps = {
   words: WordRecord[];

@@ -1,26 +1,33 @@
 'use client';
 
-import { Box, Container, SegmentedControl, SimpleGrid, Stack, useMantineColorScheme, } from '@mantine/core';
+import {
+  Box,
+  Container,
+  SegmentedControl,
+  SimpleGrid,
+  Stack,
+  useMantineColorScheme,
+} from '@mantine/core';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    type PracticeDisplayKey,
-    type QuizDirectionKey,
-    quizDirections,
-    type QuizRangeKey,
-    type QuizSourceKey,
+  type PracticeDisplayKey,
+  type QuizDirectionKey,
+  quizDirections,
+  type QuizRangeKey,
+  type QuizSourceKey,
 } from '@/app/home/constants';
 import {
-    capitalizeWord,
-    getInitialCustomEnd,
-    getInitialCustomStart,
-    getMissingAiExampleDefinitionIndexes,
-    getRangeEnd,
-    getRangeStart,
-    mergeExamplesIntoDefinitions,
-    requestExamples,
-    requestExamplesForDefinitions,
-    shuffle,
-    toMutableWordRecord,
+  capitalizeWord,
+  getInitialCustomEnd,
+  getInitialCustomStart,
+  getMissingAiExampleDefinitionIndexes,
+  getRangeEnd,
+  getRangeStart,
+  mergeExamplesIntoDefinitions,
+  requestExamples,
+  requestExamplesForDefinitions,
+  shuffle,
+  toMutableWordRecord,
 } from '@/app/home/utils';
 import { EditWordModal } from '@/components/EditWordModal/EditWordModal';
 import { ClearMissedWordsModal } from '@/components/Home/ClearMissedWordsModal';
@@ -33,45 +40,45 @@ import { PwaRegister } from '@/components/PwaRegister/PwaRegister';
 import { type QuizItem } from '@/components/QuizPanel/QuizPanel';
 import { AppSidebar } from '@/components/Sidebar/AppSidebar';
 import {
-    type AppDatabase,
-    buildMissedWordId,
-    type FsrsRecord,
-    getDatabase,
-    type GroupRecord,
-    type MissedWordRecord,
-    type SrsRecord,
-    type WordDefinition,
-    type WordFamilyMemberRecord,
-    type WordRecord,
+  type AppDatabase,
+  buildMissedWordId,
+  type FsrsRecord,
+  getDatabase,
+  type GroupRecord,
+  type MissedWordRecord,
+  type SrsRecord,
+  type WordDefinition,
+  type WordFamilyMemberRecord,
+  type WordRecord,
 } from '@/lib/db';
 import { definitionsToMeaning, getWordDefinitions, normalizeDefinitions } from '@/lib/definitions';
 import { mergeAiExamples, normalizeAiExampleCount, normalizeAiExamples } from '@/lib/examples';
-import { buildWordFamilyId, type WordFamilyMember } from '@/lib/word-family';
 import {
-    buildFsrsId,
-    computeFsrs,
-    computeFsrsIntervals,
-    createInitialFsrsRecord,
-    formatInterval,
-    type FsrsRating,
-    softDeleteFsrsRecord,
-    updateFsrsRecordContent,
+  buildFsrsId,
+  computeFsrs,
+  computeFsrsIntervals,
+  createInitialFsrsRecord,
+  formatInterval,
+  type FsrsRating,
+  softDeleteFsrsRecord,
+  updateFsrsRecordContent,
 } from '@/lib/fsrs';
 import {
-    getActiveGroupNames,
-    getWordGroups,
-    removeGroupFromWordGroups,
-    replaceGroupInWordGroups,
-    wordHasAnyGroup,
-    wordHasGroup,
+  getActiveGroupNames,
+  getWordGroups,
+  removeGroupFromWordGroups,
+  replaceGroupInWordGroups,
+  wordHasAnyGroup,
+  wordHasGroup,
 } from '@/lib/groups';
-import { resolveWordTextFromMainTable } from '@/lib/word-display';
 import {
   setupSupabaseReplication,
   type ReplicationsHolder,
   type SyncCollectionKey,
   type UnifiedSyncState,
 } from '@/lib/replication';
+import { resolveWordTextFromMainTable } from '@/lib/word-display';
+import { buildWordFamilyId, type WordFamilyMember } from '@/lib/word-family';
 
 type WordWithDefinitions<T> = T & { definitions?: WordDefinition[] };
 
@@ -550,7 +557,8 @@ export default function HomePage() {
 
       if (quizGroupFilter !== 'all') {
         candidates = candidates.filter((item) => {
-          const wordId = (item as FsrsRecord).wordId || (item as MissedWordRecord).wordId || item.id;
+          const wordId =
+            (item as FsrsRecord).wordId || (item as MissedWordRecord).wordId || item.id;
           const correspondingWord = words.find((w) => w.id === wordId);
           if (!correspondingWord) return quizGroupFilter === 'none';
           return quizGroupFilter === 'none'
@@ -563,7 +571,7 @@ export default function HomePage() {
 
     // Review sources ignore date range — scheduling is handled by the algorithm
     if (quizSource === 'fsrs' || (quizSource as string) === 'srs') {
-        let candidates: (WordRecord | MissedWordRecord | FsrsRecord)[] = fsrsDueRecords;
+      let candidates: (WordRecord | MissedWordRecord | FsrsRecord)[] = fsrsDueRecords;
       if (quizGroupFilter !== 'all') {
         candidates = candidates.filter((item) => {
           const correspondingWord = words.find((w) => w.id === (item as FsrsRecord).wordId);
@@ -772,7 +780,7 @@ export default function HomePage() {
     getFsrsRecordForWord,
   ]);
 
-  useEffect(() => {
+useEffect(() => {
     let isMounted = true;
     let wordSubscription: { unsubscribe: () => void } | null = null;
     let groupSubscription: { unsubscribe: () => void } | null = null;
@@ -780,6 +788,7 @@ export default function HomePage() {
     let fsrsSubscription: { unsubscribe: () => void } | null = null;
     let wordFamilySubscription: { unsubscribe: () => void } | null = null;
     let cleanupOnlineListener: (() => void) | null = null;
+    let unsubscribeSyncState: (() => void) | null = null;
 
     const load = async () => {
       const db = await getDatabase();
@@ -811,7 +820,7 @@ export default function HomePage() {
         if (!isMounted) {
           return;
         }
-        setGroups(docs.map((doc) => doc.toJSON()));
+        setGroups(docs.map((doc) => doc.toJSON() as GroupRecord));
       });
 
       const missedQuery = db.missedWords.find({
@@ -823,7 +832,7 @@ export default function HomePage() {
         if (!isMounted) {
           return;
         }
-        setMissedWords(docs.map((doc) => doc.toJSON()));
+        setMissedWords(docs.map((doc) => doc.toJSON() as MissedWordRecord));
       });
 
       const fsrsQuery = db.fsrsRecords.find({
@@ -861,7 +870,7 @@ export default function HomePage() {
       const replications = setupSupabaseReplication(db);
       replicationsRef.current = replications;
 
-      const unsubscribeSyncState = replications.subscribeSyncState((newState) => {
+      unsubscribeSyncState = replications.subscribeSyncState((newState) => {
         if (!isMounted) return;
         setSyncState(newState);
       });
@@ -906,44 +915,9 @@ export default function HomePage() {
       fsrsSubscription?.unsubscribe();
       wordFamilySubscription?.unsubscribe();
       cleanupOnlineListener?.();
-      void replicationsRef.current?.cancelAll();
+      unsubscribeSyncState?.();
     };
   }, [withSyncState]);
-  // Auto-backfill missing SRS and FSRS records for meaningToWord and spelling modes across all words
-  // useEffect(() => {
-  //   if (!database || isLoading || words.length === 0) {
-  //     return;
-  //   }
-  //
-  //   const backfill = async () => {
-  //     const allModes: import('@/lib/db').QuizMode[] = [
-  //       'wordToMeaning',
-  //       'meaningToWord',
-  //       'spelling',
-  //     ];
-  //
-  //     for (const wordRecord of words) {
-  //       if (wordRecord.isDeleted) continue;
-  //
-  //       for (const qMode of allModes) {
-  //         const fsrsId = buildFsrsId(wordRecord.id, qMode);
-  //         const fsrsDoc = await database.fsrsRecords.findOne(fsrsId).exec();
-  //         if (!fsrsDoc) {
-  //           const newFsrs = createInitialFsrsRecord(
-  //             wordRecord.id,
-  //             qMode,
-  //             wordRecord.word,
-  //             wordRecord.meaning
-  //           );
-  //           await database.fsrsRecords.upsert(newFsrs);
-  //           void pushFsrsRecordToRemote(database.fsrsRecords, newFsrs);
-  //         }
-  //       }
-  //     }
-  //   };
-  //
-  //   void backfill();
-  // }, [database, isLoading, words]);
 
   const rawCurrentQuizItem = quizQueue[quizIndex] ?? null;
 
@@ -1027,9 +1001,7 @@ export default function HomePage() {
 
       const existingGroups = await database.groups.find().exec();
       const existingNames = new Set(
-        existingGroups
-          .filter((g) => !g.isDeleted)
-          .map((g) => g.name.trim().toLowerCase())
+        existingGroups.filter((g) => !g.isDeleted).map((g) => g.name.trim().toLowerCase())
       );
 
       for (const name of legacyNames) {
@@ -1134,13 +1106,13 @@ export default function HomePage() {
           const examples = generatedByIndex.get(index);
           return examples && examples.length > 0
             ? {
-              ...definition,
-              examples: mergeAiExamples(currentExamples, examples, targetAiExampleCount),
-            }
+                ...definition,
+                examples: mergeAiExamples(currentExamples, examples, targetAiExampleCount),
+              }
             : {
-              ...definition,
-              examples: currentExamples,
-            };
+                ...definition,
+                examples: currentExamples,
+              };
         });
 
         if (
@@ -1163,10 +1135,10 @@ export default function HomePage() {
           prev.map((item) =>
             item.id === wordId
               ? {
-                ...item,
-                meaning: updated.meaning,
-                definitions: updated.definitions,
-              }
+                  ...item,
+                  meaning: updated.meaning,
+                  definitions: updated.definitions,
+                }
               : item
           )
         );
@@ -1578,13 +1550,13 @@ export default function HomePage() {
       prev.map((item) =>
         item.id === id
           ? {
-            ...item,
-            word: record.word,
-            meaning: record.meaning,
-            definitions: record.definitions,
-            tags: record.customGroups,
-            notes: record.notes,
-          }
+              ...item,
+              word: record.word,
+              meaning: record.meaning,
+              definitions: record.definitions,
+              tags: record.customGroups,
+              notes: record.notes,
+            }
           : item
       )
     );
@@ -1896,11 +1868,11 @@ export default function HomePage() {
       const currentState = existingDoc
         ? (existingDoc.toJSON() as FsrsRecord)
         : createInitialFsrsRecord(
-          currentQuizItem.id,
-          quizDirection as import('@/lib/db').QuizMode,
-          currentQuizItem.word,
-          currentQuizItem.meaning
-        );
+            currentQuizItem.id,
+            quizDirection as import('@/lib/db').QuizMode,
+            currentQuizItem.word,
+            currentQuizItem.meaning
+          );
 
       setQuizHistory((prev) => [
         ...prev,
@@ -1979,7 +1951,6 @@ export default function HomePage() {
           />
 
           <Stack gap="xl">
-
             <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
               <DailyUsageTimer />
               <Box id="cloud-sync-card">
