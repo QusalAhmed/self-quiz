@@ -1,6 +1,5 @@
 import { Button, Card, Group, SimpleGrid, Stack, Text } from '@mantine/core';
-import { IconBook, IconBrain, IconChartBar, IconHistory } from '@tabler/icons-react';
-import { useRouter } from 'next/navigation';
+import { IconBook, IconBrain, IconHistory } from '@tabler/icons-react';
 import React from 'react';
 
 type StatsDashboardProps = {
@@ -22,10 +21,8 @@ export function StatsDashboard({
   onOpenTodayQuiz,
   onOpenFsrsQuiz,
 }: StatsDashboardProps) {
-  const router = useRouter();
-
   return (
-    <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="md" verticalSpacing="xs">
+    <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md" verticalSpacing="xs">
       <Card
         className="glass-panel hover-lift"
         radius="lg"
@@ -103,31 +100,6 @@ export function StatsDashboard({
             </Group>
           </div>
           <IconBrain size={28} style={{ opacity: 0.45, color: '#ec4899' }} />
-        </Group>
-      </Card>
-
-      <Card
-        className="glass-panel hover-lift"
-        radius="lg"
-        padding="md"
-        style={{ borderLeft: '4px solid #10b981', cursor: 'pointer' }}
-        onClick={() => router.push('/analysis')}
-      >
-        <Group justify="space-between" align="center">
-          <div>
-            <Text size="xs" fw={700} c="dimmed" style={{ letterSpacing: '0.05em' }}>
-              LEARNING ANALYSIS
-            </Text>
-            <Text
-              size="sm"
-              fw={800}
-              c="teal.6"
-              style={{ fontFamily: 'var(--font-title)', marginTop: '8px' }}
-            >
-              View Full Insights →
-            </Text>
-          </div>
-          <IconChartBar size={28} style={{ opacity: 0.45, color: '#10b981' }} />
         </Group>
       </Card>
     </SimpleGrid>
