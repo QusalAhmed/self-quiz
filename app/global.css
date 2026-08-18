@@ -326,10 +326,21 @@ h6 {
 }
 
 /* Maintain crisp white text contrast for the active tab label */
-.mantine-SegmentedControl-control[data-active] {
-  color: #fff !important;
+.mantine-SegmentedControl-control[data-active],
+.mantine-SegmentedControl-control[data-active] .mantine-SegmentedControl-label,
+.mantine-SegmentedControl-label[data-active],
+.mantine-SegmentedControl-label[data-active='true'] {
+  color: #ffffff !important;
   font-weight: 700 !important;
   transition: color 0.2s ease !important;
+}
+
+/* Tabs component active styling */
+.mantine-Tabs-tab[data-active],
+.mantine-Tabs-tab[data-active] .mantine-Tabs-tabLabel,
+.mantine-Tabs-tab[data-active] .mantine-Tabs-tabSection {
+  color: #ffffff !important;
+  font-weight: 700 !important;
 }
 
 /* Responsive header card layout */

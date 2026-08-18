@@ -780,7 +780,7 @@ export default function HomePage() {
     getFsrsRecordForWord,
   ]);
 
-useEffect(() => {
+  useEffect(() => {
     let isMounted = true;
     let wordSubscription: { unsubscribe: () => void } | null = null;
     let groupSubscription: { unsubscribe: () => void } | null = null;

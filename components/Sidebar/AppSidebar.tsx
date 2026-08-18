@@ -61,6 +61,7 @@ export function AppSidebar({
   const router = useRouter();
   const pathname = usePathname();
   const isWordsPage = pathname === '/words';
+  const isAnalysisPage = pathname === '/analysis';
 
   const handleLinkClick = (action: () => void) => {
     action();
@@ -68,7 +69,7 @@ export function AppSidebar({
   };
 
   const scrollToSection = (id: string) => {
-    if (isWordsPage) {
+    if (isWordsPage || isAnalysisPage) {
       router.push(`/#${id}`);
       return;
     }
@@ -136,13 +137,22 @@ export function AppSidebar({
           />
 
           <NavLink
+            label="Learning Analysis"
+            description="FSRS retention & memory health"
+            leftSection={<IconChartBar size={18} />}
+            active={isAnalysisPage}
+            onClick={() => handleLinkClick(() => router.push('/analysis'))}
+            style={{ borderRadius: 8 }}
+          />
+
+          <NavLink
             label="Study & Practice"
             description="Manage & add words"
             leftSection={<IconCards size={18} />}
-            active={!isWordsPage && mode === 'study'}
+            active={!isWordsPage && !isAnalysisPage && mode === 'study'}
             onClick={() =>
               handleLinkClick(() => {
-                if (isWordsPage) {
+                if (isWordsPage || isAnalysisPage) {
                   router.push('/');
                 } else {
                   onSetMode('study');
@@ -156,7 +166,7 @@ export function AppSidebar({
             label="Quiz & Flashcards"
             description="Interactive review session"
             leftSection={<IconBrain size={18} />}
-            active={!isWordsPage && mode === 'quiz'}
+            active={!isWordsPage && !isAnalysisPage && mode === 'quiz'}
             childrenOffset={24}
             defaultOpened
             style={{ borderRadius: 8 }}
@@ -166,7 +176,9 @@ export function AppSidebar({
               leftSection={<IconCards size={16} />}
               onClick={() =>
                 handleLinkClick(() => {
-                  if (isWordsPage) router.push('/');
+                  if (isWordsPage || isAnalysisPage) {
+                    router.push('/');
+                  }
                   onOpenAllWordsQuiz();
                 })
               }
@@ -184,7 +196,9 @@ export function AppSidebar({
               }
               onClick={() =>
                 handleLinkClick(() => {
-                  if (isWordsPage) router.push('/');
+                  if (isWordsPage || isAnalysisPage) {
+                    router.push('/');
+                  }
                   onOpenTodayQuiz();
                 })
               }
@@ -202,7 +216,9 @@ export function AppSidebar({
               }
               onClick={() =>
                 handleLinkClick(() => {
-                  if (isWordsPage) router.push('/');
+                  if (isWordsPage || isAnalysisPage) {
+                    router.push('/');
+                  }
                   onOpenFsrsQuiz();
                 })
               }
@@ -231,7 +247,7 @@ export function AppSidebar({
           <NavLink
             label="Dashboard & Stats"
             leftSection={<IconChartBar size={18} />}
-            onClick={() => handleLinkClick(() => scrollToSection('stats-dashboard'))}
+            onClick={() => handleLinkClick(() => router.push('/analysis'))}
             style={{ borderRadius: 8 }}
           />
 

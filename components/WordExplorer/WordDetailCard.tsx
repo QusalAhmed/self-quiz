@@ -39,12 +39,7 @@ import { RichNoteViewer } from '@/components/RichNoteViewer/RichNoteViewer';
 import { WordActionIcon } from '@/components/WordActions/WordActionIcon';
 import { WordFamilySection } from '@/components/WordFamily/WordFamilySection';
 import { formatDate, formatRelativeShort } from '@/lib/dateUtils';
-import type {
-  FsrsRecord,
-  MissedWordRecord,
-  WordFamilyMemberRecord,
-  WordRecord,
-} from '@/lib/db';
+import type { FsrsRecord, MissedWordRecord, WordFamilyMemberRecord, WordRecord } from '@/lib/db';
 import { getWordDefinitions } from '@/lib/definitions';
 import { formatInterval } from '@/lib/fsrs';
 import { getWordGroups } from '@/lib/groups';
