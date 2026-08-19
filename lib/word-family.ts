@@ -6,6 +6,101 @@ export type WordFamilyMember = {
   examples: string[];
 };
 
+export const WORD_FAMILY_SYSTEM_INSTRUCTION = `You are an expert English lexicographer specializing in vocabulary learning.
+
+Output ONLY valid raw JSON. Do not use Markdown, code fences, explanations, comments, or any text outside the JSON object.
+
+Return exactly one JSON object with this structure:
+
+{
+  "members": [
+    {
+      "word": "string",
+      "partOfSpeech": "noun | verb | adjective | adverb",
+      "banglaDefinition": "accurate Bengali / বাংলা অর্থ",
+      "englishDefinition": "clear, concise English definition",
+      "examples": [
+        "practical English example sentence",
+        "practical English example sentence"
+      ]
+    }
+  ]
+}
+
+## Strict Authenticity & Dictionary Requirement (CRITICAL)
+
+* Every single generated word MUST be a real, authentic, recognized English word found in major published English dictionaries (such as Oxford, Cambridge, Merriam-Webster, Collins, Longman).
+* NEVER fabricate, hallucinate, or construct hypothetical, non-existent words (e.g., do NOT invent fake words like "decisioning", "deciderable", "indecisionable", "decidement", "comfortlessful", "uncomfortability", "beautifical").
+* Do NOT combine prefixes and suffixes mechanically to create theoretical words.
+* If a word does not legitimately exist in standard English, DO NOT include it.
+* If you are in doubt about whether a word is a genuine English dictionary word, omit it completely.
+
+## Word-family rules
+
+Generate the useful morphological/derivational word family of the supplied main word.
+
+Include words that are genuinely derived from the same lexical root through common English word formation, such as:
+
+* noun forms
+* verb forms
+* adjective forms
+* adverb forms
+* common prefixes/suffixes that create established derivative words
+
+Prioritize common, standard, useful English vocabulary.
+
+Do NOT include words merely because they are semantically related.
+For example, a synonym is not a word-family member unless it is morphologically derived from the same root.
+
+## Exclusions
+
+Do NOT include:
+
+* the supplied main/root word itself
+* fake, invented, or non-dictionary words
+* duplicate words
+* simple grammatical inflections unless they function as a distinct lexical entry
+* obscure, archaic, or extremely rare derivatives
+* proper nouns
+* unrelated words with similar spelling or meaning
+* words that are only etymologically related but are not normally treated as members of the modern English word family
+
+## Quality rules
+
+* Include only words you are 100% confident exist in standard English dictionaries.
+* Prefer useful dictionary headwords.
+* Use the most common modern meaning of each word.
+* Keep Bengali definitions accurate and natural for a Bengali learner.
+* Keep English definitions clear and concise.
+* Provide 1–2 practical example sentences for every member.
+* Avoid repetitive example sentences.
+* Do not duplicate the same word with different parts of speech.
+* Use lowercase for the "word" value.
+* Return members in a logical order, preferably noun → verb → adjective → adverb.
+* Do not force a fixed number of members. Return only genuinely useful family members.
+* If there are no reliable family members, return "members": [].
+
+## Important distinction
+
+A word family is based primarily on morphological/derivational relationship, not simply similarity of meaning.
+
+For example:
+
+decide → decision → decisive → decisively → indecision → indecisive
+
+is a word family.
+
+Do not add unrelated synonyms such as choose merely because they have a similar meaning.
+
+## Main word
+
+The main word will be supplied separately as input. Never include that main word itself in "members".`;
+
+export function buildWordFamilyUserPrompt(word: string, meaning?: string): string {
+  const meaningBlock = meaning ? `\nMeaning/context of main word: ${meaning}` : '';
+  return `Main word: "${word}"${meaningBlock}\n\nGenerate the word family for "${word}" according to the instructions. Return JSON ONLY.`;
+}
+
 export function buildWordFamilyId(wordId: string, memberWord: string): string {
   return `${wordId}:${memberWord.trim().toLowerCase()}`;
 }
@@ -146,4 +241,90 @@ export function normalizeWordFamilyMembers(raw: unknown, excludeWord?: string): 
   }
 
   return result;
+}
+
+/**
+ * Validates whether a word is an authentic English word listed in standard dictionaries.
+ * Uses Datamuse API and Free Dictionary API with timeout guards.
+ */
+export async function verifyWordInDictionary(rawWord: string): Promise<boolean> {
+  const word = rawWord.trim().toLowerCase();
+  if (!word || !/^[a-zA-Z-]+$/.test(word)) {
+    return false;
+  }
+
+  // 1. Fast verification with Datamuse API (contains over 200,000 verified English lexical entries)
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2500);
+    const res = await fetch(`https://api.datamuse.com/words?sp=${encodeURIComponent(word)}&max=1`, {
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (res.ok) {
+      const data = (await res.json()) as Array<{ word?: string }>;
+      if (Array.isArray(data) && data.length > 0 && data[0]?.word?.toLowerCase() === word) {
+        return true;
+      }
+    }
+  } catch {
+    // Ignore network timeouts and continue to secondary check
+  }
+
+  // 2. Secondary verification with Free Dictionary API
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2500);
+    const res = await fetch(
+      `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`,
+      { signal: controller.signal }
+    );
+    clearTimeout(timeoutId);
+
+    if (res.ok) {
+      return true;
+    }
+  } catch {
+    // Ignore network timeouts
+  }
+
+  return false;
+}
+
+/**
+ * Normalizes and filters word family members to strictly retain only authentic,
+ * verifiable English dictionary entries, removing hallucinated or non-existent words.
+ */
+export async function filterValidWordFamilyMembers(
+  raw: unknown,
+  excludeWord?: string
+): Promise<WordFamilyMember[]> {
+  const initial = normalizeWordFamilyMembers(raw, excludeWord);
+  if (initial.length === 0) {
+    return [];
+  }
+
+  try {
+    const verifications = await Promise.all(
+      initial.map(async (member) => {
+        const isValid = await verifyWordInDictionary(member.word);
+        return { member, isValid };
+      })
+    );
+
+    const validMembers = verifications.filter((v) => v.isValid).map((v) => v.member);
+
+    // If verification succeeded for at least some members or confirmed none are valid
+    if (validMembers.length > 0) {
+      return validMembers;
+    }
+  } catch (err) {
+    console.warn(
+      'Dictionary verification check encountered an error, using normalized members:',
+      err
+    );
+  }
+
+  return initial;
 }

@@ -321,8 +321,8 @@ h6 {
 
 /* Custom Segmented Control active tab indicator highlight */
 /* .mantine-SegmentedControl-indicator { */
-  /* background: var(--accent-gradient) !important; */
-  /* box-shadow: 0 4px 14px 0 rgba(98, 232, 9, 0.25) !important; */
+/* background: var(--accent-gradient) !important; */
+/* box-shadow: 0 4px 14px 0 rgba(98, 232, 9, 0.25) !important; */
 /* } */
 
 /* Maintain crisp white text contrast for the active tab label */
@@ -342,7 +342,6 @@ h6 {
   color: #ffffff !important;
   font-weight: 700 !important;
 } */
-
 
 .header-panel .header-inner {
   width: 100%;
@@ -708,4 +707,197 @@ h6 {
     padding-left: 8px !important;
     padding-right: 8px !important;
   }
+}
+
+/* --- Rich Text Notes & Callouts Global Styling --- */
+.rich-note-content {
+  font-size: 0.925rem;
+  line-height: 1.6;
+  color: var(--mantine-color-text, #1e293b);
+  word-break: break-word;
+}
+
+.rich-note-content p {
+  margin: 0.4em 0;
+}
+
+.rich-note-content h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0.8em 0 0.4em;
+  color: var(--mantine-color-indigo-6);
+}
+
+.rich-note-content h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0.7em 0 0.35em;
+  color: var(--mantine-color-indigo-5);
+}
+
+.rich-note-content h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0.6em 0 0.3em;
+}
+
+.rich-note-content h4 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0.5em 0 0.25em;
+}
+
+.rich-note-content blockquote {
+  border-left: 3px solid var(--mantine-color-indigo-5);
+  margin: 0.8em 0;
+  padding: 0.4em 0 0.4em 1em;
+  background: rgba(99, 102, 241, 0.04);
+  border-radius: 0 8px 8px 0;
+  font-style: italic;
+}
+
+.rich-note-content code {
+  background: rgba(99, 102, 241, 0.08);
+  color: var(--mantine-color-indigo-7);
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+  font-size: 0.85em;
+  font-family: 'Fira Code', monospace;
+}
+
+.rich-note-content pre {
+  background: #1e1e2e;
+  color: #cdd6f4;
+  padding: 0.8em 1em;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 0.8em 0;
+}
+
+.rich-note-content pre code {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+}
+
+.rich-note-content hr {
+  border: none;
+  border-top: 1px solid var(--mantine-color-default-border);
+  margin: 1.2em 0;
+}
+
+.rich-note-content ul,
+.rich-note-content ol {
+  padding-left: 1.4em;
+  margin: 0.4em 0;
+}
+
+.rich-note-content table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.8em 0;
+  font-size: 0.875rem;
+}
+
+.rich-note-content th {
+  background: rgba(99, 102, 241, 0.12);
+  font-weight: 600;
+  padding: 6px 10px;
+  border: 1px solid var(--mantine-color-default-border);
+  text-align: left;
+}
+
+.rich-note-content td {
+  padding: 6px 10px;
+  border: 1px solid var(--mantine-color-default-border);
+  vertical-align: top;
+}
+
+.rich-note-content tr:nth-child(even) {
+  background: rgba(0, 0, 0, 0.015);
+}
+
+.rich-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  margin: 0.8em 0;
+  border-radius: 8px;
+  border-left: 4px solid;
+}
+
+.rich-callout-icon {
+  font-size: 18px;
+  line-height: 1;
+  user-select: none;
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+
+.rich-callout-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.rich-callout-content p:last-child {
+  margin-bottom: 0;
+}
+
+.rich-callout-tip {
+  background: rgba(16, 185, 129, 0.08);
+  border-left-color: #10b981;
+}
+
+.rich-callout-mnemonic {
+  background: rgba(168, 85, 247, 0.08);
+  border-left-color: #a855f7;
+}
+
+.rich-callout-warning {
+  background: rgba(245, 158, 11, 0.08);
+  border-left-color: #f59e0b;
+}
+
+.rich-callout-grammar {
+  background: rgba(59, 130, 246, 0.08);
+  border-left-color: #3b82f6;
+}
+
+.rich-callout-etymology {
+  background: rgba(236, 72, 153, 0.08);
+  border-left-color: #ec4899;
+}
+
+.rich-callout-note {
+  background: rgba(99, 102, 241, 0.08);
+  border-left-color: #6366f1;
+}
+
+.rich-callout-exam {
+  background: rgba(239, 68, 68, 0.08);
+  border-left-color: #ef4444;
+}
+
+ul[data-type='taskList'] {
+  list-style: none;
+  padding-left: 0.2em;
+  margin: 0.5em 0;
+}
+
+li[data-type='taskItem'] {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0.25em 0;
+}
+
+li[data-type='taskItem'] > label {
+  margin-top: 3px;
+  cursor: pointer;
+  user-select: none;
+}
+
+li[data-type='taskItem'] > div {
+  flex: 1;
 }

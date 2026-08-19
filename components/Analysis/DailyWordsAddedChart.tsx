@@ -194,7 +194,8 @@ export function DailyWordsAddedChart({ data, statusInfo }: DailyWordsAddedChartP
             <Group gap="xs" align="center">
               <IconCalendarEvent size={16} color="#6366f1" />
               <Text size="xs" c="dimmed">
-                No words were added during this period. The chart displays continuous zero values to show inactivity.
+                No words were added during this period. The chart displays continuous zero values to
+                show inactivity.
               </Text>
             </Group>
           </Paper>
@@ -203,10 +204,7 @@ export function DailyWordsAddedChart({ data, statusInfo }: DailyWordsAddedChartP
         {/* Bar Chart Container */}
         <Box style={{ height: 260, width: '100%', minHeight: 220 }}>
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={timeSeries}
-              margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-            >
+            <BarChart data={timeSeries} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
               <CartesianGrid
                 strokeDasharray="3 3"
                 vertical={false}

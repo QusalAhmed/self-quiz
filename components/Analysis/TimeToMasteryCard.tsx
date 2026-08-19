@@ -1,16 +1,6 @@
 'use client';
 
-import {
-  Badge,
-  Card,
-  Group,
-  Paper,
-  SimpleGrid,
-  Stack,
-  Text,
-  Title,
-  Tooltip,
-} from '@mantine/core';
+import { Badge, Card, Group, Paper, SimpleGrid, Stack, Text, Title, Tooltip } from '@mantine/core';
 import {
   IconBolt,
   IconClock,
@@ -21,8 +11,8 @@ import {
   IconTrophy,
 } from '@tabler/icons-react';
 import React from 'react';
-import type { SectionStatusInfo, TimeToMasteryData } from '@/lib/analysis/types';
 import { formatDurationHMS } from '@/lib/analysis/calculator';
+import type { SectionStatusInfo, TimeToMasteryData } from '@/lib/analysis/types';
 import type { WordRecord } from '@/lib/db';
 import { SectionStatusBadge } from './SectionStatusBadge';
 
@@ -62,7 +52,8 @@ export function TimeToMasteryCard({
               <SectionStatusBadge statusInfo={statusInfo} />
             </Group>
             <Text size="xs" c="dimmed">
-              Historical speed and review effort required for vocabulary words to establish long-term memory stability (S ≥ 21d).
+              Historical speed and review effort required for vocabulary words to establish
+              long-term memory stability (S ≥ 21d).
             </Text>
           </div>
 
@@ -93,7 +84,10 @@ export function TimeToMasteryCard({
               </Text>
             </Group>
             <Text size="md" fw={800} c="teal" style={{ fontFamily: 'var(--font-title)' }}>
-              {avgDaysToMastery} <Text component="span" size="xs" c="dimmed">days</Text>
+              {avgDaysToMastery}{' '}
+              <Text component="span" size="xs" c="dimmed">
+                days
+              </Text>
             </Text>
             <Text size="xs" c="dimmed">
               First review to S ≥ 21d
@@ -108,7 +102,10 @@ export function TimeToMasteryCard({
               </Text>
             </Group>
             <Text size="md" fw={800} c="indigo" style={{ fontFamily: 'var(--font-title)' }}>
-              {medianDaysToMastery} <Text component="span" size="xs" c="dimmed">days</Text>
+              {medianDaysToMastery}{' '}
+              <Text component="span" size="xs" c="dimmed">
+                days
+              </Text>
             </Text>
             <Text size="xs" c="dimmed">
               Midpoint duration
@@ -123,7 +120,10 @@ export function TimeToMasteryCard({
               </Text>
             </Group>
             <Text size="md" fw={800} c="violet" style={{ fontFamily: 'var(--font-title)' }}>
-              {avgReviewsBeforeMastery} <Text component="span" size="xs" c="dimmed">reviews</Text>
+              {avgReviewsBeforeMastery}{' '}
+              <Text component="span" size="xs" c="dimmed">
+                reviews
+              </Text>
             </Text>
             <Text size="xs" c="dimmed">
               Spaced repetition cycles
@@ -172,7 +172,9 @@ export function TimeToMasteryCard({
                         cursor: parent ? 'pointer' : 'default',
                       }}
                       onClick={() => {
-                        if (parent) {onSelectWord(parent);}
+                        if (parent) {
+                          onSelectWord(parent);
+                        }
                       }}
                     >
                       <Group gap="xs">
@@ -225,7 +227,9 @@ export function TimeToMasteryCard({
                         cursor: parent ? 'pointer' : 'default',
                       }}
                       onClick={() => {
-                        if (parent) {onSelectWord(parent);}
+                        if (parent) {
+                          onSelectWord(parent);
+                        }
                       }}
                     >
                       <Group gap="xs">

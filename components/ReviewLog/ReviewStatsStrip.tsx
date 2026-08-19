@@ -1,12 +1,7 @@
 'use client';
 
 import { Badge, Group, Paper, SimpleGrid, Text, ThemeIcon } from '@mantine/core';
-import {
-  IconCheck,
-  IconClock,
-  IconHistory,
-  IconPercentage,
-} from '@tabler/icons-react';
+import { IconCheck, IconClock, IconHistory, IconPercentage } from '@tabler/icons-react';
 import React from 'react';
 import type { ReviewLogRecord } from '@/lib/db';
 

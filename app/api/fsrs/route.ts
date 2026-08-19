@@ -52,7 +52,9 @@ export async function POST(request: NextRequest) {
 
       if (wordDoc) {
         word = wordDoc.word;
-        if (!meaning) {meaning = wordDoc.meaning || '';}
+        if (!meaning) {
+          meaning = wordDoc.meaning || '';
+        }
       } else {
         word = 'Unknown';
       }

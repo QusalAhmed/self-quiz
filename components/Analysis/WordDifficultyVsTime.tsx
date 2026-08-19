@@ -23,8 +23,8 @@ import {
   YAxis,
   ZAxis,
 } from 'recharts';
-import type { SectionStatusInfo, WordEffortPoint } from '@/lib/analysis/types';
 import { formatDurationHMS } from '@/lib/analysis/calculator';
+import type { SectionStatusInfo, WordEffortPoint } from '@/lib/analysis/types';
 import type { WordRecord } from '@/lib/db';
 import { SectionStatusBadge } from './SectionStatusBadge';
 
@@ -48,9 +48,13 @@ export function WordDifficultyVsTime({
   const formattedScatterData = useMemo(() => {
     return data.map((pt) => {
       let yVal = pt.totalTimeSec;
-      if (yMetric === 'reviews') {yVal = pt.reviewsCount;}
-      else if (yMetric === 'lapses') {yVal = pt.lapses;}
-      else if (yMetric === 'avgDuration') {yVal = pt.avgDurationSec;}
+      if (yMetric === 'reviews') {
+        yVal = pt.reviewsCount;
+      } else if (yMetric === 'lapses') {
+        yVal = pt.lapses;
+      } else if (yMetric === 'avgDuration') {
+        yVal = pt.avgDurationSec;
+      }
 
       return {
         ...pt,
@@ -62,9 +66,15 @@ export function WordDifficultyVsTime({
   }, [data, yMetric]);
 
   const yAxisLabel = useMemo(() => {
-    if (yMetric === 'reviews') {return 'Review Count';}
-    if (yMetric === 'lapses') {return 'Lapses (Again Count)';}
-    if (yMetric === 'avgDuration') {return 'Avg Duration (s)';}
+    if (yMetric === 'reviews') {
+      return 'Review Count';
+    }
+    if (yMetric === 'lapses') {
+      return 'Lapses (Again Count)';
+    }
+    if (yMetric === 'avgDuration') {
+      return 'Avg Duration (s)';
+    }
     return 'Total Time (s)';
   }, [yMetric]);
 
@@ -85,7 +95,8 @@ export function WordDifficultyVsTime({
               <SectionStatusBadge statusInfo={statusInfo} />
             </Group>
             <Text size="xs" c="dimmed">
-              Explore how FSRS difficulty rating relates to time invested and review repetitions across your vocabulary.
+              Explore how FSRS difficulty rating relates to time invested and review repetitions
+              across your vocabulary.
             </Text>
           </div>
 
@@ -202,7 +213,9 @@ export function WordDifficultyVsTime({
                   const payload = node?.payload || node;
                   if (payload?.id) {
                     const parent = allWordsMap.get(payload.id);
-                    if (parent) {onSelectWord(parent);}
+                    if (parent) {
+                      onSelectWord(parent);
+                    }
                   }
                 }}
                 style={{ cursor: 'pointer' }}
@@ -223,7 +236,9 @@ export function WordDifficultyVsTime({
           <Group gap="xs" align="flex-start" wrap="nowrap">
             <IconInfoCircle size={16} color="#6366f1" style={{ marginTop: 2, flexShrink: 0 }} />
             <Text size="xs" c="dimmed">
-              <strong>Pattern Detection:</strong> Outliers in the top-left indicate easy-rated words consuming high study time, whereas outliers in the top-right highlight difficult vocabulary requiring targeted reinforcement.
+              <strong>Pattern Detection:</strong> Outliers in the top-left indicate easy-rated words
+              consuming high study time, whereas outliers in the top-right highlight difficult
+              vocabulary requiring targeted reinforcement.
             </Text>
           </Group>
         </Paper>

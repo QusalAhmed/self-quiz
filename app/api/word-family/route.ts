@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { generateCloudflareWordFamily } from '@/lib/cloudflare';
 import { generateGoogleWordFamily } from '@/lib/google';
-import { normalizeWordFamilyMembers, type WordFamilyMember } from '@/lib/word-family';
+import { filterValidWordFamilyMembers } from '@/lib/word-family';
 
 type WordFamilyPayload = {
   word?: string;
@@ -27,7 +27,8 @@ export async function POST(request: Request) {
     // Try Google AI (Gemma/Gemini) first
     try {
       const members = await generateGoogleWordFamily({ word, meaning });
-      return NextResponse.json({ members: normalizeWordFamilyMembers(members, word) });
+      const validatedMembers = await filterValidWordFamilyMembers(members, word);
+      return NextResponse.json({ members: validatedMembers });
     } catch (googleError: any) {
       console.warn(
         'Google AI (Gemma) failed for word family, falling back to Cloudflare AI:',
@@ -37,7 +38,8 @@ export async function POST(request: Request) {
       // Fallback to Cloudflare AI
       try {
         const members = await generateCloudflareWordFamily({ word, meaning });
-        return NextResponse.json({ members: normalizeWordFamilyMembers(members, word) });
+        const validatedMembers = await filterValidWordFamilyMembers(members, word);
+        return NextResponse.json({ members: validatedMembers });
       } catch (cfError: any) {
         console.error(
           'Both Google AI and Cloudflare AI failed for word family:',

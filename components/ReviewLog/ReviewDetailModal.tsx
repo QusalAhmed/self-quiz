@@ -16,12 +16,7 @@ import {
   Title,
   Tooltip,
 } from '@mantine/core';
-import {
-  IconBrain,
-  IconCode,
-  IconCopy,
-  IconHelpCircle,
-} from '@tabler/icons-react';
+import { IconBrain, IconCode, IconCopy, IconHelpCircle } from '@tabler/icons-react';
 import React, { useState } from 'react';
 import type { ReviewLogRecord, WordRecord } from '@/lib/db';
 
@@ -175,7 +170,9 @@ export function ReviewDetailModal({
               <Badge
                 size="xs"
                 variant="light"
-                color={stateAfter === 'Review' ? 'indigo' : stateAfter === 'Learning' ? 'orange' : 'teal'}
+                color={
+                  stateAfter === 'Review' ? 'indigo' : stateAfter === 'Learning' ? 'orange' : 'teal'
+                }
               >
                 {stateAfter}
               </Badge>
@@ -220,12 +217,18 @@ export function ReviewDetailModal({
                 <Text size="xs" c="dimmed" fw={600}>
                   STABILITY
                 </Text>
-                <Tooltip label="Estimated days the memory will remain above 90% retrievability." w={200}>
+                <Tooltip
+                  label="Estimated days the memory will remain above 90% retrievability."
+                  w={200}
+                >
                   <IconHelpCircle size={12} style={{ opacity: 0.6 }} />
                 </Tooltip>
               </Group>
               <Text size="lg" fw={800} c="indigo">
-                {stability.toFixed(1)} <Text component="span" size="xs" c="dimmed">days</Text>
+                {stability.toFixed(1)}{' '}
+                <Text component="span" size="xs" c="dimmed">
+                  days
+                </Text>
               </Text>
             </div>
 
@@ -234,12 +237,22 @@ export function ReviewDetailModal({
                 <Text size="xs" c="dimmed" fw={600}>
                   DIFFICULTY
                 </Text>
-                <Tooltip label="Inherent difficulty of the card on a 1 (easiest) to 10 (hardest) scale." w={200}>
+                <Tooltip
+                  label="Inherent difficulty of the card on a 1 (easiest) to 10 (hardest) scale."
+                  w={200}
+                >
                   <IconHelpCircle size={12} style={{ opacity: 0.6 }} />
                 </Tooltip>
               </Group>
-              <Text size="lg" fw={800} c={difficulty >= 7 ? 'red' : difficulty >= 5 ? 'yellow' : 'teal'}>
-                {difficulty.toFixed(1)} <Text component="span" size="xs" c="dimmed">/ 10</Text>
+              <Text
+                size="lg"
+                fw={800}
+                c={difficulty >= 7 ? 'red' : difficulty >= 5 ? 'yellow' : 'teal'}
+              >
+                {difficulty.toFixed(1)}{' '}
+                <Text component="span" size="xs" c="dimmed">
+                  / 10
+                </Text>
               </Text>
             </div>
 
@@ -248,7 +261,10 @@ export function ReviewDetailModal({
                 <Text size="xs" c="dimmed" fw={600}>
                   RETRIEVABILITY
                 </Text>
-                <Tooltip label="Probability of successful recall when this review occurred." w={200}>
+                <Tooltip
+                  label="Probability of successful recall when this review occurred."
+                  w={200}
+                >
                   <IconHelpCircle size={12} style={{ opacity: 0.6 }} />
                 </Tooltip>
               </Group>

@@ -24,9 +24,9 @@ import {
   IconSortDescending,
 } from '@tabler/icons-react';
 import React, { useMemo, useState } from 'react';
+import { formatDurationHMS } from '@/lib/analysis/calculator';
 import type { ProblematicWordItem } from '@/lib/analysis/types';
 import { formatInterval } from '@/lib/fsrs';
-import { formatDurationHMS } from '@/lib/analysis/calculator';
 
 type DifficultWordsTableProps = {
   words: ProblematicWordItem[];
@@ -64,9 +64,13 @@ export function DifficultWordsTable({ words, onSelectWord }: DifficultWordsTable
       const valB = b[sortSignal] || 0;
       // For stability and retrievability, ascending means weakest first by default
       if (sortSignal === 'stability' || sortSignal === 'retrievability') {
-        return sortDir === 'desc' ? (valA as number) - (valB as number) : (valB as number) - (valA as number);
+        return sortDir === 'desc'
+          ? (valA as number) - (valB as number)
+          : (valB as number) - (valA as number);
       }
-      return sortDir === 'desc' ? (valB as number) - (valA as number) : (valA as number) - (valB as number);
+      return sortDir === 'desc'
+        ? (valB as number) - (valA as number)
+        : (valA as number) - (valB as number);
     });
   }, [words, search, sortSignal, sortDir]);
 
@@ -118,7 +122,8 @@ export function DifficultWordsTable({ words, onSelectWord }: DifficultWordsTable
               </Badge>
             </Group>
             <Text size="xs" c="dimmed">
-              Multi-signal ranking by lapses, difficulty, retrievability decay, and total review effort.
+              Multi-signal ranking by lapses, difficulty, retrievability decay, and total review
+              effort.
             </Text>
           </div>
 
@@ -160,7 +165,12 @@ export function DifficultWordsTable({ words, onSelectWord }: DifficultWordsTable
 
         {/* Table */}
         <Box style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-          <Table verticalSpacing="xs" horizontalSpacing="sm" highlightOnHover style={{ minWidth: 680 }}>
+          <Table
+            verticalSpacing="xs"
+            horizontalSpacing="sm"
+            highlightOnHover
+            style={{ minWidth: 680 }}
+          >
             <Table.Thead>
               <Table.Tr>
                 <Table.Th style={{ width: 180 }}>Word</Table.Th>
@@ -170,9 +180,15 @@ export function DifficultWordsTable({ words, onSelectWord }: DifficultWordsTable
                   onClick={() => handleHeaderSort('difficulty')}
                 >
                   <Group gap={4} justify="flex-end">
-                    <Text size="xs" fw={700}>Difficulty</Text>
+                    <Text size="xs" fw={700}>
+                      Difficulty
+                    </Text>
                     {sortSignal === 'difficulty' &&
-                      (sortDir === 'desc' ? <IconSortDescending size={12} /> : <IconSortAscending size={12} />)}
+                      (sortDir === 'desc' ? (
+                        <IconSortDescending size={12} />
+                      ) : (
+                        <IconSortAscending size={12} />
+                      ))}
                   </Group>
                 </Table.Th>
                 <Table.Th
@@ -180,9 +196,15 @@ export function DifficultWordsTable({ words, onSelectWord }: DifficultWordsTable
                   onClick={() => handleHeaderSort('stability')}
                 >
                   <Group gap={4} justify="flex-end">
-                    <Text size="xs" fw={700}>Stability</Text>
+                    <Text size="xs" fw={700}>
+                      Stability
+                    </Text>
                     {sortSignal === 'stability' &&
-                      (sortDir === 'desc' ? <IconSortDescending size={12} /> : <IconSortAscending size={12} />)}
+                      (sortDir === 'desc' ? (
+                        <IconSortDescending size={12} />
+                      ) : (
+                        <IconSortAscending size={12} />
+                      ))}
                   </Group>
                 </Table.Th>
                 <Table.Th
@@ -190,9 +212,15 @@ export function DifficultWordsTable({ words, onSelectWord }: DifficultWordsTable
                   onClick={() => handleHeaderSort('retrievability')}
                 >
                   <Group gap={4} justify="flex-start">
-                    <Text size="xs" fw={700}>Retrievability</Text>
+                    <Text size="xs" fw={700}>
+                      Retrievability
+                    </Text>
                     {sortSignal === 'retrievability' &&
-                      (sortDir === 'desc' ? <IconSortDescending size={12} /> : <IconSortAscending size={12} />)}
+                      (sortDir === 'desc' ? (
+                        <IconSortDescending size={12} />
+                      ) : (
+                        <IconSortAscending size={12} />
+                      ))}
                   </Group>
                 </Table.Th>
                 <Table.Th
@@ -200,9 +228,15 @@ export function DifficultWordsTable({ words, onSelectWord }: DifficultWordsTable
                   onClick={() => handleHeaderSort('lapses')}
                 >
                   <Group gap={4} justify="flex-end">
-                    <Text size="xs" fw={700}>Lapses</Text>
+                    <Text size="xs" fw={700}>
+                      Lapses
+                    </Text>
                     {sortSignal === 'lapses' &&
-                      (sortDir === 'desc' ? <IconSortDescending size={12} /> : <IconSortAscending size={12} />)}
+                      (sortDir === 'desc' ? (
+                        <IconSortDescending size={12} />
+                      ) : (
+                        <IconSortAscending size={12} />
+                      ))}
                   </Group>
                 </Table.Th>
                 <Table.Th
@@ -210,9 +244,15 @@ export function DifficultWordsTable({ words, onSelectWord }: DifficultWordsTable
                   onClick={() => handleHeaderSort('totalTimeSec')}
                 >
                   <Group gap={4} justify="flex-end">
-                    <Text size="xs" fw={700}>Study Time</Text>
+                    <Text size="xs" fw={700}>
+                      Study Time
+                    </Text>
                     {sortSignal === 'totalTimeSec' &&
-                      (sortDir === 'desc' ? <IconSortDescending size={12} /> : <IconSortAscending size={12} />)}
+                      (sortDir === 'desc' ? (
+                        <IconSortDescending size={12} />
+                      ) : (
+                        <IconSortAscending size={12} />
+                      ))}
                   </Group>
                 </Table.Th>
                 <Table.Th style={{ width: 60, textAlign: 'center' }}>Action</Table.Th>
@@ -245,11 +285,7 @@ export function DifficultWordsTable({ words, onSelectWord }: DifficultWordsTable
                       size="xs"
                       variant="light"
                       color={
-                        item.difficulty >= 8
-                          ? 'red'
-                          : item.difficulty >= 6
-                            ? 'orange'
-                            : 'yellow'
+                        item.difficulty >= 8 ? 'red' : item.difficulty >= 6 ? 'orange' : 'yellow'
                       }
                     >
                       {item.difficulty}/10

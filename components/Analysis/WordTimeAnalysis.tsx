@@ -35,8 +35,8 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import type { SectionStatusInfo, WordTimeSpentItem } from '@/lib/analysis/types';
 import { formatDurationHMS } from '@/lib/analysis/calculator';
+import type { SectionStatusInfo, WordTimeSpentItem } from '@/lib/analysis/types';
 import type { WordRecord } from '@/lib/db';
 import { SectionStatusBadge } from './SectionStatusBadge';
 
@@ -84,7 +84,9 @@ export function WordTimeAnalysis({
     return [...result].sort((a, b) => {
       const valA = a[sortField] || 0;
       const valB = b[sortField] || 0;
-      return sortDir === 'desc' ? (valB as number) - (valA as number) : (valA as number) - (valB as number);
+      return sortDir === 'desc'
+        ? (valB as number) - (valA as number)
+        : (valA as number) - (valB as number);
     });
   }, [words, searchQuery, sortField, sortDir]);
 
@@ -138,7 +140,8 @@ export function WordTimeAnalysis({
               <SectionStatusBadge statusInfo={statusInfo} />
             </Group>
             <Text size="xs" c="dimmed">
-              Identify which vocabulary words consume the most study time and require the highest recall effort.
+              Identify which vocabulary words consume the most study time and require the highest
+              recall effort.
             </Text>
           </div>
 
@@ -168,12 +171,7 @@ export function WordTimeAnalysis({
                   margin={{ top: 5, right: 30, left: 40, bottom: 5 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(156, 163, 175, 0.15)" />
-                  <XAxis
-                    type="number"
-                    stroke="rgba(156, 163, 175, 0.6)"
-                    fontSize={11}
-                    unit="m"
-                  />
+                  <XAxis type="number" stroke="rgba(156, 163, 175, 0.6)" fontSize={11} unit="m" />
                   <YAxis
                     type="category"
                     dataKey="word"
@@ -228,7 +226,12 @@ export function WordTimeAnalysis({
 
         {/* Ranked Words Table */}
         <Box style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-          <Table verticalSpacing="xs" horizontalSpacing="sm" highlightOnHover style={{ minWidth: 720 }}>
+          <Table
+            verticalSpacing="xs"
+            horizontalSpacing="sm"
+            highlightOnHover
+            style={{ minWidth: 720 }}
+          >
             <Table.Thead>
               <Table.Tr>
                 <Table.Th style={{ width: 180 }}>Word</Table.Th>
@@ -238,9 +241,15 @@ export function WordTimeAnalysis({
                   onClick={() => handleSort('reviewsCount')}
                 >
                   <Group gap={4} justify="flex-end">
-                    <Text size="xs" fw={700}>Reviews</Text>
+                    <Text size="xs" fw={700}>
+                      Reviews
+                    </Text>
                     {sortField === 'reviewsCount' &&
-                      (sortDir === 'desc' ? <IconSortDescending size={12} /> : <IconSortAscending size={12} />)}
+                      (sortDir === 'desc' ? (
+                        <IconSortDescending size={12} />
+                      ) : (
+                        <IconSortAscending size={12} />
+                      ))}
                   </Group>
                 </Table.Th>
                 <Table.Th
@@ -248,9 +257,15 @@ export function WordTimeAnalysis({
                   onClick={() => handleSort('totalTimeSec')}
                 >
                   <Group gap={4} justify="flex-end">
-                    <Text size="xs" fw={700}>Total Time</Text>
+                    <Text size="xs" fw={700}>
+                      Total Time
+                    </Text>
                     {sortField === 'totalTimeSec' &&
-                      (sortDir === 'desc' ? <IconSortDescending size={12} /> : <IconSortAscending size={12} />)}
+                      (sortDir === 'desc' ? (
+                        <IconSortDescending size={12} />
+                      ) : (
+                        <IconSortAscending size={12} />
+                      ))}
                   </Group>
                 </Table.Th>
                 <Table.Th
@@ -258,9 +273,15 @@ export function WordTimeAnalysis({
                   onClick={() => handleSort('avgDurationSec')}
                 >
                   <Group gap={4} justify="flex-end">
-                    <Text size="xs" fw={700}>Avg/Review</Text>
+                    <Text size="xs" fw={700}>
+                      Avg/Review
+                    </Text>
                     {sortField === 'avgDurationSec' &&
-                      (sortDir === 'desc' ? <IconSortDescending size={12} /> : <IconSortAscending size={12} />)}
+                      (sortDir === 'desc' ? (
+                        <IconSortDescending size={12} />
+                      ) : (
+                        <IconSortAscending size={12} />
+                      ))}
                   </Group>
                 </Table.Th>
                 <Table.Th
@@ -268,9 +289,15 @@ export function WordTimeAnalysis({
                   onClick={() => handleSort('lapses')}
                 >
                   <Group gap={4} justify="flex-end">
-                    <Text size="xs" fw={700}>Lapses</Text>
+                    <Text size="xs" fw={700}>
+                      Lapses
+                    </Text>
                     {sortField === 'lapses' &&
-                      (sortDir === 'desc' ? <IconSortDescending size={12} /> : <IconSortAscending size={12} />)}
+                      (sortDir === 'desc' ? (
+                        <IconSortDescending size={12} />
+                      ) : (
+                        <IconSortAscending size={12} />
+                      ))}
                   </Group>
                 </Table.Th>
                 <Table.Th
@@ -278,9 +305,15 @@ export function WordTimeAnalysis({
                   onClick={() => handleSort('difficulty')}
                 >
                   <Group gap={4} justify="flex-end">
-                    <Text size="xs" fw={700}>Difficulty</Text>
+                    <Text size="xs" fw={700}>
+                      Difficulty
+                    </Text>
                     {sortField === 'difficulty' &&
-                      (sortDir === 'desc' ? <IconSortDescending size={12} /> : <IconSortAscending size={12} />)}
+                      (sortDir === 'desc' ? (
+                        <IconSortDescending size={12} />
+                      ) : (
+                        <IconSortAscending size={12} />
+                      ))}
                   </Group>
                 </Table.Th>
                 <Table.Th
@@ -288,9 +321,15 @@ export function WordTimeAnalysis({
                   onClick={() => handleSort('stability')}
                 >
                   <Group gap={4} justify="flex-end">
-                    <Text size="xs" fw={700}>Stability</Text>
+                    <Text size="xs" fw={700}>
+                      Stability
+                    </Text>
                     {sortField === 'stability' &&
-                      (sortDir === 'desc' ? <IconSortDescending size={12} /> : <IconSortAscending size={12} />)}
+                      (sortDir === 'desc' ? (
+                        <IconSortDescending size={12} />
+                      ) : (
+                        <IconSortAscending size={12} />
+                      ))}
                   </Group>
                 </Table.Th>
                 <Table.Th style={{ textAlign: 'center' }}>State</Table.Th>
@@ -304,7 +343,9 @@ export function WordTimeAnalysis({
                     key={item.id}
                     style={{ cursor: 'pointer' }}
                     onClick={() => {
-                      if (parent) {onSelectWord(parent);}
+                      if (parent) {
+                        onSelectWord(parent);
+                      }
                     }}
                   >
                     <Table.Td>
@@ -342,7 +383,11 @@ export function WordTimeAnalysis({
                       </Text>
                     </Table.Td>
                     <Table.Td style={{ textAlign: 'right' }}>
-                      <Text size="xs" c={item.lapses > 0 ? 'red' : 'dimmed'} fw={item.lapses > 0 ? 700 : 400}>
+                      <Text
+                        size="xs"
+                        c={item.lapses > 0 ? 'red' : 'dimmed'}
+                        fw={item.lapses > 0 ? 700 : 400}
+                      >
                         {item.lapses}
                       </Text>
                     </Table.Td>
@@ -351,11 +396,7 @@ export function WordTimeAnalysis({
                         size="xs"
                         variant="light"
                         color={
-                          item.difficulty >= 7
-                            ? 'red'
-                            : item.difficulty >= 4
-                              ? 'yellow'
-                              : 'teal'
+                          item.difficulty >= 7 ? 'red' : item.difficulty >= 4 ? 'yellow' : 'teal'
                         }
                       >
                         {item.difficulty}

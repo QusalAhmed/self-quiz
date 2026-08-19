@@ -59,10 +59,18 @@ export function ReviewLogTable({ logs, onInspectLog, onSelectWord }: ReviewLogTa
     const now = new Date();
     const diffSec = Math.floor((now.getTime() - d.getTime()) / 1000);
 
-    if (diffSec < 60) {return 'Just now';}
-    if (diffSec < 3600) {return `${Math.floor(diffSec / 60)}m ago`;}
-    if (diffSec < 86400) {return `${Math.floor(diffSec / 3600)}h ago`;}
-    if (diffSec < 86400 * 7) {return `${Math.floor(diffSec / 86400)}d ago`;}
+    if (diffSec < 60) {
+      return 'Just now';
+    }
+    if (diffSec < 3600) {
+      return `${Math.floor(diffSec / 60)}m ago`;
+    }
+    if (diffSec < 86400) {
+      return `${Math.floor(diffSec / 3600)}h ago`;
+    }
+    if (diffSec < 86400 * 7) {
+      return `${Math.floor(diffSec / 86400)}d ago`;
+    }
 
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
@@ -78,7 +86,8 @@ export function ReviewLogTable({ logs, onInspectLog, onSelectWord }: ReviewLogTa
             No Review Events Found
           </Text>
           <Text size="xs" c="dimmed" maw={380}>
-            No historical reviews match the selected filter criteria. Complete flashcard reviews or adjust your filters above.
+            No historical reviews match the selected filter criteria. Complete flashcard reviews or
+            adjust your filters above.
           </Text>
         </Stack>
       </Card>
@@ -90,28 +99,76 @@ export function ReviewLogTable({ logs, onInspectLog, onSelectWord }: ReviewLogTa
       <Stack gap="md">
         {/* Table Container */}
         <Box style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-          <Table verticalSpacing="sm" horizontalSpacing="md" highlightOnHover style={{ minWidth: 700 }}>
+          <Table
+            verticalSpacing="sm"
+            horizontalSpacing="md"
+            highlightOnHover
+            style={{ minWidth: 700 }}
+          >
             <Table.Thead>
               <Table.Tr style={{ borderBottom: '1px solid var(--card-border)' }}>
-                <Table.Th style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--mantine-color-dimmed)' }}>
+                <Table.Th
+                  style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    color: 'var(--mantine-color-dimmed)',
+                  }}
+                >
                   TIME
                 </Table.Th>
-                <Table.Th style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--mantine-color-dimmed)' }}>
+                <Table.Th
+                  style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    color: 'var(--mantine-color-dimmed)',
+                  }}
+                >
                   WORD & MEANING
                 </Table.Th>
-                <Table.Th style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--mantine-color-dimmed)' }}>
+                <Table.Th
+                  style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    color: 'var(--mantine-color-dimmed)',
+                  }}
+                >
                   RATING
                 </Table.Th>
-                <Table.Th style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--mantine-color-dimmed)' }}>
+                <Table.Th
+                  style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    color: 'var(--mantine-color-dimmed)',
+                  }}
+                >
                   STATE
                 </Table.Th>
-                <Table.Th style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--mantine-color-dimmed)' }}>
+                <Table.Th
+                  style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    color: 'var(--mantine-color-dimmed)',
+                  }}
+                >
                   INTERVAL / STABILITY
                 </Table.Th>
-                <Table.Th style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--mantine-color-dimmed)' }}>
+                <Table.Th
+                  style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    color: 'var(--mantine-color-dimmed)',
+                  }}
+                >
                   DURATION
                 </Table.Th>
-                <Table.Th style={{ fontSize: '0.75rem', fontWeight: 700, textAlign: 'right', color: 'var(--mantine-color-dimmed)' }}>
+                <Table.Th
+                  style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    textAlign: 'right',
+                    color: 'var(--mantine-color-dimmed)',
+                  }}
+                >
                   ACTION
                 </Table.Th>
               </Table.Tr>
@@ -255,7 +312,13 @@ export function ReviewLogTable({ logs, onInspectLog, onSelectWord }: ReviewLogTa
 
         {/* Pagination & Page Size Footer */}
         {logs.length > 0 && (
-          <Group justify="space-between" align="center" wrap="wrap" pt="xs" style={{ borderTop: '1px solid var(--card-border)' }}>
+          <Group
+            justify="space-between"
+            align="center"
+            wrap="wrap"
+            pt="xs"
+            style={{ borderTop: '1px solid var(--card-border)' }}
+          >
             <Group gap="xs" align="center">
               <Text size="xs" c="dimmed">
                 Rows per page:

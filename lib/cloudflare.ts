@@ -1,5 +1,10 @@
 import { normalizeAiExamples } from './examples';
-import { normalizeWordFamilyMembers, type WordFamilyMember } from './word-family';
+import {
+  buildWordFamilyUserPrompt,
+  normalizeWordFamilyMembers,
+  WORD_FAMILY_SYSTEM_INSTRUCTION,
+  type WordFamilyMember,
+} from './word-family';
 
 export type GenerateExamplesParams = {
   word: string;
@@ -29,13 +34,17 @@ type CloudflareAIResponse = {
 
 function repairTruncatedJson(raw: string): string | null {
   const membersIdx = raw.indexOf('"members"');
-  if (membersIdx === -1) {return null;}
+  if (membersIdx === -1) {
+    return null;
+  }
   const arrayStart = raw.indexOf('[', membersIdx);
-  if (arrayStart === -1) {return null;}
+  if (arrayStart === -1) {
+    return null;
+  }
 
   const lastCloseBrace = raw.lastIndexOf('}');
   if (lastCloseBrace > arrayStart) {
-    return `${raw.slice(0, lastCloseBrace + 1)  }]}`;
+    return `${raw.slice(0, lastCloseBrace + 1)}]}`;
   }
   return null;
 }
@@ -227,17 +236,15 @@ export async function generateCloudflareWordFamily(
   }
 
   const model = process.env.CF_AI_MODEL || '@cf/meta/llama-3.1-8b-instruct';
-  const meaningBlock = meaning ? `\nContext/meaning of root word: ${meaning}` : '';
 
   const messages: CloudflareMessage[] = [
     {
       role: 'system',
-      content:
-        'You are an expert lexicographer. You output only raw JSON. No markdown. No explanation. No code fences. Just a JSON object.',
+      content: WORD_FAMILY_SYSTEM_INSTRUCTION,
     },
     {
       role: 'user',
-      content: `Provide all derivative/related words belonging to the word family of "${word}" across various parts of speech (noun, verb, adjective, adverb, etc.).${meaningBlock}\nIMPORTANT: Do NOT include the base/main word "${word}" itself in the list; provide only other family members.\nFor each word in the family, give its part of speech, accurate Bengali/Bangla definition (বাংলা অর্থ), English definition, and 1-2 practical example sentences in English.\nReply with ONLY this JSON structure and nothing else:\n{"members":[{"word":"...","partOfSpeech":"...","banglaDefinition":"...","englishDefinition":"...","examples":["..."]}]}`,
+      content: buildWordFamilyUserPrompt(word, meaning),
     },
   ];
 
@@ -301,10 +308,10 @@ export async function generateCloudflareExamples(
       role: 'user',
       content:
         `Give me up to ${targetCount} example sentences in English using the word "${word}" ` +
-        `(meaning: ${meaning}). Each sentence must clearly reflect this specific meaning.${ 
-        partOfSpeechBlock 
-        } Prefer ${targetCount} examples if possible, but return fewer if that is more natural or accurate.${ 
-        referenceBlock 
+        `(meaning: ${meaning}). Each sentence must clearly reflect this specific meaning.${
+          partOfSpeechBlock
+        } Prefer ${targetCount} examples if possible, but return fewer if that is more natural or accurate.${
+          referenceBlock
         }\nReply with ONLY this JSON and nothing else:\n` +
         `{"examples":["sentence 1","sentence 2","sentence 3"]}`,
     },

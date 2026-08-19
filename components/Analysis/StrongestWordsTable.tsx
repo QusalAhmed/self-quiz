@@ -24,9 +24,9 @@ import {
   IconSparkles,
 } from '@tabler/icons-react';
 import React, { useMemo, useState } from 'react';
+import { formatDurationHMS } from '@/lib/analysis/calculator';
 import type { StrongWordItem } from '@/lib/analysis/types';
 import { formatInterval } from '@/lib/fsrs';
-import { formatDurationHMS } from '@/lib/analysis/calculator';
 
 type StrongestWordsTableProps = {
   words: StrongWordItem[];
@@ -56,9 +56,13 @@ export function StrongestWordsTable({ words, onSelectWord }: StrongestWordsTable
       const valB = b[sortSignal] || 0;
       if (sortSignal === 'lapses') {
         // Fewest lapses first
-        return sortDir === 'desc' ? (valA as number) - (valB as number) : (valB as number) - (valA as number);
+        return sortDir === 'desc'
+          ? (valA as number) - (valB as number)
+          : (valB as number) - (valA as number);
       }
-      return sortDir === 'desc' ? (valB as number) - (valA as number) : (valA as number) - (valB as number);
+      return sortDir === 'desc'
+        ? (valB as number) - (valA as number)
+        : (valA as number) - (valB as number);
     });
   }, [words, search, sortSignal, sortDir]);
 
@@ -110,7 +114,8 @@ export function StrongestWordsTable({ words, onSelectWord }: StrongestWordsTable
               </Badge>
             </Group>
             <Text size="xs" c="dimmed">
-              Words firmly consolidated in long-term memory with high stability, strong retention, and low lapse rate.
+              Words firmly consolidated in long-term memory with high stability, strong retention,
+              and low lapse rate.
             </Text>
           </div>
 
@@ -150,7 +155,12 @@ export function StrongestWordsTable({ words, onSelectWord }: StrongestWordsTable
 
         {/* Table */}
         <Box style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-          <Table verticalSpacing="xs" horizontalSpacing="sm" highlightOnHover style={{ minWidth: 680 }}>
+          <Table
+            verticalSpacing="xs"
+            horizontalSpacing="sm"
+            highlightOnHover
+            style={{ minWidth: 680 }}
+          >
             <Table.Thead>
               <Table.Tr>
                 <Table.Th style={{ width: 180 }}>Word</Table.Th>
@@ -160,9 +170,15 @@ export function StrongestWordsTable({ words, onSelectWord }: StrongestWordsTable
                   onClick={() => handleHeaderSort('stability')}
                 >
                   <Group gap={4} justify="flex-end">
-                    <Text size="xs" fw={700}>Stability</Text>
+                    <Text size="xs" fw={700}>
+                      Stability
+                    </Text>
                     {sortSignal === 'stability' &&
-                      (sortDir === 'desc' ? <IconSortDescending size={12} /> : <IconSortAscending size={12} />)}
+                      (sortDir === 'desc' ? (
+                        <IconSortDescending size={12} />
+                      ) : (
+                        <IconSortAscending size={12} />
+                      ))}
                   </Group>
                 </Table.Th>
                 <Table.Th
@@ -170,9 +186,15 @@ export function StrongestWordsTable({ words, onSelectWord }: StrongestWordsTable
                   onClick={() => handleHeaderSort('retrievability')}
                 >
                   <Group gap={4} justify="flex-start">
-                    <Text size="xs" fw={700}>Retrievability</Text>
+                    <Text size="xs" fw={700}>
+                      Retrievability
+                    </Text>
                     {sortSignal === 'retrievability' &&
-                      (sortDir === 'desc' ? <IconSortDescending size={12} /> : <IconSortAscending size={12} />)}
+                      (sortDir === 'desc' ? (
+                        <IconSortDescending size={12} />
+                      ) : (
+                        <IconSortAscending size={12} />
+                      ))}
                   </Group>
                 </Table.Th>
                 <Table.Th
@@ -180,9 +202,15 @@ export function StrongestWordsTable({ words, onSelectWord }: StrongestWordsTable
                   onClick={() => handleHeaderSort('reps')}
                 >
                   <Group gap={4} justify="flex-end">
-                    <Text size="xs" fw={700}>Reviews</Text>
+                    <Text size="xs" fw={700}>
+                      Reviews
+                    </Text>
                     {sortSignal === 'reps' &&
-                      (sortDir === 'desc' ? <IconSortDescending size={12} /> : <IconSortAscending size={12} />)}
+                      (sortDir === 'desc' ? (
+                        <IconSortDescending size={12} />
+                      ) : (
+                        <IconSortAscending size={12} />
+                      ))}
                   </Group>
                 </Table.Th>
                 <Table.Th
@@ -190,9 +218,15 @@ export function StrongestWordsTable({ words, onSelectWord }: StrongestWordsTable
                   onClick={() => handleHeaderSort('totalTimeSec')}
                 >
                   <Group gap={4} justify="flex-end">
-                    <Text size="xs" fw={700}>Study Time</Text>
+                    <Text size="xs" fw={700}>
+                      Study Time
+                    </Text>
                     {sortSignal === 'totalTimeSec' &&
-                      (sortDir === 'desc' ? <IconSortDescending size={12} /> : <IconSortAscending size={12} />)}
+                      (sortDir === 'desc' ? (
+                        <IconSortDescending size={12} />
+                      ) : (
+                        <IconSortAscending size={12} />
+                      ))}
                   </Group>
                 </Table.Th>
                 <Table.Th style={{ width: 60, textAlign: 'center' }}>Action</Table.Th>

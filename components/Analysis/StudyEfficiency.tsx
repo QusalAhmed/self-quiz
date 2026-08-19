@@ -61,7 +61,8 @@ export function StudyEfficiency({ efficiency, statusInfo }: StudyEfficiencyProps
               </Tooltip>
             </Group>
             <Text size="xs" c="dimmed">
-              Time investment per card, review throughput, and study time required per mastered word.
+              Time investment per card, review throughput, and study time required per mastered
+              word.
             </Text>
           </div>
         </Group>

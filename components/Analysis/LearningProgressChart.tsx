@@ -140,7 +140,10 @@ export function LearningProgressChart({
               CURRENT VOCABULARY
             </Text>
             <Text size="md" fw={800} style={{ fontFamily: 'var(--font-title)' }}>
-              {totalWords.toLocaleString()} <Text component="span" size="xs" c="dimmed">words</Text>
+              {totalWords.toLocaleString()}{' '}
+              <Text component="span" size="xs" c="dimmed">
+                words
+              </Text>
             </Text>
           </Paper>
 
@@ -149,7 +152,10 @@ export function LearningProgressChart({
               TOTAL MASTERED
             </Text>
             <Text size="md" fw={800} c="teal" style={{ fontFamily: 'var(--font-title)' }}>
-              {masteredWords.toLocaleString()} <Text component="span" size="xs" c="dimmed">({totalWords > 0 ? Math.round((masteredWords / totalWords) * 100) : 0}%)</Text>
+              {masteredWords.toLocaleString()}{' '}
+              <Text component="span" size="xs" c="dimmed">
+                ({totalWords > 0 ? Math.round((masteredWords / totalWords) * 100) : 0}%)
+              </Text>
             </Text>
           </Paper>
 
@@ -158,7 +164,10 @@ export function LearningProgressChart({
               AVG MASTERED / WEEK
             </Text>
             <Text size="md" fw={800} c="indigo" style={{ fontFamily: 'var(--font-title)' }}>
-              {vocabularyGrowth?.wordsMasteredPerWeekAvg || 0} <Text component="span" size="xs" c="dimmed">/ wk</Text>
+              {vocabularyGrowth?.wordsMasteredPerWeekAvg || 0}{' '}
+              <Text component="span" size="xs" c="dimmed">
+                / wk
+              </Text>
             </Text>
           </Paper>
 
@@ -167,7 +176,10 @@ export function LearningProgressChart({
               GROWTH VELOCITY
             </Text>
             <Text size="md" fw={800} c="violet" style={{ fontFamily: 'var(--font-title)' }}>
-              +{vocabularyGrowth?.growthRatePercent || 0}% <Text component="span" size="xs" c="dimmed">rate</Text>
+              +{vocabularyGrowth?.growthRatePercent || 0}%{' '}
+              <Text component="span" size="xs" c="dimmed">
+                rate
+              </Text>
             </Text>
           </Paper>
         </SimpleGrid>
@@ -246,12 +258,7 @@ export function LearningProgressChart({
                   }}
                 />
                 <Legend iconType="circle" wrapperStyle={{ fontSize: 12, paddingTop: 10 }} />
-                <Bar
-                  dataKey="wordsAdded"
-                  name="Words Added"
-                  fill="#6366f1"
-                  radius={[4, 4, 0, 0]}
-                />
+                <Bar dataKey="wordsAdded" name="Words Added" fill="#6366f1" radius={[4, 4, 0, 0]} />
                 <Bar
                   dataKey="wordsLearningEntered"
                   name="Entering Learning"

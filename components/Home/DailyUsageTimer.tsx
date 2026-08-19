@@ -8,7 +8,9 @@ import { getDatabase, type DailyUsageRecord } from '@/lib/db';
 const DEVICE_ID_KEY = 'self_quiz_device_id';
 
 function getOrCreateDeviceId(): string {
-  if (typeof window === 'undefined') {return '';}
+  if (typeof window === 'undefined') {
+    return '';
+  }
   let deviceId = localStorage.getItem(DEVICE_ID_KEY);
   if (!deviceId) {
     deviceId = crypto.randomUUID();
@@ -63,7 +65,9 @@ export function DailyUsageTimer() {
   // Helper to persist in-memory usage to local RxDB (which triggers replication)
   const flushUsageToDb = async () => {
     const deviceId = deviceIdRef.current;
-    if (!deviceId) {return;}
+    if (!deviceId) {
+      return;
+    }
     const today = currentDateRef.current;
     const recordId = `${today}:${deviceId}`;
     const currentSecs = localSecondsRef.current;
@@ -140,7 +144,9 @@ export function DailyUsageTimer() {
   };
 
   useEffect(() => {
-    if (!mounted) {return;}
+    if (!mounted) {
+      return;
+    }
 
     const deviceId = getOrCreateDeviceId();
     deviceIdRef.current = deviceId;
@@ -158,7 +164,9 @@ export function DailyUsageTimer() {
   }, [mounted]);
 
   useEffect(() => {
-    if (!mounted) {return;}
+    if (!mounted) {
+      return;
+    }
 
     let isUserIdle = false;
     let isVisible = document.visibilityState === 'visible';
@@ -219,7 +227,9 @@ export function DailyUsageTimer() {
     // Timer interval: updates UI every 1s in memory, throttles DB saves to every SAVE_INTERVAL_SECS
     const intervalId = setInterval(() => {
       const deviceId = deviceIdRef.current;
-      if (!deviceId) {return;}
+      if (!deviceId) {
+        return;
+      }
 
       const nowToday = getTodayDateString();
 
@@ -249,7 +259,9 @@ export function DailyUsageTimer() {
       }
 
       const currentlyActive = !isUserIdle && isVisible && isFocused;
-      if (!currentlyActive) {return;}
+      if (!currentlyActive) {
+        return;
+      }
 
       const nextSecs = localSecondsRef.current + 1;
       localSecondsRef.current = nextSecs;

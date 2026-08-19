@@ -21,9 +21,15 @@ function formatPracticeDate(value: string): string {
 }
 
 function getDifficultyBadgeColor(difficulty: SrsPracticeRecord['difficulty']): string {
-  if (difficulty === 'again') {return 'red';}
-  if (difficulty === 'hard') {return 'orange';}
-  if (difficulty === 'easy') {return 'indigo';}
+  if (difficulty === 'again') {
+    return 'red';
+  }
+  if (difficulty === 'hard') {
+    return 'orange';
+  }
+  if (difficulty === 'easy') {
+    return 'indigo';
+  }
   return 'teal';
 }
 

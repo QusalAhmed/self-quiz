@@ -1,16 +1,8 @@
 'use client';
 
-import {
-  Box,
-  Card,
-  Group,
-  Stack,
-  Text,
-  Title,
-} from '@mantine/core';
+import { Box, Card, Group, Stack, Text, Title } from '@mantine/core';
 import { IconHistory } from '@tabler/icons-react';
 import React, { useMemo, useState } from 'react';
-import type { ReviewLogRecord, WordRecord } from '@/lib/db';
 import {
   ReviewDetailModal,
   ReviewLogFilters,
@@ -18,8 +10,9 @@ import {
   ReviewLogTable,
   ReviewStatsStrip,
 } from '@/components/ReviewLog';
-import { SectionStatusBadge } from './SectionStatusBadge';
 import type { SectionStatusInfo } from '@/lib/analysis/types';
+import type { ReviewLogRecord, WordRecord } from '@/lib/db';
+import { SectionStatusBadge } from './SectionStatusBadge';
 
 export type ReviewLogSectionProps = {
   reviewLogs: ReviewLogRecord[];
@@ -185,7 +178,8 @@ export function ReviewLogSection({
                 {statusInfo && <SectionStatusBadge statusInfo={statusInfo} />}
               </Group>
               <Text size="xs" c="dimmed">
-                Immutable event stream for flashcard review events, rating distributions, and FSRS algorithm state transitions.
+                Immutable event stream for flashcard review events, rating distributions, and FSRS
+                algorithm state transitions.
               </Text>
             </div>
           </Group>

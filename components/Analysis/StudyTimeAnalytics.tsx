@@ -158,7 +158,10 @@ export function StudyTimeAnalytics({
               </Text>
             </Group>
             <Text size="md" fw={800} c="yellow" style={{ fontFamily: 'var(--font-title)' }}>
-              {avgDailyMinutes} <Text component="span" size="xs" c="dimmed">min/day</Text>
+              {avgDailyMinutes}{' '}
+              <Text component="span" size="xs" c="dimmed">
+                min/day
+              </Text>
             </Text>
             <Text size="xs" c="dimmed">
               Across {activeStudyDays} study days
@@ -173,7 +176,10 @@ export function StudyTimeAnalytics({
               </Text>
             </Group>
             <Text size="md" fw={800} c="teal" style={{ fontFamily: 'var(--font-title)' }}>
-              {efficiency.avgReviewDurationSec || 0} <Text component="span" size="xs" c="dimmed">sec</Text>
+              {efficiency.avgReviewDurationSec || 0}{' '}
+              <Text component="span" size="xs" c="dimmed">
+                sec
+              </Text>
             </Text>
             <Text size="xs" c="dimmed">
               Per card recall
@@ -203,7 +209,10 @@ export function StudyTimeAnalytics({
               </Text>
             </Group>
             <Text size="md" fw={800} c="pink" style={{ fontFamily: 'var(--font-title)' }}>
-              {efficiency.reviewsPerMinute || 0} <Text component="span" size="xs" c="dimmed">cards/min</Text>
+              {efficiency.reviewsPerMinute || 0}{' '}
+              <Text component="span" size="xs" c="dimmed">
+                cards/min
+              </Text>
             </Text>
             <Text size="xs" c="dimmed">
               Pacing velocity

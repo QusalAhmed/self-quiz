@@ -3,7 +3,11 @@
 import { Badge, Card, Group, Paper, SimpleGrid, Stack, Text, Title } from '@mantine/core';
 import { IconAlertTriangle, IconBulb, IconInfoCircle, IconSparkles } from '@tabler/icons-react';
 import React from 'react';
-import type { LearningInsight, LearningRecommendation, SectionStatusInfo } from '@/lib/analysis/types';
+import type {
+  LearningInsight,
+  LearningRecommendation,
+  SectionStatusInfo,
+} from '@/lib/analysis/types';
 import { SectionStatusBadge } from './SectionStatusBadge';
 
 type InsightsAndRecommendationsProps = {

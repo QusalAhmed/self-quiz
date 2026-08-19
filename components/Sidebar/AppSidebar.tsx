@@ -86,242 +86,242 @@ export function AppSidebar({
     <ScrollArea style={{ height: '100%' }} type="auto" offsetScrollbars>
       <Stack justify="space-between" style={{ minHeight: '100%', padding: '16px 12px' }}>
         {/* Top Branding Section */}
-      <Stack gap="sm">
-        <Group
-          justify="flex-start"
-          align="center"
-          style={{ cursor: 'pointer' }}
-          onClick={() => handleLinkClick(() => router.push('/'))}
-        >
-          <Box
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 10,
-              background: 'var(--accent-gradient)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#fff',
-              boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)',
-            }}
+        <Stack gap="sm">
+          <Group
+            justify="flex-start"
+            align="center"
+            style={{ cursor: 'pointer' }}
+            onClick={() => handleLinkClick(() => router.push('/'))}
           >
-            <IconBrain size={22} />
-          </Box>
-          <Stack gap={0}>
-            <Title order={4} style={{ fontSize: '1.02rem', lineHeight: 1.2 }}>
-              <span className="text-gradient">Word Memorizer</span>
-            </Title>
-            <Text size="xs" c="dimmed" style={{ fontSize: '0.7rem' }}>
-              Vocabulary Companion
-            </Text>
-          </Stack>
-        </Group>
-
-        <Divider my="xs" style={{ borderColor: 'var(--card-border)' }} />
-
-        {/* Navigation Section */}
-        <Stack gap={4}>
-          <Text size="xs" fw={700} c="dimmed" style={{ letterSpacing: '0.05em', paddingLeft: 8 }}>
-            NAVIGATION
-          </Text>
-
-          <NavLink
-            label="Dictionary Explorer"
-            description="Virtual list & full details"
-            leftSection={<IconBook size={18} />}
-            rightSection={
-              <Badge size="xs" variant="filled" color="indigo">
-                {totalWords}
-              </Badge>
-            }
-            active={isWordsPage}
-            onClick={() => handleLinkClick(() => router.push('/words'))}
-            style={{ borderRadius: 8 }}
-          />
-
-          <NavLink
-            label="Learning Analysis"
-            description="FSRS retention & memory health"
-            leftSection={<IconChartBar size={18} />}
-            active={isAnalysisPage}
-            onClick={() => handleLinkClick(() => router.push('/analysis'))}
-            style={{ borderRadius: 8 }}
-          />
-
-          <NavLink
-            label="Review Log"
-            description="Historical audit & inspect"
-            leftSection={<IconHistory size={18} />}
-            active={isReviewLogPage}
-            onClick={() =>
-              handleLinkClick(() => {
-                if (isAnalysisPage) {
-                  const el = document.getElementById('review-log');
-                  if (el) {
-                    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                  }
-                } else {
-                  router.push('/analysis#review-log');
-                }
-              })
-            }
-            style={{ borderRadius: 8 }}
-          />
-
-          <NavLink
-            label="Study & Practice"
-            description="Manage & add words"
-            leftSection={<IconCards size={18} />}
-            active={!isWordsPage && !isAnalysisPage && mode === 'study'}
-            onClick={() =>
-              handleLinkClick(() => {
-                if (isWordsPage || isAnalysisPage) {
-                  router.push('/');
-                } else {
-                  onSetMode('study');
-                }
-              })
-            }
-            style={{ borderRadius: 8 }}
-          />
-
-          <NavLink
-            label="Quiz & Flashcards"
-            description="Interactive review session"
-            leftSection={<IconBrain size={18} />}
-            active={!isWordsPage && !isAnalysisPage && mode === 'quiz'}
-            childrenOffset={24}
-            defaultOpened
-            style={{ borderRadius: 8 }}
-          >
-            <NavLink
-              label="All Words Quiz"
-              leftSection={<IconCards size={16} />}
-              onClick={() =>
-                handleLinkClick(() => {
-                  if (isWordsPage || isAnalysisPage) {
-                    router.push('/');
-                  }
-                  onOpenAllWordsQuiz();
-                })
-              }
-              style={{ borderRadius: 6 }}
-            />
-            <NavLink
-              label="Today's Words"
-              leftSection={<IconPlus size={16} />}
-              rightSection={
-                todayCount > 0 ? (
-                  <Badge size="xs" color="teal">
-                    {todayCount}
-                  </Badge>
-                ) : null
-              }
-              onClick={() =>
-                handleLinkClick(() => {
-                  if (isWordsPage || isAnalysisPage) {
-                    router.push('/');
-                  }
-                  onOpenTodayQuiz();
-                })
-              }
-              style={{ borderRadius: 6 }}
-            />
-            <NavLink
-              label="FSRS Review"
-              leftSection={<IconRotateClockwise size={16} />}
-              rightSection={
-                fsrsDueTodayCount > 0 ? (
-                  <Badge size="xs" color="violet">
-                    {fsrsDueTodayCount} due
-                  </Badge>
-                ) : null
-              }
-              onClick={() =>
-                handleLinkClick(() => {
-                  if (isWordsPage || isAnalysisPage) {
-                    router.push('/');
-                  }
-                  onOpenFsrsQuiz();
-                })
-              }
-              style={{ borderRadius: 6 }}
-            />
-          </NavLink>
-
-          <Divider my={6} style={{ borderColor: 'var(--card-border)' }} />
-
-          <Text
-            size="xs"
-            fw={700}
-            c="dimmed"
-            style={{ letterSpacing: '0.05em', paddingLeft: 8, marginTop: 4 }}
-          >
-            QUICK ACCESS
-          </Text>
-
-          <NavLink
-            label="Group Manager"
-            leftSection={<IconTags size={18} />}
-            onClick={() => handleLinkClick(onOpenGroupManager)}
-            style={{ borderRadius: 8 }}
-          />
-
-          <NavLink
-            label="Dashboard & Stats"
-            leftSection={<IconChartBar size={18} />}
-            onClick={() => handleLinkClick(() => router.push('/analysis'))}
-            style={{ borderRadius: 8 }}
-          />
-
-          <NavLink
-            label="Cloud Sync"
-            leftSection={<IconCloudUpload size={18} />}
-            onClick={() => handleLinkClick(() => scrollToSection('cloud-sync-card'))}
-            style={{ borderRadius: 8 }}
-          />
-        </Stack>
-      </Stack>
-
-      {/* Bottom Footer Section */}
-      <Stack gap="xs">
-        <Divider style={{ borderColor: 'var(--card-border)' }} />
-        <Paper
-          p="xs"
-          radius="md"
-          style={{
-            background: 'rgba(99, 102, 241, 0.05)',
-            border: '1px solid var(--card-border)',
-          }}
-        >
-          <Group justify="space-between" align="center">
+            <Box
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 10,
+                background: 'var(--accent-gradient)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#fff',
+                boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)',
+              }}
+            >
+              <IconBrain size={22} />
+            </Box>
             <Stack gap={0}>
-              <Text size="xs" fw={700}>
-                Theme
-              </Text>
+              <Title order={4} style={{ fontSize: '1.02rem', lineHeight: 1.2 }}>
+                <span className="text-gradient">Word Memorizer</span>
+              </Title>
               <Text size="xs" c="dimmed" style={{ fontSize: '0.7rem' }}>
-                {colorScheme === 'dark' ? 'Dark Mode' : 'Light Mode'}
+                Vocabulary Companion
               </Text>
             </Stack>
-
-            <Tooltip label="Toggle Theme">
-              <ActionIcon
-                variant="subtle"
-                color="indigo"
-                size="md"
-                radius="md"
-                onClick={onToggleTheme}
-              >
-                {colorScheme === 'dark' ? <IconSun size={18} /> : <IconMoon size={18} />}
-              </ActionIcon>
-            </Tooltip>
           </Group>
-        </Paper>
+
+          <Divider my="xs" style={{ borderColor: 'var(--card-border)' }} />
+
+          {/* Navigation Section */}
+          <Stack gap={4}>
+            <Text size="xs" fw={700} c="dimmed" style={{ letterSpacing: '0.05em', paddingLeft: 8 }}>
+              NAVIGATION
+            </Text>
+
+            <NavLink
+              label="Dictionary Explorer"
+              description="Virtual list & full details"
+              leftSection={<IconBook size={18} />}
+              rightSection={
+                <Badge size="xs" variant="filled" color="indigo">
+                  {totalWords}
+                </Badge>
+              }
+              active={isWordsPage}
+              onClick={() => handleLinkClick(() => router.push('/words'))}
+              style={{ borderRadius: 8 }}
+            />
+
+            <NavLink
+              label="Learning Analysis"
+              description="FSRS retention & memory health"
+              leftSection={<IconChartBar size={18} />}
+              active={isAnalysisPage}
+              onClick={() => handleLinkClick(() => router.push('/analysis'))}
+              style={{ borderRadius: 8 }}
+            />
+
+            <NavLink
+              label="Review Log"
+              description="Historical audit & inspect"
+              leftSection={<IconHistory size={18} />}
+              active={isReviewLogPage}
+              onClick={() =>
+                handleLinkClick(() => {
+                  if (isAnalysisPage) {
+                    const el = document.getElementById('review-log');
+                    if (el) {
+                      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                  } else {
+                    router.push('/analysis#review-log');
+                  }
+                })
+              }
+              style={{ borderRadius: 8 }}
+            />
+
+            <NavLink
+              label="Study & Practice"
+              description="Manage & add words"
+              leftSection={<IconCards size={18} />}
+              active={!isWordsPage && !isAnalysisPage && mode === 'study'}
+              onClick={() =>
+                handleLinkClick(() => {
+                  if (isWordsPage || isAnalysisPage) {
+                    router.push('/');
+                  } else {
+                    onSetMode('study');
+                  }
+                })
+              }
+              style={{ borderRadius: 8 }}
+            />
+
+            <NavLink
+              label="Quiz & Flashcards"
+              description="Interactive review session"
+              leftSection={<IconBrain size={18} />}
+              active={!isWordsPage && !isAnalysisPage && mode === 'quiz'}
+              childrenOffset={24}
+              defaultOpened
+              style={{ borderRadius: 8 }}
+            >
+              <NavLink
+                label="All Words Quiz"
+                leftSection={<IconCards size={16} />}
+                onClick={() =>
+                  handleLinkClick(() => {
+                    if (isWordsPage || isAnalysisPage) {
+                      router.push('/');
+                    }
+                    onOpenAllWordsQuiz();
+                  })
+                }
+                style={{ borderRadius: 6 }}
+              />
+              <NavLink
+                label="Today's Words"
+                leftSection={<IconPlus size={16} />}
+                rightSection={
+                  todayCount > 0 ? (
+                    <Badge size="xs" color="teal">
+                      {todayCount}
+                    </Badge>
+                  ) : null
+                }
+                onClick={() =>
+                  handleLinkClick(() => {
+                    if (isWordsPage || isAnalysisPage) {
+                      router.push('/');
+                    }
+                    onOpenTodayQuiz();
+                  })
+                }
+                style={{ borderRadius: 6 }}
+              />
+              <NavLink
+                label="FSRS Review"
+                leftSection={<IconRotateClockwise size={16} />}
+                rightSection={
+                  fsrsDueTodayCount > 0 ? (
+                    <Badge size="xs" color="violet">
+                      {fsrsDueTodayCount} due
+                    </Badge>
+                  ) : null
+                }
+                onClick={() =>
+                  handleLinkClick(() => {
+                    if (isWordsPage || isAnalysisPage) {
+                      router.push('/');
+                    }
+                    onOpenFsrsQuiz();
+                  })
+                }
+                style={{ borderRadius: 6 }}
+              />
+            </NavLink>
+
+            <Divider my={6} style={{ borderColor: 'var(--card-border)' }} />
+
+            <Text
+              size="xs"
+              fw={700}
+              c="dimmed"
+              style={{ letterSpacing: '0.05em', paddingLeft: 8, marginTop: 4 }}
+            >
+              QUICK ACCESS
+            </Text>
+
+            <NavLink
+              label="Group Manager"
+              leftSection={<IconTags size={18} />}
+              onClick={() => handleLinkClick(onOpenGroupManager)}
+              style={{ borderRadius: 8 }}
+            />
+
+            <NavLink
+              label="Dashboard & Stats"
+              leftSection={<IconChartBar size={18} />}
+              onClick={() => handleLinkClick(() => router.push('/analysis'))}
+              style={{ borderRadius: 8 }}
+            />
+
+            <NavLink
+              label="Cloud Sync"
+              leftSection={<IconCloudUpload size={18} />}
+              onClick={() => handleLinkClick(() => scrollToSection('cloud-sync-card'))}
+              style={{ borderRadius: 8 }}
+            />
+          </Stack>
+        </Stack>
+
+        {/* Bottom Footer Section */}
+        <Stack gap="xs">
+          <Divider style={{ borderColor: 'var(--card-border)' }} />
+          <Paper
+            p="xs"
+            radius="md"
+            style={{
+              background: 'rgba(99, 102, 241, 0.05)',
+              border: '1px solid var(--card-border)',
+            }}
+          >
+            <Group justify="space-between" align="center">
+              <Stack gap={0}>
+                <Text size="xs" fw={700}>
+                  Theme
+                </Text>
+                <Text size="xs" c="dimmed" style={{ fontSize: '0.7rem' }}>
+                  {colorScheme === 'dark' ? 'Dark Mode' : 'Light Mode'}
+                </Text>
+              </Stack>
+
+              <Tooltip label="Toggle Theme">
+                <ActionIcon
+                  variant="subtle"
+                  color="indigo"
+                  size="md"
+                  radius="md"
+                  onClick={onToggleTheme}
+                >
+                  {colorScheme === 'dark' ? <IconSun size={18} /> : <IconMoon size={18} />}
+                </ActionIcon>
+              </Tooltip>
+            </Group>
+          </Paper>
+        </Stack>
       </Stack>
-    </Stack>
-  </ScrollArea>
-);
+    </ScrollArea>
+  );
 
   return (
     <>

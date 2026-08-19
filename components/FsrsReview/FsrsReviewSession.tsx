@@ -2,12 +2,7 @@
 
 import { Container } from '@mantine/core';
 import React, { useEffect } from 'react';
-import {
-  computeFsrs,
-  createReviewLogEvent,
-  type FsrsRating,
-  type FsrsRecord,
-} from '@/lib/fsrs';
+import { computeFsrs, createReviewLogEvent, type FsrsRating, type FsrsRecord } from '@/lib/fsrs';
 import { useAppDispatch, useAppSelector } from '@/lib/redux/hooks';
 import {
   answerCard,
@@ -104,13 +99,15 @@ export function FsrsReviewSession({
       now,
     });
 
-    void import('@/lib/db').then(async ({ getDatabase }) => {
-      const db = await getDatabase();
-      await db.reviewLogs.insert(reviewLog);
-      await db.fsrsRecords.upsert(updatedCard);
-    }).catch((err) => {
-      console.error('Failed to persist review log in FsrsReviewSession:', err);
-    });
+    void import('@/lib/db')
+      .then(async ({ getDatabase }) => {
+        const db = await getDatabase();
+        await db.reviewLogs.insert(reviewLog);
+        await db.fsrsRecords.upsert(updatedCard);
+      })
+      .catch((err) => {
+        console.error('Failed to persist review log in FsrsReviewSession:', err);
+      });
 
     // Background Sync: Sends the updated (post-rating) card to the backend API.
     dispatch(syncFsrsReviewLog(updatedCard));

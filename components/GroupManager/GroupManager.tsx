@@ -76,7 +76,9 @@ export function GroupManager({
   };
 
   const handleDeleteConfirmed = async () => {
-    if (!confirmDeleteId) {return;}
+    if (!confirmDeleteId) {
+      return;
+    }
     setConfirmDeleteId(null);
     setIsSaving(true);
     try {

@@ -67,7 +67,8 @@ export function LearningStateDistribution({
               <SectionStatusBadge statusInfo={statusInfo} />
             </Group>
             <Text size="xs" c="dimmed">
-              Current breakdown of your {totalWords.toLocaleString()} vocabulary words across FSRS spaced repetition states.
+              Current breakdown of your {totalWords.toLocaleString()} vocabulary words across FSRS
+              spaced repetition states.
             </Text>
           </div>
 
@@ -86,11 +87,7 @@ export function LearningStateDistribution({
         {/* Stacked Progress Bar */}
         <Progress.Root size="xl" radius="xl" style={{ overflow: 'hidden' }}>
           {states.map((s) => (
-            <Tooltip
-              key={s.state}
-              label={`${s.state}: ${s.count} words (${s.percent}%)`}
-              withArrow
-            >
+            <Tooltip key={s.state} label={`${s.state}: ${s.count} words (${s.percent}%)`} withArrow>
               <Progress.Section
                 value={s.percent}
                 color={
@@ -192,7 +189,8 @@ export function LearningStateDistribution({
             <IconAlertCircle size={16} color="#6366f1" style={{ marginTop: 2, flexShrink: 0 }} />
             <Text size="xs" c="dimmed">
               <strong style={{ color: 'var(--mantine-color-text)' }}>Mastery Definition:</strong>{' '}
-              {masteryRuleDescription} Words are not considered learned upon creation; memory stability is mathematically calculated by FSRS from review responses.
+              {masteryRuleDescription} Words are not considered learned upon creation; memory
+              stability is mathematically calculated by FSRS from review responses.
             </Text>
           </Group>
         </Paper>

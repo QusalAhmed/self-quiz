@@ -26,7 +26,9 @@ export function SectionStatusBadge({ statusInfo, size = 'xs' }: SectionStatusBad
     >
       <Badge
         size={size}
-        variant={status === 'available' ? 'light' : status === 'limited_data' ? 'filled' : 'outline'}
+        variant={
+          status === 'available' ? 'light' : status === 'limited_data' ? 'filled' : 'outline'
+        }
         color={badgeColor}
         radius="sm"
         style={{

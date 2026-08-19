@@ -1,10 +1,5 @@
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
-import {
-  computeFsrs,
-  computeFsrsIntervals,
-  type FsrsRating,
-  type FsrsRecord,
-} from '@/lib/fsrs';
+import { computeFsrs, computeFsrsIntervals, type FsrsRating, type FsrsRecord } from '@/lib/fsrs';
 
 export interface FsrsReviewHistoryItem {
   cardBefore: FsrsRecord;

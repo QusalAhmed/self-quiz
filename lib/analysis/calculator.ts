@@ -37,7 +37,9 @@ import type {
 
 export function getLocalCalendarDateKey(dInput: Date | string | number): string {
   const d = dInput instanceof Date ? dInput : new Date(dInput);
-  if (isNaN(d.getTime())) {return '';}
+  if (isNaN(d.getTime())) {
+    return '';
+  }
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
@@ -396,9 +398,7 @@ export function calculateAnalysis({
       newCount += 1;
     }
 
-    const r = card
-      ? computeRetrievability(card.stability, card.lastReviewedAt, now)
-      : 1;
+    const r = card ? computeRetrievability(card.stability, card.lastReviewedAt, now) : 1;
     const stability = card?.stability || 0;
     const difficulty = card?.difficulty || 0;
     const reps = card?.reps || logs.length;
@@ -536,12 +536,7 @@ export function calculateAnalysis({
     }
 
     // Strong candidates
-    if (
-      reps >= 2 &&
-      stability >= 14 &&
-      (lapses === 0 || stability >= 25) &&
-      r >= 0.85
-    ) {
+    if (reps >= 2 && stability >= 14 && (lapses === 0 || stability >= 25) && r >= 0.85) {
       strongCandidates.push({
         id: word.id,
         word: word.word,
@@ -564,7 +559,9 @@ export function calculateAnalysis({
   // Sort candidates & time spent
   problematicCandidates.sort((a, b) => b.problemScore - a.problemScore);
   strongCandidates.sort((a, b) => b.stability - a.stability || b.retrievability - a.retrievability);
-  wordTimeSpentList.sort((a, b) => b.totalTimeSec - a.totalTimeSec || b.reviewsCount - a.reviewsCount);
+  wordTimeSpentList.sort(
+    (a, b) => b.totalTimeSec - a.totalTimeSec || b.reviewsCount - a.reviewsCount
+  );
 
   // State distribution data
   const totalWordsCount = filteredWords.length;
@@ -690,7 +687,9 @@ export function calculateAnalysis({
     avgDifficulty:
       totalWordsCount > 0 ? Math.round((totalDifficultySum / totalWordsCount) * 10) / 10 : 0,
     avgRetrievability:
-      totalWordsCount > 0 ? Math.round((totalRetrievabilitySum / totalWordsCount) * 1000) / 10 : 100,
+      totalWordsCount > 0
+        ? Math.round((totalRetrievabilitySum / totalWordsCount) * 1000) / 10
+        : 100,
     stabilityBuckets,
     difficultyBuckets,
     fragileCardsCount,
@@ -761,7 +760,8 @@ export function calculateAnalysis({
     ).length;
 
     const wordsAddedToday = wordsAddedByDay.get(dateKey) || 0;
-    const studySec = usageByDate.get(dateKey) || Math.round((durationByDay.get(dateKey) || 0) / 1000);
+    const studySec =
+      usageByDate.get(dateKey) || Math.round((durationByDay.get(dateKey) || 0) / 1000);
     const revs = reviewsByDay.get(dateKey) || 0;
     const dayRecall = recallByDay.get(dateKey);
     const recallRate =
@@ -795,7 +795,9 @@ export function calculateAnalysis({
   const timeSeriesWeekly: TimeSeriesDataPoint[] = [];
   for (let i = 0; i < timeSeries.length; i += 7) {
     const chunk = timeSeries.slice(i, i + 7);
-    if (chunk.length === 0) {continue;}
+    if (chunk.length === 0) {
+      continue;
+    }
     const first = chunk[0];
     const last = chunk[chunk.length - 1];
     const totalW = last.totalWords;
@@ -905,7 +907,8 @@ export function calculateAnalysis({
 
   const totalWordsAddedInPeriod = dailyWordsAddedPoints.reduce((sum, p) => sum + p.wordsAdded, 0);
   const totalCalendarDaysInPeriod = Math.max(1, dailyWordsAddedPoints.length);
-  const dailyWordsAverage = Math.round((totalWordsAddedInPeriod / totalCalendarDaysInPeriod) * 10) / 10;
+  const dailyWordsAverage =
+    Math.round((totalWordsAddedInPeriod / totalCalendarDaysInPeriod) * 10) / 10;
 
   let bestDayPoint: DailyWordsAddedPoint | null = null;
   let maxAddedCount = 0;
@@ -951,14 +954,19 @@ export function calculateAnalysis({
   for (const w of masteredWordsList) {
     const logs = reviewLogsByWordId.get(w.id) || [];
     const card = primaryFsrsByWordId.get(w.id);
-    if (!card) {continue;}
+    if (!card) {
+      continue;
+    }
 
     let firstDate = new Date(w.createdAt);
     if (logs.length > 0 && logs[0].reviewedAt) {
       firstDate = new Date(logs[0].reviewedAt);
     }
     const lastDate = card.lastReviewedAt ? new Date(card.lastReviewedAt) : new Date();
-    const days = Math.max(1, Math.round((lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24)));
+    const days = Math.max(
+      1,
+      Math.round((lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24))
+    );
 
     let durationSec = 0;
     for (const l of logs) {
@@ -982,9 +990,7 @@ export function calculateAnalysis({
   const totalMasteryStudySec = masteryTimes.reduce((acc, m) => acc + m.studyTimeSec, 0);
 
   const medianDays =
-    masteryTimes.length > 0
-      ? masteryTimes[Math.floor(masteryTimes.length / 2)].days
-      : 0;
+    masteryTimes.length > 0 ? masteryTimes[Math.floor(masteryTimes.length / 2)].days : 0;
 
   const timeToMastery: TimeToMasteryData = {
     avgDaysToMastery:
@@ -993,9 +999,7 @@ export function calculateAnalysis({
     avgReviewsBeforeMastery:
       masteryTimes.length > 0 ? Math.round((totalMasteryRevs / masteryTimes.length) * 10) / 10 : 0,
     avgStudyTimeBeforeMasterySec:
-      masteryTimes.length > 0
-        ? Math.round(totalMasteryStudySec / masteryTimes.length)
-        : 0,
+      masteryTimes.length > 0 ? Math.round(totalMasteryStudySec / masteryTimes.length) : 0,
     masteredWordsCount: masteryTimes.length,
     fastestMasteredWords: masteryTimes.slice(0, 5),
     slowestMasteredWords: [...masteryTimes].reverse().slice(0, 5),
@@ -1062,8 +1066,7 @@ export function calculateAnalysis({
         catWords.length > 0 ? Math.round((catDifficultySum / catWords.length) * 10) / 10 : 0,
       reviewsCount: catReviews,
       totalStudyTimeSec: catStudyTimeSec,
-      avgTimePerWordSec:
-        catWords.length > 0 ? Math.round(catStudyTimeSec / catWords.length) : 0,
+      avgTimePerWordSec: catWords.length > 0 ? Math.round(catStudyTimeSec / catWords.length) : 0,
       lapses: catLapses,
     });
   }
@@ -1251,7 +1254,10 @@ export function calculateAnalysis({
 
     prevMastered = Math.max(0, Math.round(masteredCount * 0.85));
     prevLearning = Math.max(0, Math.round(learningCount * 0.9));
-    prevAvgReviews = prevActiveDays > 0 && prevReviews !== undefined ? Math.round((prevReviews / prevActiveDays) * 10) / 10 : 0;
+    prevAvgReviews =
+      prevActiveDays > 0 && prevReviews !== undefined
+        ? Math.round((prevReviews / prevActiveDays) * 10) / 10
+        : 0;
   }
 
   // Build KPI Cards Data
@@ -1341,9 +1347,7 @@ export function calculateAnalysis({
     avgDaysNewToMastered: timeToMastery.avgDaysToMastery || (masteredCount > 0 ? 28.5 : 0),
     growthRatePercent:
       totalWordsCount > 0
-        ? Math.round(
-            (wordsAddedInPeriod / Math.max(1, totalWordsCount - wordsAddedInPeriod)) * 100
-          )
+        ? Math.round((wordsAddedInPeriod / Math.max(1, totalWordsCount - wordsAddedInPeriod)) * 100)
         : 0,
     projectedMasteryNext30Days: Math.round(masteredCount + (learningCount + reviewCount) * 0.45),
   };
@@ -1417,11 +1421,7 @@ export function calculateAnalysis({
             ? 'Limited data'
             : 'No activity',
       badgeColor:
-        totalReviewsCompleted >= 10
-          ? 'teal'
-          : totalReviewsCompleted > 0
-            ? 'yellow'
-            : 'gray',
+        totalReviewsCompleted >= 10 ? 'teal' : totalReviewsCompleted > 0 ? 'yellow' : 'gray',
       message:
         totalReviewsCompleted >= 10
           ? `Calculated from ${totalReviewsCompleted} verified review events in selected period.`
@@ -1513,11 +1513,7 @@ export function calculateAnalysis({
             ? 'Limited data'
             : 'No activity',
       badgeColor:
-        wordEffortPoints.length >= 5
-          ? 'teal'
-          : wordEffortPoints.length > 0
-            ? 'yellow'
-            : 'gray',
+        wordEffortPoints.length >= 5 ? 'teal' : wordEffortPoints.length > 0 ? 'yellow' : 'gray',
       message:
         wordEffortPoints.length > 0
           ? `Tracking review effort across ${wordEffortPoints.length} reviewed words.`
@@ -1537,12 +1533,7 @@ export function calculateAnalysis({
           : masteryTimes.length > 0
             ? 'Limited data'
             : 'No activity',
-      badgeColor:
-        masteryTimes.length >= 3
-          ? 'teal'
-          : masteryTimes.length > 0
-            ? 'yellow'
-            : 'gray',
+      badgeColor: masteryTimes.length >= 3 ? 'teal' : masteryTimes.length > 0 ? 'yellow' : 'gray',
       message:
         masteryTimes.length >= 3
           ? `Calculated from ${masteryTimes.length} mastered vocabulary words.`
@@ -1563,11 +1554,7 @@ export function calculateAnalysis({
             ? 'Limited data'
             : 'No activity',
       badgeColor:
-        wordEffortPoints.length >= 5
-          ? 'teal'
-          : wordEffortPoints.length > 0
-            ? 'yellow'
-            : 'gray',
+        wordEffortPoints.length >= 5 ? 'teal' : wordEffortPoints.length > 0 ? 'yellow' : 'gray',
       message: `Analyzing correlation between FSRS difficulty and study time across ${wordEffortPoints.length} words.`,
       sampleCount: wordEffortPoints.length,
     },
@@ -1597,24 +1584,9 @@ export function calculateAnalysis({
       sampleCount: categoryComparisons.length,
     },
     retention: {
-      status:
-        totalRatings >= 15
-          ? 'available'
-          : totalRatings > 0
-            ? 'limited_data'
-            : 'no_activity',
-      label:
-        totalRatings >= 15
-          ? 'Available'
-          : totalRatings > 0
-            ? 'Limited data'
-            : 'No activity',
-      badgeColor:
-        totalRatings >= 15
-          ? 'teal'
-          : totalRatings > 0
-            ? 'yellow'
-            : 'gray',
+      status: totalRatings >= 15 ? 'available' : totalRatings > 0 ? 'limited_data' : 'no_activity',
+      label: totalRatings >= 15 ? 'Available' : totalRatings > 0 ? 'Limited data' : 'No activity',
+      badgeColor: totalRatings >= 15 ? 'teal' : totalRatings > 0 ? 'yellow' : 'gray',
       message:
         totalRatings >= 15
           ? `High statistical accuracy based on ${totalRatings} review events.`
@@ -1698,23 +1670,10 @@ export function calculateAnalysis({
     },
     growth: {
       status:
-        totalWordsCount >= 5
-          ? 'available'
-          : totalWordsCount > 0
-            ? 'limited_data'
-            : 'no_activity',
+        totalWordsCount >= 5 ? 'available' : totalWordsCount > 0 ? 'limited_data' : 'no_activity',
       label:
-        totalWordsCount >= 5
-          ? 'Available'
-          : totalWordsCount > 0
-            ? 'Limited data'
-            : 'No activity',
-      badgeColor:
-        totalWordsCount >= 5
-          ? 'teal'
-          : totalWordsCount > 0
-            ? 'yellow'
-            : 'gray',
+        totalWordsCount >= 5 ? 'Available' : totalWordsCount > 0 ? 'Limited data' : 'No activity',
+      badgeColor: totalWordsCount >= 5 ? 'teal' : totalWordsCount > 0 ? 'yellow' : 'gray',
       message:
         totalWordsCount > 0
           ? `Vocabulary acquisition rate calculated from ${totalWordsCount} words.`

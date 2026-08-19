@@ -1,16 +1,6 @@
 'use client';
 
-import {
-  Badge,
-  Box,
-  Card,
-  Group,
-  Progress,
-  Stack,
-  Table,
-  Text,
-  Title,
-} from '@mantine/core';
+import { Badge, Box, Card, Group, Progress, Stack, Table, Text, Title } from '@mantine/core';
 import { IconCategory, IconFolder } from '@tabler/icons-react';
 import React from 'react';
 import {
@@ -23,8 +13,8 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import type { CategoryComparisonItem, SectionStatusInfo } from '@/lib/analysis/types';
 import { formatDurationHMS } from '@/lib/analysis/calculator';
+import type { CategoryComparisonItem, SectionStatusInfo } from '@/lib/analysis/types';
 import { SectionStatusBadge } from './SectionStatusBadge';
 
 type CategoryAnalysisProps = {
@@ -59,7 +49,8 @@ export function CategoryAnalysis({ categories, statusInfo }: CategoryAnalysisPro
               <SectionStatusBadge statusInfo={statusInfo} />
             </Group>
             <Text size="xs" c="dimmed">
-              Cross-category comparison of vocabulary volume, mastery rates, and study time investment.
+              Cross-category comparison of vocabulary volume, mastery rates, and study time
+              investment.
             </Text>
           </div>
 
@@ -93,8 +84,18 @@ export function CategoryAnalysis({ categories, statusInfo }: CategoryAnalysisPro
                 />
                 <Legend iconType="circle" wrapperStyle={{ fontSize: 12, paddingTop: 10 }} />
                 <Bar dataKey="words" name="Total Words" fill="#6366f1" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="mastered" name="Mastered Words" fill="#10b981" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="studyMinutes" name="Study Time (min)" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                <Bar
+                  dataKey="mastered"
+                  name="Mastered Words"
+                  fill="#10b981"
+                  radius={[4, 4, 0, 0]}
+                />
+                <Bar
+                  dataKey="studyMinutes"
+                  name="Study Time (min)"
+                  fill="#f59e0b"
+                  radius={[4, 4, 0, 0]}
+                />
               </BarChart>
             </ResponsiveContainer>
           </Box>
@@ -102,7 +103,12 @@ export function CategoryAnalysis({ categories, statusInfo }: CategoryAnalysisPro
 
         {/* Categories Table */}
         <Box style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-          <Table verticalSpacing="xs" horizontalSpacing="sm" highlightOnHover style={{ minWidth: 680 }}>
+          <Table
+            verticalSpacing="xs"
+            horizontalSpacing="sm"
+            highlightOnHover
+            style={{ minWidth: 680 }}
+          >
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>Category / Tag</Table.Th>
@@ -139,19 +145,33 @@ export function CategoryAnalysis({ categories, statusInfo }: CategoryAnalysisPro
                   </Table.Td>
                   <Table.Td>
                     <Group gap="xs" align="center" wrap="nowrap">
-                      <Progress value={c.masteryRate} color="teal" size="sm" radius="xl" style={{ flex: 1 }} />
+                      <Progress
+                        value={c.masteryRate}
+                        color="teal"
+                        size="sm"
+                        radius="xl"
+                        style={{ flex: 1 }}
+                      />
                       <Text size="11px" fw={700} style={{ minWidth: 32 }}>
                         {c.masteryRate}%
                       </Text>
                     </Group>
                   </Table.Td>
                   <Table.Td style={{ textAlign: 'right' }}>
-                    <Badge size="xs" variant="light" color={c.retentionRate >= 85 ? 'teal' : 'yellow'}>
+                    <Badge
+                      size="xs"
+                      variant="light"
+                      color={c.retentionRate >= 85 ? 'teal' : 'yellow'}
+                    >
                       {c.retentionRate}%
                     </Badge>
                   </Table.Td>
                   <Table.Td style={{ textAlign: 'right' }}>
-                    <Badge size="xs" variant="outline" color={c.avgDifficulty >= 7 ? 'red' : 'gray'}>
+                    <Badge
+                      size="xs"
+                      variant="outline"
+                      color={c.avgDifficulty >= 7 ? 'red' : 'gray'}
+                    >
                       {c.avgDifficulty}/10
                     </Badge>
                   </Table.Td>

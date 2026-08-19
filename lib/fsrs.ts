@@ -151,7 +151,9 @@ export function formatInterval(dueDate: Date | string, now: Date = new Date()): 
   const due = typeof dueDate === 'string' ? new Date(dueDate) : dueDate;
   const diffMs = due.getTime() - now.getTime();
 
-  if (isNaN(diffMs)) {return '';}
+  if (isNaN(diffMs)) {
+    return '';
+  }
 
   const diffSec = Math.max(0, diffMs / 1000);
   const diffMin = diffSec / 60;

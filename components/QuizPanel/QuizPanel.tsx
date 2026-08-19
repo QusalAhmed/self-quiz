@@ -119,7 +119,9 @@ export function QuizPanel({
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       const activeTag = document.activeElement?.tagName.toLowerCase();
-      if (activeTag === 'input' || activeTag === 'textarea') {return;}
+      if (activeTag === 'input' || activeTag === 'textarea') {
+        return;
+      }
 
       if (
         canUndo &&

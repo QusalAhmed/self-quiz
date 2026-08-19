@@ -281,10 +281,14 @@ function srsPracticeRecordToPayload(record: SrsPracticeRecord): SrsPracticeSyncP
 }
 
 function readSrsPracticeOutbox(): SrsPracticeSyncPayload[] {
-  if (typeof window === 'undefined') {return [];}
+  if (typeof window === 'undefined') {
+    return [];
+  }
   try {
     const raw = localStorage.getItem(SRS_PRACTICE_OUTBOX_KEY);
-    if (!raw) {return [];}
+    if (!raw) {
+      return [];
+    }
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
   } catch {
@@ -293,7 +297,9 @@ function readSrsPracticeOutbox(): SrsPracticeSyncPayload[] {
 }
 
 function writeSrsPracticeOutbox(items: SrsPracticeSyncPayload[]): void {
-  if (typeof window === 'undefined') {return;}
+  if (typeof window === 'undefined') {
+    return;
+  }
   localStorage.setItem(SRS_PRACTICE_OUTBOX_KEY, JSON.stringify(items));
 }
 
@@ -309,10 +315,14 @@ function removeFromSrsPracticeOutbox(id: string): void {
 }
 
 export async function flushSrsPracticeOutbox(collection: SrsPracticeCollection): Promise<void> {
-  if (!isOnline()) {return;}
+  if (!isOnline()) {
+    return;
+  }
 
   const outbox = readSrsPracticeOutbox();
-  if (outbox.length === 0) {return;}
+  if (outbox.length === 0) {
+    return;
+  }
 
   console.log(`Flushing ${outbox.length} SRS practice record(s) from outbox...`);
   const failed: SrsPracticeSyncPayload[] = [];
@@ -400,10 +410,14 @@ function fsrsRecordToPayload(record: FsrsRecord): FsrsSyncPayload {
 }
 
 function readFsrsOutbox(): FsrsSyncPayload[] {
-  if (typeof window === 'undefined') {return [];}
+  if (typeof window === 'undefined') {
+    return [];
+  }
   try {
     const raw = localStorage.getItem(FSRS_OUTBOX_KEY);
-    if (!raw) {return [];}
+    if (!raw) {
+      return [];
+    }
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
   } catch {
@@ -412,7 +426,9 @@ function readFsrsOutbox(): FsrsSyncPayload[] {
 }
 
 function writeFsrsOutbox(items: FsrsSyncPayload[]): void {
-  if (typeof window === 'undefined') {return;}
+  if (typeof window === 'undefined') {
+    return;
+  }
   localStorage.setItem(FSRS_OUTBOX_KEY, JSON.stringify(items));
 }
 
@@ -428,10 +444,14 @@ function removeFromFsrsOutbox(id: string): void {
 }
 
 export async function flushFsrsOutbox(collection: FsrsCollection): Promise<void> {
-  if (!isOnline()) {return;}
+  if (!isOnline()) {
+    return;
+  }
 
   const outbox = readFsrsOutbox();
-  if (outbox.length === 0) {return;}
+  if (outbox.length === 0) {
+    return;
+  }
 
   console.log(`Flushing ${outbox.length} FSRS record(s) from outbox...`);
   const failed: FsrsSyncPayload[] = [];
@@ -562,7 +582,9 @@ function readWordOutbox(): WordSyncPayload[] {
   }
   try {
     const raw = localStorage.getItem(WORD_OUTBOX_KEY);
-    if (!raw) {return [];}
+    if (!raw) {
+      return [];
+    }
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
   } catch {
@@ -571,7 +593,9 @@ function readWordOutbox(): WordSyncPayload[] {
 }
 
 function writeWordOutbox(items: WordSyncPayload[]): void {
-  if (typeof window === 'undefined') {return;}
+  if (typeof window === 'undefined') {
+    return;
+  }
   localStorage.setItem(WORD_OUTBOX_KEY, JSON.stringify(items));
 }
 
@@ -587,10 +611,14 @@ function removeFromWordOutbox(id: string): void {
 }
 
 export async function flushWordOutbox(collection: WordCollection): Promise<void> {
-  if (!isOnline()) {return;}
+  if (!isOnline()) {
+    return;
+  }
 
   const outbox = readWordOutbox();
-  if (outbox.length === 0) {return;}
+  if (outbox.length === 0) {
+    return;
+  }
 
   console.log(`Flushing ${outbox.length} word(s) from outbox...`);
   const failed: WordSyncPayload[] = [];
@@ -653,10 +681,14 @@ function groupRecordToPayload(record: GroupRecord): GroupSyncPayload {
 }
 
 function readGroupOutbox(): GroupSyncPayload[] {
-  if (typeof window === 'undefined') {return [];}
+  if (typeof window === 'undefined') {
+    return [];
+  }
   try {
     const raw = localStorage.getItem(GROUP_OUTBOX_KEY);
-    if (!raw) {return [];}
+    if (!raw) {
+      return [];
+    }
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
   } catch {
@@ -665,7 +697,9 @@ function readGroupOutbox(): GroupSyncPayload[] {
 }
 
 function writeGroupOutbox(items: GroupSyncPayload[]): void {
-  if (typeof window === 'undefined') {return;}
+  if (typeof window === 'undefined') {
+    return;
+  }
   localStorage.setItem(GROUP_OUTBOX_KEY, JSON.stringify(items));
 }
 
@@ -681,10 +715,14 @@ function removeFromGroupOutbox(id: string): void {
 }
 
 export async function flushGroupOutbox(collection: GroupCollection): Promise<void> {
-  if (!isOnline()) {return;}
+  if (!isOnline()) {
+    return;
+  }
 
   const outbox = readGroupOutbox();
-  if (outbox.length === 0) {return;}
+  if (outbox.length === 0) {
+    return;
+  }
 
   console.log(`Flushing ${outbox.length} group(s) from outbox...`);
   const failed: GroupSyncPayload[] = [];
@@ -749,10 +787,14 @@ function dailyUsageRecordToPayload(record: DailyUsageRecord): DailyUsageSyncPayl
 }
 
 function readDailyUsageOutbox(): DailyUsageSyncPayload[] {
-  if (typeof window === 'undefined') {return [];}
+  if (typeof window === 'undefined') {
+    return [];
+  }
   try {
     const raw = localStorage.getItem(DAILY_USAGE_OUTBOX_KEY);
-    if (!raw) {return [];}
+    if (!raw) {
+      return [];
+    }
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
   } catch {
@@ -761,7 +803,9 @@ function readDailyUsageOutbox(): DailyUsageSyncPayload[] {
 }
 
 function writeDailyUsageOutbox(items: DailyUsageSyncPayload[]): void {
-  if (typeof window === 'undefined') {return;}
+  if (typeof window === 'undefined') {
+    return;
+  }
   localStorage.setItem(DAILY_USAGE_OUTBOX_KEY, JSON.stringify(items));
 }
 
@@ -777,10 +821,14 @@ function removeFromDailyUsageOutbox(id: string): void {
 }
 
 export async function flushDailyUsageOutbox(collection: DailyUsageCollection): Promise<void> {
-  if (!isOnline()) {return;}
+  if (!isOnline()) {
+    return;
+  }
 
   const outbox = readDailyUsageOutbox();
-  if (outbox.length === 0) {return;}
+  if (outbox.length === 0) {
+    return;
+  }
 
   console.log(`Flushing ${outbox.length} daily usage record(s) from outbox...`);
   const failed: DailyUsageSyncPayload[] = [];
@@ -1399,10 +1447,14 @@ function srsRecordToPayload(record: SrsRecord): SrsSyncPayload {
 }
 
 function readSrsOutbox(): SrsSyncPayload[] {
-  if (typeof window === 'undefined') {return [];}
+  if (typeof window === 'undefined') {
+    return [];
+  }
   try {
     const raw = localStorage.getItem(SRS_OUTBOX_KEY);
-    if (!raw) {return [];}
+    if (!raw) {
+      return [];
+    }
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
   } catch {
@@ -1411,7 +1463,9 @@ function readSrsOutbox(): SrsSyncPayload[] {
 }
 
 function writeSrsOutbox(items: SrsSyncPayload[]): void {
-  if (typeof window === 'undefined') {return;}
+  if (typeof window === 'undefined') {
+    return;
+  }
   localStorage.setItem(SRS_OUTBOX_KEY, JSON.stringify(items));
 }
 
@@ -1427,10 +1481,14 @@ function removeFromSrsOutbox(id: string): void {
 }
 
 export async function flushSrsOutbox(collection: SrsCollection): Promise<void> {
-  if (!isOnline()) {return;}
+  if (!isOnline()) {
+    return;
+  }
 
   const outbox = readSrsOutbox();
-  if (outbox.length === 0) {return;}
+  if (outbox.length === 0) {
+    return;
+  }
 
   console.log(`Flushing ${outbox.length} SRS record(s) from outbox...`);
   const failed: SrsSyncPayload[] = [];

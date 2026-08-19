@@ -1,5 +1,10 @@
 import { normalizeAiExamples } from './examples';
-import { normalizeWordFamilyMembers, type WordFamilyMember } from './word-family';
+import {
+  buildWordFamilyUserPrompt,
+  normalizeWordFamilyMembers,
+  WORD_FAMILY_SYSTEM_INSTRUCTION,
+  type WordFamilyMember,
+} from './word-family';
 
 export type GenerateExamplesParams = {
   word: string;
@@ -26,10 +31,7 @@ export async function generateGoogleWordFamily(
   const model = process.env.GOOGLE_AI_MODEL || 'gemma-4-26b-a4b-it';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-  const meaningBlock = meaning ? `\nContext/meaning of root word: ${meaning}` : '';
-  const systemInstruction =
-    'You are an expert lexicographer. You output only raw JSON. No markdown code fences. No explanation. Reply with ONLY a JSON object having key "members", where each item is an object with: "word" (string), "partOfSpeech" (e.g. noun, verb, adjective, adverb), "banglaDefinition" (accurate meaning in Bengali / বাংলা অর্থ), "englishDefinition" (clear meaning in English), and "examples" (array of 1-2 practical English example sentences). Do NOT include the main/root word itself in the members list.';
-  const promptText = `Provide all derivative/related words belonging to the word family of "${word}" across different parts of speech (noun, verb, adjective, adverb, etc.).${meaningBlock}\nIMPORTANT: Do NOT include the base/main word "${word}" itself in the list; provide only other family members.\nFor each word in the family, provide: word, partOfSpeech, banglaDefinition, englishDefinition, and examples.\nReply with JSON ONLY:\n{"members":[{"word":"...","partOfSpeech":"...","banglaDefinition":"...","englishDefinition":"...","examples":["..."]}]}`;
+  const promptText = buildWordFamilyUserPrompt(word, meaning);
 
   const payload = {
     contents: [
@@ -45,7 +47,7 @@ export async function generateGoogleWordFamily(
     systemInstruction: {
       parts: [
         {
-          text: systemInstruction,
+          text: WORD_FAMILY_SYSTEM_INSTRUCTION,
         },
       ],
     },
@@ -117,10 +119,11 @@ export async function generateGoogleExamples(params: GenerateExamplesParams): Pr
     'You output only raw JSON. No markdown. No explanation. No code fences. Just a JSON object. Reply with ONLY this JSON and nothing else: {"examples":["sentence 1","sentence 2","sentence 3"]}';
   const promptText =
     `Give me up to ${targetCount} example sentences in English using the word "${word}" ` +
-    `(meaning: ${meaning}). Each sentence must clearly reflect this specific meaning.${ 
-    partOfSpeechBlock 
-    } Prefer ${targetCount} examples if possible, but return fewer if that is more natural or accurate.${ 
-    referenceBlock}`;
+    `(meaning: ${meaning}). Each sentence must clearly reflect this specific meaning.${
+      partOfSpeechBlock
+    } Prefer ${targetCount} examples if possible, but return fewer if that is more natural or accurate.${
+      referenceBlock
+    }`;
 
   const payload = {
     contents: [

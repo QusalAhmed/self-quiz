@@ -224,8 +224,12 @@ export default function AnalysisPage() {
   const fsrsDueTodayCount = useMemo(() => {
     const nowTime = new Date().getTime();
     return fsrsRecords.filter((r) => {
-      if (r.isDeleted) {return false;}
-      if (!r.dueAt) {return true;}
+      if (r.isDeleted) {
+        return false;
+      }
+      if (!r.dueAt) {
+        return true;
+      }
       return new Date(r.dueAt).getTime() <= nowTime;
     }).length;
   }, [fsrsRecords]);
