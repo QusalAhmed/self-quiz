@@ -393,6 +393,16 @@ describe('Analysis Calculator', () => {
       expect(result.statuses.studyTime.status).toBeDefined();
       expect(result.statuses.wordTime.status).toBeDefined();
       expect(result.statuses.timeToMastery.status).toBeDefined();
+
+      // Test daily words added graph data
+      expect(result.dailyWordsAdded).toBeDefined();
+      expect(result.dailyWordsAdded.timeSeries.length).toBe(30);
+      expect(result.dailyWordsAdded.totalAdded).toBe(3);
+      expect(result.dailyWordsAdded.dailyAverage).toBe(0.1);
+      expect(result.dailyWordsAdded.hasActivity).toBe(true);
+      expect(result.dailyWordsAdded.mostProductiveDay).toBeDefined();
+      expect(result.dailyWordsAdded.mostProductiveDay?.count).toBe(1);
+      expect(result.statuses.dailyWordsAdded.status).toBe('available');
     });
 
     it('handles empty database gracefully', () => {

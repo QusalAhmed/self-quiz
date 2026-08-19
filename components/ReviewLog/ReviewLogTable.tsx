@@ -91,8 +91,8 @@ export function ReviewLogTable({ logs, onInspectLog, onSelectWord }: ReviewLogTa
     <Card className="glass-panel" radius="xl" padding="md">
       <Stack gap="md">
         {/* Table Container */}
-        <Box style={{ overflowX: 'auto' }}>
-          <Table verticalSpacing="sm" horizontalSpacing="md" highlightOnHover>
+        <Box style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <Table verticalSpacing="sm" horizontalSpacing="md" highlightOnHover style={{ minWidth: 700 }}>
             <Table.Thead>
               <Table.Tr style={{ borderBottom: '1px solid var(--card-border)' }}>
                 <Table.Th style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--mantine-color-dimmed)' }}>

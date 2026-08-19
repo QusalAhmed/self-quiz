@@ -15,6 +15,8 @@ import type {
   AnalysisSectionKey,
   CategoryComparisonItem,
   ComparisonPeriod,
+  DailyWordsAddedData,
+  DailyWordsAddedPoint,
   DateRangePreset,
   FsrsMemoryHealthData,
   HeatmapDay,
@@ -32,6 +34,15 @@ import type {
   WordEffortPoint,
   WordTimeSpentItem,
 } from './types';
+
+export function getLocalCalendarDateKey(dInput: Date | string | number): string {
+  const d = dInput instanceof Date ? dInput : new Date(dInput);
+  if (isNaN(d.getTime())) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
 
 const FACTOR = 19 / 81; // 0.2345679 -> at t = S, R = 0.90 (90% target retention)
 
@@ -859,6 +870,69 @@ export function calculateAnalysis({
     });
   }
 
+  // Daily Words Added time series & metrics
+  const dailyWordsAddedPoints: DailyWordsAddedPoint[] = [];
+  const wordsAddedByLocalDay = new Map<string, number>();
+
+  for (const w of filteredWords) {
+    if (w.createdAt) {
+      const localKey = getLocalCalendarDateKey(w.createdAt);
+      if (localKey) {
+        wordsAddedByLocalDay.set(localKey, (wordsAddedByLocalDay.get(localKey) || 0) + 1);
+      }
+    }
+  }
+
+  const curDayWords = new Date(startDay);
+  while (curDayWords <= endDay) {
+    const localDateKey = getLocalCalendarDateKey(curDayWords);
+    const monthName = curDayWords.toLocaleDateString('en-US', { month: 'short' });
+    const dayNum = curDayWords.getDate();
+    const yearNum = curDayWords.getFullYear();
+    const label = `${monthName} ${dayNum}`;
+    const fullDateLabel = `${monthName} ${dayNum}, ${yearNum}`;
+    const count = wordsAddedByLocalDay.get(localDateKey) || 0;
+
+    dailyWordsAddedPoints.push({
+      date: localDateKey,
+      label,
+      fullDateLabel,
+      wordsAdded: count,
+    });
+
+    curDayWords.setDate(curDayWords.getDate() + 1);
+  }
+
+  const totalWordsAddedInPeriod = dailyWordsAddedPoints.reduce((sum, p) => sum + p.wordsAdded, 0);
+  const totalCalendarDaysInPeriod = Math.max(1, dailyWordsAddedPoints.length);
+  const dailyWordsAverage = Math.round((totalWordsAddedInPeriod / totalCalendarDaysInPeriod) * 10) / 10;
+
+  let bestDayPoint: DailyWordsAddedPoint | null = null;
+  let maxAddedCount = 0;
+  for (const p of dailyWordsAddedPoints) {
+    if (p.wordsAdded > maxAddedCount) {
+      maxAddedCount = p.wordsAdded;
+      bestDayPoint = p;
+    }
+  }
+
+  const mostProductiveDay =
+    bestDayPoint && maxAddedCount > 0
+      ? {
+          date: bestDayPoint.date,
+          label: bestDayPoint.fullDateLabel,
+          count: maxAddedCount,
+        }
+      : null;
+
+  const dailyWordsAdded: DailyWordsAddedData = {
+    timeSeries: dailyWordsAddedPoints,
+    totalAdded: totalWordsAddedInPeriod,
+    dailyAverage: dailyWordsAverage,
+    mostProductiveDay,
+    hasActivity: totalWordsAddedInPeriod > 0,
+  };
+
   // Time To Mastery Analysis
   const masteredWordsList = filteredWords.filter((w) => {
     const c = primaryFsrsByWordId.get(w.id);
@@ -1366,6 +1440,33 @@ export function calculateAnalysis({
           : 'Add words to your dictionary to begin tracking vocabulary growth.',
       sampleCount: totalWordsCount,
     },
+    dailyWordsAdded: {
+      status:
+        filteredWords.length > 0 && filteredWords.every((w) => !w.createdAt)
+          ? 'unavailable'
+          : totalWordsAddedInPeriod === 0
+            ? 'no_activity'
+            : 'available',
+      label:
+        filteredWords.length > 0 && filteredWords.every((w) => !w.createdAt)
+          ? 'Unavailable'
+          : totalWordsAddedInPeriod === 0
+            ? 'No activity'
+            : 'Available',
+      badgeColor:
+        filteredWords.length > 0 && filteredWords.every((w) => !w.createdAt)
+          ? 'gray'
+          : totalWordsAddedInPeriod === 0
+            ? 'blue'
+            : 'teal',
+      message:
+        filteredWords.length > 0 && filteredWords.every((w) => !w.createdAt)
+          ? 'Word creation timestamps are not available.'
+          : totalWordsAddedInPeriod === 0
+            ? 'No words were added during this period.'
+            : `${totalWordsAddedInPeriod} unique words added across ${totalCalendarDaysInPeriod} days.`,
+      sampleCount: totalWordsAddedInPeriod,
+    },
     stateDistribution: {
       status: totalWordsCount > 0 ? 'available' : 'no_activity',
       label: totalWordsCount > 0 ? 'Available' : 'No activity',
@@ -1682,6 +1783,7 @@ export function calculateAnalysis({
     timeSeries,
     timeSeriesWeekly,
     timeSeriesMonthly,
+    dailyWordsAdded,
     stateDistribution,
     timeSpentPerWord: wordTimeSpentList,
     topTimeConsumingWords: wordTimeSpentList.slice(0, 20),

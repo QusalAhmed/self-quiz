@@ -1,6 +1,7 @@
 export * from './AnalysisHeader';
 export * from './KpiOverview';
 export * from './LearningProgressChart';
+export * from './DailyWordsAddedChart';
 export * from './LearningStateDistribution';
 export * from './StudyTimeAnalytics';
 export * from './WordTimeAnalysis';

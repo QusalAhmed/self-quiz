@@ -227,8 +227,8 @@ export function WordTimeAnalysis({
         </Group>
 
         {/* Ranked Words Table */}
-        <Box style={{ overflowX: 'auto' }}>
-          <Table verticalSpacing="xs" horizontalSpacing="sm" highlightOnHover>
+        <Box style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <Table verticalSpacing="xs" horizontalSpacing="sm" highlightOnHover style={{ minWidth: 720 }}>
             <Table.Thead>
               <Table.Tr>
                 <Table.Th style={{ width: 180 }}>Word</Table.Th>

@@ -95,37 +95,41 @@ export function LearningProgressChart({
             </Text>
           </div>
 
-          <Group gap="xs" wrap="wrap">
+          <Group gap="xs" wrap="wrap" style={{ maxWidth: '100%' }}>
             {/* Aggregation Switcher */}
-            <SegmentedControl
-              size="xs"
-              radius="md"
-              value={aggregation}
-              onChange={(val) => setAggregation(val as AggregationPeriod)}
-              data={[
-                { label: 'Daily', value: 'daily' },
-                { label: 'Weekly', value: 'weekly' },
-                { label: 'Monthly', value: 'monthly' },
-              ]}
-            />
+            <Box style={{ overflowX: 'auto', maxWidth: '100%', WebkitOverflowScrolling: 'touch' }}>
+              <SegmentedControl
+                size="xs"
+                radius="md"
+                value={aggregation}
+                onChange={(val) => setAggregation(val as AggregationPeriod)}
+                data={[
+                  { label: 'Daily', value: 'daily' },
+                  { label: 'Weekly', value: 'weekly' },
+                  { label: 'Monthly', value: 'monthly' },
+                ]}
+              />
+            </Box>
 
             {/* Metric Mode Switcher */}
-            <SegmentedControl
-              size="xs"
-              radius="md"
-              value={viewMode}
-              onChange={(val) =>
-                setViewMode(
-                  val as 'cumulative' | 'acquisition_vs_mastery' | 'breakdown' | 'reviews'
-                )
-              }
-              data={[
-                { label: 'Cumulative', value: 'cumulative' },
-                { label: 'Acquisition vs Mastery', value: 'acquisition_vs_mastery' },
-                { label: 'State Breakdown', value: 'breakdown' },
-                { label: 'Reviews & Recall', value: 'reviews' },
-              ]}
-            />
+            <Box style={{ overflowX: 'auto', maxWidth: '100%', WebkitOverflowScrolling: 'touch' }}>
+              <SegmentedControl
+                size="xs"
+                radius="md"
+                value={viewMode}
+                onChange={(val) =>
+                  setViewMode(
+                    val as 'cumulative' | 'acquisition_vs_mastery' | 'breakdown' | 'reviews'
+                  )
+                }
+                data={[
+                  { label: 'Cumulative', value: 'cumulative' },
+                  { label: 'Acquisition vs Mastery', value: 'acquisition_vs_mastery' },
+                  { label: 'State Breakdown', value: 'breakdown' },
+                  { label: 'Reviews & Recall', value: 'reviews' },
+                ]}
+              />
+            </Box>
           </Group>
         </Group>
 

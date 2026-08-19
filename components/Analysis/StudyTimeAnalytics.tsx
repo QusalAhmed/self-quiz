@@ -98,34 +98,38 @@ export function StudyTimeAnalytics({
             </Text>
           </div>
 
-          <Group gap="xs" wrap="wrap">
+          <Group gap="xs" wrap="wrap" style={{ maxWidth: '100%' }}>
             {/* Aggregation Switcher */}
-            <SegmentedControl
-              size="xs"
-              radius="md"
-              value={aggregation}
-              onChange={(val) => setAggregation(val as AggregationPeriod)}
-              data={[
-                { label: 'Daily', value: 'daily' },
-                { label: 'Weekly', value: 'weekly' },
-                { label: 'Monthly', value: 'monthly' },
-              ]}
-            />
+            <Box style={{ overflowX: 'auto', maxWidth: '100%', WebkitOverflowScrolling: 'touch' }}>
+              <SegmentedControl
+                size="xs"
+                radius="md"
+                value={aggregation}
+                onChange={(val) => setAggregation(val as AggregationPeriod)}
+                data={[
+                  { label: 'Daily', value: 'daily' },
+                  { label: 'Weekly', value: 'weekly' },
+                  { label: 'Monthly', value: 'monthly' },
+                ]}
+              />
+            </Box>
 
             {/* Metric Mode */}
-            <SegmentedControl
-              size="xs"
-              radius="md"
-              value={metricMode}
-              onChange={(val) =>
-                setMetricMode(val as 'study_time' | 'avg_duration' | 'reviews_volume')
-              }
-              data={[
-                { label: 'Study Minutes', value: 'study_time' },
-                { label: 'Avg Duration (s)', value: 'avg_duration' },
-                { label: 'Review Count', value: 'reviews_volume' },
-              ]}
-            />
+            <Box style={{ overflowX: 'auto', maxWidth: '100%', WebkitOverflowScrolling: 'touch' }}>
+              <SegmentedControl
+                size="xs"
+                radius="md"
+                value={metricMode}
+                onChange={(val) =>
+                  setMetricMode(val as 'study_time' | 'avg_duration' | 'reviews_volume')
+                }
+                data={[
+                  { label: 'Study Minutes', value: 'study_time' },
+                  { label: 'Avg Duration (s)', value: 'avg_duration' },
+                  { label: 'Review Count', value: 'reviews_volume' },
+                ]}
+              />
+            </Box>
           </Group>
         </Group>
 

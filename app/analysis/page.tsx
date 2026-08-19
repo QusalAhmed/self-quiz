@@ -18,6 +18,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AnalysisHeader,
   CategoryAnalysis,
+  DailyWordsAddedChart,
   DifficultWordsTable,
   EmptyAnalysisState,
   FsrsMemoryHealth,
@@ -419,6 +420,12 @@ export default function AnalysisPage() {
                     totalWords={analysis.totalWordsCount}
                     masteredWords={analysis.kpis.wordsMastered.value}
                     statusInfo={analysis.statuses.progress}
+                  />
+
+                  {/* 3.1 Words Added per Day Bar Chart */}
+                  <DailyWordsAddedChart
+                    data={analysis.dailyWordsAdded}
+                    statusInfo={analysis.statuses.dailyWordsAdded}
                   />
 
                   {/* 4. Words by Learning State (Interactive) */}

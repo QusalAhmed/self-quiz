@@ -58,6 +58,25 @@ export type TimeSeriesDataPoint = {
   recallRate?: number;
 };
 
+export type DailyWordsAddedPoint = {
+  date: string; // YYYY-MM-DD
+  label: string; // e.g. "Aug 18"
+  fullDateLabel: string; // e.g. "Aug 18, 2026"
+  wordsAdded: number;
+};
+
+export type DailyWordsAddedData = {
+  timeSeries: DailyWordsAddedPoint[];
+  totalAdded: number;
+  dailyAverage: number; // average words added per calendar day in the selected period
+  mostProductiveDay: {
+    date: string;
+    label: string;
+    count: number;
+  } | null;
+  hasActivity: boolean;
+};
+
 export type LearningStateCount = {
   state: 'New' | 'Learning' | 'Review' | 'Relearning' | 'Mastered';
   count: number;
@@ -288,6 +307,7 @@ export type SectionStatusInfo = {
 export type AnalysisSectionKey =
   | 'overview'
   | 'progress'
+  | 'dailyWordsAdded'
   | 'stateDistribution'
   | 'studyTime'
   | 'wordTime'
@@ -307,6 +327,7 @@ export type AnalysisResult = {
   timeSeries: TimeSeriesDataPoint[];
   timeSeriesWeekly: TimeSeriesDataPoint[];
   timeSeriesMonthly: TimeSeriesDataPoint[];
+  dailyWordsAdded: DailyWordsAddedData;
   stateDistribution: LearningStateDistributionData;
   timeSpentPerWord: WordTimeSpentItem[];
   topTimeConsumingWords: WordTimeSpentItem[];

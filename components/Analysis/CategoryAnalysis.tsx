@@ -104,8 +104,8 @@ export function CategoryAnalysis({ categories, statusInfo }: CategoryAnalysisPro
         )}
 
         {/* Categories Table */}
-        <Box style={{ overflowX: 'auto' }}>
-          <Table verticalSpacing="xs" horizontalSpacing="sm" highlightOnHover>
+        <Box style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <Table verticalSpacing="xs" horizontalSpacing="sm" highlightOnHover style={{ minWidth: 680 }}>
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>Category / Tag</Table.Th>

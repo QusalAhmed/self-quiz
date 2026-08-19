@@ -186,24 +186,26 @@ export function AnalysisHeader({
         {/* Date Presets & Filter Toggle Controls */}
         <Group justify="space-between" align="center" wrap="wrap" gap="sm">
           {/* Date Presets Segmented Control */}
-          <Group gap="xs" align="center" wrap="wrap">
+          <Group gap="xs" align="center" wrap="wrap" style={{ maxWidth: '100%' }}>
             <Text size="xs" fw={700} c="dimmed" style={{ letterSpacing: '0.04em' }}>
               PERIOD:
             </Text>
-            <SegmentedControl
-              size="xs"
-              radius="md"
-              value={filters.datePreset}
-              onChange={handleDatePresetChange}
-              data={[
-                { label: '7 Days', value: '7d' },
-                { label: '30 Days', value: '30d' },
-                { label: '90 Days', value: '90d' },
-                { label: '1 Year', value: '1y' },
-                { label: 'All Time', value: 'all' },
-                { label: 'Custom', value: 'custom' },
-              ]}
-            />
+            <Box style={{ overflowX: 'auto', maxWidth: '100%', WebkitOverflowScrolling: 'touch' }}>
+              <SegmentedControl
+                size="xs"
+                radius="md"
+                value={filters.datePreset}
+                onChange={handleDatePresetChange}
+                data={[
+                  { label: '7 Days', value: '7d' },
+                  { label: '30 Days', value: '30d' },
+                  { label: '90 Days', value: '90d' },
+                  { label: '1 Year', value: '1y' },
+                  { label: 'All Time', value: 'all' },
+                  { label: 'Custom', value: 'custom' },
+                ]}
+              />
+            </Box>
           </Group>
 
           {/* Comparison & Filter Menu */}

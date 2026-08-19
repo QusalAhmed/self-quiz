@@ -147,8 +147,8 @@ export function StrongestWordsTable({ words, onSelectWord }: StrongestWordsTable
         </Group>
 
         {/* Table */}
-        <Box style={{ overflowX: 'auto' }}>
-          <Table verticalSpacing="xs" horizontalSpacing="sm" highlightOnHover>
+        <Box style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <Table verticalSpacing="xs" horizontalSpacing="sm" highlightOnHover style={{ minWidth: 680 }}>
             <Table.Thead>
               <Table.Tr>
                 <Table.Th style={{ width: 180 }}>Word</Table.Th>

@@ -248,7 +248,7 @@ export function FsrsMemoryHealth({ memoryHealth, statusInfo }: FsrsMemoryHealthP
                 />
               </Progress.Root>
 
-              <SimpleGrid cols={2} spacing="xs" mt="xs">
+              <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="xs" mt="xs">
                 <Group justify="space-between">
                   <Group gap={6}>
                     <Box style={{ width: 8, height: 8, borderRadius: 2, background: '#ef4444' }} />
@@ -332,7 +332,7 @@ export function FsrsMemoryHealth({ memoryHealth, statusInfo }: FsrsMemoryHealthP
                 />
               </Progress.Root>
 
-              <SimpleGrid cols={2} spacing="xs" mt="xs">
+              <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="xs" mt="xs">
                 <Group justify="space-between">
                   <Group gap={6}>
                     <Box style={{ width: 8, height: 8, borderRadius: 2, background: '#10b981' }} />
