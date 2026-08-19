@@ -843,7 +843,7 @@ export default function WordsPage() {
       />
 
       <Box style={{ flex: 1, minWidth: 0 }}>
-        <Container size="md" py="xl">
+        <Container size="md" py={{ base: 'md', sm: 'xl' }} px={{ base: 'xs', sm: 'md' }}>
           <PwaRegister />
 
           <Stack gap="xl">
@@ -886,12 +886,15 @@ export default function WordsPage() {
               generatingExampleWordIds={generatingExampleWordIds}
               generatingWordFamilyWordIds={generatingWordFamilyWordIds}
               onEdit={(w) => setEditingWord(w)}
-              onDelete={(id, word) => setDeleteConfirm({ id, word })}
-              onRefreshExamples={ensureMissingAiExamples}
-              onRefreshWordFamily={fetchAndStoreWordFamily}
-              onDeleteWordFamilyMember={handleDeleteWordFamilyMember}
-              onToggleMissed={handleToggleMissed}
-              onGroupClick={(g) => setGroupFilter(g)}
+              onDelete={(id, w) => setDeleteConfirm({ id, word: w })}
+              onRefreshExamples={(id) => void ensureMissingAiExamples(id)}
+              onRefreshWordFamily={(id, w) => void fetchAndStoreWordFamily(id, w)}
+              onDeleteWordFamilyMember={(mid) => void handleDeleteWordFamilyMember(mid)}
+              onToggleMissed={(id, w, m) => void handleToggleMissed(id, w, m)}
+              onGroupClick={(g) => {
+                setGroupFilter(g);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
               onResetFilters={handleResetFilters}
               onOpenAddModal={() => setAddModalOpen(true)}
             />
@@ -903,12 +906,12 @@ export default function WordsPage() {
             onClose={() => setAddModalOpen(false)}
             title={
               <Text fw={700} size="md" style={{ fontFamily: 'var(--font-title)' }}>
-                Add New Vocabulary Word
+                Add New Word
               </Text>
             }
             centered
             radius="lg"
-            size="md"
+            size="lg"
             overlayProps={{ backgroundOpacity: 0.45, blur: 4 }}
           >
             <WordForm

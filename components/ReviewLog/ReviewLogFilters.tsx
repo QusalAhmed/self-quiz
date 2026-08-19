@@ -16,7 +16,6 @@ import {
 import {
   IconAdjustments,
   IconCalendar,
-  IconFilter,
   IconRotateClockwise,
   IconSearch,
   IconSortDescending,
@@ -106,7 +105,7 @@ export function ReviewLogFilters({
             size="sm"
           />
 
-          <Group gap="xs">
+          <Group gap="xs" wrap="wrap" w={{ base: '100%', sm: 'auto' }}>
             <Select
               size="sm"
               radius="md"

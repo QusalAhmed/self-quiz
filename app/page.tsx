@@ -414,8 +414,8 @@ export default function HomePage() {
 
     return fsrsRecords
       .filter((r) => {
-        if (r.isDeleted || r.quizMode !== quizDirection) return false;
-        if (r.lastRating !== 'again' && r.lastRating !== 'hard') return false;
+        if (r.isDeleted || r.quizMode !== quizDirection) {return false;}
+        if (r.lastRating !== 'again' && r.lastRating !== 'hard') {return false;}
         const dueMs = new Date(r.dueAt).getTime();
         return dueMs - nowMs > SIX_HOURS_MS;
       })
@@ -455,7 +455,7 @@ export default function HomePage() {
 
   const getCandidateWordId = useCallback(
     (word: WordRecord | MissedWordRecord | FsrsRecord) => {
-      if (quizSource === 'missed') return (word as MissedWordRecord).wordId;
+      if (quizSource === 'missed') {return (word as MissedWordRecord).wordId;}
       if (quizSource === 'fsrs') {
         return (word as FsrsRecord).wordId;
       }
@@ -563,7 +563,7 @@ export default function HomePage() {
           const wordId =
             (item as FsrsRecord).wordId || (item as MissedWordRecord).wordId || item.id;
           const correspondingWord = words.find((w) => w.id === wordId);
-          if (!correspondingWord) return quizGroupFilter === 'none';
+          if (!correspondingWord) {return quizGroupFilter === 'none';}
           return quizGroupFilter === 'none'
             ? !wordHasAnyGroup(correspondingWord)
             : wordHasGroup(correspondingWord, quizGroupFilter);
@@ -578,7 +578,7 @@ export default function HomePage() {
       if (quizGroupFilter !== 'all') {
         candidates = candidates.filter((item) => {
           const correspondingWord = words.find((w) => w.id === (item as FsrsRecord).wordId);
-          if (!correspondingWord) return quizGroupFilter === 'none';
+          if (!correspondingWord) {return quizGroupFilter === 'none';}
           return quizGroupFilter === 'none'
             ? !wordHasAnyGroup(correspondingWord)
             : wordHasGroup(correspondingWord, quizGroupFilter);
@@ -886,7 +886,7 @@ export default function HomePage() {
       replicationsRef.current = replications;
 
       unsubscribeSyncState = replications.subscribeSyncState((newState) => {
-        if (!isMounted) return;
+        if (!isMounted) {return;}
         setSyncState(newState);
       });
 
@@ -942,7 +942,7 @@ export default function HomePage() {
   const rawCurrentQuizItem = quizQueue[quizIndex] ?? null;
 
   const currentQuizItem = useMemo(() => {
-    if (!rawCurrentQuizItem) return null;
+    if (!rawCurrentQuizItem) {return null;}
     const fsrsRecord = getFsrsRecordForWord(rawCurrentQuizItem.id, quizDirection);
     return {
       ...rawCurrentQuizItem,
@@ -1777,7 +1777,7 @@ export default function HomePage() {
   };
 
   const handleTogglePause = useCallback(async () => {
-    if (!replicationsRef.current) return;
+    if (!replicationsRef.current) {return;}
     if (replicationsRef.current.isPaused()) {
       await replicationsRef.current.resumeAll();
     } else {
@@ -1786,7 +1786,7 @@ export default function HomePage() {
   }, []);
 
   const handleVerifyInSync = useCallback(async () => {
-    if (!replicationsRef.current) return false;
+    if (!replicationsRef.current) {return false;}
     return await replicationsRef.current.awaitInSync();
   }, []);
 
@@ -1858,7 +1858,7 @@ export default function HomePage() {
   };
 
   const handleUndoQuiz = useCallback(async () => {
-    if (!database || quizHistory.length === 0) return;
+    if (!database || quizHistory.length === 0) {return;}
 
     const last = quizHistory[quizHistory.length - 1];
     setQuizHistory((prev) => prev.slice(0, -1));
@@ -1878,7 +1878,7 @@ export default function HomePage() {
 
   const handleSrsRate = useCallback(
     async (rating: FsrsRating) => {
-      if (!database || !currentQuizItem) return;
+      if (!database || !currentQuizItem) {return;}
 
       const timestamp = new Date().toISOString();
       const now = new Date();
@@ -1974,7 +1974,7 @@ export default function HomePage() {
       />
 
       <Box style={{ flex: 1, minWidth: 0 }}>
-        <Container size="md" py="xl">
+        <Container size="md" py={{ base: 'md', sm: 'xl' }} px={{ base: 'xs', sm: 'md' }}>
           <PwaRegister />
 
           <ClearMissedWordsModal

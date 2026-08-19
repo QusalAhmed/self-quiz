@@ -1,11 +1,9 @@
 'use client';
 
-import { Badge, Box, Card, Group, Paper, SimpleGrid, Stack, Text, ThemeIcon } from '@mantine/core';
+import { Badge, Group, Paper, SimpleGrid, Text, ThemeIcon } from '@mantine/core';
 import {
-  IconBrain,
   IconCheck,
   IconClock,
-  IconFlame,
   IconHistory,
   IconPercentage,
 } from '@tabler/icons-react';

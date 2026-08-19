@@ -230,7 +230,7 @@ export function WordFamilySection({
                   transition: 'all 0.2s ease',
                 }}
               >
-                <Group justify="space-between" align="center" wrap="nowrap" gap={8}>
+                <Group justify="space-between" align="center" wrap="wrap" gap={8}>
                   <Group gap={8} align="center" wrap="wrap">
                     <Text size="md" fw={600} style={{ color: 'var(--text-primary)' }}>
                       {m.word}

@@ -82,8 +82,8 @@ export function WordTimeAnalysis({
     }
 
     return [...result].sort((a, b) => {
-      let valA = a[sortField] || 0;
-      let valB = b[sortField] || 0;
+      const valA = a[sortField] || 0;
+      const valB = b[sortField] || 0;
       return sortDir === 'desc' ? (valB as number) - (valA as number) : (valA as number) - (valB as number);
     });
   }, [words, searchQuery, sortField, sortDir]);
@@ -304,7 +304,7 @@ export function WordTimeAnalysis({
                     key={item.id}
                     style={{ cursor: 'pointer' }}
                     onClick={() => {
-                      if (parent) onSelectWord(parent);
+                      if (parent) {onSelectWord(parent);}
                     }}
                   >
                     <Table.Td>

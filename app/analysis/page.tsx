@@ -224,8 +224,8 @@ export default function AnalysisPage() {
   const fsrsDueTodayCount = useMemo(() => {
     const nowTime = new Date().getTime();
     return fsrsRecords.filter((r) => {
-      if (r.isDeleted) return false;
-      if (!r.dueAt) return true;
+      if (r.isDeleted) {return false;}
+      if (!r.dueAt) {return true;}
       return new Date(r.dueAt).getTime() <= nowTime;
     }).length;
   }, [fsrsRecords]);
@@ -376,7 +376,7 @@ export default function AnalysisPage() {
 
       {/* Main Analysis Content Body */}
       <Box component="main" style={{ flex: 1, minWidth: 0, overflowY: 'auto' }}>
-        <Container size="xl" py="lg" px={{ base: 'xs', sm: 'md' }}>
+        <Container size="xl" py={{ base: 'md', sm: 'xl' }} px={{ base: 'xs', sm: 'md' }}>
           {isLoading ? (
             <Card
               className="glass-panel"

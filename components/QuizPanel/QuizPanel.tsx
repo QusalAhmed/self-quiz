@@ -119,7 +119,7 @@ export function QuizPanel({
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       const activeTag = document.activeElement?.tagName.toLowerCase();
-      if (activeTag === 'input' || activeTag === 'textarea') return;
+      if (activeTag === 'input' || activeTag === 'textarea') {return;}
 
       if (
         canUndo &&
@@ -603,15 +603,16 @@ export function QuizPanel({
   const wordWithActions = (includeMissed: boolean) => (
     <Stack gap="xs" align="center" style={{ width: '100%' }}>
       {fsrsMetaBar}
-      <Group gap="sm" align="center" justify="center">
+      <Group gap="sm" align="center" justify="center" wrap="wrap">
         <Title
           order={1}
           style={{
             fontFamily: 'var(--font-title)',
-            fontSize: '2.5rem',
+            fontSize: 'clamp(1.6rem, 5vw, 2.5rem)',
             fontWeight: 800,
             letterSpacing: '-0.02em',
             textAlign: 'center',
+            wordBreak: 'break-word',
           }}
         >
           {item.word}

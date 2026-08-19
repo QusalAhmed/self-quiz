@@ -4,7 +4,6 @@ import {
   Badge,
   Box,
   Button,
-  Card,
   Code,
   Divider,
   Group,
@@ -19,17 +18,12 @@ import {
 } from '@mantine/core';
 import {
   IconBrain,
-  IconClock,
   IconCode,
   IconCopy,
   IconHelpCircle,
-  IconRotateClockwise,
-  IconShieldCheck,
-  IconSparkles,
 } from '@tabler/icons-react';
 import React, { useState } from 'react';
 import type { ReviewLogRecord, WordRecord } from '@/lib/db';
-import { formatInterval } from '@/lib/fsrs';
 
 export type ReviewDetailModalProps = {
   opened: boolean;
@@ -43,7 +37,7 @@ export function ReviewDetailModal({
   opened,
   onClose,
   reviewLog,
-  wordRecord,
+  wordRecord: _wordRecord,
   onEditWord,
 }: ReviewDetailModalProps) {
   const [showJson, setShowJson] = useState(false);

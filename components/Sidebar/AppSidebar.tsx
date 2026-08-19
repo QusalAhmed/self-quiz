@@ -9,6 +9,7 @@ import {
   Group,
   NavLink,
   Paper,
+  ScrollArea,
   Stack,
   Text,
   Title,
@@ -82,8 +83,9 @@ export function AppSidebar({
   };
 
   const renderNavContent = () => (
-    <Stack justify="space-between" style={{ height: '100%', padding: '16px 12px' }}>
-      {/* Top Branding Section */}
+    <ScrollArea style={{ height: '100%' }} type="auto" offsetScrollbars>
+      <Stack justify="space-between" style={{ minHeight: '100%', padding: '16px 12px' }}>
+        {/* Top Branding Section */}
       <Stack gap="sm">
         <Group
           justify="flex-start"
@@ -318,7 +320,8 @@ export function AppSidebar({
         </Paper>
       </Stack>
     </Stack>
-  );
+  </ScrollArea>
+);
 
   return (
     <>

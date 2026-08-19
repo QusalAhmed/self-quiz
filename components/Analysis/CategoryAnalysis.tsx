@@ -5,14 +5,11 @@ import {
   Box,
   Card,
   Group,
-  Paper,
   Progress,
-  SimpleGrid,
   Stack,
   Table,
   Text,
   Title,
-  Tooltip,
 } from '@mantine/core';
 import { IconCategory, IconFolder } from '@tabler/icons-react';
 import React from 'react';

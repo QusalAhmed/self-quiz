@@ -117,10 +117,10 @@ export async function generateGoogleExamples(params: GenerateExamplesParams): Pr
     'You output only raw JSON. No markdown. No explanation. No code fences. Just a JSON object. Reply with ONLY this JSON and nothing else: {"examples":["sentence 1","sentence 2","sentence 3"]}';
   const promptText =
     `Give me up to ${targetCount} example sentences in English using the word "${word}" ` +
-    `(meaning: ${meaning}). Each sentence must clearly reflect this specific meaning.` +
-    partOfSpeechBlock +
-    ` Prefer ${targetCount} examples if possible, but return fewer if that is more natural or accurate.` +
-    referenceBlock;
+    `(meaning: ${meaning}). Each sentence must clearly reflect this specific meaning.${ 
+    partOfSpeechBlock 
+    } Prefer ${targetCount} examples if possible, but return fewer if that is more natural or accurate.${ 
+    referenceBlock}`;
 
   const payload = {
     contents: [

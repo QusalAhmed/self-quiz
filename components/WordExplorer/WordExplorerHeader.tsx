@@ -444,7 +444,7 @@ export function WordExplorerHeader({
 
           {/* Secondary Filter Row: Custom Groups, Part of Speech & View Density */}
           <Grid gap="sm" align="center">
-            <Grid.Col span={{ base: 12, sm: 4 }}>
+            <Grid.Col span={{ base: 12, sm: 6, md: 4 }}>
               <Select
                 placeholder="Filter by Group"
                 value={groupFilter}
@@ -461,7 +461,7 @@ export function WordExplorerHeader({
               />
             </Grid.Col>
 
-            <Grid.Col span={{ base: 12, sm: 4 }}>
+            <Grid.Col span={{ base: 12, sm: 6, md: 4 }}>
               <Select
                 placeholder="Filter by Part of Speech"
                 value={posFilter}
@@ -473,10 +473,10 @@ export function WordExplorerHeader({
               />
             </Grid.Col>
 
-            <Grid.Col span={{ base: 12, sm: 4 }}>
-              <Group justify="flex-end" align="center" gap="xs">
-                <Text size="xs" c="dimmed" fw={600} visibleFrom="md">
-                  View:
+            <Grid.Col span={{ base: 12, sm: 12, md: 4 }}>
+              <Group justify="space-between" align="center" gap="xs">
+                <Text size="xs" c="dimmed" fw={600}>
+                  View Mode:
                 </Text>
                 <SegmentedControl
                   value={density}

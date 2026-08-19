@@ -189,8 +189,8 @@ export function WordDetailCard({
       }}
     >
       {/* ── Top Header Section: Word Title, Audio, Badges & Action Toolbar ── */}
-      <Group justify="space-between" align="flex-start" wrap="nowrap" gap="sm">
-        <Stack gap={4} style={{ minWidth: 0, flex: 1 }}>
+      <Group justify="space-between" align="flex-start" wrap="wrap" gap="sm">
+        <Stack gap={4} style={{ minWidth: 0, flex: '1 1 240px' }}>
           <Group gap={8} align="center" wrap="wrap">
             <Text
               component="h3"
@@ -610,7 +610,7 @@ export function WordDetailCard({
             border: '1px solid var(--card-border)',
           }}
         >
-          <Group justify="space-between" align="center" wrap="nowrap">
+          <Group justify="space-between" align="center" wrap="wrap" gap="xs">
             <Group
               gap={6}
               align="center"

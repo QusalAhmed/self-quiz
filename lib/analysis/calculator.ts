@@ -37,7 +37,7 @@ import type {
 
 export function getLocalCalendarDateKey(dInput: Date | string | number): string {
   const d = dInput instanceof Date ? dInput : new Date(dInput);
-  if (isNaN(d.getTime())) return '';
+  if (isNaN(d.getTime())) {return '';}
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
@@ -795,7 +795,7 @@ export function calculateAnalysis({
   const timeSeriesWeekly: TimeSeriesDataPoint[] = [];
   for (let i = 0; i < timeSeries.length; i += 7) {
     const chunk = timeSeries.slice(i, i + 7);
-    if (chunk.length === 0) continue;
+    if (chunk.length === 0) {continue;}
     const first = chunk[0];
     const last = chunk[chunk.length - 1];
     const totalW = last.totalWords;
@@ -951,7 +951,7 @@ export function calculateAnalysis({
   for (const w of masteredWordsList) {
     const logs = reviewLogsByWordId.get(w.id) || [];
     const card = primaryFsrsByWordId.get(w.id);
-    if (!card) continue;
+    if (!card) {continue;}
 
     let firstDate = new Date(w.createdAt);
     if (logs.length > 0 && logs[0].reviewedAt) {

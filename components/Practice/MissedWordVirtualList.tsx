@@ -4,7 +4,7 @@ import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { DefinitionsDisplay } from '@/components/DefinitionsDisplay/DefinitionsDisplay';
 import { WordActionIcon } from '@/components/WordActions/WordActionIcon';
-import type { MissedWordRecord, WordDefinition } from '@/lib/db';
+import type { WordDefinition } from '@/lib/db';
 
 export type MissedOrForgettingWordItem = {
   id: string;

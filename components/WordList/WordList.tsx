@@ -151,8 +151,8 @@ export function WordList({
                 padding: '10px 10px',
               }}
             >
-              <Group justify={'space-between'} wrap={'nowrap'}>
-                <Group gap={8} wrap="wrap" align="center">
+              <Group justify="space-between" wrap="wrap" gap="xs">
+                <Group gap={8} wrap="wrap" align="center" style={{ flex: '1 1 200px' }}>
                   <Text
                     fw={700}
                     size="md"

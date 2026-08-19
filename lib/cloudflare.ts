@@ -29,13 +29,13 @@ type CloudflareAIResponse = {
 
 function repairTruncatedJson(raw: string): string | null {
   const membersIdx = raw.indexOf('"members"');
-  if (membersIdx === -1) return null;
+  if (membersIdx === -1) {return null;}
   const arrayStart = raw.indexOf('[', membersIdx);
-  if (arrayStart === -1) return null;
+  if (arrayStart === -1) {return null;}
 
   const lastCloseBrace = raw.lastIndexOf('}');
   if (lastCloseBrace > arrayStart) {
-    return raw.slice(0, lastCloseBrace + 1) + ']}';
+    return `${raw.slice(0, lastCloseBrace + 1)  }]}`;
   }
   return null;
 }
@@ -301,12 +301,12 @@ export async function generateCloudflareExamples(
       role: 'user',
       content:
         `Give me up to ${targetCount} example sentences in English using the word "${word}" ` +
-        `(meaning: ${meaning}). Each sentence must clearly reflect this specific meaning.` +
-        partOfSpeechBlock +
-        ` Prefer ${targetCount} examples if possible, but return fewer if that is more natural or accurate.` +
-        referenceBlock +
-        '\nReply with ONLY this JSON and nothing else:\n' +
-        '{"examples":["sentence 1","sentence 2","sentence 3"]}',
+        `(meaning: ${meaning}). Each sentence must clearly reflect this specific meaning.${ 
+        partOfSpeechBlock 
+        } Prefer ${targetCount} examples if possible, but return fewer if that is more natural or accurate.${ 
+        referenceBlock 
+        }\nReply with ONLY this JSON and nothing else:\n` +
+        `{"examples":["sentence 1","sentence 2","sentence 3"]}`,
     },
   ];
 

@@ -60,8 +60,8 @@ export function DifficultWordsTable({ words, onSelectWord }: DifficultWordsTable
     }
 
     return [...result].sort((a, b) => {
-      let valA = a[sortSignal] || 0;
-      let valB = b[sortSignal] || 0;
+      const valA = a[sortSignal] || 0;
+      const valB = b[sortSignal] || 0;
       // For stability and retrievability, ascending means weakest first by default
       if (sortSignal === 'stability' || sortSignal === 'retrievability') {
         return sortDir === 'desc' ? (valA as number) - (valB as number) : (valB as number) - (valA as number);
@@ -122,13 +122,15 @@ export function DifficultWordsTable({ words, onSelectWord }: DifficultWordsTable
             </Text>
           </div>
 
-          <Group gap="xs" wrap="wrap">
+          <Group gap="xs" wrap="wrap" w={{ base: '100%', sm: 'auto' }}>
             <Select
               size="xs"
               radius="md"
               value={sortSignal}
               onChange={(v) => {
-                if (v) setSortSignal(v as DifficultSortSignal);
+                if (v) {
+                  setSortSignal(v as DifficultSortSignal);
+                }
               }}
               data={[
                 { label: 'Risk Score (Composite)', value: 'problemScore' },
@@ -139,7 +141,7 @@ export function DifficultWordsTable({ words, onSelectWord }: DifficultWordsTable
                 { label: 'Lowest Retrievability', value: 'retrievability' },
                 { label: 'Most Time Spent', value: 'totalTimeSec' },
               ]}
-              style={{ width: 190 }}
+              w={{ base: '100%', sm: 190 }}
             />
 
             <TextInput
@@ -151,7 +153,7 @@ export function DifficultWordsTable({ words, onSelectWord }: DifficultWordsTable
                 setSearch(e.currentTarget.value);
                 setPage(1);
               }}
-              style={{ width: 170 }}
+              w={{ base: '100%', sm: 170 }}
             />
           </Group>
         </Group>

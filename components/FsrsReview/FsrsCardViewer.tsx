@@ -3,7 +3,7 @@
 import { Badge, Button, Card, Group, Progress, Stack, Text, Title, Tooltip } from '@mantine/core';
 import { IconArrowBackUp, IconEye, IconVolume } from '@tabler/icons-react';
 import { motion } from 'framer-motion';
-import React, { useEffect } from 'react';
+import React from 'react';
 import type { FsrsRating, FsrsRecord } from '@/lib/fsrs';
 import { FsrsCounterBadge } from './FsrsCounterBadge';
 import { FsrsRatingBar } from './FsrsRatingBar';

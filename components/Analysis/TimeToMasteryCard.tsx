@@ -2,15 +2,12 @@
 
 import {
   Badge,
-  Box,
   Card,
-  Divider,
   Group,
   Paper,
   SimpleGrid,
   Stack,
   Text,
-  ThemeIcon,
   Title,
   Tooltip,
 } from '@mantine/core';
@@ -175,7 +172,7 @@ export function TimeToMasteryCard({
                         cursor: parent ? 'pointer' : 'default',
                       }}
                       onClick={() => {
-                        if (parent) onSelectWord(parent);
+                        if (parent) {onSelectWord(parent);}
                       }}
                     >
                       <Group gap="xs">
@@ -228,7 +225,7 @@ export function TimeToMasteryCard({
                         cursor: parent ? 'pointer' : 'default',
                       }}
                       onClick={() => {
-                        if (parent) onSelectWord(parent);
+                        if (parent) {onSelectWord(parent);}
                       }}
                     >
                       <Group gap="xs">

@@ -15,7 +15,6 @@ import { IconInfoCircle } from '@tabler/icons-react';
 import React, { useMemo, useState } from 'react';
 import {
   CartesianGrid,
-  Legend,
   ResponsiveContainer,
   Scatter,
   ScatterChart,
@@ -49,9 +48,9 @@ export function WordDifficultyVsTime({
   const formattedScatterData = useMemo(() => {
     return data.map((pt) => {
       let yVal = pt.totalTimeSec;
-      if (yMetric === 'reviews') yVal = pt.reviewsCount;
-      else if (yMetric === 'lapses') yVal = pt.lapses;
-      else if (yMetric === 'avgDuration') yVal = pt.avgDurationSec;
+      if (yMetric === 'reviews') {yVal = pt.reviewsCount;}
+      else if (yMetric === 'lapses') {yVal = pt.lapses;}
+      else if (yMetric === 'avgDuration') {yVal = pt.avgDurationSec;}
 
       return {
         ...pt,
@@ -63,9 +62,9 @@ export function WordDifficultyVsTime({
   }, [data, yMetric]);
 
   const yAxisLabel = useMemo(() => {
-    if (yMetric === 'reviews') return 'Review Count';
-    if (yMetric === 'lapses') return 'Lapses (Again Count)';
-    if (yMetric === 'avgDuration') return 'Avg Duration (s)';
+    if (yMetric === 'reviews') {return 'Review Count';}
+    if (yMetric === 'lapses') {return 'Lapses (Again Count)';}
+    if (yMetric === 'avgDuration') {return 'Avg Duration (s)';}
     return 'Total Time (s)';
   }, [yMetric]);
 
@@ -203,7 +202,7 @@ export function WordDifficultyVsTime({
                   const payload = node?.payload || node;
                   if (payload?.id) {
                     const parent = allWordsMap.get(payload.id);
-                    if (parent) onSelectWord(parent);
+                    if (parent) {onSelectWord(parent);}
                   }
                 }}
                 style={{ cursor: 'pointer' }}

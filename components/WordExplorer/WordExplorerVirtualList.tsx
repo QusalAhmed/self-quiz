@@ -57,8 +57,12 @@ export function WordExplorerVirtualList({
     };
     updateScrollMargin();
     window.addEventListener('resize', updateScrollMargin);
-    return () => window.removeEventListener('resize', updateScrollMargin);
-  }, []);
+    window.addEventListener('orientationchange', updateScrollMargin);
+    return () => {
+      window.removeEventListener('resize', updateScrollMargin);
+      window.removeEventListener('orientationchange', updateScrollMargin);
+    };
+  }, [density]);
 
   const rowVirtualizer = useWindowVirtualizer({
     count: words.length,

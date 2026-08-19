@@ -8,7 +8,6 @@ import {
   Card,
   Group,
   Pagination,
-  Paper,
   Select,
   Stack,
   Table,
@@ -18,7 +17,6 @@ import {
 } from '@mantine/core';
 import {
   IconArrowRight,
-  IconBrain,
   IconClock,
   IconEdit,
   IconEye,
@@ -61,10 +59,10 @@ export function ReviewLogTable({ logs, onInspectLog, onSelectWord }: ReviewLogTa
     const now = new Date();
     const diffSec = Math.floor((now.getTime() - d.getTime()) / 1000);
 
-    if (diffSec < 60) return 'Just now';
-    if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
-    if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
-    if (diffSec < 86400 * 7) return `${Math.floor(diffSec / 86400)}d ago`;
+    if (diffSec < 60) {return 'Just now';}
+    if (diffSec < 3600) {return `${Math.floor(diffSec / 60)}m ago`;}
+    if (diffSec < 86400) {return `${Math.floor(diffSec / 3600)}h ago`;}
+    if (diffSec < 86400 * 7) {return `${Math.floor(diffSec / 86400)}d ago`;}
 
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
@@ -281,7 +279,7 @@ export function ReviewLogTable({ logs, onInspectLog, onSelectWord }: ReviewLogTa
 
             {totalPages > 1 && (
               <Pagination
-                size="sm"
+                size="xs"
                 radius="md"
                 total={totalPages}
                 value={page}

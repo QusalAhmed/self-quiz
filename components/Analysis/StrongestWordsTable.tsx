@@ -52,8 +52,8 @@ export function StrongestWordsTable({ words, onSelectWord }: StrongestWordsTable
     }
 
     return [...result].sort((a, b) => {
-      let valA = a[sortSignal] || 0;
-      let valB = b[sortSignal] || 0;
+      const valA = a[sortSignal] || 0;
+      const valB = b[sortSignal] || 0;
       if (sortSignal === 'lapses') {
         // Fewest lapses first
         return sortDir === 'desc' ? (valA as number) - (valB as number) : (valB as number) - (valA as number);
@@ -114,13 +114,15 @@ export function StrongestWordsTable({ words, onSelectWord }: StrongestWordsTable
             </Text>
           </div>
 
-          <Group gap="xs" wrap="wrap">
+          <Group gap="xs" wrap="wrap" w={{ base: '100%', sm: 'auto' }}>
             <Select
               size="xs"
               radius="md"
               value={sortSignal}
               onChange={(v) => {
-                if (v) setSortSignal(v as StrongSortSignal);
+                if (v) {
+                  setSortSignal(v as StrongSortSignal);
+                }
               }}
               data={[
                 { label: 'Highest Stability', value: 'stability' },
@@ -129,7 +131,7 @@ export function StrongestWordsTable({ words, onSelectWord }: StrongestWordsTable
                 { label: 'Lowest Study Time', value: 'totalTimeSec' },
                 { label: 'Fewest Lapses', value: 'lapses' },
               ]}
-              style={{ width: 180 }}
+              w={{ base: '100%', sm: 180 }}
             />
 
             <TextInput
@@ -141,7 +143,7 @@ export function StrongestWordsTable({ words, onSelectWord }: StrongestWordsTable
                 setSearch(e.currentTarget.value);
                 setPage(1);
               }}
-              style={{ width: 170 }}
+              w={{ base: '100%', sm: 170 }}
             />
           </Group>
         </Group>

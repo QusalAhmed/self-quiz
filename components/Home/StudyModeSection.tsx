@@ -149,7 +149,12 @@ export function StudyModeSection({
                 Your Workspace
               </Title>
             </Group>
-            <Group gap="xs">
+            <Group
+              gap="xs"
+              wrap="wrap"
+              w={{ base: '100%', sm: 'auto' }}
+              justify="space-between"
+            >
               <Button
                 variant="filled"
                 color="indigo"

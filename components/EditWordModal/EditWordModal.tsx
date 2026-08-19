@@ -59,7 +59,7 @@ export function EditWordModal({
       }
       centered
       radius="lg"
-      size="md"
+      size="lg"
       overlayProps={{ backgroundOpacity: 0.45, blur: 4 }}
     >
       <WordForm
