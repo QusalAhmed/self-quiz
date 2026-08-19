@@ -38,7 +38,12 @@ import { MissedWordVirtualList } from '@/components/Practice/MissedWordVirtualLi
 import { PracticeDisplayCombobox } from '@/components/Practice/PracticeDisplayCombobox';
 import { SrsPracticeVirtualList } from '@/components/Practice/SrsPracticeVirtualList';
 import { QuizPanel, type QuizDirection, type QuizItem } from '@/components/QuizPanel/QuizPanel';
-import type { MissedWordRecord, SrsPracticeRecord, WordDefinition } from '@/lib/db';
+import type {
+  MissedWordRecord,
+  SrsPracticeRecord,
+  WordDefinition,
+  WordFamilyMemberRecord,
+} from '@/lib/db';
 
 type QuizModeSectionProps = {
   quizRange: QuizRangeKey;
@@ -68,6 +73,8 @@ type QuizModeSectionProps = {
   missedWordIdSet: Set<string>;
   generatingExampleWordIds: Record<string, boolean>;
   autoPronounceQuizWord: boolean;
+  wordFamilies?: Record<string, WordFamilyMemberRecord[]>;
+  generatingWordFamilyWordIds?: Record<string, boolean>;
   onSetQuizRange: (value: QuizRangeKey) => void;
   onSetQuizSource: (value: QuizSourceKey) => void;
   onSetQuizDirection: (value: QuizDirectionKey) => void;
@@ -80,6 +87,8 @@ type QuizModeSectionProps = {
   onNext: () => void;
   onPrevious: () => void;
   onRefreshExamples: (id: string) => Promise<void> | void;
+  onRefreshWordFamily?: (wordId: string, word: string) => Promise<void> | void;
+  onDeleteWordFamilyMember?: (memberId: string) => Promise<void> | void;
   onSrsRate?: (rating: import('@/lib/fsrs').FsrsRating) => void;
   srsIntervals?: Partial<Record<import('@/lib/fsrs').FsrsRating, string>>;
   onEditClick: (id: string) => void;
@@ -129,6 +138,8 @@ export function QuizModeSection({
   missedWordIdSet,
   generatingExampleWordIds,
   autoPronounceQuizWord,
+  wordFamilies = {},
+  generatingWordFamilyWordIds = {},
   onSetQuizRange,
   onSetQuizSource,
   onSetQuizDirection,
@@ -141,6 +152,8 @@ export function QuizModeSection({
   onNext,
   onPrevious,
   onRefreshExamples,
+  onRefreshWordFamily,
+  onDeleteWordFamilyMember,
   onSrsRate,
   srsIntervals,
   onEditClick,
@@ -357,6 +370,12 @@ export function QuizModeSection({
         onDeleteFsrsRecord={onDeleteFsrsRecord}
         canUndo={canUndo}
         onUndo={onUndo}
+        wordFamilyMembers={currentQuizItem ? wordFamilies[currentQuizItem.id] || [] : []}
+        isGeneratingWordFamily={
+          currentQuizItem ? Boolean(generatingWordFamilyWordIds[currentQuizItem.id]) : false
+        }
+        onRefreshWordFamily={onRefreshWordFamily}
+        onDeleteWordFamilyMember={onDeleteWordFamilyMember}
       />
 
       <Card

@@ -2141,6 +2141,8 @@ export default function HomePage() {
                 missedWordIdSet={missedWordIdSet}
                 generatingExampleWordIds={generatingExampleWordIds}
                 autoPronounceQuizWord={autoPronounceQuizWord}
+                wordFamilies={wordFamilies}
+                generatingWordFamilyWordIds={generatingWordFamilyWordIds}
                 onSetQuizRange={setQuizRange}
                 onSetQuizSource={setQuizSource}
                 onSetQuizDirection={setQuizDirection}
@@ -2153,6 +2155,8 @@ export default function HomePage() {
                 onNext={handleNext}
                 onPrevious={handlePrevious}
                 onRefreshExamples={handleRefreshExamples}
+                onRefreshWordFamily={handleRefreshWordFamily}
+                onDeleteWordFamilyMember={handleDeleteWordFamilyMember}
                 onSrsRate={handleSrsRate}
                 srsIntervals={srsIntervals}
                 onEditClick={(id) => setEditingQuizWordId(id)}
