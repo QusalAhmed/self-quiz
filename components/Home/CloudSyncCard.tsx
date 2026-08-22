@@ -323,7 +323,7 @@ export function CloudSyncCard({
             <div style={{ minWidth: 0 }}>
               <Group gap={6} align="center" wrap="nowrap">
                 <Text size="xs" fw={700} c="dimmed" style={{ letterSpacing: '0.05em' }}>
-                  CLOUD SYNC (RxDB)
+                  CLOUD SYNC
                 </Text>
                 {isPaused && (
                   <Badge size="xs" color="yellow" variant="dot">
@@ -349,7 +349,7 @@ export function CloudSyncCard({
 
                 {/* Session Traffic Pills */}
                 {(totalSent > 0 || totalReceived > 0) && (
-                  <Group gap={4} wrap="nowrap" className="desktop-only">
+                  <Group gap={4} wrap="nowrap">
                     {totalSent > 0 && (
                       <Badge size="xs" variant="light" color="blue">
                         ↑ {totalSent}
