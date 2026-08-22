@@ -279,6 +279,7 @@ export function WordForm({
 
         <TextInput
           ref={wordInputRef}
+          data-autofocus
           label={
             <Text size="xs" fw={600} c="dimmed" span>
               English Word
@@ -414,7 +415,7 @@ export function WordForm({
             color={isEditMode ? 'indigo' : undefined}
             radius="md"
             size={buttonSize}
-            leftSection={isEditMode ? undefined : <IconPlus size={20} />}
+            leftSection={isEditMode ? undefined : <IconPlus size={buttonSize === 'md' ? 18 : 16} />}
           >
             {isEditMode ? 'Save Changes' : 'Save Word'}
           </Button>

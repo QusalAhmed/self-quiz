@@ -878,7 +878,7 @@ export default function WordsPage() {
             }
             centered
             radius="lg"
-            size="lg"
+            size="auto"
             overlayProps={{ backgroundOpacity: 0.45, blur: 4 }}
           >
             <WordForm
