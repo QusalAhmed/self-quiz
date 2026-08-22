@@ -499,7 +499,6 @@ export function QuizPanel({
                   radius="lg"
                   variant="light"
                   color={color}
-                  data-skip-click-sound="true"
                   onClick={() => {
                     playReviewSound(rating);
                     onSrsRate(rating);

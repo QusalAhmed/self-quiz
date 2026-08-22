@@ -56,10 +56,18 @@ import {
   type WordRecord,
 } from '@/lib/db';
 import { getActiveGroupNames, replaceGroupInWordGroups, wordHasGroup } from '@/lib/groups';
+import { useAppDispatch } from '@/lib/redux/hooks';
+import {
+  openAllWordsQuiz,
+  openFsrsQuiz,
+  openTodayQuiz,
+  setMode,
+} from '@/lib/redux/slices/quizSlice';
 import { setupSupabaseReplication } from '@/lib/replication';
 
 export default function AnalysisPage() {
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const { colorScheme, setColorScheme } = useMantineColorScheme();
 
   const [database, setDatabase] = useState<AppDatabase | null>(null);
@@ -366,10 +374,24 @@ export default function AnalysisPage() {
       {/* Navigation Sidebar */}
       <AppSidebar
         mode="study"
-        onSetMode={() => router.push('/')}
-        onOpenAllWordsQuiz={() => router.push('/')}
-        onOpenTodayQuiz={() => router.push('/')}
-        onOpenFsrsQuiz={() => router.push('/')}
+        onSetMode={(m) => {
+          dispatch(setMode(m));
+          if (m === 'quiz') {
+            router.push('/');
+          }
+        }}
+        onOpenAllWordsQuiz={() => {
+          dispatch(openAllWordsQuiz());
+          router.push('/');
+        }}
+        onOpenTodayQuiz={() => {
+          dispatch(openTodayQuiz());
+          router.push('/');
+        }}
+        onOpenFsrsQuiz={() => {
+          dispatch(openFsrsQuiz());
+          router.push('/');
+        }}
         onOpenGroupManager={() => setGroupManagerOpen(true)}
         totalWords={words.length}
         todayCount={todayCount}

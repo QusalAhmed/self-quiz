@@ -6,12 +6,10 @@ const STORAGE_KEY = 'self_quiz_sound_enabled';
 const SOUND_EVENT_NAME = 'self_quiz_sound_changed';
 
 let audioCtx: AudioContext | null = null;
-let bubblePopBuffer: AudioBuffer | null = null;
 let ratingAgainBuffer: AudioBuffer | null = null;
 let ratingHardBuffer: AudioBuffer | null = null;
 let ratingGoodBuffer: AudioBuffer | null = null;
 let ratingEasyBuffer: AudioBuffer | null = null;
-let refillChimeBuffer: AudioBuffer | null = null;
 
 function getAudioContext(): AudioContext | null {
   if (typeof window === 'undefined') {
@@ -34,42 +32,6 @@ function getAudioContext(): AudioContext | null {
   } catch {
     return null;
   }
-}
-
-/**
- * Creates an organic, rounded Soft Bubble Pop AudioBuffer.
- * Damped harmonic sine with smooth attack and exponential decay.
- */
-function createBubblePopBuffer(ctx: AudioContext): AudioBuffer {
-  const sampleRate = ctx.sampleRate;
-  const duration = 0.035; // 35ms
-  const numSamples = Math.floor(sampleRate * duration);
-  const buffer = ctx.createBuffer(1, numSamples, sampleRate);
-  const channelData = buffer.getChannelData(0);
-
-  const startFreq = 480;
-  const endFreq = 260;
-
-  for (let i = 0; i < numSamples; i++) {
-    const t = i / sampleRate;
-    const progress = t / duration;
-    const currentFreq = startFreq + (endFreq - startFreq) * Math.pow(progress, 0.75);
-
-    // Smooth quarter-sine attack (2.5ms) to prevent digital click, followed by natural exponential decay
-    let env = 0;
-    if (t < 0.0025) {
-      env = Math.sin((t / 0.0025) * (Math.PI / 2));
-    } else {
-      env = Math.exp(-(t - 0.0025) / 0.0065);
-    }
-
-    const phase = 2 * Math.PI * currentFreq * t;
-    // Fundamental + subtle warm 2nd harmonic
-    const sample = (Math.sin(phase) + 0.15 * Math.sin(2 * phase)) * env;
-    channelData[i] = sample;
-  }
-
-  return buffer;
 }
 
 /**
@@ -212,45 +174,6 @@ function createRatingEasyBuffer(ctx: AudioContext): AudioBuffer {
   return buffer;
 }
 
-/**
- * Creates an ambient harmonic chime for Queue Refill.
- */
-function createRefillChimeBuffer(ctx: AudioContext): AudioBuffer {
-  const sampleRate = ctx.sampleRate;
-  const duration = 0.32;
-  const numSamples = Math.floor(sampleRate * duration);
-  const buffer = ctx.createBuffer(1, numSamples, sampleRate);
-  const channelData = buffer.getChannelData(0);
-
-  const tones = [
-    { freq: 440.0, offset: 0.0, decay: 0.05, gain: 0.5 }, // A4
-    { freq: 659.25, offset: 0.06, decay: 0.065, gain: 0.65 }, // E5
-    { freq: 880.0, offset: 0.12, decay: 0.09, gain: 0.8 }, // A5
-  ];
-
-  for (let i = 0; i < numSamples; i++) {
-    const t = i / sampleRate;
-    let sample = 0;
-
-    for (const tone of tones) {
-      if (t >= tone.offset) {
-        const tt = t - tone.offset;
-        let env = 0;
-        if (tt < 0.005) {
-          env = Math.sin((tt / 0.005) * (Math.PI / 2));
-        } else {
-          env = Math.exp(-(tt - 0.005) / tone.decay);
-        }
-        sample += Math.sin(2 * Math.PI * tone.freq * tt) * env * tone.gain;
-      }
-    }
-
-    channelData[i] = sample;
-  }
-
-  return buffer;
-}
-
 function playBuffer(ctx: AudioContext, buffer: AudioBuffer, gainValue: number): void {
   try {
     const source = ctx.createBufferSource();
@@ -269,7 +192,7 @@ function playBuffer(ctx: AudioContext, buffer: AudioBuffer, gainValue: number): 
 }
 
 /**
- * Checks if sound effects are currently enabled.
+ * Checks if review sound effects are currently enabled.
  * Defaults to true if not set.
  */
 export function isSoundEnabled(): boolean {
@@ -288,7 +211,7 @@ export function isSoundEnabled(): boolean {
 }
 
 /**
- * Sets whether sound effects are enabled and broadcasts the change.
+ * Sets whether review sound effects are enabled and broadcasts the change.
  */
 export function setSoundEnabled(enabled: boolean): void {
   if (typeof window === 'undefined') {
@@ -303,7 +226,7 @@ export function setSoundEnabled(enabled: boolean): void {
 }
 
 /**
- * Toggles sound effects on or off.
+ * Toggles review sound effects on or off.
  */
 export function toggleSoundEnabled(): boolean {
   const next = !isSoundEnabled();
@@ -365,29 +288,10 @@ export function useSoundPreference(): {
   };
 }
 
-/**
- * Soft organic bubble pop tap sound for generic buttons & tabs.
- */
-export function playClickSound(): void {
-  if (!isSoundEnabled()) {
-    return;
-  }
-  const ctx = getAudioContext();
-  if (!ctx) {
-    return;
-  }
-
-  if (!bubblePopBuffer || bubblePopBuffer.sampleRate !== ctx.sampleRate) {
-    bubblePopBuffer = createBubblePopBuffer(ctx);
-  }
-
-  playBuffer(ctx, bubblePopBuffer, 0.22);
-}
-
 export type ReviewRating = 'again' | 'hard' | 'good' | 'easy';
 
 /**
- * Plays distinct acoustic feedback for FSRS review rating buttons.
+ * Plays distinct acoustic feedback exclusively for quiz/review rating buttons.
  * - 'again' / 'hard': Softer, warmer low/neutral tone.
  * - 'good' / 'easy': Brighter, cheerful ascending harmonic tone.
  */
@@ -421,23 +325,4 @@ export function playReviewSound(rating: ReviewRating): void {
     }
     playBuffer(ctx, ratingEasyBuffer, 0.3);
   }
-}
-
-/**
- * Ambient chime for review queue refill.
- */
-export function playRefillSound(): void {
-  if (!isSoundEnabled()) {
-    return;
-  }
-  const ctx = getAudioContext();
-  if (!ctx) {
-    return;
-  }
-
-  if (!refillChimeBuffer || refillChimeBuffer.sampleRate !== ctx.sampleRate) {
-    refillChimeBuffer = createRefillChimeBuffer(ctx);
-  }
-
-  playBuffer(ctx, refillChimeBuffer, 0.25);
 }

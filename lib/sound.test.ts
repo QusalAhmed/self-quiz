@@ -1,13 +1,6 @@
-import {
-  isSoundEnabled,
-  playClickSound,
-  playRefillSound,
-  playReviewSound,
-  setSoundEnabled,
-  toggleSoundEnabled,
-} from './sound';
+import { isSoundEnabled, playReviewSound, setSoundEnabled, toggleSoundEnabled } from './sound';
 
-describe('Sound utility', () => {
+describe('Sound utility (Quiz/Review sounds only)', () => {
   beforeEach(() => {
     localStorage.clear();
     jest.clearAllMocks();
@@ -48,11 +41,7 @@ describe('Sound utility', () => {
     window.removeEventListener('self_quiz_sound_changed', listener);
   });
 
-  describe('Audio playback without crashing in test environment', () => {
-    it('does not throw when playClickSound is called', () => {
-      expect(() => playClickSound()).not.toThrow();
-    });
-
+  describe('Audio playback for review section without crashing in test environment', () => {
     it('does not throw for all review rating sounds', () => {
       expect(() => playReviewSound('again')).not.toThrow();
       expect(() => playReviewSound('hard')).not.toThrow();
@@ -60,16 +49,10 @@ describe('Sound utility', () => {
       expect(() => playReviewSound('easy')).not.toThrow();
     });
 
-    it('does not throw when playRefillSound is called', () => {
-      expect(() => playRefillSound()).not.toThrow();
-    });
-
     it('bypasses audio when sound is disabled', () => {
       setSoundEnabled(false);
       expect(() => {
-        playClickSound();
         playReviewSound('good');
-        playRefillSound();
       }).not.toThrow();
     });
   });
