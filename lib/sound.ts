@@ -19,6 +19,26 @@ let audioCtx: AudioContext | null = null;
 const audioBufferCache = new Map<string, AudioBuffer>();
 const audioElements = new Map<string, HTMLAudioElement>();
 
+let isUnlockRegistered = false;
+
+function registerUserGestureAudioUnlock(): void {
+  if (typeof window === 'undefined' || isUnlockRegistered) {
+    return;
+  }
+  isUnlockRegistered = true;
+
+  const unlock = () => {
+    if (audioCtx && audioCtx.state === 'suspended') {
+      void audioCtx.resume().catch(() => {});
+    }
+    const events = ['pointerdown', 'keydown', 'touchstart'];
+    events.forEach((ev) => window.removeEventListener(ev, unlock));
+  };
+
+  const events = ['pointerdown', 'keydown', 'touchstart'];
+  events.forEach((ev) => window.addEventListener(ev, unlock, { once: true, passive: true }));
+}
+
 function getAudioContext(): AudioContext | null {
   if (typeof window === 'undefined') {
     return null;
@@ -32,9 +52,6 @@ function getAudioContext(): AudioContext | null {
     }
     if (!audioCtx) {
       audioCtx = new AudioContextClass();
-    }
-    if (audioCtx.state === 'suspended') {
-      void audioCtx.resume();
     }
     return audioCtx;
   } catch {
@@ -62,16 +79,34 @@ async function fetchAndDecodeAudio(url: string, ctx: AudioContext): Promise<Audi
 
 function playBuffer(ctx: AudioContext, buffer: AudioBuffer, gainValue: number): void {
   try {
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
+    const play = () => {
+      try {
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
 
-    const gainNode = ctx.createGain();
-    gainNode.gain.setValueAtTime(gainValue, ctx.currentTime);
+        const gainNode = ctx.createGain();
+        gainNode.gain.setValueAtTime(gainValue, ctx.currentTime);
 
-    source.connect(gainNode);
-    gainNode.connect(ctx.destination);
+        source.connect(gainNode);
+        gainNode.connect(ctx.destination);
 
-    source.start(0);
+        source.start(0);
+      } catch {
+        // Fail gracefully
+      }
+    };
+
+    if (ctx.state === 'suspended') {
+      void ctx
+        .resume()
+        .then(play)
+        .catch(() => {
+          play();
+        });
+      return;
+    }
+
+    play();
   } catch {
     // Fail gracefully
   }
@@ -120,6 +155,7 @@ export function preloadSoundAssets(): void {
   if (typeof window === 'undefined') {
     return;
   }
+  registerUserGestureAudioUnlock();
   const ctx = getAudioContext();
   Object.values(SOUND_FILES).forEach((url) => {
     if (ctx) {
