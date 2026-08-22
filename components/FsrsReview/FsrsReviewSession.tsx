@@ -20,6 +20,7 @@ import {
   tickTimer,
   undoAnswer,
 } from '@/lib/redux/slices/fsrsSlice';
+import { notifyQuizCompleted } from '@/lib/system-notifications';
 import { FsrsCardViewer } from './FsrsCardViewer';
 import { FsrsCompletionState } from './FsrsCompletionState';
 
@@ -74,7 +75,21 @@ export function FsrsReviewSession({
     };
   }, [dispatch]);
 
+  const completionNotifiedRef = React.useRef(false);
+  useEffect(() => {
+    if (isDeckComplete && reviewLogsCount > 0 && !completionNotifiedRef.current) {
+      completionNotifiedRef.current = true;
+      void notifyQuizCompleted({
+        modeName: 'FSRS Review Session',
+        totalCards: reviewLogsCount,
+      });
+    } else if (!isDeckComplete) {
+      completionNotifiedRef.current = false;
+    }
+  }, [isDeckComplete, reviewLogsCount]);
+
   // Handle rating a card
+
   const handleRate = (rating: FsrsRating) => {
     if (!currentCard) {
       return;

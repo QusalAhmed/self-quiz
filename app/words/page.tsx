@@ -54,6 +54,7 @@ import {
   setMode,
 } from '@/lib/redux/slices/quizSlice';
 import { setupSupabaseReplication } from '@/lib/replication';
+import { notifyFsrsWordAdded, notifyWordSaved } from '@/lib/system-notifications';
 import { buildWordFamilyId, isWordFamilyId } from '@/lib/word-family';
 
 export default function WordsPage() {
@@ -518,6 +519,7 @@ export default function WordsPage() {
     };
 
     await database.words.upsert(record);
+    void notifyWordSaved({ word: record.word, action: 'created' });
 
     // Initial FSRS records
     const fsrsQuizModes: import('@/lib/db').QuizMode[] = [
@@ -529,6 +531,11 @@ export default function WordsPage() {
       const fsrsRecord = createInitialFsrsRecord(record.id, qMode, record.word, normalizedMeaning);
       await database.fsrsRecords.upsert(fsrsRecord);
     }
+    void notifyFsrsWordAdded({
+      word: record.word,
+      quizMode: 'wordToMeaning',
+      meaning: normalizedMeaning,
+    });
 
     void fetchAndStoreWordFamily(record.id, record.word, normalizedMeaning);
     if (normalizedDefinitions.length > 0) {
@@ -578,6 +585,7 @@ export default function WordsPage() {
     };
 
     await database.words.upsert(updated);
+    void notifyWordSaved({ word: updated.word, action: 'updated' });
 
     const fsrsDocs = await database.fsrsRecords.find({ selector: { wordId: id } }).exec();
     for (const fsrsDoc of fsrsDocs) {
@@ -601,11 +609,13 @@ export default function WordsPage() {
     }
 
     const timestamp = new Date().toISOString();
+    const wordText = (doc.toJSON() as WordRecord).word;
     await database.words.upsert({
       ...(doc.toJSON() as WordRecord),
       isDeleted: true,
       updatedAt: timestamp,
     });
+    void notifyWordSaved({ word: wordText, action: 'deleted' });
 
     const fsrsDocs = await database.fsrsRecords.find({ selector: { wordId: id } }).exec();
     for (const fsrsDoc of fsrsDocs) {

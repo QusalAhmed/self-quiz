@@ -26,7 +26,6 @@ import {
 import React, { useMemo, useState } from 'react';
 import { formatDurationHMS } from '@/lib/analysis/calculator';
 import type { ProblematicWordItem } from '@/lib/analysis/types';
-import { formatInterval } from '@/lib/fsrs';
 
 type DifficultWordsTableProps = {
   words: ProblematicWordItem[];

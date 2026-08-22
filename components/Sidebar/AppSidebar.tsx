@@ -33,6 +33,7 @@ import {
 } from '@tabler/icons-react';
 import { usePathname, useRouter } from 'next/navigation';
 import React, { useState } from 'react';
+import { NotificationBellButton } from '@/components/NotificationSettings';
 import { useSoundPreference } from '@/lib/sound';
 
 export type AppSidebarProps = {
@@ -311,6 +312,8 @@ export function AppSidebar({
               </Stack>
 
               <Group gap={6} align="center">
+                <NotificationBellButton size="md" variant="subtle" />
+
                 <Tooltip label={soundEnabled ? 'Mute Sounds' : 'Enable Sounds'}>
                   <ActionIcon
                     variant="subtle"

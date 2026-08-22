@@ -1,16 +1,6 @@
 'use client';
 
-import {
-  Box,
-  Card,
-  Group,
-  Paper,
-  SegmentedControl,
-  Stack,
-  Text,
-  Title,
-  Tooltip,
-} from '@mantine/core';
+import { Box, Card, Group, Paper, SegmentedControl, Stack, Text, Title } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import React, { useMemo, useState } from 'react';
 import {

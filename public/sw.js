@@ -1,5 +1,5 @@
 // Auto-generated at build time — do not edit manually.
-const CACHE_VERSION = 'mt3r1gjp';
+const CACHE_VERSION = 'mt3th7rn';
 const STATIC_CACHE = 'self-quiz-static-' + CACHE_VERSION;
 const RUNTIME_CACHE = 'self-quiz-runtime-' + CACHE_VERSION;
 // App shell and critical static assets to precache on install
@@ -34,6 +34,34 @@ self.addEventListener('message', (event) => {
     self.skipWaiting();
   }
 });
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = event.notification.data?.url || '/';
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if ('focus' in client) {
+          if (targetUrl === '/' || client.url === targetUrl) {
+            return client.focus();
+          }
+          if ('navigate' in client) {
+            return client.navigate(targetUrl).then((navigated) => navigated?.focus());
+          }
+        }
+      }
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(targetUrl);
+      }
+    })
+  );
+});
+
+self.addEventListener('notificationclose', (event) => {
+  // Gracefully handle notification dismissals
+});
+
 
 function isNavigationRequest(request) {
   return (

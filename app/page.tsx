@@ -101,6 +101,12 @@ import {
   type SyncCollectionKey,
   type UnifiedSyncState,
 } from '@/lib/replication';
+import {
+  notifyFsrsQueueRefill,
+  notifyFsrsWordAdded,
+  notifySyncStatus,
+  notifyWordSaved,
+} from '@/lib/system-notifications';
 import { resolveWordTextFromMainTable } from '@/lib/word-display';
 import { buildWordFamilyId, type WordFamilyMember } from '@/lib/word-family';
 
@@ -813,6 +819,10 @@ export default function HomePage() {
       resetQuiz();
       if (isRefill) {
         showQueueRefillNotification(quizCandidates.length);
+        void notifyFsrsQueueRefill({
+          count: quizCandidates.length,
+          quizMode: quizDirection as import('@/lib/db').QuizMode,
+        });
       }
     }
   }, [
@@ -821,6 +831,7 @@ export default function HomePage() {
     quizCandidates.length,
     quizQueue.length,
     quizSource,
+    quizDirection,
     isInitialized,
     resetQuiz,
     dispatch,
@@ -1302,6 +1313,7 @@ export default function HomePage() {
     };
 
     await database.words.upsert(record);
+    void notifyWordSaved({ word: record.word, action: 'updated' });
     const fsrsDocs = await database.fsrsRecords
       .find({
         selector: { wordId: id },
@@ -1457,9 +1469,9 @@ export default function HomePage() {
     };
 
     await database.words.upsert(record);
+    void notifyWordSaved({ word: capitalizeWord(word), action: 'created' });
 
     // Auto-enqueue word into FSRS for all quiz modes
-
     const fsrsQuizModes: import('@/lib/db').QuizMode[] = [
       'wordToMeaning',
       'meaningToWord',
@@ -1474,8 +1486,14 @@ export default function HomePage() {
       );
       await database.fsrsRecords.upsert(fsrsRecord);
     }
+    void notifyFsrsWordAdded({
+      word: capitalizeWord(word),
+      quizMode: 'wordToMeaning',
+      meaning: normalizedMeaning,
+    });
 
     // Generate word family members using AI in background
+
     void fetchAndStoreWordFamily(record.id, record.word, normalizedMeaning).catch((error) => {
       console.error('Error generating word family after add:', error);
     });
@@ -1586,11 +1604,13 @@ export default function HomePage() {
     };
 
     await database.words.upsert(record);
+    void notifyWordSaved({ word: record.word, action: 'deleted' });
     const fsrsDocs = await database.fsrsRecords
       .find({
         selector: { wordId: id, isDeleted: { $ne: true } },
       })
       .exec();
+
     for (const fsrsDoc of fsrsDocs) {
       const deletedFsrs = softDeleteFsrsRecord(fsrsDoc.toJSON() as FsrsRecord, timestamp);
       await database.fsrsRecords.upsert(deletedFsrs);
@@ -1792,7 +1812,15 @@ export default function HomePage() {
       return;
     }
     console.log('User triggered manual sync...');
-    await runFullSync();
+    try {
+      await runFullSync();
+      void notifySyncStatus({ success: true });
+    } catch (err) {
+      void notifySyncStatus({
+        success: false,
+        errorMessage: err instanceof Error ? err.message : 'Sync failed',
+      });
+    }
   };
 
   const handleTogglePause = useCallback(async () => {

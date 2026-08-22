@@ -2,7 +2,6 @@
 
 import {
   Badge,
-  Box,
   Card,
   Group,
   Paper,
@@ -10,7 +9,6 @@ import {
   SimpleGrid,
   Stack,
   Text,
-  ThemeIcon,
   Title,
   Tooltip,
 } from '@mantine/core';

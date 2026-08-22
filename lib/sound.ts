@@ -326,3 +326,75 @@ export function playReviewSound(rating: ReviewRating): void {
     playBuffer(ctx, ratingEasyBuffer, 0.3);
   }
 }
+
+let notificationChimeBuffer: AudioBuffer | null = null;
+
+/**
+ * Creates a gentle, crystal chime for system & in-app event notifications.
+ */
+function createNotificationChimeBuffer(ctx: AudioContext): AudioBuffer {
+  const sampleRate = ctx.sampleRate;
+  const duration = 0.28;
+  const numSamples = Math.floor(sampleRate * duration);
+  const buffer = ctx.createBuffer(1, numSamples, sampleRate);
+  const channelData = buffer.getChannelData(0);
+
+  const note1Freq = 659.25; // E5
+  const note2Freq = 987.77; // B5
+  const note2Offset = 0.06;
+
+  for (let i = 0; i < numSamples; i++) {
+    const t = i / sampleRate;
+    let sample = 0;
+
+    // Note 1 (E5)
+    if (t < 0.16) {
+      let env1 = 0;
+      if (t < 0.003) {
+        env1 = Math.sin((t / 0.003) * (Math.PI / 2));
+      } else {
+        env1 = Math.exp(-(t - 0.003) / 0.035);
+      }
+      sample +=
+        (Math.sin(2 * Math.PI * note1Freq * t) + 0.2 * Math.sin(4 * Math.PI * note1Freq * t)) *
+        env1 *
+        0.55;
+    }
+
+    // Note 2 (B5)
+    if (t >= note2Offset) {
+      const t2 = t - note2Offset;
+      let env2 = 0;
+      if (t2 < 0.003) {
+        env2 = Math.sin((t2 / 0.003) * (Math.PI / 2));
+      } else {
+        env2 = Math.exp(-(t2 - 0.003) / 0.045);
+      }
+      sample +=
+        (Math.sin(2 * Math.PI * note2Freq * t2) + 0.18 * Math.sin(4 * Math.PI * note2Freq * t2)) *
+        env2 *
+        0.65;
+    }
+
+    channelData[i] = sample;
+  }
+
+  return buffer;
+}
+
+/**
+ * Plays a warm, gentle chime for system/in-app event notifications.
+ */
+export function playNotificationSound(): void {
+  if (!isSoundEnabled()) {
+    return;
+  }
+  const ctx = getAudioContext();
+  if (!ctx) {
+    return;
+  }
+  if (!notificationChimeBuffer || notificationChimeBuffer.sampleRate !== ctx.sampleRate) {
+    notificationChimeBuffer = createNotificationChimeBuffer(ctx);
+  }
+  playBuffer(ctx, notificationChimeBuffer, 0.22);
+}

@@ -30,6 +30,7 @@ import {
   IconTags,
 } from '@tabler/icons-react';
 import React from 'react';
+import { NotificationBellButton } from '@/components/NotificationSettings';
 import type { WordViewDensity } from './WordDetailCard';
 
 export type SearchScope = 'word' | 'wordAndDefinition' | 'all';
@@ -223,6 +224,8 @@ export function WordExplorerHeader({
               >
                 Showing {filteredCount} of {totalCount}
               </Badge>
+
+              <NotificationBellButton size="md" variant="default" />
 
               <Button
                 variant="light"

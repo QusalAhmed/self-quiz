@@ -1,17 +1,6 @@
 'use client';
 
-import {
-  Badge,
-  Box,
-  Card,
-  Group,
-  Paper,
-  SimpleGrid,
-  Stack,
-  Text,
-  Title,
-  Tooltip,
-} from '@mantine/core';
+import { Box, Card, Group, Paper, SimpleGrid, Stack, Text, Title, Tooltip } from '@mantine/core';
 import {
   IconBolt,
   IconCheck,

@@ -79,29 +79,6 @@ export function StudyActivityHeatmap({ activity, statusInfo }: StudyActivityHeat
     return weeks;
   }, [heatmapDays]);
 
-  // Compute month labels positions across columns
-  const monthLabels = useMemo(() => {
-    const labels: { colIndex: number; name: string }[] = [];
-    let lastMonth = -1;
-
-    calendarWeeks.forEach((week, colIdx) => {
-      const validDay = week.find((d) => d.date);
-      if (validDay) {
-        const d = new Date(validDay.date);
-        const m = d.getMonth();
-        if (m !== lastMonth) {
-          labels.push({
-            colIndex: colIdx,
-            name: d.toLocaleDateString('en-US', { month: 'short' }),
-          });
-          lastMonth = m;
-        }
-      }
-    });
-
-    return labels;
-  }, [calendarWeeks]);
-
   const levelColors: Record<number, string> = {
     0: 'rgba(156, 163, 175, 0.15)',
     1: '#a5b4fc',

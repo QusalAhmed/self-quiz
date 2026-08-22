@@ -2,11 +2,9 @@ import { createInitialFsrsRecord } from '@/lib/fsrs';
 import fsrsReducer, {
   answerCard,
   loadDeck,
-  resetSession,
   revealAnswer,
   selectCanUndo,
   selectCardCounts,
-  selectCurrentCard,
   selectIsDeckComplete,
   tickTimer,
   undoAnswer,

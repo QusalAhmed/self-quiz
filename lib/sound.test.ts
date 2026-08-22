@@ -1,6 +1,12 @@
-import { isSoundEnabled, playReviewSound, setSoundEnabled, toggleSoundEnabled } from './sound';
+import {
+  isSoundEnabled,
+  playNotificationSound,
+  playReviewSound,
+  setSoundEnabled,
+  toggleSoundEnabled,
+} from './sound';
 
-describe('Sound utility (Quiz/Review sounds only)', () => {
+describe('Sound utility (Quiz/Review & Notification sounds)', () => {
   beforeEach(() => {
     localStorage.clear();
     jest.clearAllMocks();
@@ -41,7 +47,7 @@ describe('Sound utility (Quiz/Review sounds only)', () => {
     window.removeEventListener('self_quiz_sound_changed', listener);
   });
 
-  describe('Audio playback for review section without crashing in test environment', () => {
+  describe('Audio playback without crashing in test environment', () => {
     it('does not throw for all review rating sounds', () => {
       expect(() => playReviewSound('again')).not.toThrow();
       expect(() => playReviewSound('hard')).not.toThrow();
@@ -49,10 +55,15 @@ describe('Sound utility (Quiz/Review sounds only)', () => {
       expect(() => playReviewSound('easy')).not.toThrow();
     });
 
+    it('does not throw for notification chime sound', () => {
+      expect(() => playNotificationSound()).not.toThrow();
+    });
+
     it('bypasses audio when sound is disabled', () => {
       setSoundEnabled(false);
       expect(() => {
         playReviewSound('good');
+        playNotificationSound();
       }).not.toThrow();
     });
   });

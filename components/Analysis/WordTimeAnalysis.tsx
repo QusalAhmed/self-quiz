@@ -1,7 +1,6 @@
 'use client';
 
 import {
-  ActionIcon,
   Badge,
   Box,
   Card,
@@ -14,16 +13,8 @@ import {
   Text,
   TextInput,
   Title,
-  Tooltip,
 } from '@mantine/core';
-import {
-  IconClock,
-  IconFlame,
-  IconInfoCircle,
-  IconSearch,
-  IconSortAscending,
-  IconSortDescending,
-} from '@tabler/icons-react';
+import { IconSearch, IconSortAscending, IconSortDescending } from '@tabler/icons-react';
 import React, { useMemo, useState } from 'react';
 import {
   Bar,

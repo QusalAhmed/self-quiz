@@ -840,9 +840,9 @@ export function calculateAnalysis({
 
   const timeSeriesMonthly: TimeSeriesDataPoint[] = [];
   for (const [mKey, chunk] of monthlyMap.entries()) {
-    const first = chunk[0];
     const last = chunk[chunk.length - 1];
     const d = new Date(`${mKey}-01T00:00:00`);
+
     const label = d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
     const sumAdded = chunk.reduce((acc, c) => acc + c.wordsAdded, 0);
     const sumLearning = chunk.reduce((acc, c) => acc + c.wordsLearningEntered, 0);

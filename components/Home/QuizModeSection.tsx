@@ -36,7 +36,6 @@ import {
 } from '@/app/home/constants';
 import { MissedWordVirtualList } from '@/components/Practice/MissedWordVirtualList';
 import { PracticeDisplayCombobox } from '@/components/Practice/PracticeDisplayCombobox';
-import { SrsPracticeVirtualList } from '@/components/Practice/SrsPracticeVirtualList';
 import { QuizPanel, type QuizDirection, type QuizItem } from '@/components/QuizPanel/QuizPanel';
 import type {
   MissedWordRecord,
@@ -129,13 +128,13 @@ export function QuizModeSection({
   isCurrentMarkedMissed,
   practiceDisplayMode,
   hideMissedMeanings,
-  hideSrsPracticeMeanings,
+  hideSrsPracticeMeanings: _hideSrsPracticeMeanings,
   revealedMissedWordIds,
-  revealedSrsPracticeWordIds,
+  revealedSrsPracticeWordIds: _revealedSrsPracticeWordIds,
   missedWordsForMode,
   fsrsForgettingWordsForMode = [],
-  recentSrsPracticeWords,
-  missedWordIdSet,
+  recentSrsPracticeWords: _recentSrsPracticeWords,
+  missedWordIdSet: _missedWordIdSet,
   generatingExampleWordIds,
   autoPronounceQuizWord,
   wordFamilies = {},
@@ -160,12 +159,12 @@ export function QuizModeSection({
   onSetPracticeDisplayMode,
   onSetAutoPronounceQuizWord,
   onSetHideMissedMeanings,
-  onSetHideSrsPracticeMeanings,
+  onSetHideSrsPracticeMeanings: _onSetHideSrsPracticeMeanings,
   onSetRevealedMissedWordIds,
-  onSetRevealedSrsPracticeWordIds,
+  onSetRevealedSrsPracticeWordIds: _onSetRevealedSrsPracticeWordIds,
   onUnmarkMissed,
-  onTogglePracticeMissed,
-  onOpenSrsPracticeQuiz,
+  onTogglePracticeMissed: _onTogglePracticeMissed,
+  onOpenSrsPracticeQuiz: _onOpenSrsPracticeQuiz,
   onStartForgettingQuiz,
   onOpenClearAllMissed,
   onDeleteFsrsRecord,

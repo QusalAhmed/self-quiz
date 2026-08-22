@@ -1,4 +1,4 @@
-import { Button, Card, Group, SimpleGrid, Stack, Text } from '@mantine/core';
+import { Card, Group, SimpleGrid, Text } from '@mantine/core';
 import { IconBook, IconBrain, IconHistory } from '@tabler/icons-react';
 import React from 'react';
 

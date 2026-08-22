@@ -1,7 +1,6 @@
 'use client';
 
 import {
-  Badge,
   Box,
   Card,
   Group,
@@ -25,7 +24,6 @@ import {
   BarChart,
   CartesianGrid,
   Legend,
-  Line,
   ResponsiveContainer,
   Tooltip as RechartsTooltip,
   XAxis,

@@ -46,6 +46,7 @@ import type { FsrsRecord, WordDefinition, WordFamilyMemberRecord } from '@/lib/d
 import { normalizeDefinitions } from '@/lib/definitions';
 import type { FsrsRating as SrsRating } from '@/lib/fsrs';
 import { playReviewSound } from '@/lib/sound';
+import { notifyQuizCompleted } from '@/lib/system-notifications';
 
 export type QuizItem = {
   id: string;
@@ -176,6 +177,20 @@ export function QuizPanel({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [canUndo, onUndo]);
+
+  const completionNotifiedRef = useRef(false);
+  useEffect(() => {
+    if (completed && totalCount > 0 && !completionNotifiedRef.current) {
+      completionNotifiedRef.current = true;
+      void notifyQuizCompleted({
+        modeName: quizDirections[quizDirection],
+        totalCards: totalCount,
+      });
+    } else if (!completed) {
+      completionNotifiedRef.current = false;
+    }
+  }, [completed, totalCount, quizDirection]);
+
   const lastAutoPronouncedKeyRef = useRef<string | null>(null);
 
   const scrollToCenter = useCallback(() => {
