@@ -30,7 +30,6 @@ import {
   IconTags,
 } from '@tabler/icons-react';
 import React from 'react';
-import { NotificationBellButton } from '@/components/NotificationSettings';
 import type { WordViewDensity } from './WordDetailCard';
 
 export type SearchScope = 'word' | 'wordAndDefinition' | 'all';
@@ -136,9 +135,9 @@ const STATUS_OPTIONS = [
 ];
 
 const SORT_OPTIONS = [
+  { value: 'newest', label: 'Recently Added' },
   { value: 'alphaAsc', label: 'Alphabetical (A → Z)' },
   { value: 'alphaDesc', label: 'Alphabetical (Z → A)' },
-  { value: 'newest', label: 'Recently Added' },
   { value: 'updated', label: 'Recently Modified' },
   { value: 'dueSoonest', label: 'Next Review Due' },
   { value: 'mostLapses', label: 'Most Missed / Lapses' },
@@ -173,6 +172,8 @@ export function WordExplorerHeader({
   onOpenAddModal,
   onOpenGroupManager,
 }: WordExplorerHeaderProps) {
+  const isSearching = Boolean(searchQuery.trim());
+
   return (
     <Stack gap="md">
       {/* ── Top Header & Stats Bar ── */}
@@ -224,8 +225,6 @@ export function WordExplorerHeader({
               >
                 Showing {filteredCount} of {totalCount}
               </Badge>
-
-              <NotificationBellButton size="md" variant="default" />
 
               <Button
                 variant="light"
@@ -419,16 +418,34 @@ export function WordExplorerHeader({
             </Grid.Col>
 
             <Grid.Col span={{ base: 6, sm: 3, md: 3 }}>
-              <Select
-                placeholder="Sort by"
-                value={sortOption}
-                onChange={(val) => onSortOptionChange((val as WordSortOption) ?? 'alphaAsc')}
-                data={SORT_OPTIONS}
-                leftSection={<IconSortAscending size={16} />}
-                size="md"
-                radius="md"
-                allowDeselect={false}
-              />
+              <Tooltip
+                label={
+                  isSearching
+                    ? 'Search active: results are automatically sorted by matching score only'
+                    : 'Change sorting order of words'
+                }
+                withArrow
+              >
+                <Select
+                  placeholder="Sort by"
+                  value={isSearching ? 'matchScore' : sortOption}
+                  onChange={(val) => {
+                    if (!isSearching) {
+                      onSortOptionChange((val as WordSortOption) ?? 'newest');
+                    }
+                  }}
+                  data={
+                    isSearching
+                      ? [{ value: 'matchScore', label: '🎯 Match Score (Auto)' }, ...SORT_OPTIONS]
+                      : SORT_OPTIONS
+                  }
+                  disabled={isSearching}
+                  leftSection={<IconSortAscending size={16} />}
+                  size="md"
+                  radius="md"
+                  allowDeselect={false}
+                />
+              </Tooltip>
             </Grid.Col>
 
             <Grid.Col span={{ base: 6, sm: 3, md: 3 }}>

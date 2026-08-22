@@ -56,6 +56,7 @@ import {
 import { setupSupabaseReplication } from '@/lib/replication';
 import { notifyFsrsWordAdded, notifyWordSaved } from '@/lib/system-notifications';
 import { buildWordFamilyId, isWordFamilyId } from '@/lib/word-family';
+import { filterAndSortWords } from '@/lib/word-search';
 
 export default function WordsPage() {
   const router = useRouter();
@@ -82,7 +83,7 @@ export default function WordsPage() {
   const [groupFilter, setGroupFilter] = useState('all');
   const [posFilter, setPosFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState<WordStatusFilter>('all');
-  const [sortOption, setSortOption] = useState<WordSortOption>('alphaAsc');
+  const [sortOption, setSortOption] = useState<WordSortOption>('newest');
   const [density, setDensity] = useState<'detailed' | 'compact' | 'card'>('detailed');
 
   // Modals
@@ -92,10 +93,10 @@ export default function WordsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [groupManagerOpen, setGroupManagerOpen] = useState(false);
 
-  // Timer ticker
+  // Timer ticker (refreshes every 30s for FSRS due date calculation)
   const [nowTicker, setNowTicker] = useState(() => new Date().toISOString());
   useEffect(() => {
-    const timer = setInterval(() => setNowTicker(new Date().toISOString()), 1000);
+    const timer = setInterval(() => setNowTicker(new Date().toISOString()), 30000);
     return () => clearInterval(timer);
   }, []);
 
@@ -739,79 +740,17 @@ export default function WordsPage() {
       }
     }
 
-    // 5. Search Query filter
-    const query = searchQuery.trim().toLowerCase();
-    if (query) {
-      result = result.filter((w) => {
-        if (w.word.toLowerCase().includes(query)) {
-          return true;
-        }
-
-        if (searchScope === 'word') {
-          return false;
-        }
-
-        const defs = getWordDefinitions(w);
-        if (defs.some((d) => d.meaning.toLowerCase().includes(query))) {
-          return true;
-        }
-
-        if (searchScope === 'all') {
-          if (w.notes && w.notes.toLowerCase().includes(query)) {
-            return true;
-          }
-          if (
-            defs.some(
-              (d) =>
-                (d.examples && d.examples.some((e) => e.toLowerCase().includes(query))) ||
-                (d.userExamples && d.userExamples.some((e) => e.toLowerCase().includes(query)))
-            )
-          ) {
-            return true;
-          }
-          const family = wordFamilies[w.id];
-          if (family && family.some((m) => m.word.toLowerCase().includes(query))) {
-            return true;
-          }
-        }
-
-        return false;
-      });
-    }
-
-    // 6. Sorting
-    const sorted = [...result];
-    if (sortOption === 'alphaAsc') {
-      sorted.sort((a, b) => a.word.localeCompare(b.word));
-    } else if (sortOption === 'alphaDesc') {
-      sorted.sort((a, b) => b.word.localeCompare(a.word));
-    } else if (sortOption === 'newest') {
-      sorted.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-    } else if (sortOption === 'oldest') {
-      sorted.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-    } else if (sortOption === 'updated') {
-      sorted.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-    } else if (sortOption === 'dueSoonest') {
-      sorted.sort((a, b) => {
-        const fsrsA = primaryFsrsByWordId.get(a.id);
-        const fsrsB = primaryFsrsByWordId.get(b.id);
-        if (!fsrsA) {
-          return 1;
-        }
-        if (!fsrsB) {
-          return -1;
-        }
-        return fsrsA.dueAt.localeCompare(fsrsB.dueAt);
-      });
-    } else if (sortOption === 'mostLapses') {
-      sorted.sort((a, b) => {
-        const lapsesA = primaryFsrsByWordId.get(a.id)?.lapses || 0;
-        const lapsesB = primaryFsrsByWordId.get(b.id)?.lapses || 0;
-        return lapsesB - lapsesA;
-      });
-    }
-
-    return sorted;
+    // 5 & 6. Search Filtering and Sorting
+    // When searchQuery is present, results are scored and sorted based on matching score only (ignoring UI sort order).
+    // When searchQuery is empty, UI set sortOption is used.
+    return filterAndSortWords({
+      words: result,
+      searchQuery,
+      searchScope,
+      sortOption,
+      wordFamilies,
+      primaryFsrsByWordId,
+    });
   }, [
     words,
     groupFilter,
@@ -833,7 +772,7 @@ export default function WordsPage() {
     setGroupFilter('all');
     setPosFilter('all');
     setStatusFilter('all');
-    setSortOption('alphaAsc');
+    setSortOption('newest');
   };
 
   const toggleTheme = () => {

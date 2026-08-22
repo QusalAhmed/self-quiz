@@ -3,7 +3,7 @@
 import { Button, Group, Paper, Stack, Text, ThemeIcon } from '@mantine/core';
 import { IconBookOff, IconFilterOff, IconPlus } from '@tabler/icons-react';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { WordDetailCard, type WordViewDensity } from '@/components/WordExplorer/WordDetailCard';
 import type { FsrsRecord, MissedWordRecord, WordFamilyMemberRecord, WordRecord } from '@/lib/db';
 
@@ -63,6 +63,32 @@ export function WordExplorerVirtualList({
       window.removeEventListener('orientationchange', updateScrollMargin);
     };
   }, [density]);
+
+  const fsrsByWordId = useMemo(() => {
+    const map = new Map<string, FsrsRecord[]>();
+    for (const r of fsrsRecords) {
+      if (r.isDeleted) {
+        continue;
+      }
+      const list = map.get(r.wordId) || [];
+      list.push(r);
+      map.set(r.wordId, list);
+    }
+    return map;
+  }, [fsrsRecords]);
+
+  const missedByWordId = useMemo(() => {
+    const map = new Map<string, MissedWordRecord[]>();
+    for (const m of missedRecords) {
+      if (m.isDeleted) {
+        continue;
+      }
+      const list = map.get(m.wordId) || [];
+      list.push(m);
+      map.set(m.wordId, list);
+    }
+    return map;
+  }, [missedRecords]);
 
   const rowVirtualizer = useWindowVirtualizer({
     count: words.length,
@@ -167,8 +193,8 @@ export function WordExplorerVirtualList({
             >
               <WordDetailCard
                 word={item}
-                fsrsRecords={fsrsRecords}
-                missedRecords={missedRecords}
+                fsrsRecords={fsrsByWordId.get(item.id) || []}
+                missedRecords={missedByWordId.get(item.id) || []}
                 wordFamilyMembers={familyMembers}
                 density={density}
                 searchQuery={searchQuery}
