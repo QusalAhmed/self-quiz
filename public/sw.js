@@ -1,5 +1,5 @@
 // Auto-generated at build time — do not edit manually.
-const CACHE_VERSION = 'mt3uhcq6';
+const CACHE_VERSION = 'mt4kcepr';
 const STATIC_CACHE = 'self-quiz-static-' + CACHE_VERSION;
 const RUNTIME_CACHE = 'self-quiz-runtime-' + CACHE_VERSION;
 // App shell and critical static assets to precache on install
@@ -13,6 +13,7 @@ const PRECACHE_ASSETS = [
   '/sounds/review-good.wav',
   '/sounds/review-easy.wav',
   '/sounds/notification.wav',
+  '/sounds/notification.mp3',
 ];
 
 self.addEventListener('install', (event) => {
@@ -112,15 +113,30 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Range requests (e.g. audio/video streaming or seeking):
+  // The Cache API does not support caching 206 Partial Content responses (cache.put throws).
+  // Serve directly from network, falling back to full cached response if offline.
+  if (event.request.headers.has('range')) {
+    event.respondWith(
+      fetch(event.request).catch(() =>
+        caches.match(event.request, { ignoreSearch: true })
+      )
+    );
+    return;
+  }
+
   // Navigation requests (HTML pages): network-first, fall back to cached app shell
   if (isNavigationRequest(event.request)) {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
-          // Cache the fresh HTML for future offline use
-          if (response.ok) {
+          // Cache the fresh HTML for future offline use (only on full 200 OK responses)
+          if (response.ok && response.status === 200) {
             const clone = response.clone();
-            caches.open(STATIC_CACHE).then((cache) => cache.put(event.request, clone));
+            caches
+              .open(STATIC_CACHE)
+              .then((cache) => cache.put(event.request, clone))
+              .catch((err) => console.warn('Cache put failed:', err));
           }
           return response;
         })
@@ -140,9 +156,12 @@ self.addEventListener('fetch', (event) => {
           return cached;
         }
         return fetch(event.request).then((response) => {
-          if (response.ok) {
+          if (response.ok && response.status === 200) {
             const clone = response.clone();
-            caches.open(RUNTIME_CACHE).then((cache) => cache.put(event.request, clone));
+            caches
+              .open(RUNTIME_CACHE)
+              .then((cache) => cache.put(event.request, clone))
+              .catch((err) => console.warn('Cache put failed:', err));
           }
           return response;
         });
@@ -154,13 +173,18 @@ self.addEventListener('fetch', (event) => {
   // All other assets: stale-while-revalidate
   event.respondWith(
     caches.match(event.request).then((cached) => {
-      const networkFetch = fetch(event.request).then((response) => {
-        if (response.ok) {
-          const clone = response.clone();
-          caches.open(STATIC_CACHE).then((cache) => cache.put(event.request, clone));
-        }
-        return response;
-      });
+      const networkFetch = fetch(event.request)
+        .then((response) => {
+          if (response.ok && response.status === 200) {
+            const clone = response.clone();
+            caches
+              .open(STATIC_CACHE)
+              .then((cache) => cache.put(event.request, clone))
+              .catch((err) => console.warn('Cache put failed:', err));
+          }
+          return response;
+        })
+        .catch(() => cached);
       return cached || networkFetch;
     })
   );

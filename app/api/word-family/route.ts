@@ -26,9 +26,17 @@ export async function POST(request: Request) {
 
     // Try Google AI (Gemma/Gemini) first
     try {
-      const members = await generateGoogleWordFamily({ word, meaning });
-      const validatedMembers = await filterValidWordFamilyMembers(members, word);
-      return NextResponse.json({ members: validatedMembers });
+      const result = await generateGoogleWordFamily({ word, meaning });
+      const validatedMembers = await filterValidWordFamilyMembers(
+        result.members,
+        word,
+        result.generatorAiDetails
+      );
+      return NextResponse.json({
+        members: validatedMembers,
+        rootUsageFrequency: result.rootUsageFrequency || '',
+        generatorAiDetails: result.generatorAiDetails || '',
+      });
     } catch (googleError: any) {
       console.warn(
         'Google AI (Gemma) failed for word family, falling back to Cloudflare AI:',
@@ -37,9 +45,17 @@ export async function POST(request: Request) {
 
       // Fallback to Cloudflare AI
       try {
-        const members = await generateCloudflareWordFamily({ word, meaning });
-        const validatedMembers = await filterValidWordFamilyMembers(members, word);
-        return NextResponse.json({ members: validatedMembers });
+        const result = await generateCloudflareWordFamily({ word, meaning });
+        const validatedMembers = await filterValidWordFamilyMembers(
+          result.members,
+          word,
+          result.generatorAiDetails
+        );
+        return NextResponse.json({
+          members: validatedMembers,
+          rootUsageFrequency: result.rootUsageFrequency || '',
+          generatorAiDetails: result.generatorAiDetails || '',
+        });
       } catch (cfError: any) {
         console.error(
           'Both Google AI and Cloudflare AI failed for word family:',

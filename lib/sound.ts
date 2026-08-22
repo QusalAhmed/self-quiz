@@ -12,7 +12,7 @@ export const SOUND_FILES: Record<ReviewRating | 'notification', string> = {
   hard: '/sounds/review-hard.wav',
   good: '/sounds/review-good.wav',
   easy: '/sounds/review-easy.wav',
-  notification: '/sounds/notification.mp3',
+  notification: '/sounds/notification.wav',
 };
 
 let audioCtx: AudioContext | null = null;

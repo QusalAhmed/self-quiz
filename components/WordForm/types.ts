@@ -7,6 +7,8 @@ export type WordFormEditValues = {
   groups: string[];
   aiExampleCount?: number;
   notes?: string;
+  usageFrequency?: string;
+  generatorAiDetails?: string;
 };
 
 /** Form-local shape for a definition being edited. `examples` (AI-generated) are carried

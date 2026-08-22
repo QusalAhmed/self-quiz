@@ -163,13 +163,13 @@ export default function HomePage() {
 
   const customGroups = useMemo(() => getActiveGroupNames(groups), [groups]);
 
-  // Real-Time Due Timer: Ticks every 1 second to update FSRS/SRS due cards automatically
+  // Real-Time Due Timer: Ticks every 10 seconds to update FSRS/SRS due cards automatically
   const [nowTicker, setNowTicker] = useState(() => new Date().toISOString());
 
   useEffect(() => {
     const timer = setInterval(() => {
       setNowTicker(new Date().toISOString());
-    }, 1000);
+    }, 10000);
     return () => clearInterval(timer);
   }, []);
 
@@ -1366,6 +1366,26 @@ export default function HomePage() {
 
         const data = await response.json();
         const members: WordFamilyMember[] = data?.members || [];
+        const rootUsageFrequency: string =
+          typeof data?.rootUsageFrequency === 'string' ? data.rootUsageFrequency.trim() : '';
+        const generatorAiDetails: string =
+          typeof data?.generatorAiDetails === 'string' ? data.generatorAiDetails.trim() : '';
+
+        if (rootUsageFrequency || generatorAiDetails) {
+          try {
+            const wordDoc = await database.words.findOne(wordId).exec();
+            if (wordDoc) {
+              await wordDoc.patch({
+                ...(rootUsageFrequency ? { usageFrequency: rootUsageFrequency } : {}),
+                ...(generatorAiDetails ? { generatorAiDetails } : {}),
+                updatedAt: new Date().toISOString(),
+              });
+            }
+          } catch (err) {
+            console.warn('Could not update root word with frequency/AI details:', err);
+          }
+        }
+
         const normalizedMainWord = word.trim().toLowerCase();
         const validMembers = members.filter(
           (m) => m.word.trim().toLowerCase() !== normalizedMainWord
@@ -1384,6 +1404,8 @@ export default function HomePage() {
             banglaDefinition: member.banglaDefinition.trim(),
             englishDefinition: member.englishDefinition.trim(),
             examples: Array.isArray(member.examples) ? member.examples : [],
+            usageFrequency: member.usageFrequency || '',
+            generatorAiDetails: member.generatorAiDetails || generatorAiDetails || '',
             createdAt: timestamp,
             updatedAt: timestamp,
             isDeleted: false,
@@ -1437,7 +1459,9 @@ export default function HomePage() {
     definitions: WordDefinition[],
     selectedGroups: string[],
     aiExampleCount: number,
-    notes?: string
+    notes?: string,
+    usageFrequency?: string,
+    generatorAiDetails?: string
   ) => {
     if (!database) {
       return;
@@ -1466,6 +1490,8 @@ export default function HomePage() {
       lastSyncedAt: '',
       customGroups: normalizedGroups,
       notes: notes || '',
+      usageFrequency: usageFrequency || '',
+      generatorAiDetails: generatorAiDetails || '',
     };
 
     await database.words.upsert(record);

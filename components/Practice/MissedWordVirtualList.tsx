@@ -4,7 +4,8 @@ import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { DefinitionsDisplay } from '@/components/DefinitionsDisplay/DefinitionsDisplay';
 import { WordActionIcon } from '@/components/WordActions/WordActionIcon';
-import type { WordDefinition } from '@/lib/db';
+import { WordFamilySection } from '@/components/WordFamily/WordFamilySection';
+import type { WordDefinition, WordFamilyMemberRecord } from '@/lib/db';
 
 export type MissedOrForgettingWordItem = {
   id: string;
@@ -25,6 +26,10 @@ type MissedWordVirtualListProps = {
   onRefreshExamples: (id: string) => void;
   onUnmarkMissed: (id: string) => void;
   generatingExampleWordIds?: Record<string, boolean>;
+  wordFamilies?: Record<string, WordFamilyMemberRecord[]>;
+  generatingWordFamilyWordIds?: Record<string, boolean>;
+  onRefreshWordFamily?: (wordId: string, word: string) => Promise<void> | void;
+  onDeleteWordFamilyMember?: (memberId: string) => Promise<void> | void;
 };
 
 export function MissedWordVirtualList({
@@ -35,6 +40,10 @@ export function MissedWordVirtualList({
   onRefreshExamples,
   onUnmarkMissed,
   generatingExampleWordIds = {},
+  wordFamilies = {},
+  generatingWordFamilyWordIds = {},
+  onRefreshWordFamily,
+  onDeleteWordFamilyMember,
 }: MissedWordVirtualListProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const [scrollMargin, setScrollMargin] = useState(0);
@@ -250,6 +259,14 @@ export function MissedWordVirtualList({
                       <DefinitionsDisplay
                         definitions={word.definitions}
                         fallbackMeaning={word.meaning}
+                      />
+                      <WordFamilySection
+                        wordId={word.wordId}
+                        word={word.word}
+                        members={wordFamilies[word.wordId] || []}
+                        isLoading={generatingWordFamilyWordIds[word.wordId]}
+                        onRefresh={onRefreshWordFamily}
+                        onDeleteMember={onDeleteWordFamilyMember}
                       />
                     </div>
                   ) : (

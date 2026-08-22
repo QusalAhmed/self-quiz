@@ -14,6 +14,7 @@ import {
 } from '@mantine/core';
 import {
   IconAlertTriangle,
+  IconChartBar,
   IconChevronDown,
   IconChevronUp,
   IconHierarchy,
@@ -23,12 +24,16 @@ import {
 } from '@tabler/icons-react';
 import React, { useState } from 'react';
 import type { WordFamilyMemberRecord } from '@/lib/db';
+import { getUsageFrequencyBadgeProps } from '@/lib/word-family';
 
-type WordFamilySectionProps = {
+export type WordFamilySectionProps = {
   wordId: string;
   word: string;
   members: WordFamilyMemberRecord[];
   isLoading?: boolean;
+  defaultExpanded?: boolean;
+  style?: React.CSSProperties;
+  className?: string;
   onRefresh?: (wordId: string, word: string) => Promise<void> | void;
   onDeleteMember?: (memberId: string) => Promise<void> | void;
 };
@@ -59,10 +64,13 @@ export function WordFamilySection({
   word,
   members,
   isLoading = false,
+  defaultExpanded = false,
+  style,
+  className,
   onRefresh,
   onDeleteMember,
 }: WordFamilySectionProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [deleteConfirmMember, setDeleteConfirmMember] = useState<{
     id: string;
@@ -70,9 +78,12 @@ export function WordFamilySection({
   } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Exclude main word from family members
-  const normalizedWord = word.trim().toLowerCase();
-  const validMembers = members.filter((m) => m.word.trim().toLowerCase() !== normalizedWord);
+  const validMembers = (members || []).filter((m) => !m.isDeleted);
+  const aiModel = validMembers.find((m) => m.generatorAiDetails)?.generatorAiDetails;
+
+  if (validMembers.length === 0 && !isLoading) {
+    return null;
+  }
 
   const handleConfirmDelete = async () => {
     if (!deleteConfirmMember || !onDeleteMember) {
@@ -82,70 +93,57 @@ export function WordFamilySection({
     try {
       await onDeleteMember(deleteConfirmMember.id);
       setDeleteConfirmMember(null);
+    } catch (err) {
+      console.error('Failed to delete word family member:', err);
     } finally {
       setIsDeleting(false);
     }
   };
 
-  if (validMembers.length === 0) {
-    if (!onRefresh) {
-      return null;
-    }
-    return (
-      <div
-        style={{
-          marginTop: 8,
-          paddingTop: 8,
-          borderTop: '1px dashed rgba(99, 102, 241, 0.18)',
-        }}
-      >
-        <Button
-          size="sm"
-          variant="light"
-          color="indigo"
-          radius="md"
-          leftSection={isLoading ? undefined : <IconSparkles size={16} />}
-          loading={isLoading}
-          disabled={isLoading}
-          onClick={(e) => {
-            e.stopPropagation();
-            void onRefresh(wordId, word);
-          }}
-          style={{
-            fontSize: '12px',
-            height: '24px',
-            paddingLeft: '8px',
-            paddingRight: '10px',
-          }}
-        >
-          {isLoading ? 'Generating Family...' : 'Generate Word Family'}
-        </Button>
-      </div>
-    );
-  }
-
   return (
     <div
+      className={className}
       style={{
         marginTop: 10,
-        paddingTop: 8,
-        borderTop: '1px dashed rgba(99, 102, 241, 0.2)',
+        padding: '8px 12px',
+        borderRadius: '8px',
+        background: 'rgba(99, 102, 241, 0.05)',
+        border: '1px solid rgba(99, 102, 241, 0.15)',
+        ...style,
       }}
     >
-      <Group justify="space-between" align="center" wrap="nowrap" mb={isExpanded ? 8 : 0}>
+      <Group justify="space-between" align="center" wrap="nowrap">
         <UnstyledButton
           onClick={() => setIsExpanded((prev) => !prev)}
-          style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer' }}
+          style={{ flex: 1, display: 'flex', alignItems: 'center' }}
+          aria-expanded={isExpanded}
+          aria-label={`${isExpanded ? 'Collapse' : 'Expand'} word family for ${word}`}
         >
-          <IconHierarchy size={17} style={{ color: 'var(--mantine-color-indigo-5)' }} />
-          <Text size="xs" fw={700} c="indigo">
-            Word Family ({validMembers.length})
-          </Text>
-          {isExpanded ? (
-            <IconChevronUp size={15} style={{ color: 'var(--mantine-color-indigo-5)' }} />
-          ) : (
-            <IconChevronDown size={15} style={{ color: 'var(--mantine-color-indigo-5)' }} />
-          )}
+          <Group gap={6} align="center">
+            <ThemeIcon size="xs" variant="light" color="indigo" radius="xl">
+              <IconHierarchy size={12} />
+            </ThemeIcon>
+            <Text size="xs" fw={700} c="indigo">
+              Word Family {validMembers.length > 0 ? `(${validMembers.length})` : ''}
+            </Text>
+            {isLoading && validMembers.length === 0 && (
+              <Badge size="xs" variant="light" color="indigo">
+                Generating...
+              </Badge>
+            )}
+            {aiModel && (
+              <Badge
+                size="xs"
+                variant="subtle"
+                color="indigo"
+                leftSection={<IconSparkles size={10} />}
+              >
+                {aiModel}
+              </Badge>
+            )}
+            {validMembers.length > 0 &&
+              (isExpanded ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />)}
+          </Group>
         </UnstyledButton>
 
         {onRefresh && (
@@ -173,36 +171,61 @@ export function WordFamilySection({
         {validMembers.map((m) => {
           const isSelected = selectedMemberId === m.id;
           const posColor = getPosColor(m.partOfSpeech);
+          const freqBadge = m.usageFrequency ? getUsageFrequencyBadgeProps(m.usageFrequency) : null;
 
           return (
-            <Badge
+            <Tooltip
               key={m.id}
-              size="md"
-              radius="md"
-              variant={isSelected ? 'filled' : 'light'}
-              color={posColor}
-              style={{
-                cursor: 'pointer',
-                textTransform: 'none',
-                fontSize: '11px',
-                padding: '0 10px',
-                height: '26px',
-                transition: 'all 0.15s ease',
-              }}
-              onClick={() => {
-                if (!isExpanded) {
-                  setIsExpanded(true);
-                }
-                setSelectedMemberId(selectedMemberId === m.id ? null : m.id);
-              }}
+              label={
+                freqBadge
+                  ? `${m.word} (${m.partOfSpeech || 'word'}) • Frequency: ${freqBadge.label}`
+                  : `${m.word} (${m.partOfSpeech || 'word'})`
+              }
+              withArrow
             >
-              <span style={{ fontWeight: 700 }}>{m.word}</span>
-              {m.partOfSpeech ? (
-                <span style={{ opacity: 0.85, marginLeft: 5, fontSize: '11px' }}>
-                  ({m.partOfSpeech})
-                </span>
-              ) : null}
-            </Badge>
+              <Badge
+                size="md"
+                radius="md"
+                variant={isSelected ? 'filled' : 'light'}
+                color={posColor}
+                style={{
+                  cursor: 'pointer',
+                  textTransform: 'none',
+                  fontSize: '11px',
+                  padding: '0 10px',
+                  height: '26px',
+                  transition: 'all 0.15s ease',
+                }}
+                onClick={() => {
+                  if (!isExpanded) {
+                    setIsExpanded(true);
+                  }
+                  setSelectedMemberId(selectedMemberId === m.id ? null : m.id);
+                }}
+              >
+                <span style={{ fontWeight: 700 }}>{m.word}</span>
+                {m.partOfSpeech ? (
+                  <span style={{ opacity: 0.85, marginLeft: 5, fontSize: '11px' }}>
+                    ({m.partOfSpeech})
+                  </span>
+                ) : null}
+                {freqBadge && (
+                  <span
+                    style={{
+                      opacity: 0.9,
+                      marginLeft: 6,
+                      fontSize: '10px',
+                      background: 'rgba(0, 0, 0, 0.15)',
+                      padding: '1px 5px',
+                      borderRadius: '4px',
+                      fontWeight: 600,
+                    }}
+                  >
+                    {freqBadge.shortLabel}
+                  </span>
+                )}
+              </Badge>
+            </Tooltip>
           );
         })}
       </Group>
@@ -213,6 +236,9 @@ export function WordFamilySection({
           {validMembers.map((m) => {
             const isHighlight = selectedMemberId === m.id;
             const posColor = getPosColor(m.partOfSpeech);
+            const freqBadge = m.usageFrequency
+              ? getUsageFrequencyBadgeProps(m.usageFrequency)
+              : null;
 
             return (
               <Paper
@@ -238,6 +264,29 @@ export function WordFamilySection({
                     {m.partOfSpeech && (
                       <Badge size="xs" variant="dot" color={posColor}>
                         {m.partOfSpeech}
+                      </Badge>
+                    )}
+                    {freqBadge && (
+                      <Tooltip label={freqBadge.tooltip} withArrow>
+                        <Badge
+                          size="xs"
+                          variant="light"
+                          color={freqBadge.color}
+                          leftSection={<IconChartBar size={11} />}
+                          style={{ textTransform: 'none', fontWeight: 700 }}
+                        >
+                          {freqBadge.label}
+                        </Badge>
+                      </Tooltip>
+                    )}
+                    {m.generatorAiDetails && (
+                      <Badge
+                        size="xs"
+                        variant="subtle"
+                        color="indigo"
+                        leftSection={<IconSparkles size={10} />}
+                      >
+                        {m.generatorAiDetails}
                       </Badge>
                     )}
                     {m.banglaDefinition && (
@@ -296,56 +345,45 @@ export function WordFamilySection({
         </Stack>
       </Collapse>
 
-      {/* Confirmation Modal */}
+      {/* Delete Member Confirmation Modal */}
       <Modal
-        opened={!!deleteConfirmMember}
-        onClose={() => !isDeleting && setDeleteConfirmMember(null)}
+        opened={deleteConfirmMember !== null}
+        onClose={() => setDeleteConfirmMember(null)}
         title={
-          <Group gap="xs">
-            <ThemeIcon color="red" variant="light" size="md" radius="md">
-              <IconAlertTriangle size={16} />
+          <Group gap={8}>
+            <ThemeIcon color="red" variant="light" size="sm">
+              <IconAlertTriangle size={14} />
             </ThemeIcon>
-            <Text fw={700} size="md" style={{ fontFamily: 'var(--font-title)' }}>
-              Remove from Word Family
+            <Text fw={700} size="sm">
+              Delete Word Family Member
             </Text>
           </Group>
         }
         centered
-        radius="lg"
         size="sm"
-        overlayProps={{ backgroundOpacity: 0.5, blur: 4 }}
-        styles={{
-          content: {
-            border: '1px solid var(--card-border)',
-            background: 'var(--card-bg)',
-          },
-        }}
+        radius="md"
+        overlayProps={{ backgroundOpacity: 0.55, blur: 3 }}
       >
         <Stack gap="md">
-          <Text size="sm" c="dimmed" style={{ lineHeight: 1.6 }}>
+          <Text size="sm">
             Are you sure you want to remove{' '}
-            <strong style={{ color: 'var(--text-primary)' }}>{deleteConfirmMember?.word}</strong>{' '}
-            from the word family of{' '}
-            <strong style={{ color: 'var(--mantine-color-indigo-4)' }}>{word}</strong>?
+            <Text span fw={700} c="red">
+              "{deleteConfirmMember?.word}"
+            </Text>{' '}
+            from the word family of <strong>{word}</strong>?
           </Text>
-          <Group justify="flex-end" gap="sm">
+          <Group justify="flex-end" gap="xs">
             <Button
-              variant="default"
-              size="sm"
-              radius="md"
+              variant="subtle"
+              color="gray"
+              size="xs"
               onClick={() => setDeleteConfirmMember(null)}
               disabled={isDeleting}
             >
               Cancel
             </Button>
-            <Button
-              color="red"
-              size="sm"
-              radius="md"
-              onClick={handleConfirmDelete}
-              loading={isDeleting}
-            >
-              Remove Word
+            <Button color="red" size="xs" loading={isDeleting} onClick={handleConfirmDelete}>
+              Delete
             </Button>
           </Group>
         </Stack>

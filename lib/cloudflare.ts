@@ -1,9 +1,9 @@
 import { normalizeAiExamples } from './examples';
 import {
   buildWordFamilyUserPrompt,
-  normalizeWordFamilyMembers,
+  extractWordFamilyGenerationResponse,
   WORD_FAMILY_SYSTEM_INSTRUCTION,
-  type WordFamilyMember,
+  type WordFamilyGenerationResult,
 } from './word-family';
 
 export type GenerateExamplesParams = {
@@ -32,6 +32,19 @@ type CloudflareAIResponse = {
   errors?: Array<{ message: string }>;
 };
 
+export function formatCloudflareModelDetails(model: string): string {
+  if (model.includes('llama-3.3-70b')) {
+    return 'Cloudflare Llama 3.3 70B';
+  }
+  if (model.includes('llama-3.1-8b')) {
+    return 'Cloudflare Llama 3.1 8B';
+  }
+  if (model.includes('llama-3.1-70b')) {
+    return 'Cloudflare Llama 3.1 70B';
+  }
+  return `Cloudflare AI (${model.replace(/^@cf\//, '')})`;
+}
+
 function repairTruncatedJson(raw: string): string | null {
   const membersIdx = raw.indexOf('"members"');
   if (membersIdx === -1) {
@@ -49,14 +62,24 @@ function repairTruncatedJson(raw: string): string | null {
   return null;
 }
 
-function parseWordFamilyFromRawText(rawText: unknown, excludeWord?: string): WordFamilyMember[] {
+function parseWordFamilyFromRawText(
+  rawText: unknown,
+  excludeWord?: string,
+  generatorAiDetails?: string
+): WordFamilyGenerationResult {
+  const empty: WordFamilyGenerationResult = {
+    rootUsageFrequency: '',
+    generatorAiDetails: generatorAiDetails || '',
+    members: [],
+  };
+
   if (typeof rawText !== 'string') {
-    return [];
+    return empty;
   }
 
   const trimmed = rawText.trim();
   if (!trimmed) {
-    return [];
+    return empty;
   }
 
   const candidates = [trimmed];
@@ -81,9 +104,13 @@ function parseWordFamilyFromRawText(rawText: unknown, excludeWord?: string): Wor
       if (typeof parsed === 'string') {
         try {
           const reparsed = JSON.parse(parsed);
-          const members = normalizeWordFamilyMembers(reparsed, excludeWord);
-          if (members.length > 0) {
-            return members;
+          const result = extractWordFamilyGenerationResponse(
+            reparsed,
+            excludeWord,
+            generatorAiDetails
+          );
+          if (result.members.length > 0) {
+            return result;
           }
         } catch {
           // Ignore
@@ -91,24 +118,25 @@ function parseWordFamilyFromRawText(rawText: unknown, excludeWord?: string): Wor
         continue;
       }
 
-      const members = normalizeWordFamilyMembers(parsed, excludeWord);
-      if (members.length > 0) {
-        return members;
+      const result = extractWordFamilyGenerationResponse(parsed, excludeWord, generatorAiDetails);
+      if (result.members.length > 0) {
+        return result;
       }
     } catch {
       // Ignore
     }
   }
 
-  return [];
+  return empty;
 }
 
 function extractWordFamilyFromAiResponse(
   result: unknown,
-  excludeWord?: string
-): WordFamilyMember[] {
+  excludeWord?: string,
+  generatorAiDetails?: string
+): WordFamilyGenerationResult {
   if (Array.isArray(result)) {
-    return normalizeWordFamilyMembers(result, excludeWord);
+    return extractWordFamilyGenerationResponse(result, excludeWord, generatorAiDetails);
   }
 
   if (result && typeof result === 'object') {
@@ -121,33 +149,46 @@ function extractWordFamilyFromAiResponse(
       choices?: Array<{ message?: { content?: unknown } }>;
     };
 
-    const directMembers = normalizeWordFamilyMembers(value, excludeWord);
-    if (directMembers.length > 0) {
-      return directMembers;
+    const directResult = extractWordFamilyGenerationResponse(
+      value,
+      excludeWord,
+      generatorAiDetails
+    );
+    if (directResult.members.length > 0) {
+      return directResult;
     }
 
     if (value.choices?.[0]?.message?.content) {
-      const choiceMembers = parseWordFamilyFromRawText(
+      const choiceResult = parseWordFamilyFromRawText(
         value.choices[0].message.content,
-        excludeWord
+        excludeWord,
+        generatorAiDetails
       );
-      if (choiceMembers.length > 0) {
-        return choiceMembers;
+      if (choiceResult.members.length > 0) {
+        return choiceResult;
       }
     }
 
-    const nestedResponseMembers = parseWordFamilyFromRawText(value.response, excludeWord);
-    if (nestedResponseMembers.length > 0) {
-      return nestedResponseMembers;
+    const nestedResponseResult = parseWordFamilyFromRawText(
+      value.response,
+      excludeWord,
+      generatorAiDetails
+    );
+    if (nestedResponseResult.members.length > 0) {
+      return nestedResponseResult;
     }
 
-    const nestedOutputMembers = parseWordFamilyFromRawText(value.output, excludeWord);
-    if (nestedOutputMembers.length > 0) {
-      return nestedOutputMembers;
+    const nestedOutputResult = parseWordFamilyFromRawText(
+      value.output,
+      excludeWord,
+      generatorAiDetails
+    );
+    if (nestedOutputResult.members.length > 0) {
+      return nestedOutputResult;
     }
   }
 
-  return parseWordFamilyFromRawText(result, excludeWord);
+  return parseWordFamilyFromRawText(result, excludeWord, generatorAiDetails);
 }
 
 function parseExamplesFromRawText(rawText: unknown, targetCount: number): string[] {
@@ -227,7 +268,7 @@ function extractExamplesFromAiResponse(result: unknown, targetCount: number): st
 
 export async function generateCloudflareWordFamily(
   params: GenerateWordFamilyParams
-): Promise<WordFamilyMember[]> {
+): Promise<WordFamilyGenerationResult> {
   const { word, meaning } = params;
   const accountId = process.env.CF_ACCOUNT_ID;
   const apiToken = process.env.CF_API_TOKEN;
@@ -236,6 +277,7 @@ export async function generateCloudflareWordFamily(
   }
 
   const model = process.env.CF_AI_MODEL || '@cf/meta/llama-3.1-8b-instruct';
+  const generatorAiDetails = formatCloudflareModelDetails(model);
 
   const messages: CloudflareMessage[] = [
     {
@@ -270,12 +312,12 @@ export async function generateCloudflareWordFamily(
     throw new Error(`AI service error: ${errMsg}`);
   }
 
-  const members = extractWordFamilyFromAiResponse(data?.result, word);
-  if (!members || members.length === 0) {
+  const result = extractWordFamilyFromAiResponse(data?.result, word, generatorAiDetails);
+  if (!result.members || result.members.length === 0) {
     throw new Error('Cloudflare AI returned empty word family');
   }
 
-  return members;
+  return result;
 }
 
 export async function generateCloudflareExamples(

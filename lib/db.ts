@@ -26,6 +26,8 @@ export type WordRecord = {
   lastSyncedAt: string;
   customGroups: string[];
   notes?: string;
+  usageFrequency?: string;
+  generatorAiDetails?: string;
 };
 
 export type WordDefinition = {
@@ -118,6 +120,8 @@ export type WordFamilyMemberRecord = {
   updatedAt: string;
   isDeleted: boolean;
   lastSyncedAt: string;
+  usageFrequency?: string;
+  generatorAiDetails?: string;
 };
 
 export type WordCollection = RxCollection<WordRecord>;
@@ -143,7 +147,7 @@ export type AppDatabase = RxDatabase<{
 
 const wordSchema: RxJsonSchema<WordRecord> = {
   title: 'word schema',
-  version: 9,
+  version: 10,
   description: 'English word memorization entries',
   primaryKey: 'id',
   type: 'object',
@@ -182,6 +186,8 @@ const wordSchema: RxJsonSchema<WordRecord> = {
       default: [],
     },
     notes: { type: 'string', default: '' },
+    usageFrequency: { type: 'string', default: '' },
+    generatorAiDetails: { type: 'string', default: '' },
   },
   required: [
     'id',
@@ -376,7 +382,7 @@ const fsrsSchema: RxJsonSchema<FsrsRecord> = {
 
 const wordFamilySchema: RxJsonSchema<WordFamilyMemberRecord> = {
   title: 'word family schema',
-  version: 1,
+  version: 2,
   description: 'Word family members derived from a root/added vocabulary word',
   primaryKey: 'id',
   type: 'object',
@@ -392,6 +398,8 @@ const wordFamilySchema: RxJsonSchema<WordFamilyMemberRecord> = {
       items: { type: 'string' },
       default: [],
     },
+    usageFrequency: { type: 'string', default: '' },
+    generatorAiDetails: { type: 'string', default: '' },
     createdAt: { type: 'string', maxLength: 32 },
     updatedAt: { type: 'string', maxLength: 32 },
     isDeleted: { type: 'boolean', default: false },
@@ -643,6 +651,11 @@ async function createDatabase(): Promise<AppDatabase> {
           ...oldDoc,
           notes: oldDoc.notes || '',
         }),
+        10: (oldDoc) => ({
+          ...oldDoc,
+          usageFrequency: oldDoc.usageFrequency || '',
+          generatorAiDetails: oldDoc.generatorAiDetails || '',
+        }),
       },
     },
     groups: {
@@ -698,6 +711,11 @@ async function createDatabase(): Promise<AppDatabase> {
       schema: wordFamilySchema,
       migrationStrategies: {
         1: (oldDoc) => ({ ...oldDoc }),
+        2: (oldDoc) => ({
+          ...oldDoc,
+          usageFrequency: oldDoc.usageFrequency || '',
+          generatorAiDetails: oldDoc.generatorAiDetails || '',
+        }),
       },
     },
     reviewLogs: {

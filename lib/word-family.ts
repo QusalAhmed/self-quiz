@@ -4,15 +4,24 @@ export type WordFamilyMember = {
   banglaDefinition: string;
   englishDefinition: string;
   examples: string[];
+  usageFrequency?: string;
+  generatorAiDetails?: string;
 };
 
-export const WORD_FAMILY_SYSTEM_INSTRUCTION = `You are an expert English lexicographer specializing in vocabulary learning.
+export type WordFamilyGenerationResult = {
+  rootUsageFrequency?: string;
+  generatorAiDetails: string;
+  members: WordFamilyMember[];
+};
+
+export const WORD_FAMILY_SYSTEM_INSTRUCTION = `You are an expert English lexicographer and vocabulary pedagogue specializing in English word families and corpus usage frequency analysis.
 
 Output ONLY valid raw JSON. Do not use Markdown, code fences, explanations, comments, or any text outside the JSON object.
 
 Return exactly one JSON object with this structure:
 
 {
+  "rootUsageFrequency": "Top 500 | Top 1000 | Top 2000 | Top 3000 | Top 5000 | Top 10000 | Rare",
   "members": [
     {
       "word": "string",
@@ -22,13 +31,24 @@ Return exactly one JSON object with this structure:
       "examples": [
         "practical English example sentence",
         "practical English example sentence"
-      ]
+      ],
+      "usageFrequency": "Top 500 | Top 1000 | Top 2000 | Top 3000 | Top 5000 | Top 10000 | Rare"
     }
   ]
 }
 
-## Strict Authenticity & Dictionary Requirement (CRITICAL)
+## Usage Frequency Guidelines (CRITICAL)
+- Provide realistic English corpus frequency estimate for the main root word ("rootUsageFrequency") and for each generated family member ("usageFrequency").
+- Standard tiers:
+  - "Top 500": Essential core English words used constantly in everyday conversation & writing (e.g. make, see, day, good).
+  - "Top 1000": Very high frequency foundational vocabulary (e.g. decide, ability, system, public).
+  - "Top 2000": High frequency common vocabulary (e.g. decision, active, manage, create).
+  - "Top 3000": Standard everyday & academic vocabulary (e.g. decisive, establish, reduce).
+  - "Top 5000": Upper-intermediate & academic / professional vocabulary (e.g. decisively, indecisive, sustainability).
+  - "Top 10000": Advanced & formal vocabulary (e.g. indecision, decisiveness, remediate).
+  - "Rare": Specialized, technical, literary, or low-frequency words.
 
+## Strict Authenticity & Dictionary Requirement (CRITICAL)
 * Every single generated word MUST be a real, authentic, recognized English word found in major published English dictionaries (such as Oxford, Cambridge, Merriam-Webster, Collins, Longman).
 * NEVER fabricate, hallucinate, or construct hypothetical, non-existent words (e.g., do NOT invent fake words like "decisioning", "deciderable", "indecisionable", "decidement", "comfortlessful", "uncomfortability", "beautifical").
 * Do NOT combine prefixes and suffixes mechanically to create theoretical words.
@@ -36,11 +56,8 @@ Return exactly one JSON object with this structure:
 * If you are in doubt about whether a word is a genuine English dictionary word, omit it completely.
 
 ## Word-family rules
-
 Generate the useful morphological/derivational word family of the supplied main word.
-
 Include words that are genuinely derived from the same lexical root through common English word formation, such as:
-
 * noun forms
 * verb forms
 * adjective forms
@@ -48,15 +65,12 @@ Include words that are genuinely derived from the same lexical root through comm
 * common prefixes/suffixes that create established derivative words
 
 Prioritize common, standard, useful English vocabulary.
-
 Do NOT include words merely because they are semantically related.
 For example, a synonym is not a word-family member unless it is morphologically derived from the same root.
 
 ## Exclusions
-
 Do NOT include:
-
-* the supplied main/root word itself
+* the supplied main/root word itself in the "members" array
 * fake, invented, or non-dictionary words
 * duplicate words
 * simple grammatical inflections unless they function as a distinct lexical entry
@@ -66,7 +80,6 @@ Do NOT include:
 * words that are only etymologically related but are not normally treated as members of the modern English word family
 
 ## Quality rules
-
 * Include only words you are 100% confident exist in standard English dictionaries.
 * Prefer useful dictionary headwords.
 * Use the most common modern meaning of each word.
@@ -78,27 +91,11 @@ Do NOT include:
 * Use lowercase for the "word" value.
 * Return members in a logical order, preferably noun → verb → adjective → adverb.
 * Do not force a fixed number of members. Return only genuinely useful family members.
-* If there are no reliable family members, return "members": [].
-
-## Important distinction
-
-A word family is based primarily on morphological/derivational relationship, not simply similarity of meaning.
-
-For example:
-
-decide → decision → decisive → decisively → indecision → indecisive
-
-is a word family.
-
-Do not add unrelated synonyms such as choose merely because they have a similar meaning.
-
-## Main word
-
-The main word will be supplied separately as input. Never include that main word itself in "members".`;
+* If there are no reliable family members, return "members": [].`;
 
 export function buildWordFamilyUserPrompt(word: string, meaning?: string): string {
   const meaningBlock = meaning ? `\nMeaning/context of main word: ${meaning}` : '';
-  return `Main word: "${word}"${meaningBlock}\n\nGenerate the word family for "${word}" according to the instructions. Return JSON ONLY.`;
+  return `Main word: "${word}"${meaningBlock}\n\nGenerate the word family and usage frequencies for "${word}" according to the instructions. Return JSON ONLY.`;
 }
 
 export function buildWordFamilyId(wordId: string, memberWord: string): string {
@@ -146,7 +143,197 @@ export function wordFamilyMemberToDefinitions(member: {
   ];
 }
 
-export function normalizeWordFamilyMembers(raw: unknown, excludeWord?: string): WordFamilyMember[] {
+/**
+ * Normalizes usage frequency strings or numbers into standard, human-readable tiers:
+ * - "Top 500"
+ * - "Top 1000"
+ * - "Top 2000"
+ * - "Top 3000"
+ * - "Top 5000"
+ * - "Top 10000"
+ * - "Rare"
+ */
+export function normalizeUsageFrequency(raw: unknown): string {
+  if (raw == null) {
+    return '';
+  }
+
+  if (typeof raw === 'number') {
+    if (raw <= 0) {
+      return '';
+    }
+    if (raw <= 500) {
+      return 'Top 500';
+    }
+    if (raw <= 1000) {
+      return 'Top 1000';
+    }
+    if (raw <= 2000) {
+      return 'Top 2000';
+    }
+    if (raw <= 3000) {
+      return 'Top 3000';
+    }
+    if (raw <= 5000) {
+      return 'Top 5000';
+    }
+    if (raw <= 10000) {
+      return 'Top 10000';
+    }
+    return 'Rare';
+  }
+
+  if (typeof raw !== 'string') {
+    return '';
+  }
+
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  const stripped = trimmed.toLowerCase().replace(/[,._-]/g, '');
+  const lower = trimmed.toLowerCase();
+
+  if (stripped.includes('10000') || stripped.includes('10k')) {
+    return 'Top 10000';
+  }
+  if (stripped.includes('5000') || stripped.includes('5k')) {
+    return 'Top 5000';
+  }
+  if (stripped.includes('3000') || stripped.includes('3k')) {
+    return 'Top 3000';
+  }
+  if (stripped.includes('2000') || stripped.includes('2k')) {
+    return 'Top 2000';
+  }
+  if (stripped.includes('1000') || stripped.includes('1k')) {
+    return 'Top 1000';
+  }
+  if (stripped.includes('500')) {
+    return 'Top 500';
+  }
+  if (lower.includes('very high') || lower.includes('essential')) {
+    return 'Top 1000';
+  }
+  if (lower.includes('high')) {
+    return 'Top 3000';
+  }
+  if (lower.includes('medium') || lower.includes('intermediate') || lower.includes('moderate')) {
+    return 'Top 5000';
+  }
+  if (lower.includes('low') || lower.includes('advanced')) {
+    return 'Top 10000';
+  }
+  if (lower.includes('rare') || lower.includes('specialized') || lower.includes('uncommon')) {
+    return 'Rare';
+  }
+
+  // If already properly capitalized like "Top 1000" or similar
+  return trimmed;
+}
+
+/**
+ * Returns a consistent Mantine color for a given usage frequency tier.
+ */
+export function getUsageFrequencyColor(freq?: string): string {
+  if (!freq) {
+    return 'gray';
+  }
+  const norm = normalizeUsageFrequency(freq);
+  switch (norm) {
+    case 'Top 500':
+      return 'teal';
+    case 'Top 1000':
+      return 'green';
+    case 'Top 2000':
+      return 'cyan';
+    case 'Top 3000':
+      return 'blue';
+    case 'Top 5000':
+      return 'orange';
+    case 'Top 10000':
+      return 'grape';
+    case 'Rare':
+      return 'gray';
+    default:
+      return 'indigo';
+  }
+}
+
+/**
+ * Returns structured badge presentation details for usage frequency.
+ */
+export function getUsageFrequencyBadgeProps(freq?: string): {
+  label: string;
+  color: string;
+  tooltip: string;
+  shortLabel: string;
+  tier: string;
+} {
+  const norm = normalizeUsageFrequency(freq) || 'Unranked';
+  const color = getUsageFrequencyColor(norm);
+
+  let tooltip = 'Vocabulary usage frequency';
+  let shortLabel = norm;
+  let tier = 'Standard';
+
+  switch (norm) {
+    case 'Top 500':
+      tooltip = 'Top 500: Essential English core vocabulary (very high frequency)';
+      shortLabel = 'Top 500';
+      tier = 'Essential';
+      break;
+    case 'Top 1000':
+      tooltip = 'Top 1,000: Foundational high-frequency vocabulary';
+      shortLabel = 'Top 1k';
+      tier = 'Foundational';
+      break;
+    case 'Top 2000':
+      tooltip = 'Top 2,000: Common everyday vocabulary';
+      shortLabel = 'Top 2k';
+      tier = 'Common';
+      break;
+    case 'Top 3000':
+      tooltip = 'Top 3,000: Standard conversational and written English';
+      shortLabel = 'Top 3k';
+      tier = 'Standard';
+      break;
+    case 'Top 5000':
+      tooltip = 'Top 5,000: Upper-intermediate and academic vocabulary';
+      shortLabel = 'Top 5k';
+      tier = 'Intermediate';
+      break;
+    case 'Top 10000':
+      tooltip = 'Top 10,000: Advanced, formal, or specialized vocabulary';
+      shortLabel = 'Top 10k';
+      tier = 'Advanced';
+      break;
+    case 'Rare':
+      tooltip = 'Rare / Low frequency: Specialized or literary English word';
+      shortLabel = 'Rare';
+      tier = 'Rare';
+      break;
+    default:
+      tooltip = `Frequency: ${norm}`;
+      shortLabel = norm;
+      tier = norm;
+  }
+
+  return {
+    label: norm,
+    color,
+    tooltip,
+    shortLabel,
+    tier,
+  };
+}
+
+export function normalizeWordFamilyMembers(
+  raw: unknown,
+  excludeWord?: string,
+  defaultAiDetails?: string
+): WordFamilyMember[] {
   if (!raw) {
     return [];
   }
@@ -231,16 +418,67 @@ export function normalizeWordFamilyMembers(raw: unknown, excludeWord?: string): 
       examples = [val.examples.trim()];
     }
 
+    const rawFreq = val.usageFrequency ?? val.frequency ?? val.usage_frequency ?? val.freq;
+    const usageFrequency = normalizeUsageFrequency(rawFreq);
+
+    const rawAiDetails =
+      val.generatorAiDetails ??
+      val.generator_ai_details ??
+      val.aiDetails ??
+      val.aiModel ??
+      defaultAiDetails ??
+      '';
+    const generatorAiDetails = typeof rawAiDetails === 'string' ? rawAiDetails.trim() : '';
+
     result.push({
       word,
       partOfSpeech,
       banglaDefinition,
       englishDefinition,
       examples,
+      usageFrequency,
+      generatorAiDetails,
     });
   }
 
   return result;
+}
+
+/**
+ * Extracts root word usage frequency and member list from an AI JSON response payload.
+ */
+export function extractWordFamilyGenerationResponse(
+  raw: unknown,
+  excludeWord?: string,
+  defaultAiDetails?: string
+): WordFamilyGenerationResult {
+  let rootUsageFrequency = '';
+  let generatorAiDetails = defaultAiDetails || '';
+
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    const obj = raw as Record<string, unknown>;
+    const rawRootFreq =
+      obj.rootUsageFrequency ??
+      obj.root_usage_frequency ??
+      obj.mainWordFrequency ??
+      obj.mainWordUsageFrequency ??
+      obj.usageFrequency;
+    rootUsageFrequency = normalizeUsageFrequency(rawRootFreq);
+
+    if (typeof obj.generatorAiDetails === 'string') {
+      generatorAiDetails = obj.generatorAiDetails.trim();
+    } else if (typeof obj.aiModel === 'string') {
+      generatorAiDetails = obj.aiModel.trim();
+    }
+  }
+
+  const members = normalizeWordFamilyMembers(raw, excludeWord, generatorAiDetails);
+
+  return {
+    rootUsageFrequency,
+    generatorAiDetails,
+    members,
+  };
 }
 
 /**
@@ -298,9 +536,10 @@ export async function verifyWordInDictionary(rawWord: string): Promise<boolean> 
  */
 export async function filterValidWordFamilyMembers(
   raw: unknown,
-  excludeWord?: string
+  excludeWord?: string,
+  defaultAiDetails?: string
 ): Promise<WordFamilyMember[]> {
-  const initial = normalizeWordFamilyMembers(raw, excludeWord);
+  const initial = normalizeWordFamilyMembers(raw, excludeWord, defaultAiDetails);
   if (initial.length === 0) {
     return [];
   }

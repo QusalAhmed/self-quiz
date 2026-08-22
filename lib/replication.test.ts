@@ -29,6 +29,8 @@ describe('Supabase Replication Modifiers', () => {
         ],
         ai_example_count: 7,
         notes: 'test note',
+        usage_frequency: 'Top 3000',
+        generator_ai_details: 'Google Gemma 4 26B',
         custom_groups: ['GRE', 'TOEFL'],
         created_at: '2026-08-17T00:00:00.000Z',
         updated_at: '2026-08-17T01:00:00.000Z',
@@ -42,6 +44,8 @@ describe('Supabase Replication Modifiers', () => {
       expect(record.customGroups).toEqual(['GRE', 'TOEFL']);
       expect(record.isDeleted).toBe(false);
       expect(record.notes).toBe('test note');
+      expect(record.usageFrequency).toBe('Top 3000');
+      expect(record.generatorAiDetails).toBe('Google Gemma 4 26B');
     });
 
     it('correctly maps local WordRecord to remote Supabase row for push', () => {
@@ -54,6 +58,8 @@ describe('Supabase Replication Modifiers', () => {
         ],
         aiExampleCount: 5,
         notes: 'my notes',
+        usageFrequency: 'Top 3000',
+        generatorAiDetails: 'Google Gemma 4 26B',
         customGroups: ['GRE'],
         createdAt: '2026-08-17T00:00:00.000Z',
         updatedAt: '2026-08-17T01:00:00.000Z',
@@ -65,6 +71,8 @@ describe('Supabase Replication Modifiers', () => {
       expect(row.id).toBe('w1');
       expect(row.ai_example_count).toBe(5);
       expect(row.custom_groups).toEqual(['GRE']);
+      expect(row.usage_frequency).toBe('Top 3000');
+      expect(row.generator_ai_details).toBe('Google Gemma 4 26B');
       expect(row.deleted).toBe(true);
       expect(row.created_at).toBe('2026-08-17T00:00:00.000Z');
       expect(row.updated_at).toBe('2026-08-17T01:00:00.000Z');
@@ -128,6 +136,8 @@ describe('Supabase Replication Modifiers', () => {
         bangla_definition: 'হ্রাস',
         english_definition: 'reduction',
         examples: ['Noise abatement'],
+        usage_frequency: 'Top 5000',
+        generator_ai_details: 'Google Gemma 4 26B',
         created_at: '2026-08-17T00:00:00.000Z',
         updated_at: '2026-08-17T01:00:00.000Z',
         deleted: false,
@@ -138,12 +148,16 @@ describe('Supabase Replication Modifiers', () => {
       expect(pulled.word).toBe('abatement');
       expect(pulled.partOfSpeech).toBe('noun');
       expect(pulled.examples).toEqual(['Noise abatement']);
+      expect(pulled.usageFrequency).toBe('Top 5000');
+      expect(pulled.generatorAiDetails).toBe('Google Gemma 4 26B');
 
       const pushed = pushWordFamilyModifier(pulled);
       expect(pushed.id).toBe('wf1');
       expect(pushed.word_id).toBe('w1');
       expect(pushed.word).toBe('abatement');
       expect(pushed.part_of_speech).toBe('noun');
+      expect(pushed.usage_frequency).toBe('Top 5000');
+      expect(pushed.generator_ai_details).toBe('Google Gemma 4 26B');
     });
   });
 

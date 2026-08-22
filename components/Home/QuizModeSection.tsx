@@ -514,6 +514,10 @@ export function QuizModeSection({
             onRefreshExamples={onRefreshExamples}
             onUnmarkMissed={onUnmarkMissed}
             generatingExampleWordIds={generatingExampleWordIds}
+            wordFamilies={wordFamilies}
+            generatingWordFamilyWordIds={generatingWordFamilyWordIds}
+            onRefreshWordFamily={onRefreshWordFamily}
+            onDeleteWordFamilyMember={onDeleteWordFamilyMember}
           />
         )}
       </Card>

@@ -276,6 +276,7 @@ export function calculateWordMatchScore(
       const memWord = normalizeSearchText(mem.word);
       const memBangla = normalizeSearchText(mem.banglaDefinition);
       const memEng = normalizeSearchText(mem.englishDefinition);
+      const memFreq = normalizeSearchText(mem.usageFrequency);
 
       if (memWord === normalizedQuery) {
         bestFamilyScore = Math.max(bestFamilyScore, 750);
@@ -285,11 +286,29 @@ export function calculateWordMatchScore(
         bestFamilyScore = Math.max(bestFamilyScore, 300);
       } else if (memBangla.includes(normalizedQuery) || memEng.includes(normalizedQuery)) {
         bestFamilyScore = Math.max(bestFamilyScore, 150);
+      } else if (memFreq && (memFreq === normalizedQuery || memFreq.includes(normalizedQuery))) {
+        bestFamilyScore = Math.max(bestFamilyScore, 180);
       }
     }
     if (bestFamilyScore > 0) {
       score += bestFamilyScore;
       matchedAny = true;
+    }
+
+    // 3D. Usage Frequency & Generator AI Details
+    if (word.usageFrequency) {
+      const normFreq = normalizeSearchText(word.usageFrequency);
+      if (normFreq === normalizedQuery || normFreq.includes(normalizedQuery)) {
+        score += 300;
+        matchedAny = true;
+      }
+    }
+    if (word.generatorAiDetails) {
+      const normAi = normalizeSearchText(word.generatorAiDetails);
+      if (normAi === normalizedQuery || normAi.includes(normalizedQuery)) {
+        score += 250;
+        matchedAny = true;
+      }
     }
   }
 
@@ -307,6 +326,12 @@ export function calculateWordMatchScore(
       if (notes) {
         allSearchableFields.push(notes);
       }
+      if (word.usageFrequency) {
+        allSearchableFields.push(normalizeSearchText(word.usageFrequency));
+      }
+      if (word.generatorAiDetails) {
+        allSearchableFields.push(normalizeSearchText(word.generatorAiDetails));
+      }
       for (const def of defs) {
         for (const ex of [...(def.examples || []), ...(def.userExamples || [])]) {
           allSearchableFields.push(normalizeSearchText(ex));
@@ -316,6 +341,9 @@ export function calculateWordMatchScore(
         allSearchableFields.push(normalizeSearchText(mem.word));
         allSearchableFields.push(normalizeSearchText(mem.banglaDefinition));
         allSearchableFields.push(normalizeSearchText(mem.englishDefinition));
+        if (mem.usageFrequency) {
+          allSearchableFields.push(normalizeSearchText(mem.usageFrequency));
+        }
       }
     }
 

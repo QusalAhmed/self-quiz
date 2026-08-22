@@ -1,5 +1,5 @@
-import { Button, Card, Group, Stack, Text, TextInput } from '@mantine/core';
-import { IconPlus } from '@tabler/icons-react';
+import { Badge, Button, Card, Group, Stack, Text, TextInput } from '@mantine/core';
+import { IconChartBar, IconPlus, IconSparkles } from '@tabler/icons-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { EditWordModal } from '@/components/EditWordModal/EditWordModal';
 import { RichNoteEditor } from '@/components/RichNoteEditor/RichNoteEditor';
@@ -13,6 +13,7 @@ import {
 import type { WordDefinition, WordRecord } from '@/lib/db';
 import { definitionsToMeaning, normalizeDefinitions, sanitizeMeaning } from '@/lib/definitions';
 import { DEFAULT_AI_EXAMPLE_COUNT, normalizeAiExampleCount } from '@/lib/examples';
+import { getUsageFrequencyColor, normalizeUsageFrequency } from '@/lib/word-family';
 
 export type { WordFormEditValues } from '@/components/WordForm/types';
 
@@ -30,7 +31,9 @@ type WordFormProps = {
     definitions: WordDefinition[],
     groups: string[],
     aiExampleCount: number,
-    notes?: string
+    notes?: string,
+    usageFrequency?: string,
+    generatorAiDetails?: string
   ) => Promise<void> | void;
   onSubmit: (
     word: string,
@@ -38,10 +41,22 @@ type WordFormProps = {
     definitions: WordDefinition[],
     groups: string[],
     aiExampleCount: number,
-    notes?: string
+    notes?: string,
+    usageFrequency?: string,
+    generatorAiDetails?: string
   ) => Promise<void> | void;
   onCancel?: () => void;
 };
+
+const FREQUENCY_PRESETS = [
+  'Top 500',
+  'Top 1000',
+  'Top 2000',
+  'Top 3000',
+  'Top 5000',
+  'Top 10000',
+  'Rare',
+];
 
 export function WordForm({
   disabled,
@@ -63,6 +78,8 @@ export function WordForm({
   const [groups, setGroups] = useState<string[]>([]);
   const [aiExampleCount, setAiExampleCount] = useState(String(DEFAULT_AI_EXAMPLE_COUNT));
   const [notes, setNotes] = useState('');
+  const [usageFrequency, setUsageFrequency] = useState('');
+  const [generatorAiDetails, setGeneratorAiDetails] = useState('');
   const [isAddingNewGroup, setIsAddingNewGroup] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -75,6 +92,8 @@ export function WordForm({
     setGroups([]);
     setAiExampleCount(String(DEFAULT_AI_EXAMPLE_COUNT));
     setNotes('');
+    setUsageFrequency('');
+    setGeneratorAiDetails('');
     setIsAddingNewGroup(false);
     setNewGroupName('');
   }, []);
@@ -114,6 +133,8 @@ export function WordForm({
       setGroups(editValues.groups);
       setAiExampleCount(String(normalizeAiExampleCount(editValues.aiExampleCount)));
       setNotes(editValues.notes || '');
+      setUsageFrequency(editValues.usageFrequency || '');
+      setGeneratorAiDetails(editValues.generatorAiDetails || '');
       setIsAddingNewGroup(false);
       setNewGroupName('');
     }
@@ -148,13 +169,16 @@ export function WordForm({
     setIsSaving(true);
     try {
       const nextDefinitions = parsedDefinitions();
+      const normalizedFrequency = normalizeUsageFrequency(usageFrequency);
       await onSubmit(
         word.trim(),
         definitionsToMeaning(nextDefinitions),
         nextDefinitions,
         groups,
         normalizeAiExampleCount(aiExampleCount),
-        notes
+        notes,
+        normalizedFrequency,
+        generatorAiDetails.trim()
       );
       if (!isEditMode) {
         resetForm();
@@ -335,6 +359,75 @@ export function WordForm({
           </Button>
         </Stack>
 
+        {/* ── Usage Frequency & AI Generator Info Section ── */}
+        <Stack gap="xs">
+          <Group justify="space-between" align="center">
+            <Group gap={6}>
+              <IconChartBar size={15} style={{ color: 'var(--mantine-color-indigo-4)' }} />
+              <Text size="xs" fw={600} c="dimmed">
+                Usage Frequency Tier (optional)
+              </Text>
+            </Group>
+            {generatorAiDetails && (
+              <Badge
+                size="xs"
+                variant="light"
+                color="indigo"
+                leftSection={<IconSparkles size={11} />}
+              >
+                {generatorAiDetails}
+              </Badge>
+            )}
+          </Group>
+
+          {/* Quick selection chips for standard frequency tiers */}
+          <Group gap={6} wrap="wrap">
+            {FREQUENCY_PRESETS.map((preset) => {
+              const isSelected = normalizeUsageFrequency(usageFrequency) === preset;
+              const color = getUsageFrequencyColor(preset);
+              return (
+                <Badge
+                  key={preset}
+                  size="sm"
+                  radius="md"
+                  variant={isSelected ? 'filled' : 'light'}
+                  color={isSelected ? color : 'gray'}
+                  style={{
+                    cursor: 'pointer',
+                    textTransform: 'none',
+                    fontWeight: isSelected ? 700 : 500,
+                    transition: 'all 0.15s ease',
+                  }}
+                  onClick={() => {
+                    setUsageFrequency(isSelected ? '' : preset);
+                  }}
+                >
+                  {preset}
+                </Badge>
+              );
+            })}
+          </Group>
+
+          <Group grow gap="sm" mt={4}>
+            <TextInput
+              placeholder="Or custom frequency (e.g. Top 1500)"
+              value={usageFrequency}
+              onChange={(e) => setUsageFrequency(e.currentTarget.value)}
+              disabled={disabled || isSaving}
+              size="xs"
+              radius="md"
+            />
+            <TextInput
+              placeholder="AI Generator Details (e.g. Google Gemini)"
+              value={generatorAiDetails}
+              onChange={(e) => setGeneratorAiDetails(e.currentTarget.value)}
+              disabled={disabled || isSaving}
+              size="xs"
+              radius="md"
+            />
+          </Group>
+        </Stack>
+
         <GroupSelector
           customGroups={customGroups}
           groups={groups}
@@ -444,7 +537,10 @@ export function WordForm({
           nextMeaning,
           nextDefinitions,
           nextGroups,
-          nextAiExampleCount
+          nextAiExampleCount,
+          nextNotes,
+          nextUsageFrequency,
+          nextGeneratorAiDetails
         ) => {
           await onEditExisting(
             id,
@@ -452,7 +548,10 @@ export function WordForm({
             nextMeaning,
             nextDefinitions,
             nextGroups,
-            nextAiExampleCount
+            nextAiExampleCount,
+            nextNotes,
+            nextUsageFrequency,
+            nextGeneratorAiDetails
           );
           closeEditModal();
         }}

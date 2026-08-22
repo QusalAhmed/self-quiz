@@ -17,7 +17,9 @@ type EditWordModalProps = {
     definitions: WordDefinition[],
     customGroups: string[],
     aiExampleCount: number,
-    notes?: string
+    notes?: string,
+    usageFrequency?: string,
+    generatorAiDetails?: string
   ) => Promise<void> | void;
   onAddCustomGroup?: (group: string) => void;
 };
@@ -41,6 +43,8 @@ export function EditWordModal({
       groups: getWordGroups(wordRecord),
       aiExampleCount: wordRecord.aiExampleCount,
       notes: wordRecord.notes,
+      usageFrequency: wordRecord.usageFrequency,
+      generatorAiDetails: wordRecord.generatorAiDetails,
     };
   }, [wordRecord]);
 
@@ -67,8 +71,27 @@ export function EditWordModal({
         customGroups={customGroups}
         onAddCustomGroup={onAddCustomGroup}
         editValues={opened ? editValues : null}
-        onSubmit={async (word, meaning, definitions, groups, aiExampleCount, notes) => {
-          await onSave(wordRecord.id, word, meaning, definitions, groups, aiExampleCount, notes);
+        onSubmit={async (
+          word,
+          meaning,
+          definitions,
+          groups,
+          aiExampleCount,
+          notes,
+          usageFrequency,
+          generatorAiDetails
+        ) => {
+          await onSave(
+            wordRecord.id,
+            word,
+            meaning,
+            definitions,
+            groups,
+            aiExampleCount,
+            notes,
+            usageFrequency,
+            generatorAiDetails
+          );
           onClose();
         }}
         onCancel={onClose}

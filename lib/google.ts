@@ -1,9 +1,9 @@
 import { normalizeAiExamples } from './examples';
 import {
   buildWordFamilyUserPrompt,
-  normalizeWordFamilyMembers,
+  extractWordFamilyGenerationResponse,
   WORD_FAMILY_SYSTEM_INSTRUCTION,
-  type WordFamilyMember,
+  type WordFamilyGenerationResult,
 } from './word-family';
 
 export type GenerateExamplesParams = {
@@ -19,9 +19,25 @@ export type GenerateWordFamilyParams = {
   meaning?: string;
 };
 
+export function formatGoogleModelDetails(model: string): string {
+  if (model.includes('gemma-4-26b')) {
+    return 'Google Gemma 4 26B';
+  }
+  if (model.includes('gemini-2.5-flash')) {
+    return 'Google Gemini 2.5 Flash';
+  }
+  if (model.includes('gemini-1.5-flash')) {
+    return 'Google Gemini 1.5 Flash';
+  }
+  if (model.includes('gemini-1.5-pro')) {
+    return 'Google Gemini 1.5 Pro';
+  }
+  return `Google AI (${model})`;
+}
+
 export async function generateGoogleWordFamily(
   params: GenerateWordFamilyParams
-): Promise<WordFamilyMember[]> {
+): Promise<WordFamilyGenerationResult> {
   const { word, meaning } = params;
   const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
   if (!apiKey) {
@@ -29,6 +45,7 @@ export async function generateGoogleWordFamily(
   }
 
   const model = process.env.GOOGLE_AI_MODEL || 'gemma-4-26b-a4b-it';
+  const generatorAiDetails = formatGoogleModelDetails(model);
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   const promptText = buildWordFamilyUserPrompt(word, meaning);
@@ -89,12 +106,12 @@ export async function generateGoogleWordFamily(
     throw new Error('Google AI response was not valid JSON');
   }
 
-  const members = normalizeWordFamilyMembers(parsed, word);
-  if (!members || members.length === 0) {
+  const result = extractWordFamilyGenerationResponse(parsed, word, generatorAiDetails);
+  if (!result.members || result.members.length === 0) {
     throw new Error('Google AI returned empty word family members');
   }
 
-  return members;
+  return result;
 }
 
 export async function generateGoogleExamples(params: GenerateExamplesParams): Promise<string[]> {

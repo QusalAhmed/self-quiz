@@ -11,7 +11,8 @@ import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { DefinitionsDisplay } from '@/components/DefinitionsDisplay/DefinitionsDisplay';
 import { WordActionIcon } from '@/components/WordActions/WordActionIcon';
-import type { SrsPracticeRecord, WordDefinition } from '@/lib/db';
+import { WordFamilySection } from '@/components/WordFamily/WordFamilySection';
+import type { SrsPracticeRecord, WordDefinition, WordFamilyMemberRecord } from '@/lib/db';
 
 function formatPracticeDate(value: string): string {
   return new Date(value).toLocaleString(undefined, {
@@ -44,6 +45,10 @@ type SrsPracticeVirtualListProps = {
   onEditClick?: (id: string) => void;
   onQuizWord: (id: string) => void;
   generatingExampleWordIds?: Record<string, boolean>;
+  wordFamilies?: Record<string, WordFamilyMemberRecord[]>;
+  generatingWordFamilyWordIds?: Record<string, boolean>;
+  onRefreshWordFamily?: (wordId: string, word: string) => Promise<void> | void;
+  onDeleteWordFamilyMember?: (memberId: string) => Promise<void> | void;
 };
 
 export function SrsPracticeVirtualList({
@@ -56,6 +61,10 @@ export function SrsPracticeVirtualList({
   isMissedWord,
   onEditClick,
   generatingExampleWordIds = {},
+  wordFamilies = {},
+  generatingWordFamilyWordIds = {},
+  onRefreshWordFamily,
+  onDeleteWordFamilyMember,
 }: SrsPracticeVirtualListProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const [scrollMargin, setScrollMargin] = useState(0);
@@ -218,6 +227,14 @@ export function SrsPracticeVirtualList({
                       <DefinitionsDisplay
                         definitions={word.definitions}
                         fallbackMeaning={word.meaning}
+                      />
+                      <WordFamilySection
+                        wordId={word.wordId}
+                        word={word.word}
+                        members={wordFamilies[word.wordId] || []}
+                        isLoading={generatingWordFamilyWordIds[word.wordId]}
+                        onRefresh={onRefreshWordFamily}
+                        onDeleteMember={onDeleteWordFamilyMember}
                       />
                     </div>
                   ) : (

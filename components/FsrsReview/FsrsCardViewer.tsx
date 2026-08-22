@@ -4,6 +4,8 @@ import { Badge, Button, Card, Group, Progress, Stack, Text, Title, Tooltip } fro
 import { IconArrowBackUp, IconEye, IconVolume } from '@tabler/icons-react';
 import { motion } from 'framer-motion';
 import React from 'react';
+import { WordFamilySection } from '@/components/WordFamily/WordFamilySection';
+import type { WordFamilyMemberRecord } from '@/lib/db';
 import type { FsrsRating, FsrsRecord } from '@/lib/fsrs';
 import { FsrsCounterBadge } from './FsrsCounterBadge';
 import { FsrsRatingBar } from './FsrsRatingBar';
@@ -16,10 +18,14 @@ export type FsrsCardViewerProps = {
   learningCount: number;
   reviewCount: number;
   canUndo?: boolean;
+  wordFamilyMembers?: WordFamilyMemberRecord[];
+  isGeneratingWordFamily?: boolean;
   onReveal: () => void;
   onRate: (rating: FsrsRating) => void;
   onUndo?: () => void;
   onPronounce?: (text: string) => void;
+  onRefreshWordFamily?: (wordId: string, word: string) => void;
+  onDeleteWordFamilyMember?: (memberId: string) => void;
 };
 
 export function FsrsCardViewer({
@@ -30,10 +36,14 @@ export function FsrsCardViewer({
   learningCount,
   reviewCount,
   canUndo,
+  wordFamilyMembers = [],
+  isGeneratingWordFamily = false,
   onReveal,
   onRate,
   onUndo,
   onPronounce,
+  onRefreshWordFamily,
+  onDeleteWordFamilyMember,
 }: FsrsCardViewerProps) {
   const totalCardsInQueue = newCount + learningCount + reviewCount;
   const progressPercent =
@@ -326,6 +336,15 @@ export function FsrsCardViewer({
                     {card.meaning}
                   </Text>
                 </Card>
+
+                <WordFamilySection
+                  wordId={card.wordId}
+                  word={card.word}
+                  members={wordFamilyMembers}
+                  isLoading={isGeneratingWordFamily}
+                  onRefresh={onRefreshWordFamily}
+                  onDeleteMember={onDeleteWordFamilyMember}
+                />
 
                 <FsrsRatingBar intervals={intervals} onRate={onRate} />
               </Stack>

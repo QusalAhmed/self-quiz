@@ -450,7 +450,29 @@ export default function WordsPage() {
           banglaDefinition: string;
           englishDefinition: string;
           examples?: string[];
+          usageFrequency?: string;
+          generatorAiDetails?: string;
         }> = Array.isArray(data?.members) ? data.members : [];
+
+        const rootUsageFrequency: string =
+          typeof data?.rootUsageFrequency === 'string' ? data.rootUsageFrequency.trim() : '';
+        const generatorAiDetails: string =
+          typeof data?.generatorAiDetails === 'string' ? data.generatorAiDetails.trim() : '';
+
+        if (rootUsageFrequency || generatorAiDetails) {
+          try {
+            const wordDoc = await database.words.findOne(wordId).exec();
+            if (wordDoc) {
+              await wordDoc.patch({
+                ...(rootUsageFrequency ? { usageFrequency: rootUsageFrequency } : {}),
+                ...(generatorAiDetails ? { generatorAiDetails } : {}),
+                updatedAt: new Date().toISOString(),
+              });
+            }
+          } catch (err) {
+            console.warn('Could not update root word with frequency/AI details:', err);
+          }
+        }
 
         const timestamp = new Date().toISOString();
         for (const member of members) {
@@ -463,6 +485,8 @@ export default function WordsPage() {
             banglaDefinition: member.banglaDefinition || '',
             englishDefinition: member.englishDefinition || '',
             examples: member.examples || [],
+            usageFrequency: member.usageFrequency || '',
+            generatorAiDetails: member.generatorAiDetails || generatorAiDetails || '',
             createdAt: timestamp,
             updatedAt: timestamp,
             isDeleted: false,
@@ -488,7 +512,9 @@ export default function WordsPage() {
     definitions: WordDefinition[],
     selectedGroups: string[],
     aiExampleCount: number,
-    notes?: string
+    notes?: string,
+    usageFrequency?: string,
+    generatorAiDetails?: string
   ) => {
     if (!database) {
       return;
@@ -517,6 +543,8 @@ export default function WordsPage() {
       lastSyncedAt: '',
       customGroups: normalizedGroups,
       notes: notes || '',
+      usageFrequency: usageFrequency || '',
+      generatorAiDetails: generatorAiDetails || '',
     };
 
     await database.words.upsert(record);
@@ -551,7 +579,9 @@ export default function WordsPage() {
     definitions: WordDefinition[],
     selectedGroups: string[],
     aiExampleCount: number,
-    notes?: string
+    notes?: string,
+    usageFrequency?: string,
+    generatorAiDetails?: string
   ) => {
     if (!database) {
       return;
@@ -581,7 +611,10 @@ export default function WordsPage() {
       definitions: normalizedDefinitions,
       aiExampleCount: normalizedAiExampleCount,
       customGroups: normalizedGroups,
-      notes: notes || '',
+      notes: notes !== undefined ? notes : current.notes || '',
+      usageFrequency: usageFrequency !== undefined ? usageFrequency : current.usageFrequency || '',
+      generatorAiDetails:
+        generatorAiDetails !== undefined ? generatorAiDetails : current.generatorAiDetails || '',
       updatedAt: timestamp,
     };
 

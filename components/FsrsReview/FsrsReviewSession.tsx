@@ -1,7 +1,8 @@
 'use client';
 
 import { Container } from '@mantine/core';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { getDatabase, type WordFamilyMemberRecord } from '@/lib/db';
 import { computeFsrs, createReviewLogEvent, type FsrsRating, type FsrsRecord } from '@/lib/fsrs';
 import { useAppDispatch, useAppSelector } from '@/lib/redux/hooks';
 import {
@@ -47,8 +48,43 @@ export function FsrsReviewSession({
   const lastHistoryCardBefore = useAppSelector(selectLastHistoryCardBefore);
   const { newCount, learningCount, reviewCount } = useAppSelector(selectCardCounts);
   const { reviewLogsCount } = useAppSelector(selectFsrsState);
+  const [wordFamilies, setWordFamilies] = useState<Record<string, WordFamilyMemberRecord[]>>({});
 
   const cardPresentedAtRef = React.useRef<number>(Date.now());
+
+  useEffect(() => {
+    let isMounted = true;
+    let subscription: { unsubscribe: () => void } | null = null;
+
+    void getDatabase().then((db) => {
+      if (!isMounted) {
+        return;
+      }
+      subscription = db.wordFamilies
+        .find({ selector: { isDeleted: false } })
+        .$.subscribe((docs) => {
+          if (!isMounted) {
+            return;
+          }
+          const map: Record<string, WordFamilyMemberRecord[]> = {};
+          for (const doc of docs) {
+            const member = doc.toJSON() as WordFamilyMemberRecord;
+            if (!map[member.wordId]) {
+              map[member.wordId] = [];
+            }
+            map[member.wordId].push(member);
+          }
+          setWordFamilies(map);
+        });
+    });
+
+    return () => {
+      isMounted = false;
+      if (subscription) {
+        subscription.unsubscribe();
+      }
+    };
+  }, []);
 
   // 1. Load initial deck into Redux client state
   useEffect(() => {
@@ -164,6 +200,7 @@ export function FsrsReviewSession({
           learningCount={learningCount}
           reviewCount={reviewCount}
           canUndo={canUndo}
+          wordFamilyMembers={currentCard ? wordFamilies[currentCard.wordId] || [] : []}
           onReveal={handleReveal}
           onRate={handleRate}
           onUndo={handleUndo}

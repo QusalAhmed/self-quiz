@@ -23,6 +23,7 @@ import {
   IconBookmark,
   IconBookmarkOff,
   IconBrain,
+  IconChartBar,
   IconCheck,
   IconChevronDown,
   IconChevronUp,
@@ -43,6 +44,7 @@ import type { FsrsRecord, MissedWordRecord, WordFamilyMemberRecord, WordRecord }
 import { getWordDefinitions } from '@/lib/definitions';
 import { formatInterval } from '@/lib/fsrs';
 import { getWordGroups } from '@/lib/groups';
+import { getUsageFrequencyBadgeProps } from '@/lib/word-family';
 
 export type WordViewDensity = 'detailed' | 'compact' | 'card';
 
@@ -257,6 +259,42 @@ export function WordDetailCard({
                   {def.partOfSpeech}
                 </Badge>
               ) : null
+            )}
+
+            {/* Usage Frequency Badge */}
+            {word.usageFrequency &&
+              (() => {
+                const freqBadge = getUsageFrequencyBadgeProps(word.usageFrequency);
+                return (
+                  <Tooltip label={freqBadge.tooltip} withArrow>
+                    <Badge
+                      variant="light"
+                      color={freqBadge.color}
+                      size="sm"
+                      radius="sm"
+                      leftSection={<IconChartBar size={12} />}
+                      style={{ fontWeight: 700, textTransform: 'none' }}
+                    >
+                      {freqBadge.label}
+                    </Badge>
+                  </Tooltip>
+                );
+              })()}
+
+            {/* Generator AI Details Badge */}
+            {word.generatorAiDetails && (
+              <Tooltip label={`AI Generator: ${word.generatorAiDetails}`} withArrow>
+                <Badge
+                  variant="subtle"
+                  color="indigo"
+                  size="sm"
+                  radius="sm"
+                  leftSection={<IconSparkles size={12} />}
+                  style={{ textTransform: 'none' }}
+                >
+                  {word.generatorAiDetails}
+                </Badge>
+              </Tooltip>
             )}
 
             {/* Missed Indicator Badge */}

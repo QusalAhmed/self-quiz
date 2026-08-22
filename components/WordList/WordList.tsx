@@ -1,5 +1,11 @@
 import { Badge, Button, Card, Group, Modal, Stack, Text, Tooltip } from '@mantine/core';
-import { IconEdit, IconTrash, IconRotateClockwise } from '@tabler/icons-react';
+import {
+  IconChartBar,
+  IconEdit,
+  IconRotateClockwise,
+  IconSparkles,
+  IconTrash,
+} from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
 import { DefinitionsDisplay } from '@/components/DefinitionsDisplay/DefinitionsDisplay';
 import { RichNoteViewer } from '@/components/RichNoteViewer/RichNoteViewer';
@@ -10,6 +16,7 @@ import { formatDate, formatRelativeShort } from '@/lib/dateUtils';
 import type { WordDefinition, WordFamilyMemberRecord, WordRecord } from '@/lib/db';
 import { getWordDefinitions } from '@/lib/definitions';
 import { getWordGroups } from '@/lib/groups';
+import { getUsageFrequencyBadgeProps } from '@/lib/word-family';
 
 type WordListProps = {
   words: WordRecord[];
@@ -21,7 +28,9 @@ type WordListProps = {
     definitions: WordDefinition[],
     customGroups: string[],
     aiExampleCount: number,
-    notes?: string
+    notes?: string,
+    usageFrequency?: string,
+    generatorAiDetails?: string
   ) => Promise<void> | void;
   onRefreshExamples: (id: string) => Promise<void> | void;
   onRefreshWordFamily?: (wordId: string, word: string) => Promise<void> | void;
@@ -67,6 +76,8 @@ export function WordList({
       groups: getWordGroups(editingItem),
       aiExampleCount: editingItem.aiExampleCount,
       notes: editingItem.notes || '',
+      usageFrequency: editingItem.usageFrequency || '',
+      generatorAiDetails: editingItem.generatorAiDetails || '',
     };
   }, [editingItem]);
 
@@ -131,6 +142,9 @@ export function WordList({
           const definitions = getWordDefinitions(item);
           const hasMeaning = definitions.length > 0;
           const isGeneratingExamples = generatingExampleWordIds[item.id];
+          const freqBadge = item.usageFrequency
+            ? getUsageFrequencyBadgeProps(item.usageFrequency)
+            : null;
 
           return (
             <Card
@@ -165,6 +179,38 @@ export function WordList({
                   >
                     {item.word}
                   </Text>
+
+                  {/* Usage Frequency Badge */}
+                  {freqBadge && (
+                    <Tooltip label={freqBadge.tooltip} withArrow>
+                      <Badge
+                        variant="light"
+                        color={freqBadge.color}
+                        size="xs"
+                        radius="sm"
+                        leftSection={<IconChartBar size={11} />}
+                        style={{ fontSize: '11px', fontWeight: 700, textTransform: 'none' }}
+                      >
+                        {freqBadge.label}
+                      </Badge>
+                    </Tooltip>
+                  )}
+
+                  {/* AI Generator details */}
+                  {item.generatorAiDetails && (
+                    <Tooltip label={`AI Generator: ${item.generatorAiDetails}`} withArrow>
+                      <Badge
+                        variant="subtle"
+                        color="indigo"
+                        size="xs"
+                        radius="sm"
+                        leftSection={<IconSparkles size={11} />}
+                        style={{ fontSize: '11px', textTransform: 'none' }}
+                      >
+                        {item.generatorAiDetails}
+                      </Badge>
+                    </Tooltip>
+                  )}
 
                   <Tooltip label={formatDate(item.updatedAt)} withArrow arrowSize={8}>
                     <Badge
@@ -270,7 +316,16 @@ export function WordList({
                     customGroups={customGroups}
                     onAddCustomGroup={onAddCustomGroup}
                     editValues={editValues}
-                    onSubmit={async (word, meaning, definitions, groups, aiExampleCount, notes) => {
+                    onSubmit={async (
+                      word,
+                      meaning,
+                      definitions,
+                      groups,
+                      aiExampleCount,
+                      notes,
+                      usageFrequency,
+                      generatorAiDetails
+                    ) => {
                       if (!editingId) {
                         return;
                       }
@@ -281,7 +336,9 @@ export function WordList({
                         definitions,
                         groups,
                         aiExampleCount,
-                        notes
+                        notes,
+                        usageFrequency,
+                        generatorAiDetails
                       );
                       setEditingId(null);
                     }}

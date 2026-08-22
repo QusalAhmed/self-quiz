@@ -29,7 +29,6 @@ import {
   IconChevronUp,
   IconCopy,
   IconEdit,
-  IconHierarchy,
   IconNotes,
   IconRotateClockwise,
   IconTrash,
@@ -42,6 +41,7 @@ import { DefinitionsDisplay } from '@/components/DefinitionsDisplay/DefinitionsD
 import { RATING_BUTTON_INFO } from '@/components/FsrsReview';
 import { RichNoteViewer } from '@/components/RichNoteViewer/RichNoteViewer';
 import { WordActionIcon } from '@/components/WordActions/WordActionIcon';
+import { WordFamilySection } from '@/components/WordFamily/WordFamilySection';
 import type { FsrsRecord, WordDefinition, WordFamilyMemberRecord } from '@/lib/db';
 import { normalizeDefinitions } from '@/lib/definitions';
 import type { FsrsRating as SrsRating } from '@/lib/fsrs';
@@ -59,30 +59,6 @@ export type QuizItem = {
 };
 
 export type QuizDirection = 'wordToMeaning' | 'meaningToWord' | 'spelling';
-
-const POS_COLORS: Record<string, string> = {
-  noun: 'blue',
-  verb: 'teal',
-  adjective: 'grape',
-  adverb: 'orange',
-  pronoun: 'cyan',
-  preposition: 'indigo',
-  conjunction: 'pink',
-  interjection: 'yellow',
-};
-
-function getPosBadgeColor(pos?: string): string {
-  if (!pos) {
-    return 'gray';
-  }
-  const normalized = pos.trim().toLowerCase();
-  for (const [key, color] of Object.entries(POS_COLORS)) {
-    if (normalized.includes(key)) {
-      return color;
-    }
-  }
-  return 'gray';
-}
 
 type QuizPanelProps = {
   item: QuizItem | null;
@@ -143,16 +119,15 @@ export function QuizPanel({
   canUndo,
   onUndo,
   wordFamilyMembers = [],
-  isGeneratingWordFamily: _isGeneratingWordFamily = false,
-  onRefreshWordFamily: _onRefreshWordFamily,
-  onDeleteWordFamilyMember: _onDeleteWordFamilyMember,
+  isGeneratingWordFamily = false,
+  onRefreshWordFamily,
+  onDeleteWordFamilyMember,
 }: QuizPanelProps) {
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [typedWord, setTypedWord] = useState('');
   const [spellingState, setSpellingState] = useState<'idle' | 'correct' | 'incorrect'>('idle');
   const [showUserExamples, setShowUserExamples] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
-  const [showFamilyWords, setShowFamilyWords] = useState(false);
   const [confirmDeleteFsrsOpened, setConfirmDeleteFsrsOpened] = useState(false);
   const quizPanelRef = useRef<HTMLDivElement>(null);
 
@@ -255,7 +230,6 @@ export function QuizPanel({
     setTypedWord('');
     setShowUserExamples(false);
     setShowNotes(false);
-    setShowFamilyWords(false);
     scrollToCenter();
   }, [item?.id, quizDirection, scrollToCenter]);
 
@@ -782,133 +756,17 @@ export function QuizPanel({
     </Stack>
   ) : null;
 
-  const normalizedMainWord = item?.word.trim().toLowerCase() || '';
-  const validFamilyMembers = (wordFamilyMembers || []).filter(
-    (m) => !m.isDeleted && m.word.trim().toLowerCase() !== normalizedMainWord
-  );
-  const hasFamilyWords = validFamilyMembers.length > 0;
-
-  const familyWordsBlock = hasFamilyWords ? (
-    <Stack gap="xs" align="center" style={{ width: '100%', maxWidth: 620 }}>
-      <Button
-        variant="subtle"
-        color="indigo"
-        size="xs"
-        radius="md"
-        leftSection={<IconHierarchy size={14} />}
-        rightSection={showFamilyWords ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />}
-        onClick={() => setShowFamilyWords((prev) => !prev)}
-        style={{ fontWeight: 600, height: 26, paddingLeft: 8, paddingRight: 8 }}
-      >
-        {showFamilyWords ? 'Hide Family Words' : `Show Family Words (${validFamilyMembers.length})`}
-      </Button>
-
-      <Collapse expanded={showFamilyWords} style={{ width: '100%' }}>
-        <Paper
-          p="sm"
-          radius="md"
-          style={{
-            background: 'rgba(99, 102, 241, 0.05)',
-            border: '1px solid rgba(99, 102, 241, 0.2)',
-            width: '100%',
-          }}
-        >
-          <Stack gap="xs">
-            {/* Summary chips for family members */}
-            <Group gap={6} justify="center" wrap="wrap">
-              {validFamilyMembers.map((m) => {
-                const posColor = getPosBadgeColor(m.partOfSpeech);
-                return (
-                  <Badge
-                    key={m.id}
-                    size="sm"
-                    radius="md"
-                    variant="light"
-                    color={posColor}
-                    style={{
-                      textTransform: 'none',
-                      fontSize: '11px',
-                      padding: '0 8px',
-                      height: '24px',
-                    }}
-                  >
-                    <span style={{ fontWeight: 700 }}>{m.word}</span>
-                    {m.partOfSpeech ? (
-                      <span style={{ opacity: 0.85, marginLeft: 4, fontSize: '10px' }}>
-                        ({m.partOfSpeech})
-                      </span>
-                    ) : null}
-                  </Badge>
-                );
-              })}
-            </Group>
-
-            <Divider my={4} style={{ borderColor: 'rgba(99, 102, 241, 0.15)' }} />
-
-            {/* Detailed list of family words with meanings and examples */}
-            <Stack gap={6}>
-              {validFamilyMembers.map((m) => {
-                const posColor = getPosBadgeColor(m.partOfSpeech);
-                return (
-                  <Paper
-                    key={m.id}
-                    p="xs"
-                    radius="md"
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.03)',
-                      border: '1px solid rgba(99, 102, 241, 0.15)',
-                      textAlign: 'left',
-                    }}
-                  >
-                    <Group gap={6} align="center" wrap="wrap" mb={2}>
-                      <Text size="sm" fw={700} style={{ color: 'var(--text-primary)' }}>
-                        {m.word}
-                      </Text>
-                      {m.partOfSpeech && (
-                        <Badge size="xs" variant="dot" color={posColor}>
-                          {m.partOfSpeech}
-                        </Badge>
-                      )}
-                      {m.banglaDefinition && (
-                        <Text size="xs" fw={600} c="teal">
-                          • {m.banglaDefinition}
-                        </Text>
-                      )}
-                    </Group>
-
-                    {m.englishDefinition && (
-                      <Text size="xs" c="orange" mt={2} style={{ lineHeight: 1.4 }}>
-                        {m.englishDefinition}
-                      </Text>
-                    )}
-
-                    {m.examples && m.examples.length > 0 && (
-                      <Stack gap={2} mt={4}>
-                        {m.examples.map((ex, idx) => (
-                          <Text
-                            key={idx}
-                            size="xs"
-                            fs="italic"
-                            style={{
-                              color: '#818cf8',
-                              paddingLeft: 8,
-                              borderLeft: '2px solid rgba(99, 102, 241, 0.35)',
-                              lineHeight: 1.35,
-                            }}
-                          >
-                            "{ex}"
-                          </Text>
-                        ))}
-                      </Stack>
-                    )}
-                  </Paper>
-                );
-              })}
-            </Stack>
-          </Stack>
-        </Paper>
-      </Collapse>
-    </Stack>
+  const familyWordsBlock = item ? (
+    <div style={{ width: '100%', maxWidth: 620 }}>
+      <WordFamilySection
+        wordId={item.id}
+        word={item.word}
+        members={wordFamilyMembers}
+        isLoading={isGeneratingWordFamily}
+        onRefresh={onRefreshWordFamily}
+        onDeleteMember={onDeleteWordFamilyMember}
+      />
+    </div>
   ) : null;
 
   const revealButton = (

@@ -133,6 +133,8 @@ export function pullWordModifier(row: any): WithDeleted<WordRecord> {
     lastSyncedAt: row.updated_at || row.updatedAt || new Date().toISOString(),
     customGroups: Array.from(new Set(customGroups)),
     notes: row.notes || '',
+    usageFrequency: row.usage_frequency || row.usageFrequency || '',
+    generatorAiDetails: row.generator_ai_details || row.generatorAiDetails || '',
   };
 }
 
@@ -144,6 +146,8 @@ export function pushWordModifier(doc: WordRecord): any {
     definitions: doc.definitions,
     ai_example_count: doc.aiExampleCount,
     notes: doc.notes || '',
+    usage_frequency: doc.usageFrequency || '',
+    generator_ai_details: doc.generatorAiDetails || '',
     custom_groups: doc.customGroups || [],
     created_at: doc.createdAt,
     updated_at: doc.updatedAt,
@@ -231,6 +235,8 @@ export function pullWordFamilyModifier(row: any): WithDeleted<WordFamilyMemberRe
     banglaDefinition: row.bangla_definition || row.banglaDefinition || '',
     englishDefinition: row.english_definition || row.englishDefinition || '',
     examples,
+    usageFrequency: row.usage_frequency || row.usageFrequency || '',
+    generatorAiDetails: row.generator_ai_details || row.generatorAiDetails || '',
     createdAt: row.created_at || row.createdAt || new Date().toISOString(),
     updatedAt: row.updated_at || row.updatedAt || new Date().toISOString(),
     lastSyncedAt: row.updated_at || row.updatedAt || new Date().toISOString(),
@@ -248,6 +254,8 @@ export function pushWordFamilyModifier(doc: WordFamilyMemberRecord): any {
     bangla_definition: doc.banglaDefinition,
     english_definition: doc.englishDefinition,
     examples: doc.examples || [],
+    usage_frequency: doc.usageFrequency || '',
+    generator_ai_details: doc.generatorAiDetails || '',
     created_at: doc.createdAt,
     updated_at: doc.updatedAt,
     deleted: doc.isDeleted,
