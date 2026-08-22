@@ -1,7 +1,10 @@
 import '@mantine/core/styles.css';
+import '@mantine/notifications/styles.css';
 import './global.css';
 import { ColorSchemeScript, mantineHtmlProps, MantineProvider } from '@mantine/core';
+import { Notifications } from '@mantine/notifications';
 import React from 'react';
+import { GlobalSoundListener } from '@/components/Sound/GlobalSoundListener';
 import { ReduxProvider } from '@/lib/redux/provider';
 import { theme } from '@/theme';
 
@@ -26,7 +29,11 @@ export default function RootLayout({ children }: { children: any }) {
       </head>
       <body>
         <ReduxProvider>
-          <MantineProvider theme={theme}>{children}</MantineProvider>
+          <MantineProvider theme={theme}>
+            <Notifications position="top-right" zIndex={2000} autoClose={4000} />
+            <GlobalSoundListener />
+            {children}
+          </MantineProvider>
         </ReduxProvider>
       </body>
     </html>

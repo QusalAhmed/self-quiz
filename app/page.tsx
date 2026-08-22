@@ -72,12 +72,14 @@ import {
   wordHasAnyGroup,
   wordHasGroup,
 } from '@/lib/groups';
+import { showQueueRefillNotification } from '@/lib/notifications';
 import {
   setupSupabaseReplication,
   type ReplicationsHolder,
   type SyncCollectionKey,
   type UnifiedSyncState,
 } from '@/lib/replication';
+import { playRefillSound } from '@/lib/sound';
 import { resolveWordTextFromMainTable } from '@/lib/word-display';
 import { buildWordFamilyId, type WordFamilyMember } from '@/lib/word-family';
 
@@ -179,6 +181,7 @@ export default function HomePage() {
   const prevCustomStartRef = useRef<string>(customStart);
   const prevCustomEndRef = useRef<string>(customEnd);
   const prevQuizGroupFilterRef = useRef<string>('all');
+  const hasInitializedQueueRef = useRef(false);
 
   const ensureGroupExists = useCallback(
     async (groupName: string) => {
@@ -703,14 +706,29 @@ export default function HomePage() {
   // Initialize quiz when candidates are available or when real-time due timer adds new cards
   useEffect(() => {
     if ((quizQueue.length === 0 || completed) && quizCandidates.length > 0) {
+      const isRefill =
+        hasInitializedQueueRef.current &&
+        quizSource === 'fsrs' &&
+        (quizQueue.length === 0 || completed);
+
       console.log(
         'FSRS due timer / queue update: Initializing quiz with',
         quizCandidates.length,
-        'candidates'
+        'candidates',
+        isRefill ? '(Refill detected)' : '(Initial load)'
       );
+
       resetQuiz();
+      hasInitializedQueueRef.current = true;
+
+      if (isRefill) {
+        showQueueRefillNotification(quizCandidates.length);
+        playRefillSound();
+      }
+    } else if (quizQueue.length > 0) {
+      hasInitializedQueueRef.current = true;
     }
-  }, [quizCandidates.length, resetQuiz, quizQueue.length, completed]);
+  }, [quizCandidates.length, resetQuiz, quizQueue.length, completed, quizSource]);
 
   useEffect(() => {
     if (prevQuizDirectionRef.current === quizDirection) {
@@ -779,6 +797,7 @@ export default function HomePage() {
     setQuizIndex(0);
     setRevealed(false);
     setCompleted(queue.length === 0);
+    hasInitializedQueueRef.current = true;
   }, [
     quizRange,
     quizSource,

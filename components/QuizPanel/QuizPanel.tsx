@@ -45,6 +45,7 @@ import { WordActionIcon } from '@/components/WordActions/WordActionIcon';
 import type { FsrsRecord, WordDefinition, WordFamilyMemberRecord } from '@/lib/db';
 import { normalizeDefinitions } from '@/lib/definitions';
 import type { FsrsRating as SrsRating } from '@/lib/fsrs';
+import { playReviewSound } from '@/lib/sound';
 
 export type QuizItem = {
   id: string;
@@ -498,7 +499,9 @@ export function QuizPanel({
                   radius="lg"
                   variant="light"
                   color={color}
+                  data-skip-click-sound="true"
                   onClick={() => {
+                    playReviewSound(rating);
                     onSrsRate(rating);
                     scrollToCenter();
                   }}

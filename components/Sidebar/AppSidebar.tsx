@@ -28,9 +28,12 @@ import {
   IconRotateClockwise,
   IconSun,
   IconTags,
+  IconVolume,
+  IconVolumeOff,
 } from '@tabler/icons-react';
 import { usePathname, useRouter } from 'next/navigation';
 import React, { useState } from 'react';
+import { useSoundPreference } from '@/lib/sound';
 
 export type AppSidebarProps = {
   mode: 'study' | 'quiz';
@@ -59,6 +62,7 @@ export function AppSidebar({
   colorScheme,
   onToggleTheme,
 }: AppSidebarProps) {
+  const { soundEnabled, toggleSound } = useSoundPreference();
   const [mobileOpened, setMobileOpened] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
@@ -298,24 +302,41 @@ export function AppSidebar({
             <Group justify="space-between" align="center">
               <Stack gap={0}>
                 <Text size="xs" fw={700}>
-                  Theme
+                  Settings
                 </Text>
                 <Text size="xs" c="dimmed" style={{ fontSize: '0.7rem' }}>
-                  {colorScheme === 'dark' ? 'Dark Mode' : 'Light Mode'}
+                  {colorScheme === 'dark' ? 'Dark' : 'Light'} •{' '}
+                  {soundEnabled ? 'Sound ON' : 'Muted'}
                 </Text>
               </Stack>
 
-              <Tooltip label="Toggle Theme">
-                <ActionIcon
-                  variant="subtle"
-                  color="indigo"
-                  size="md"
-                  radius="md"
-                  onClick={onToggleTheme}
-                >
-                  {colorScheme === 'dark' ? <IconSun size={18} /> : <IconMoon size={18} />}
-                </ActionIcon>
-              </Tooltip>
+              <Group gap={6} align="center">
+                <Tooltip label={soundEnabled ? 'Mute Sounds' : 'Enable Sounds'}>
+                  <ActionIcon
+                    variant="subtle"
+                    color={soundEnabled ? 'indigo' : 'gray'}
+                    size="md"
+                    radius="md"
+                    onClick={toggleSound}
+                    aria-label={soundEnabled ? 'Mute Sounds' : 'Enable Sounds'}
+                  >
+                    {soundEnabled ? <IconVolume size={18} /> : <IconVolumeOff size={18} />}
+                  </ActionIcon>
+                </Tooltip>
+
+                <Tooltip label="Toggle Theme">
+                  <ActionIcon
+                    variant="subtle"
+                    color="indigo"
+                    size="md"
+                    radius="md"
+                    onClick={onToggleTheme}
+                    aria-label="Toggle Theme"
+                  >
+                    {colorScheme === 'dark' ? <IconSun size={18} /> : <IconMoon size={18} />}
+                  </ActionIcon>
+                </Tooltip>
+              </Group>
             </Group>
           </Paper>
         </Stack>
