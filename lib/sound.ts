@@ -5,11 +5,19 @@ import { useCallback, useEffect, useState } from 'react';
 const STORAGE_KEY = 'self_quiz_sound_enabled';
 const SOUND_EVENT_NAME = 'self_quiz_sound_changed';
 
+export type ReviewRating = 'again' | 'hard' | 'good' | 'easy';
+
+export const SOUND_FILES: Record<ReviewRating | 'notification', string> = {
+  again: '/sounds/review-again.wav',
+  hard: '/sounds/review-hard.wav',
+  good: '/sounds/review-good.wav',
+  easy: '/sounds/review-easy.wav',
+  notification: '/sounds/notification.mp3',
+};
+
 let audioCtx: AudioContext | null = null;
-let ratingAgainBuffer: AudioBuffer | null = null;
-let ratingHardBuffer: AudioBuffer | null = null;
-let ratingGoodBuffer: AudioBuffer | null = null;
-let ratingEasyBuffer: AudioBuffer | null = null;
+const audioBufferCache = new Map<string, AudioBuffer>();
+const audioElements = new Map<string, HTMLAudioElement>();
 
 function getAudioContext(): AudioContext | null {
   if (typeof window === 'undefined') {
@@ -34,144 +42,22 @@ function getAudioContext(): AudioContext | null {
   }
 }
 
-/**
- * Creates a warm, soft woodblock/low-tone AudioBuffer for 'Again' rating.
- */
-function createRatingAgainBuffer(ctx: AudioContext): AudioBuffer {
-  const sampleRate = ctx.sampleRate;
-  const duration = 0.11;
-  const numSamples = Math.floor(sampleRate * duration);
-  const buffer = ctx.createBuffer(1, numSamples, sampleRate);
-  const channelData = buffer.getChannelData(0);
-
-  for (let i = 0; i < numSamples; i++) {
-    const t = i / sampleRate;
-    let env = 0;
-    if (t < 0.004) {
-      env = Math.sin((t / 0.004) * (Math.PI / 2));
-    } else {
-      env = Math.exp(-(t - 0.004) / 0.024);
-    }
-
-    const freq = 210 - 40 * (t / duration);
-    const phase = 2 * Math.PI * freq * t;
-    channelData[i] = (Math.sin(phase) + 0.2 * Math.sin(2 * phase)) * env;
+async function fetchAndDecodeAudio(url: string, ctx: AudioContext): Promise<AudioBuffer | null> {
+  if (audioBufferCache.has(url)) {
+    return audioBufferCache.get(url) || null;
   }
-
-  return buffer;
-}
-
-/**
- * Creates a gentle neutral acoustic tone for 'Hard' rating.
- */
-function createRatingHardBuffer(ctx: AudioContext): AudioBuffer {
-  const sampleRate = ctx.sampleRate;
-  const duration = 0.11;
-  const numSamples = Math.floor(sampleRate * duration);
-  const buffer = ctx.createBuffer(1, numSamples, sampleRate);
-  const channelData = buffer.getChannelData(0);
-
-  for (let i = 0; i < numSamples; i++) {
-    const t = i / sampleRate;
-    let env = 0;
-    if (t < 0.004) {
-      env = Math.sin((t / 0.004) * (Math.PI / 2));
-    } else {
-      env = Math.exp(-(t - 0.004) / 0.024);
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      return null;
     }
-
-    const freq = 310 - 45 * (t / duration);
-    const phase = 2 * Math.PI * freq * t;
-    channelData[i] = (Math.sin(phase) + 0.18 * Math.sin(2 * phase)) * env;
+    const arrayBuffer = await response.arrayBuffer();
+    const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+    audioBufferCache.set(url, audioBuffer);
+    return audioBuffer;
+  } catch {
+    return null;
   }
-
-  return buffer;
-}
-
-/**
- * Creates a bright, cheerful 2-note ascending chime for 'Good' rating.
- */
-function createRatingGoodBuffer(ctx: AudioContext): AudioBuffer {
-  const sampleRate = ctx.sampleRate;
-  const duration = 0.18;
-  const numSamples = Math.floor(sampleRate * duration);
-  const buffer = ctx.createBuffer(1, numSamples, sampleRate);
-  const channelData = buffer.getChannelData(0);
-
-  const note1Freq = 523.25; // C5
-  const note2Freq = 659.25; // E5
-  const note2Offset = 0.055;
-
-  for (let i = 0; i < numSamples; i++) {
-    const t = i / sampleRate;
-    let sample = 0;
-
-    // Note 1
-    if (t < 0.12) {
-      let env1 = 0;
-      if (t < 0.003) {
-        env1 = Math.sin((t / 0.003) * (Math.PI / 2));
-      } else {
-        env1 = Math.exp(-(t - 0.003) / 0.028);
-      }
-      sample += Math.sin(2 * Math.PI * note1Freq * t) * env1 * 0.7;
-    }
-
-    // Note 2
-    if (t >= note2Offset) {
-      const t2 = t - note2Offset;
-      let env2 = 0;
-      if (t2 < 0.003) {
-        env2 = Math.sin((t2 / 0.003) * (Math.PI / 2));
-      } else {
-        env2 = Math.exp(-(t2 - 0.003) / 0.038);
-      }
-      sample += Math.sin(2 * Math.PI * note2Freq * t2) * env2 * 0.85;
-    }
-
-    channelData[i] = sample;
-  }
-
-  return buffer;
-}
-
-/**
- * Creates a sparkling major triad chime for 'Easy' rating.
- */
-function createRatingEasyBuffer(ctx: AudioContext): AudioBuffer {
-  const sampleRate = ctx.sampleRate;
-  const duration = 0.24;
-  const numSamples = Math.floor(sampleRate * duration);
-  const buffer = ctx.createBuffer(1, numSamples, sampleRate);
-  const channelData = buffer.getChannelData(0);
-
-  const notes = [
-    { freq: 523.25, offset: 0.0, decay: 0.035, gain: 0.6 }, // C5
-    { freq: 659.25, offset: 0.045, decay: 0.042, gain: 0.7 }, // E5
-    { freq: 783.99, offset: 0.09, decay: 0.055, gain: 0.9 }, // G5
-  ];
-
-  for (let i = 0; i < numSamples; i++) {
-    const t = i / sampleRate;
-    let sample = 0;
-
-    for (const note of notes) {
-      if (t >= note.offset) {
-        const tn = t - note.offset;
-        let env = 0;
-        if (tn < 0.003) {
-          env = Math.sin((tn / 0.003) * (Math.PI / 2));
-        } else {
-          env = Math.exp(-(tn - 0.003) / note.decay);
-        }
-        sample += Math.sin(2 * Math.PI * note.freq * tn) * env * note.gain;
-      }
-    }
-
-    channelData[i] = sample;
-  }
-
-  return buffer;
 }
 
 function playBuffer(ctx: AudioContext, buffer: AudioBuffer, gainValue: number): void {
@@ -189,6 +75,64 @@ function playBuffer(ctx: AudioContext, buffer: AudioBuffer, gainValue: number): 
   } catch {
     // Fail gracefully
   }
+}
+
+function playAudioElementFallback(url: string, volume = 0.5): void {
+  try {
+    let audio = audioElements.get(url);
+    if (!audio) {
+      audio = new Audio(url);
+      audioElements.set(url, audio);
+    }
+    audio.currentTime = 0;
+    audio.volume = Math.max(0, Math.min(1, volume));
+    const playPromise = audio.play();
+    if (playPromise !== undefined) {
+      void playPromise.catch(() => {});
+    }
+  } catch {
+    // Fail gracefully
+  }
+}
+
+async function playExternalSound(url: string, volume = 0.5): Promise<void> {
+  if (!isSoundEnabled() || typeof window === 'undefined') {
+    return;
+  }
+
+  const ctx = getAudioContext();
+  if (ctx) {
+    const buffer = audioBufferCache.get(url) || (await fetchAndDecodeAudio(url, ctx));
+    if (buffer) {
+      playBuffer(ctx, buffer, volume);
+      return;
+    }
+  }
+
+  // Fallback to standard HTMLAudioElement
+  playAudioElementFallback(url, volume);
+}
+
+/**
+ * Preloads all external review sound files for zero-latency playback.
+ */
+export function preloadSoundAssets(): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  const ctx = getAudioContext();
+  Object.values(SOUND_FILES).forEach((url) => {
+    if (ctx) {
+      void fetchAndDecodeAudio(url, ctx);
+    }
+    try {
+      const audio = new Audio(url);
+      audio.preload = 'auto';
+      audioElements.set(url, audio);
+    } catch {
+      // Ignore in non-DOM/test environments
+    }
+  });
 }
 
 /**
@@ -246,6 +190,7 @@ export function useSoundPreference(): {
 
   useEffect(() => {
     setSoundState(isSoundEnabled());
+    preloadSoundAssets();
 
     const handleCustomEvent = (event: Event) => {
       const customEvent = event as CustomEvent<{ enabled: boolean }>;
@@ -288,113 +233,24 @@ export function useSoundPreference(): {
   };
 }
 
-export type ReviewRating = 'again' | 'hard' | 'good' | 'easy';
-
 /**
- * Plays distinct acoustic feedback exclusively for quiz/review rating buttons.
- * - 'again' / 'hard': Softer, warmer low/neutral tone.
- * - 'good' / 'easy': Brighter, cheerful ascending harmonic tone.
+ * Plays external sound file for quiz/review rating buttons.
+ * - 'again': /sounds/review-again.wav
+ * - 'hard': /sounds/review-hard.wav
+ * - 'good': /sounds/review-good.wav
+ * - 'easy': /sounds/review-easy.wav
  */
 export function playReviewSound(rating: ReviewRating): void {
-  if (!isSoundEnabled()) {
-    return;
-  }
-  const ctx = getAudioContext();
-  if (!ctx) {
-    return;
-  }
-
-  if (rating === 'again') {
-    if (!ratingAgainBuffer || ratingAgainBuffer.sampleRate !== ctx.sampleRate) {
-      ratingAgainBuffer = createRatingAgainBuffer(ctx);
-    }
-    playBuffer(ctx, ratingAgainBuffer, 0.25);
-  } else if (rating === 'hard') {
-    if (!ratingHardBuffer || ratingHardBuffer.sampleRate !== ctx.sampleRate) {
-      ratingHardBuffer = createRatingHardBuffer(ctx);
-    }
-    playBuffer(ctx, ratingHardBuffer, 0.25);
-  } else if (rating === 'good') {
-    if (!ratingGoodBuffer || ratingGoodBuffer.sampleRate !== ctx.sampleRate) {
-      ratingGoodBuffer = createRatingGoodBuffer(ctx);
-    }
-    playBuffer(ctx, ratingGoodBuffer, 0.28);
-  } else if (rating === 'easy') {
-    if (!ratingEasyBuffer || ratingEasyBuffer.sampleRate !== ctx.sampleRate) {
-      ratingEasyBuffer = createRatingEasyBuffer(ctx);
-    }
-    playBuffer(ctx, ratingEasyBuffer, 0.3);
+  const fileUrl = SOUND_FILES[rating];
+  if (fileUrl) {
+    void playExternalSound(fileUrl, 0.7);
   }
 }
 
-let notificationChimeBuffer: AudioBuffer | null = null;
-
 /**
- * Creates a gentle, crystal chime for system & in-app event notifications.
- */
-function createNotificationChimeBuffer(ctx: AudioContext): AudioBuffer {
-  const sampleRate = ctx.sampleRate;
-  const duration = 0.28;
-  const numSamples = Math.floor(sampleRate * duration);
-  const buffer = ctx.createBuffer(1, numSamples, sampleRate);
-  const channelData = buffer.getChannelData(0);
-
-  const note1Freq = 659.25; // E5
-  const note2Freq = 987.77; // B5
-  const note2Offset = 0.06;
-
-  for (let i = 0; i < numSamples; i++) {
-    const t = i / sampleRate;
-    let sample = 0;
-
-    // Note 1 (E5)
-    if (t < 0.16) {
-      let env1 = 0;
-      if (t < 0.003) {
-        env1 = Math.sin((t / 0.003) * (Math.PI / 2));
-      } else {
-        env1 = Math.exp(-(t - 0.003) / 0.035);
-      }
-      sample +=
-        (Math.sin(2 * Math.PI * note1Freq * t) + 0.2 * Math.sin(4 * Math.PI * note1Freq * t)) *
-        env1 *
-        0.55;
-    }
-
-    // Note 2 (B5)
-    if (t >= note2Offset) {
-      const t2 = t - note2Offset;
-      let env2 = 0;
-      if (t2 < 0.003) {
-        env2 = Math.sin((t2 / 0.003) * (Math.PI / 2));
-      } else {
-        env2 = Math.exp(-(t2 - 0.003) / 0.045);
-      }
-      sample +=
-        (Math.sin(2 * Math.PI * note2Freq * t2) + 0.18 * Math.sin(4 * Math.PI * note2Freq * t2)) *
-        env2 *
-        0.65;
-    }
-
-    channelData[i] = sample;
-  }
-
-  return buffer;
-}
-
-/**
- * Plays a warm, gentle chime for system/in-app event notifications.
+ * Plays external sound file for system/in-app notifications.
+ * - /sounds/notification.wav
  */
 export function playNotificationSound(): void {
-  if (!isSoundEnabled()) {
-    return;
-  }
-  const ctx = getAudioContext();
-  if (!ctx) {
-    return;
-  }
-  if (!notificationChimeBuffer || notificationChimeBuffer.sampleRate !== ctx.sampleRate) {
-    notificationChimeBuffer = createNotificationChimeBuffer(ctx);
-  }
-  playBuffer(ctx, notificationChimeBuffer, 0.22);
+  void playExternalSound(SOUND_FILES.notification, 0.6);
 }

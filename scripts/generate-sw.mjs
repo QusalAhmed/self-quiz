@@ -13,7 +13,17 @@ const CACHE_VERSION = '${buildId}';
 const STATIC_CACHE = 'self-quiz-static-' + CACHE_VERSION;
 const RUNTIME_CACHE = 'self-quiz-runtime-' + CACHE_VERSION;
 // App shell and critical static assets to precache on install
-const PRECACHE_ASSETS = ['/', '/manifest.webmanifest', '/icon.svg', '/favicon.svg'];
+const PRECACHE_ASSETS = [
+  '/',
+  '/manifest.webmanifest',
+  '/icon.svg',
+  '/favicon.svg',
+  '/sounds/review-again.wav',
+  '/sounds/review-hard.wav',
+  '/sounds/review-good.wav',
+  '/sounds/review-easy.wav',
+  '/sounds/notification.mp3',
+];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

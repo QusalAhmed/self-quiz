@@ -6,7 +6,12 @@ import {
   toggleSoundEnabled,
 } from './sound';
 
-describe('Sound utility (Quiz/Review & Notification sounds)', () => {
+describe('Sound utility (External Audio Files)', () => {
+  beforeAll(() => {
+    window.HTMLMediaElement.prototype.play = jest.fn().mockImplementation(() => Promise.resolve());
+    window.HTMLMediaElement.prototype.pause = jest.fn();
+  });
+
   beforeEach(() => {
     localStorage.clear();
     jest.clearAllMocks();
@@ -47,7 +52,7 @@ describe('Sound utility (Quiz/Review & Notification sounds)', () => {
     window.removeEventListener('self_quiz_sound_changed', listener);
   });
 
-  describe('Audio playback without crashing in test environment', () => {
+  describe('External audio playback without crashing in test environment', () => {
     it('does not throw for all review rating sounds', () => {
       expect(() => playReviewSound('again')).not.toThrow();
       expect(() => playReviewSound('hard')).not.toThrow();

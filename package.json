@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "node scripts/generate-sw.mjs && next build",
+    "generate:sounds": "node scripts/generate-sounds.mjs",
+    "build": "node scripts/generate-sounds.mjs && node scripts/generate-sw.mjs && next build",
     "analyze": "ANALYZE=true next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
