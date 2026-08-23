@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { generateCloudflareWordFamily } from '@/lib/cloudflare';
 import { generateGoogleWordFamily } from '@/lib/google';
+import { generateGroqWordFamily } from '@/lib/groq';
 import { filterValidWordFamilyMembers } from '@/lib/word-family';
 
 type WordFamilyPayload = {
@@ -24,9 +25,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Word is required' }, { status: 400 });
     }
 
-    // Try Google AI (Gemma/Gemini) first
+    // 1. Try Groq AI (Llama 3.3 70B) first
     try {
-      const result = await generateGoogleWordFamily({ word, meaning });
+      const result = await generateGroqWordFamily({ word, meaning });
       const validatedMembers = await filterValidWordFamilyMembers(
         result.members,
         word,
@@ -37,15 +38,15 @@ export async function POST(request: Request) {
         rootUsageFrequency: result.rootUsageFrequency || '',
         generatorAiDetails: result.generatorAiDetails || '',
       });
-    } catch (googleError: any) {
+    } catch (groqError: any) {
       console.warn(
-        'Google AI (Gemma) failed for word family, falling back to Cloudflare AI:',
-        googleError.message || googleError
+        'Groq AI failed for word family, falling back to Google AI:',
+        groqError.message || groqError
       );
 
-      // Fallback to Cloudflare AI
+      // 2. Fallback to Google AI (Gemini / Gemma)
       try {
-        const result = await generateCloudflareWordFamily({ word, meaning });
+        const result = await generateGoogleWordFamily({ word, meaning });
         const validatedMembers = await filterValidWordFamilyMembers(
           result.members,
           word,
@@ -56,17 +57,37 @@ export async function POST(request: Request) {
           rootUsageFrequency: result.rootUsageFrequency || '',
           generatorAiDetails: result.generatorAiDetails || '',
         });
-      } catch (cfError: any) {
-        console.error(
-          'Both Google AI and Cloudflare AI failed for word family:',
-          cfError.message || cfError
+      } catch (googleError: any) {
+        console.warn(
+          'Google AI failed for word family, falling back to Cloudflare AI:',
+          googleError.message || googleError
         );
-        return NextResponse.json(
-          {
-            error: cfError?.message || 'Failed to generate word family using AI services',
-          },
-          { status: 502 }
-        );
+
+        // 3. Fallback to Cloudflare AI (Llama)
+        try {
+          const result = await generateCloudflareWordFamily({ word, meaning });
+          const validatedMembers = await filterValidWordFamilyMembers(
+            result.members,
+            word,
+            result.generatorAiDetails
+          );
+          return NextResponse.json({
+            members: validatedMembers,
+            rootUsageFrequency: result.rootUsageFrequency || '',
+            generatorAiDetails: result.generatorAiDetails || '',
+          });
+        } catch (cfError: any) {
+          console.error(
+            'All AI services (Groq, Google, Cloudflare) failed for word family:',
+            cfError.message || cfError
+          );
+          return NextResponse.json(
+            {
+              error: cfError?.message || 'Failed to generate word family using AI services',
+            },
+            { status: 502 }
+          );
+        }
       }
     }
   } catch (err: any) {

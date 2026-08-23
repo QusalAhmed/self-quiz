@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { generateCloudflareExamples } from '@/lib/cloudflare';
 import { normalizeAiExampleCount } from '@/lib/examples';
 import { generateGoogleExamples } from '@/lib/google';
+import { generateGroqExamples } from '@/lib/groq';
 
 type ExamplesPayload = {
   word?: string;
@@ -43,9 +44,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Word and meaning are required' }, { status: 400 });
   }
 
-  // Try Google AI (Gemma) first
+  // 1. Try Groq AI (Llama 3.3 70B) first
   try {
-    const examples = await generateGoogleExamples({
+    const examples = await generateGroqExamples({
       word,
       meaning,
       targetCount,
@@ -53,15 +54,12 @@ export async function POST(request: Request) {
       referenceExamples,
     });
     return NextResponse.json({ examples });
-  } catch (googleError: any) {
-    console.warn(
-      'Google AI (Gemma) failed, falling back to Cloudflare AI:',
-      googleError.message || googleError
-    );
+  } catch (groqError: any) {
+    console.warn('Groq AI failed, falling back to Google AI:', groqError.message || groqError);
 
-    // Fallback to Cloudflare AI
+    // 2. Fallback to Google AI (Gemini / Gemma)
     try {
-      const examples = await generateCloudflareExamples({
+      const examples = await generateGoogleExamples({
         word,
         meaning,
         targetCount,
@@ -69,12 +67,32 @@ export async function POST(request: Request) {
         referenceExamples,
       });
       return NextResponse.json({ examples });
-    } catch (cfError: any) {
-      console.error('Both Google AI and Cloudflare AI failed:', cfError.message || cfError);
-      return NextResponse.json(
-        { error: cfError?.message || 'Failed to generate examples using AI services' },
-        { status: 502 }
+    } catch (googleError: any) {
+      console.warn(
+        'Google AI failed, falling back to Cloudflare AI:',
+        googleError.message || googleError
       );
+
+      // 3. Fallback to Cloudflare AI (Llama)
+      try {
+        const examples = await generateCloudflareExamples({
+          word,
+          meaning,
+          targetCount,
+          partOfSpeech,
+          referenceExamples,
+        });
+        return NextResponse.json({ examples });
+      } catch (cfError: any) {
+        console.error(
+          'All AI services (Groq, Google, Cloudflare) failed:',
+          cfError.message || cfError
+        );
+        return NextResponse.json(
+          { error: cfError?.message || 'Failed to generate examples using AI services' },
+          { status: 502 }
+        );
+      }
     }
   }
 }
