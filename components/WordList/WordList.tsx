@@ -10,7 +10,7 @@ import {
 import { useMemo, useState } from 'react';
 import { DefinitionsDisplay } from '@/components/DefinitionsDisplay/DefinitionsDisplay';
 import { RichNoteViewer } from '@/components/RichNoteViewer/RichNoteViewer';
-import { WordActionIcon } from '@/components/WordActions/WordActionIcon';
+import { PronounceButton, WordActionIcon } from '@/components/WordActions';
 import { WordFamilySection } from '@/components/WordFamily/WordFamilySection';
 import { WordForm } from '@/components/WordForm/WordForm';
 import { formatDate, formatRelativeShort } from '@/lib/dateUtils';
@@ -168,18 +168,21 @@ export function WordList({
             >
               <Group justify="space-between" wrap="wrap" gap="xs">
                 <Group gap={8} wrap="wrap" align="center" style={{ flex: '1 1 200px' }}>
-                  <Text
-                    fw={700}
-                    size="md"
-                    style={{
-                      fontFamily: 'var(--font-title)',
-                      letterSpacing: '-0.01em',
-                      color: 'var(--text-primary)',
-                      wordBreak: 'break-word',
-                    }}
-                  >
-                    {item.word}
-                  </Text>
+                  <Group gap={4} align="center" wrap="nowrap">
+                    <Text
+                      fw={700}
+                      size="md"
+                      style={{
+                        fontFamily: 'var(--font-title)',
+                        letterSpacing: '-0.01em',
+                        color: 'var(--text-primary)',
+                        wordBreak: 'break-word',
+                      }}
+                    >
+                      {item.word}
+                    </Text>
+                    <PronounceButton word={item.word} size="xs" />
+                  </Group>
 
                   {/* Usage Frequency Badge */}
                   {freqBadge && (

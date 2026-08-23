@@ -26,6 +26,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { PronounceButton } from '@/components/WordActions';
 import { formatDurationHMS } from '@/lib/analysis/calculator';
 import type { SectionStatusInfo, WordTimeSpentItem } from '@/lib/analysis/types';
 import type { WordRecord } from '@/lib/db';
@@ -340,9 +341,12 @@ export function WordTimeAnalysis({
                     }}
                   >
                     <Table.Td>
-                      <Text size="sm" fw={700}>
-                        {item.word}
-                      </Text>
+                      <Group gap={6} align="center" wrap="nowrap">
+                        <Text size="sm" fw={700}>
+                          {item.word}
+                        </Text>
+                        <PronounceButton word={item.word} size="xs" />
+                      </Group>
                       {item.tags.length > 0 && (
                         <Group gap={4} mt={2}>
                           {item.tags.slice(0, 2).map((t) => (

@@ -26,6 +26,7 @@ import {
   IconX,
 } from '@tabler/icons-react';
 import React, { useMemo, useState } from 'react';
+import { PronounceButton } from '@/components/WordActions';
 import type { ReviewLogRecord } from '@/lib/db';
 
 export type ReviewLogTableProps = {
@@ -205,6 +206,7 @@ export function ReviewLogTable({ logs, onInspectLog, onSelectWord }: ReviewLogTa
                             <Text size="sm" fw={700} style={{ fontFamily: 'var(--font-title)' }}>
                               {log.word}
                             </Text>
+                            <PronounceButton word={log.word} size="xs" />
                             <Badge size="xs" variant="outline" color="gray" radius="sm">
                               {log.quizMode === 'wordToMeaning' ? 'W→M' : 'M→W'}
                             </Badge>

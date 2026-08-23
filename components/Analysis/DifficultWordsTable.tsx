@@ -24,6 +24,7 @@ import {
   IconSortDescending,
 } from '@tabler/icons-react';
 import React, { useMemo, useState } from 'react';
+import { PronounceButton } from '@/components/WordActions';
 import { formatDurationHMS } from '@/lib/analysis/calculator';
 import type { ProblematicWordItem } from '@/lib/analysis/types';
 
@@ -261,9 +262,12 @@ export function DifficultWordsTable({ words, onSelectWord }: DifficultWordsTable
               {pagedWords.map((item) => (
                 <Table.Tr key={item.id}>
                   <Table.Td>
-                    <Text size="sm" fw={700}>
-                      {item.word}
-                    </Text>
+                    <Group gap={6} align="center" wrap="nowrap">
+                      <Text size="sm" fw={700}>
+                        {item.word}
+                      </Text>
+                      <PronounceButton word={item.word} size="xs" />
+                    </Group>
                     {item.tags.length > 0 && (
                       <Group gap={4} mt={2}>
                         {item.tags.slice(0, 2).map((t) => (

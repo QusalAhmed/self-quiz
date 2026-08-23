@@ -11,6 +11,7 @@ import {
   IconTrophy,
 } from '@tabler/icons-react';
 import React from 'react';
+import { PronounceButton } from '@/components/WordActions';
 import { formatDurationHMS } from '@/lib/analysis/calculator';
 import type { SectionStatusInfo, TimeToMasteryData } from '@/lib/analysis/types';
 import type { WordRecord } from '@/lib/db';
@@ -182,9 +183,12 @@ export function TimeToMasteryCard({
                           #{idx + 1}
                         </Badge>
                         <div>
-                          <Text size="xs" fw={700}>
-                            {item.word}
-                          </Text>
+                          <Group gap={4} align="center" wrap="nowrap">
+                            <Text size="xs" fw={700}>
+                              {item.word}
+                            </Text>
+                            <PronounceButton word={item.word} size="xs" iconSize={11} />
+                          </Group>
                           <Text size="10px" c="dimmed" lineClamp={1}>
                             {item.meaning}
                           </Text>
@@ -237,9 +241,12 @@ export function TimeToMasteryCard({
                           #{idx + 1}
                         </Badge>
                         <div>
-                          <Text size="xs" fw={700}>
-                            {item.word}
-                          </Text>
+                          <Group gap={4} align="center" wrap="nowrap">
+                            <Text size="xs" fw={700}>
+                              {item.word}
+                            </Text>
+                            <PronounceButton word={item.word} size="xs" iconSize={11} />
+                          </Group>
                           <Text size="10px" c="dimmed" lineClamp={1}>
                             {item.meaning}
                           </Text>
