@@ -26,6 +26,7 @@ import {
   IconMoon,
   IconPlus,
   IconRotateClockwise,
+  IconSettings,
   IconSun,
   IconTags,
   IconVolume,
@@ -70,6 +71,7 @@ export function AppSidebar({
   const isWordsPage = pathname === '/words';
   const isAnalysisPage = pathname === '/analysis';
   const isReviewLogPage = pathname === '/review-log';
+  const isSettingsPage = pathname === '/settings';
 
   const handleLinkClick = (action: () => void) => {
     action();
@@ -77,7 +79,7 @@ export function AppSidebar({
   };
 
   const scrollToSection = (id: string) => {
-    if (isWordsPage || isAnalysisPage || isReviewLogPage) {
+    if (isWordsPage || isAnalysisPage || isReviewLogPage || isSettingsPage) {
       router.push(`/#${id}`);
       return;
     }
@@ -263,8 +265,17 @@ export function AppSidebar({
               c="dimmed"
               style={{ letterSpacing: '0.05em', paddingLeft: 8, marginTop: 4 }}
             >
-              QUICK ACCESS
+              PREFERENCES & TOOLS
             </Text>
+
+            <NavLink
+              label="Settings & Config"
+              description="AI, audio, FSRS & data"
+              leftSection={<IconSettings size={18} />}
+              active={isSettingsPage}
+              onClick={() => handleLinkClick(() => router.push('/settings'))}
+              style={{ borderRadius: 8 }}
+            />
 
             <NavLink
               label="Group Manager"
@@ -301,7 +312,11 @@ export function AppSidebar({
             }}
           >
             <Group justify="space-between" align="center">
-              <Stack gap={0}>
+              <Stack
+                gap={0}
+                style={{ cursor: 'pointer' }}
+                onClick={() => handleLinkClick(() => router.push('/settings'))}
+              >
                 <Text size="xs" fw={700}>
                   Settings
                 </Text>
