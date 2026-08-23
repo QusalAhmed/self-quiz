@@ -21,6 +21,7 @@ import {
   IconRotateClockwise,
   IconSparkles,
   IconTrash,
+  IconVolume,
 } from '@tabler/icons-react';
 import React, { useState } from 'react';
 import type { WordFamilyMemberRecord } from '@/lib/db';
@@ -79,6 +80,22 @@ export function WordFamilySection({
     word: string;
   } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [speakingWord, setSpeakingWord] = useState<string | null>(null);
+
+  const speakWord = (text: string) => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+      return;
+    }
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'en-US';
+    utterance.rate = 0.88;
+    utterance.pitch = 1.0;
+    utterance.onstart = () => setSpeakingWord(text);
+    utterance.onend = () => setSpeakingWord(null);
+    utterance.onerror = () => setSpeakingWord(null);
+    window.speechSynthesis.speak(utterance);
+  };
 
   const validMembers = (members || []).filter((m) => !m.isDeleted);
   const aiModel = validMembers.find((m) => m.generatorAiDetails)?.generatorAiDetails;
@@ -324,8 +341,8 @@ export function WordFamilySection({
                   transition: 'all 0.2s ease',
                 }}
               >
-                <Group justify="space-between" align="center" wrap="wrap" gap={8}>
-                  <Group gap={8} align="center" wrap="wrap">
+                <Group justify="space-between" align="flex-start" wrap="nowrap" gap={8}>
+                  <Group gap={8} align="center" wrap="wrap" style={{ flex: 1 }}>
                     <Text size="md" fw={600} style={{ color: 'var(--text-primary)' }}>
                       {m.word}
                     </Text>
@@ -364,22 +381,39 @@ export function WordFamilySection({
                     )}
                   </Group>
 
-                  {onDeleteMember && (
-                    <Tooltip label={`Remove "${m.word}" from family`} withArrow position="left">
+                  <Group gap={4} align="center" wrap="nowrap" style={{ flexShrink: 0 }}>
+                    <Tooltip label={`Pronounce "${m.word}"`} withArrow position="top">
                       <ActionIcon
                         size="sm"
-                        variant="subtle"
-                        color="red"
+                        variant={speakingWord === m.word ? 'filled' : 'subtle'}
+                        color="indigo"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setDeleteConfirmMember({ id: m.id, word: m.word });
+                          speakWord(m.word);
                         }}
-                        aria-label={`Delete ${m.word} from family`}
+                        aria-label={`Pronounce ${m.word}`}
                       >
-                        <IconTrash size={15} />
+                        <IconVolume size={15} />
                       </ActionIcon>
                     </Tooltip>
-                  )}
+
+                    {onDeleteMember && (
+                      <Tooltip label={`Remove "${m.word}" from family`} withArrow position="top">
+                        <ActionIcon
+                          size="sm"
+                          variant="subtle"
+                          color="red"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteConfirmMember({ id: m.id, word: m.word });
+                          }}
+                          aria-label={`Delete ${m.word} from family`}
+                        >
+                          <IconTrash size={15} />
+                        </ActionIcon>
+                      </Tooltip>
+                    )}
+                  </Group>
                 </Group>
 
                 {m.englishDefinition && (

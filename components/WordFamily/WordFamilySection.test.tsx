@@ -137,4 +137,33 @@ describe('WordFamilySection component', () => {
       expect(handleDelete).toHaveBeenCalledWith('w1_decision');
     });
   });
+
+  it('renders pronounce button and speaks word on click', () => {
+    const speakMock = jest.fn();
+    const cancelMock = jest.fn();
+    Object.defineProperty(window, 'speechSynthesis', {
+      value: {
+        speak: speakMock,
+        cancel: cancelMock,
+      },
+      writable: true,
+      configurable: true,
+    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (global as any).SpeechSynthesisUtterance = jest.fn().mockImplementation((text) => ({
+      text,
+      lang: '',
+      rate: 1,
+      pitch: 1,
+    }));
+
+    render(<WordFamilySection wordId="w1" word="decide" members={mockMembers} defaultExpanded />);
+
+    const pronounceDecisionBtn = screen.getByRole('button', { name: /pronounce decision/i });
+    expect(pronounceDecisionBtn).toBeInTheDocument();
+
+    fireEvent.click(pronounceDecisionBtn);
+    expect(cancelMock).toHaveBeenCalled();
+    expect(speakMock).toHaveBeenCalled();
+  });
 });
