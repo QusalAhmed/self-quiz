@@ -346,13 +346,14 @@ export function QuizPanel({
               Quiz Completed!
             </Title>
             <Text c="dimmed" size="sm" max-width="360px" mx="auto" style={{ lineHeight: 1.6 }}>
-              Fantastic effort! You've mastered all {totalCount} words selected for this session.
-              Repetition is key to long-term memory.
+              {totalCount > 0
+                ? `Fantastic effort! You've mastered all ${totalCount} words selected for this session. Repetition is key to long-term memory.`
+                : 'No vocabulary cards are available for this session.'}
             </Text>
           </Stack>
 
-          <Group justify="center" mt="md">
-            {onRestart && (
+          {onRestart && totalCount > 0 && (
+            <Group justify="center" mt="md">
               <Button
                 onClick={onRestart}
                 className="btn-premium btn-pulse"
@@ -362,8 +363,8 @@ export function QuizPanel({
               >
                 Restart Session
               </Button>
-            )}
-          </Group>
+            </Group>
+          )}
         </Stack>
       </Card>
     );
