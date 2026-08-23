@@ -4,6 +4,7 @@ import {
   pullGroupModifier,
   pullMissedWordModifier,
   pullReviewLogModifier,
+  pullSettingsModifier,
   pullSrsPracticeModifier,
   pullWordFamilyModifier,
   pullWordModifier,
@@ -12,6 +13,7 @@ import {
   pushGroupModifier,
   pushMissedWordModifier,
   pushReviewLogModifier,
+  pushSettingsModifier,
   pushSrsPracticeModifier,
   pushWordFamilyModifier,
   pushWordModifier,
@@ -297,8 +299,74 @@ describe('Supabase Replication Modifiers', () => {
     });
   });
 
+  describe('Settings', () => {
+    it('correctly pulls and pushes settings records with normalization', () => {
+      const remote = {
+        id: 'default',
+        appearance: {
+          colorScheme: 'dark',
+          accentColor: 'teal',
+          cardGlassmorphism: true,
+          reducedMotion: false,
+          uiDensity: 'comfortable',
+        },
+        study_quiz: {
+          defaultQuizDirection: 'meaningToWord',
+          defaultQuizRange: 'all',
+          autoPronounceQuizWord: true,
+          autoAdvanceOnFlip: true,
+          autoAdvanceDelayMs: 1500,
+          hideMissedMeaningsDefault: false,
+          hideSrsPracticeMeaningsDefault: false,
+          shuffleChoices: true,
+        },
+        audio: {
+          reviewSoundEffectsEnabled: true,
+          notificationSoundsEnabled: false,
+          audioVolume: 0.8,
+          ttsVoiceUri: 'Google US English',
+          ttsRate: 1.2,
+          ttsPitch: 1.0,
+          ttsVolume: 0.9,
+        },
+        fsrs: {
+          requestRetention: 0.85,
+          maximumIntervalDays: 300,
+          enableFuzz: true,
+          autoRefillQueue: true,
+        },
+        ai: {
+          preferredProvider: 'groq',
+          groqModel: 'llama-3.3-70b-versatile',
+          exampleCount: 4,
+          useCustomApiKeys: false,
+        },
+        created_at: '2026-08-17T00:00:00.000Z',
+        updated_at: '2026-08-17T01:00:00.000Z',
+        deleted: false,
+      };
+
+      const pulled = pullSettingsModifier(remote);
+      expect(pulled.id).toBe('default');
+      expect(pulled.appearance.colorScheme).toBe('dark');
+      expect(pulled.appearance.accentColor).toBe('teal');
+      expect(pulled.studyQuiz.defaultQuizDirection).toBe('meaningToWord');
+      expect(pulled.audio.ttsRate).toBe(1.2);
+      expect(pulled.fsrs.requestRetention).toBe(0.85);
+      expect(pulled.isDeleted).toBe(false);
+
+      const pushed = pushSettingsModifier(pulled);
+      expect(pushed.id).toBe('default');
+      expect(pushed.appearance.accentColor).toBe('teal');
+      expect(pushed.study_quiz.defaultQuizDirection).toBe('meaningToWord');
+      expect(pushed.audio.ttsRate).toBe(1.2);
+      expect(pushed.fsrs.requestRetention).toBe(0.85);
+      expect(pushed.deleted).toBe(false);
+    });
+  });
+
   describe('RxDB Sync State Structures', () => {
-    it('defines the 8 required sync collection keys correctly', () => {
+    it('defines the 9 required sync collection keys correctly', () => {
       const keys = [
         'words',
         'groups',
@@ -308,8 +376,9 @@ describe('Supabase Replication Modifiers', () => {
         'srsPracticeWords',
         'dailyUsage',
         'reviewLogs',
+        'settings',
       ];
-      expect(keys.length).toBe(8);
+      expect(keys.length).toBe(9);
       expect(keys).toContain('words');
       expect(keys).toContain('groups');
       expect(keys).toContain('missedWords');
@@ -318,6 +387,7 @@ describe('Supabase Replication Modifiers', () => {
       expect(keys).toContain('srsPracticeWords');
       expect(keys).toContain('dailyUsage');
       expect(keys).toContain('reviewLogs');
+      expect(keys).toContain('settings');
     });
   });
 });

@@ -11,8 +11,32 @@ import { RxDBQueryBuilderPlugin } from 'rxdb/plugins/query-builder';
 import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie';
 import { wrappedValidateAjvStorage } from 'rxdb/plugins/validate-ajv';
 import type { FsrsCardState, FsrsRating, FsrsRecord } from './fsrs';
+import type {
+  AppAiSettings,
+  AppAppearanceSettings,
+  AppAudioSettings,
+  AppDataSettings,
+  AppFsrsSettings,
+  AppStudyQuizSettings,
+} from './settings';
 import type { SrsRecord } from './srs';
 import type { SrsPracticeRecord } from './srs-practice';
+import type { NotificationSettings } from './system-notifications';
+
+export type SettingsRecord = {
+  id: string;
+  appearance: AppAppearanceSettings;
+  studyQuiz: AppStudyQuizSettings;
+  audio: AppAudioSettings;
+  fsrs: AppFsrsSettings;
+  ai: AppAiSettings;
+  notifications: NotificationSettings;
+  data: AppDataSettings;
+  createdAt: string;
+  updatedAt: string;
+  isDeleted: boolean;
+  lastSyncedAt: string;
+};
 
 export type WordRecord = {
   id: string;
@@ -133,6 +157,7 @@ export type FsrsCollection = RxCollection<FsrsRecord>;
 export type SrsPracticeCollection = RxCollection<SrsPracticeRecord>;
 export type DailyUsageCollection = RxCollection<DailyUsageRecord>;
 export type ReviewLogCollection = RxCollection<ReviewLogRecord>;
+export type SettingsCollection = RxCollection<SettingsRecord>;
 export type AppDatabase = RxDatabase<{
   words: WordCollection;
   missedWords: MissedWordCollection;
@@ -143,6 +168,7 @@ export type AppDatabase = RxDatabase<{
   srsPracticeWords: SrsPracticeCollection;
   dailyUsage: DailyUsageCollection;
   reviewLogs: ReviewLogCollection;
+  settings: SettingsCollection;
 }>;
 
 const wordSchema: RxJsonSchema<WordRecord> = {
@@ -511,6 +537,43 @@ const reviewLogSchema: RxJsonSchema<ReviewLogRecord> = {
   indexes: ['wordId', 'cardId', 'reviewedAt', 'rating', 'updatedAt', 'isDeleted'],
 };
 
+const settingsSchema: RxJsonSchema<SettingsRecord> = {
+  title: 'settings schema',
+  version: 1,
+  description: 'Application preferences and configuration settings',
+  primaryKey: 'id',
+  type: 'object',
+  properties: {
+    id: { type: 'string', maxLength: 64 },
+    appearance: { type: 'object' },
+    studyQuiz: { type: 'object' },
+    audio: { type: 'object' },
+    fsrs: { type: 'object' },
+    ai: { type: 'object' },
+    notifications: { type: 'object' },
+    data: { type: 'object' },
+    createdAt: { type: 'string', maxLength: 32 },
+    updatedAt: { type: 'string', maxLength: 32 },
+    isDeleted: { type: 'boolean', default: false },
+    lastSyncedAt: { type: 'string', default: '' },
+  },
+  required: [
+    'id',
+    'appearance',
+    'studyQuiz',
+    'audio',
+    'fsrs',
+    'ai',
+    'notifications',
+    'data',
+    'createdAt',
+    'updatedAt',
+    'isDeleted',
+    'lastSyncedAt',
+  ],
+  indexes: ['updatedAt', 'isDeleted'],
+};
+
 if (process.env.NODE_ENV !== 'production') {
   addRxPlugin(RxDBDevModePlugin);
 }
@@ -720,6 +783,12 @@ async function createDatabase(): Promise<AppDatabase> {
     },
     reviewLogs: {
       schema: reviewLogSchema,
+      migrationStrategies: {
+        1: (oldDoc) => ({ ...oldDoc }),
+      },
+    },
+    settings: {
+      schema: settingsSchema,
       migrationStrategies: {
         1: (oldDoc) => ({ ...oldDoc }),
       },

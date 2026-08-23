@@ -42,6 +42,7 @@ export interface SettingsSyncTabProps {
     wordFamilies: number;
     fsrsRecords: number;
     reviewLogs: number;
+    settings?: number;
   };
 }
 
@@ -141,6 +142,12 @@ export function SettingsSyncTab({
       label: 'Historical Review Logs',
       count: collectionCounts.reviewLogs,
       status: (syncState?.collections?.reviewLogs?.pendingCount ?? 0) > 0 ? 'pending' : 'synced',
+    },
+    {
+      key: 'settings',
+      label: 'App Configuration & Settings',
+      count: collectionCounts.settings ?? 1,
+      status: (syncState?.collections?.settings?.pendingCount ?? 0) > 0 ? 'pending' : 'synced',
     },
   ];
 

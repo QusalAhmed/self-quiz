@@ -5,6 +5,7 @@ import {
   resetAppSettings,
   saveAppSettings,
   SETTINGS_CHANGED_EVENT,
+  syncSettingsWithRxDB,
   updateAppSettings,
 } from './settings';
 
@@ -99,5 +100,29 @@ describe('lib/settings.ts', () => {
 
     resetAppSettings();
     expect(getAppSettings().appearance.accentColor).toBe('indigo');
+  });
+
+  it('synchronizes and seeds settings with RxDB when collection is empty', async () => {
+    const upsertMock = jest.fn().mockResolvedValue(undefined);
+    const mockDb: any = {
+      settings: {
+        findOne: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(null),
+          $: {
+            subscribe: jest.fn().mockReturnValue({ unsubscribe: jest.fn() }),
+          },
+        }),
+        upsert: upsertMock,
+      },
+    };
+
+    await syncSettingsWithRxDB(mockDb);
+    expect(upsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'default',
+        appearance: expect.any(Object),
+        studyQuiz: expect.any(Object),
+      })
+    );
   });
 });

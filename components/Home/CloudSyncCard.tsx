@@ -21,6 +21,7 @@ import {
 } from '@mantine/core';
 import {
   IconActivity,
+  IconAdjustmentsHorizontal,
   IconAlertTriangle,
   IconArrowsShuffle,
   IconBrain,
@@ -71,6 +72,7 @@ export type CloudSyncCardProps = {
     srsPracticeWords?: number;
     dailyUsage?: number;
     reviewLogs?: number;
+    settings?: number;
   };
 };
 
@@ -83,6 +85,7 @@ const collectionIcons: Record<SyncCollectionKey, React.ComponentType<{ size?: nu
   srsPracticeWords: IconArrowsShuffle,
   dailyUsage: IconClock,
   reviewLogs: IconHistory,
+  settings: IconAdjustmentsHorizontal,
 };
 
 function formatRelativeTime(isoString: string | null): string {

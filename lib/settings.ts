@@ -270,6 +270,8 @@ export function normalizeAppSettings(raw: Partial<AppSettings> | null | undefine
   };
 }
 
+import { getDatabase, type AppDatabase, type SettingsRecord } from './db';
+
 /**
  * Loads App Settings from LocalStorage
  */
@@ -298,9 +300,110 @@ export function getAppSettings(): AppSettings {
 }
 
 /**
- * Saves App Settings to LocalStorage and synchronizes external helpers
+ * Persists app settings to RxDB client-side database
  */
-export function saveAppSettings(settings: AppSettings): void {
+export async function persistSettingsToRxDB(settings: AppSettings): Promise<void> {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  try {
+    const db = await getDatabase();
+    const now = new Date().toISOString();
+    const existing = await db.settings.findOne('default').exec();
+    const record: SettingsRecord = {
+      id: 'default',
+      appearance: settings.appearance,
+      studyQuiz: settings.studyQuiz,
+      audio: settings.audio,
+      fsrs: settings.fsrs,
+      ai: settings.ai,
+      notifications: settings.notifications,
+      data: settings.data,
+      createdAt: existing?.createdAt || now,
+      updatedAt: now,
+      isDeleted: false,
+      lastSyncedAt: existing?.lastSyncedAt || now,
+    };
+    await db.settings.upsert(record);
+  } catch (err) {
+    console.warn('Could not persist settings to RxDB:', err);
+  }
+}
+
+let rxdbSyncInitialized = false;
+let rxdbSyncSubscription: { unsubscribe: () => void } | null = null;
+
+/**
+ * Subscribes and synchronizes settings with RxDB & Supabase
+ */
+export async function syncSettingsWithRxDB(dbInstance?: AppDatabase): Promise<void> {
+  if (typeof window === 'undefined' || rxdbSyncInitialized) {
+    return;
+  }
+  try {
+    const db = dbInstance || (await getDatabase());
+    rxdbSyncInitialized = true;
+
+    // Check if doc exists in RxDB
+    const existingDoc = await db.settings.findOne('default').exec();
+    if (!existingDoc) {
+      // Seed RxDB with current localStorage/default settings
+      const current = getAppSettings();
+      const now = new Date().toISOString();
+      await db.settings.upsert({
+        id: 'default',
+        appearance: current.appearance,
+        studyQuiz: current.studyQuiz,
+        audio: current.audio,
+        fsrs: current.fsrs,
+        ai: current.ai,
+        notifications: current.notifications,
+        data: current.data,
+        createdAt: now,
+        updatedAt: now,
+        isDeleted: false,
+        lastSyncedAt: now,
+      });
+    } else if (!existingDoc.isDeleted) {
+      // Load and apply settings from RxDB to localStorage
+      const remoteSettings: AppSettings = {
+        appearance: existingDoc.appearance,
+        studyQuiz: existingDoc.studyQuiz,
+        audio: existingDoc.audio,
+        fsrs: existingDoc.fsrs,
+        ai: existingDoc.ai,
+        notifications: existingDoc.notifications,
+        data: existingDoc.data,
+      };
+      saveAppSettings(remoteSettings, false);
+    }
+
+    // Subscribe to changes pulled from replication or written in other tabs
+    if (!rxdbSyncSubscription) {
+      rxdbSyncSubscription = db.settings.findOne('default').$.subscribe((doc) => {
+        if (doc && !doc.isDeleted) {
+          const updatedSettings: AppSettings = {
+            appearance: doc.appearance,
+            studyQuiz: doc.studyQuiz,
+            audio: doc.audio,
+            fsrs: doc.fsrs,
+            ai: doc.ai,
+            notifications: doc.notifications,
+            data: doc.data,
+          };
+          saveAppSettings(updatedSettings, false);
+        }
+      });
+    }
+  } catch (err) {
+    console.warn('Failed to sync settings with RxDB:', err);
+  }
+}
+
+/**
+ * Saves App Settings to LocalStorage and synchronizes with RxDB database
+ */
+export function saveAppSettings(settings: AppSettings, syncToDb = true): void {
   if (typeof window === 'undefined') {
     return;
   }
@@ -318,6 +421,11 @@ export function saveAppSettings(settings: AppSettings): void {
 
     // Broadcast change
     window.dispatchEvent(new CustomEvent(SETTINGS_CHANGED_EVENT, { detail: normalized }));
+
+    // Persist to RxDB (triggers Supabase push replication)
+    if (syncToDb) {
+      void persistSettingsToRxDB(normalized);
+    }
   } catch (err) {
     console.error('Failed to save app settings to localStorage:', err);
   }
@@ -379,6 +487,9 @@ export function useAppSettings(): {
 
     window.addEventListener(SETTINGS_CHANGED_EVENT, handleSettingsChanged);
     window.addEventListener('storage', handleStorage);
+
+    // Synchronize settings with RxDB & Supabase replication
+    void syncSettingsWithRxDB();
 
     return () => {
       window.removeEventListener(SETTINGS_CHANGED_EVENT, handleSettingsChanged);

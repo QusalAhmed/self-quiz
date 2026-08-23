@@ -9,12 +9,14 @@ import type {
   MissedWordRecord,
   QuizMode,
   ReviewLogRecord,
+  SettingsRecord,
   SrsPracticeRecord,
   WordFamilyMemberRecord,
   WordRecord,
 } from './db';
 import { definitionsToMeaning, mergeLegacyFlatExamples, normalizeDefinitions } from './definitions';
 import { normalizeAiExampleCount } from './examples';
+import { normalizeAppSettings } from './settings';
 import { supabase } from './supabase';
 
 export type SupabaseCheckpoint = {
@@ -30,7 +32,8 @@ export type SyncCollectionKey =
   | 'fsrsRecords'
   | 'srsPracticeWords'
   | 'dailyUsage'
-  | 'reviewLogs';
+  | 'reviewLogs'
+  | 'settings';
 
 export type SingleCollectionSyncState = {
   key: SyncCollectionKey;
@@ -89,6 +92,7 @@ export type ReplicationsHolder = {
   srsPracticeWords: RxReplicationState<SrsPracticeRecord, SupabaseCheckpoint>;
   dailyUsage: RxReplicationState<DailyUsageRecord, SupabaseCheckpoint>;
   reviewLogs: RxReplicationState<ReviewLogRecord, SupabaseCheckpoint>;
+  settings: RxReplicationState<SettingsRecord, SupabaseCheckpoint>;
   cancelAll: () => Promise<void>;
   reSyncAll: () => Promise<void>;
   pauseAll: () => Promise<void>;
@@ -439,6 +443,54 @@ export function pushReviewLogModifier(doc: ReviewLogRecord): any {
 }
 
 // ---------------------------------------------------------------------------
+// Settings Modifiers
+// ---------------------------------------------------------------------------
+export function pullSettingsModifier(row: any): WithDeleted<SettingsRecord> {
+  const isDeleted = typeof row.deleted === 'boolean' ? row.deleted : (row._deleted ?? false);
+  const normalized = normalizeAppSettings({
+    appearance: row.appearance,
+    studyQuiz: row.study_quiz ?? row.studyQuiz,
+    audio: row.audio,
+    fsrs: row.fsrs,
+    ai: row.ai,
+    notifications: row.notifications,
+    data: row.data,
+  });
+
+  return {
+    id: row.id || 'default',
+    appearance: normalized.appearance,
+    studyQuiz: normalized.studyQuiz,
+    audio: normalized.audio,
+    fsrs: normalized.fsrs,
+    ai: normalized.ai,
+    notifications: normalized.notifications,
+    data: normalized.data,
+    createdAt: row.created_at || row.createdAt || new Date().toISOString(),
+    updatedAt: row.updated_at || row.updatedAt || new Date().toISOString(),
+    isDeleted,
+    _deleted: isDeleted,
+    lastSyncedAt: row.updated_at || row.updatedAt || new Date().toISOString(),
+  };
+}
+
+export function pushSettingsModifier(doc: SettingsRecord): any {
+  return {
+    id: doc.id || 'default',
+    appearance: doc.appearance,
+    study_quiz: doc.studyQuiz,
+    audio: doc.audio,
+    fsrs: doc.fsrs,
+    ai: doc.ai,
+    notifications: doc.notifications,
+    data: doc.data,
+    created_at: doc.createdAt,
+    updated_at: doc.updatedAt,
+    deleted: doc.isDeleted,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Replicate Collection Helper
 // ---------------------------------------------------------------------------
 export function createSupabaseCollectionReplication<T>({
@@ -621,6 +673,14 @@ export function setupSupabaseReplication(db: AppDatabase): ReplicationsHolder {
     pushModifier: pushReviewLogModifier,
   });
 
+  const settings = createSupabaseCollectionReplication<SettingsRecord>({
+    replicationIdentifier: 'supabase-sync-settings',
+    collection: db.settings,
+    tableName: 'app_settings',
+    pullModifier: pullSettingsModifier,
+    pushModifier: pushSettingsModifier,
+  });
+
   const replicationMap: Record<SyncCollectionKey, RxReplicationState<any, SupabaseCheckpoint>> = {
     words,
     groups,
@@ -630,6 +690,7 @@ export function setupSupabaseReplication(db: AppDatabase): ReplicationsHolder {
     srsPracticeWords,
     dailyUsage,
     reviewLogs,
+    settings,
   };
 
   const collectionLabels: Record<SyncCollectionKey, { label: string; tableName: string }> = {
@@ -641,6 +702,7 @@ export function setupSupabaseReplication(db: AppDatabase): ReplicationsHolder {
     srsPracticeWords: { label: 'SRS Practice', tableName: 'srs_practice_words' },
     dailyUsage: { label: 'Daily Usage', tableName: 'daily_usage' },
     reviewLogs: { label: 'Review Logs', tableName: 'review_logs' },
+    settings: { label: 'Settings', tableName: 'app_settings' },
   };
 
   const allReplications = Object.values(replicationMap);
@@ -654,6 +716,7 @@ export function setupSupabaseReplication(db: AppDatabase): ReplicationsHolder {
     srsPracticeWords: db.srsPracticeWords,
     dailyUsage: db.dailyUsage,
     reviewLogs: db.reviewLogs,
+    settings: db.settings,
   };
 
   // Initialize unified state
@@ -756,6 +819,18 @@ export function setupSupabaseReplication(db: AppDatabase): ReplicationsHolder {
         key: 'reviewLogs',
         label: 'Review Logs',
         tableName: 'review_logs',
+        isActive: false,
+        isPaused: false,
+        error: null,
+        lastSyncedAt: null,
+        sentCount: 0,
+        receivedCount: 0,
+        pendingCount: 0,
+      },
+      settings: {
+        key: 'settings',
+        label: 'Settings',
+        tableName: 'app_settings',
         isActive: false,
         isPaused: false,
         error: null,
@@ -921,6 +996,8 @@ export function setupSupabaseReplication(db: AppDatabase): ReplicationsHolder {
         'rxdb-fsrs_records',
         'rxdb-srs_practice_words',
         'rxdb-daily_usage',
+        'rxdb-review_logs',
+        'rxdb-app_settings',
       ];
       try {
         const channels = supabase
@@ -1057,6 +1134,7 @@ export function setupSupabaseReplication(db: AppDatabase): ReplicationsHolder {
     srsPracticeWords,
     dailyUsage,
     reviewLogs,
+    settings,
     cancelAll,
     reSyncAll,
     pauseAll,

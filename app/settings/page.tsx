@@ -295,6 +295,7 @@ function SettingsContent() {
                   ),
                   fsrsRecords: fsrsRecords.length,
                   reviewLogs: reviewLogsCount,
+                  settings: 1,
                 }}
               />
             </Tabs.Panel>
