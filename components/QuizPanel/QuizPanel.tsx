@@ -2,6 +2,7 @@ import {
   Button,
   Card,
   Group,
+  Kbd,
   Progress,
   Stack,
   Text,
@@ -457,78 +458,95 @@ export function QuizPanel({
           </Text>
         </Group>
         <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="xs" style={{ width: '100%' }}>
-          {RATING_BUTTON_INFO.map(({ rating, label, color, className, situation, description }) => {
-            const intervalText = srsIntervals?.[rating];
+          {RATING_BUTTON_INFO.map(
+            ({ rating, label, shortcut, color, className, situation, description }) => {
+              const intervalText = srsIntervals?.[rating];
 
-            return (
-              <Tooltip
-                key={rating}
-                label={
-                  <Stack gap={2} p={2} style={{ maxWidth: 220 }}>
-                    <Text size="xs" fw={700}>
-                      {label} — {situation}
-                    </Text>
-                    <Text size="xs" style={{ opacity: 0.9 }}>
-                      {description}
-                    </Text>
-                    {intervalText && (
-                      <Text size="xs" c="dimmed" style={{ fontSize: '0.72rem', marginTop: 2 }}>
-                        Next review in: {intervalText}
+              return (
+                <Tooltip
+                  key={rating}
+                  label={
+                    <Stack gap={2} p={2} style={{ maxWidth: 220 }}>
+                      <Text size="xs" fw={700}>
+                        {label} [{shortcut}] — {situation}
                       </Text>
-                    )}
-                  </Stack>
-                }
-                withArrow
-                multiline
-                w={220}
-                transitionProps={{ duration: 150 }}
-              >
-                <Button
-                  size="md"
-                  radius="lg"
-                  variant="light"
-                  color={color}
-                  onClick={() => {
-                    playReviewSound(rating);
-                    onSrsRate(rating);
-                    scrollToCenter();
-                  }}
-                  className={className}
-                  style={{
-                    fontWeight: 800,
-                    width: '100%',
-                    height: 'auto',
-                    paddingTop: 8,
-                    paddingBottom: 8,
-                    paddingLeft: 6,
-                    paddingRight: 6,
-                    border: '1px solid rgba(255, 255, 255, 0.08)',
-                    position: 'relative',
-                  }}
+                      <Text size="xs" style={{ opacity: 0.9 }}>
+                        {description}
+                      </Text>
+                      {intervalText && (
+                        <Text size="xs" c="dimmed" style={{ fontSize: '0.72rem', marginTop: 2 }}>
+                          Next review in: {intervalText}
+                        </Text>
+                      )}
+                    </Stack>
+                  }
+                  withArrow
+                  multiline
+                  w={220}
+                  transitionProps={{ duration: 150 }}
                 >
-                  <Stack gap={2} align="center">
-                    {/* Next Review Time Interval (Anki style) */}
-                    <Text
+                  <Button
+                    size="md"
+                    radius="lg"
+                    variant="light"
+                    color={color}
+                    onClick={() => {
+                      playReviewSound(rating);
+                      onSrsRate(rating);
+                      scrollToCenter();
+                    }}
+                    className={className}
+                    style={{
+                      fontWeight: 800,
+                      width: '100%',
+                      height: 'auto',
+                      paddingTop: 8,
+                      paddingBottom: 8,
+                      paddingLeft: 6,
+                      paddingRight: 6,
+                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                      position: 'relative',
+                    }}
+                  >
+                    <Kbd
                       size="xs"
-                      fw={900}
                       style={{
-                        fontSize: '0.78rem',
+                        position: 'absolute',
+                        top: 5,
+                        right: 6,
+                        fontSize: '0.62rem',
+                        padding: '1px 4px',
                         lineHeight: 1,
-                        letterSpacing: '0.02em',
+                        opacity: 0.8,
+                        pointerEvents: 'none',
                       }}
                     >
-                      {intervalText || (rating === 'again' ? '<1m' : label)}
-                    </Text>
+                      {shortcut}
+                    </Kbd>
+                    <Stack gap={2} align="center">
+                      {/* Next Review Time Interval (Anki style) */}
+                      <Text
+                        size="xs"
+                        fw={900}
+                        style={{
+                          fontSize: '0.78rem',
+                          lineHeight: 1,
+                          letterSpacing: '0.02em',
+                        }}
+                      >
+                        {intervalText || (rating === 'again' ? '<1m' : label)}
+                      </Text>
 
-                    {/* Rating Label */}
-                    <Text size="sm" fw={800} style={{ lineHeight: 1.15 }}>
-                      {label}
-                    </Text>
-                  </Stack>
-                </Button>
-              </Tooltip>
-            );
-          })}
+                      {/* Rating Label */}
+                      <Text size="sm" fw={800} style={{ lineHeight: 1.15 }}>
+                        {label}
+                      </Text>
+                    </Stack>
+                  </Button>
+                </Tooltip>
+              );
+            }
+          )}
         </SimpleGrid>
       </Stack>
     ) : null;
@@ -782,6 +800,11 @@ export function QuizPanel({
       radius="md"
       className="btn-pulse"
       disabled={!isWordToMeaning && definitions.length === 0}
+      rightSection={
+        <Kbd size="xs" style={{ opacity: 0.85, fontSize: '0.68rem', padding: '2px 6px' }}>
+          Space
+        </Kbd>
+      }
       style={{
         height: '60px',
         fontSize: '1rem',

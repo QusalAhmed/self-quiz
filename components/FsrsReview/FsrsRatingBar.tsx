@@ -1,6 +1,6 @@
 'use client';
 
-import { Button, Group, SimpleGrid, Stack, Text, Tooltip } from '@mantine/core';
+import { Button, Group, Kbd, SimpleGrid, Stack, Text, Tooltip } from '@mantine/core';
 import { IconBrain } from '@tabler/icons-react';
 import React from 'react';
 import type { FsrsRating } from '@/lib/fsrs';
@@ -15,6 +15,7 @@ export const RATING_BUTTON_INFO = [
   {
     rating: 'again' as const,
     label: 'Again',
+    shortcut: '1',
     color: 'red',
     className: 'rating-btn-again',
     situation: 'Forgot or incorrect answer',
@@ -23,6 +24,7 @@ export const RATING_BUTTON_INFO = [
   {
     rating: 'hard' as const,
     label: 'Hard',
+    shortcut: '2',
     color: 'orange',
     className: 'rating-btn-hard',
     situation: 'Remembered with significant effort',
@@ -31,6 +33,7 @@ export const RATING_BUTTON_INFO = [
   {
     rating: 'good' as const,
     label: 'Good',
+    shortcut: '3',
     color: 'teal',
     className: 'rating-btn-good',
     situation: 'Recalled correctly with normal effort',
@@ -39,6 +42,7 @@ export const RATING_BUTTON_INFO = [
   {
     rating: 'easy' as const,
     label: 'Easy',
+    shortcut: '4',
     color: 'indigo',
     className: 'rating-btn-easy',
     situation: 'Instantly remembered with zero effort',
@@ -57,75 +61,92 @@ export function FsrsRatingBar({ intervals, onRate, disabled = false }: FsrsRatin
       </Group>
 
       <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="xs" style={{ width: '100%' }}>
-        {RATING_BUTTON_INFO.map(({ rating, label, color, className, situation, description }) => {
-          const intervalText = intervals?.[rating]?.intervalText;
+        {RATING_BUTTON_INFO.map(
+          ({ rating, label, shortcut, color, className, situation, description }) => {
+            const intervalText = intervals?.[rating]?.intervalText;
 
-          return (
-            <Tooltip
-              key={rating}
-              label={
-                <Stack gap={2} p={2} style={{ maxWidth: 220 }}>
-                  <Text size="xs" fw={700}>
-                    {label} — {situation}
-                  </Text>
-                  <Text size="xs" style={{ opacity: 0.9 }}>
-                    {description}
-                  </Text>
-                  {intervalText && (
-                    <Text size="xs" c="dimmed" style={{ fontSize: '0.72rem', marginTop: 2 }}>
-                      Next review in: {intervalText}
+            return (
+              <Tooltip
+                key={rating}
+                label={
+                  <Stack gap={2} p={2} style={{ maxWidth: 220 }}>
+                    <Text size="xs" fw={700}>
+                      {label} [{shortcut}] — {situation}
                     </Text>
-                  )}
-                </Stack>
-              }
-              withArrow
-              multiline
-              w={220}
-              transitionProps={{ duration: 150 }}
-            >
-              <Button
-                size="md"
-                radius="lg"
-                variant="light"
-                color={color}
-                disabled={disabled}
-                onClick={() => onRate(rating)}
-                className={className}
-                style={{
-                  fontWeight: 800,
-                  width: '100%',
-                  height: 'auto',
-                  paddingTop: 8,
-                  paddingBottom: 8,
-                  paddingLeft: 6,
-                  paddingRight: 6,
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
-                  position: 'relative',
-                }}
+                    <Text size="xs" style={{ opacity: 0.9 }}>
+                      {description}
+                    </Text>
+                    {intervalText && (
+                      <Text size="xs" c="dimmed" style={{ fontSize: '0.72rem', marginTop: 2 }}>
+                        Next review in: {intervalText}
+                      </Text>
+                    )}
+                  </Stack>
+                }
+                withArrow
+                multiline
+                w={220}
+                transitionProps={{ duration: 150 }}
               >
-                <Stack gap={2} align="center">
-                  {/* Next Review Time Interval (Anki style) */}
-                  <Text
+                <Button
+                  size="md"
+                  radius="lg"
+                  variant="light"
+                  color={color}
+                  disabled={disabled}
+                  onClick={() => onRate(rating)}
+                  className={className}
+                  style={{
+                    fontWeight: 800,
+                    width: '100%',
+                    height: 'auto',
+                    paddingTop: 8,
+                    paddingBottom: 8,
+                    paddingLeft: 6,
+                    paddingRight: 6,
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    position: 'relative',
+                  }}
+                >
+                  <Kbd
                     size="xs"
-                    fw={900}
                     style={{
-                      fontSize: '0.78rem',
+                      position: 'absolute',
+                      top: 5,
+                      right: 6,
+                      fontSize: '0.62rem',
+                      padding: '1px 4px',
                       lineHeight: 1,
-                      letterSpacing: '0.02em',
+                      opacity: 0.8,
+                      pointerEvents: 'none',
                     }}
                   >
-                    {intervalText || (rating === 'again' ? '<1m' : label)}
-                  </Text>
+                    {shortcut}
+                  </Kbd>
+                  <Stack gap={2} align="center">
+                    {/* Next Review Time Interval (Anki style) */}
+                    <Text
+                      size="xs"
+                      fw={900}
+                      style={{
+                        fontSize: '0.78rem',
+                        lineHeight: 1,
+                        letterSpacing: '0.02em',
+                      }}
+                    >
+                      {intervalText || (rating === 'again' ? '<1m' : label)}
+                    </Text>
 
-                  {/* Rating Label */}
-                  <Text size="sm" fw={800} style={{ lineHeight: 1.15 }}>
-                    {label}
-                  </Text>
-                </Stack>
-              </Button>
-            </Tooltip>
-          );
-        })}
+                    {/* Rating Label */}
+                    <Text size="sm" fw={800} style={{ lineHeight: 1.15 }}>
+                      {label}
+                    </Text>
+                  </Stack>
+                </Button>
+              </Tooltip>
+            );
+          }
+        )}
       </SimpleGrid>
     </Stack>
   );

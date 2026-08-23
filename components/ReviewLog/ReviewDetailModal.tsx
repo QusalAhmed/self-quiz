@@ -16,7 +16,7 @@ import {
   Title,
   Tooltip,
 } from '@mantine/core';
-import { IconBrain, IconCode, IconCopy, IconHelpCircle } from '@tabler/icons-react';
+import { IconBook, IconBrain, IconCode, IconCopy, IconHelpCircle } from '@tabler/icons-react';
 import React, { useState } from 'react';
 import type { ReviewLogRecord, WordRecord } from '@/lib/db';
 
@@ -393,20 +393,33 @@ export function ReviewDetailModal({
         </div>
 
         {/* Action Buttons */}
-        <Group justify="space-between" mt="sm">
-          {onEditWord && (
+        <Group justify="space-between" mt="sm" wrap="wrap" gap="xs">
+          <Group gap="xs">
+            {onEditWord && (
+              <Button
+                variant="light"
+                color="indigo"
+                size="sm"
+                onClick={() => {
+                  onEditWord(reviewLog.wordId);
+                  onClose();
+                }}
+              >
+                Edit Dictionary Word
+              </Button>
+            )}
             <Button
-              variant="light"
+              component="a"
+              href={`/words#${reviewLog.wordId}`}
+              variant="subtle"
               color="indigo"
               size="sm"
-              onClick={() => {
-                onEditWord(reviewLog.wordId);
-                onClose();
-              }}
+              leftSection={<IconBook size={16} />}
+              onClick={onClose}
             >
-              Edit Dictionary Word
+              View in Dictionary
             </Button>
-          )}
+          </Group>
           <Button variant="default" size="sm" onClick={onClose} ml="auto">
             Close
           </Button>

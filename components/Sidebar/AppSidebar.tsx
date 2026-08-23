@@ -89,7 +89,7 @@ export function AppSidebar({
 
   const renderNavContent = () => (
     <ScrollArea style={{ height: '100%' }} type="auto" offsetScrollbars>
-      <Stack justify="space-between" style={{ minHeight: '100%', padding: '16px 12px' }}>
+      <Stack justify="space-between" style={{ minHeight: '100%', padding: '16px 12px 36px 12px' }}>
         {/* Top Branding Section */}
         <Stack gap="sm">
           <Group

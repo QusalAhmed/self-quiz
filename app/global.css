@@ -8,23 +8,23 @@
 
   /* Modern Colors - Light Mode default */
   --bg-gradient:
-    radial-gradient(circle at 0% 0%, rgb(243, 244, 246, 0.6) 0%, rgb(255, 255, 255, 0.9) 100%),
-    radial-gradient(circle at 100% 100%, rgb(224, 231, 255, 0.3) 0%, rgb(255, 255, 255, 0.9) 100%);
-  --grid-color: rgb(99, 102, 241, 0.03);
+    radial-gradient(circle at 0% 0%, rgb(243, 244, 246, 0.7) 0%, rgb(255, 255, 255, 0.95) 100%),
+    radial-gradient(circle at 100% 100%, rgb(224, 231, 255, 0.35) 0%, rgb(255, 255, 255, 0.95) 100%);
+  --grid-color: rgb(99, 102, 241, 0.04);
 
   --primary-glow: rgb(99, 102, 241, 0.15);
   --accent-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
   --accent-gradient-hover: linear-gradient(135deg, #4f46e5 0%, #9333ea 100%);
 
-  --card-bg: rgb(255, 255, 255, 0.7);
-  --card-border: rgb(229, 231, 235, 0.8);
-  --card-shadow: 0 4px 20px -2px rgb(156, 163, 175, 0.15), 0 2px 10px -1px rgb(156, 163, 175, 0.1);
+  --card-bg: rgb(255, 255, 255, 0.88);
+  --card-border: rgb(209, 213, 219, 0.85);
+  --card-shadow: 0 4px 20px -2px rgba(100, 116, 139, 0.12), 0 2px 8px -1px rgba(100, 116, 139, 0.08);
   --card-shadow-hover:
-    0 12px 30px -4px rgb(99, 102, 241, 0.2), 0 4px 15px -2px rgb(156, 163, 175, 0.15);
+    0 12px 30px -4px rgba(99, 102, 241, 0.2), 0 4px 15px -2px rgba(100, 116, 139, 0.12);
 
-  --text-primary: #111827;
-  --text-secondary: #4b5563;
-  --text-muted: #9ca3af;
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
 }
 
 [data-mantine-color-scheme='dark'] {
@@ -37,14 +37,14 @@
   --accent-gradient: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
   --accent-gradient-hover: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
 
-  --card-bg: rgb(20, 20, 25, 0.75);
-  --card-border: rgb(255, 255, 255, 0.07);
+  --card-bg: rgb(20, 20, 25, 0.78);
+  --card-border: rgb(255, 255, 255, 0.08);
   --card-shadow: 0 4px 30px rgb(0, 0, 0, 0.4);
   --card-shadow-hover: 0 12px 40px rgb(99, 102, 241, 0.25);
 
   --text-primary: #f9fafb;
-  --text-secondary: #d1d5db;
-  --text-muted: #6b7280;
+  --text-secondary: #e2e8f0;
+  --text-muted: #94a3b8;
 }
 
 /* --- Global Body Setup --- */

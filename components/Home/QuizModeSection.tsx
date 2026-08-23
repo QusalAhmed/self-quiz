@@ -3,6 +3,7 @@ import {
   Badge,
   Button,
   Card,
+  Collapse,
   Divider,
   Grid,
   Group,
@@ -14,8 +15,11 @@ import {
   Tooltip,
 } from '@mantine/core';
 import {
+  IconAdjustmentsHorizontal,
   IconBookmarkOff,
   IconBrain,
+  IconChevronDown,
+  IconChevronUp,
   IconEye,
   IconEyeOff,
   IconFlame,
@@ -23,7 +27,7 @@ import {
   IconTarget,
   IconVolume,
 } from '@tabler/icons-react';
-import { useMemo, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import {
   practiceDisplayModes,
   quizDirections,
@@ -186,160 +190,215 @@ export function QuizModeSection({
     return missedWordsForMode;
   }, [practiceDisplayMode, missedWordsForMode, fsrsForgettingWordsForMode]);
 
+  const [optionsExpanded, setOptionsExpanded] = useState(true);
+
   return (
     <Stack gap="lg" style={{ minHeight: '100vh' }}>
       <Card
         className="glass-panel"
         radius="lg"
-        padding="lg"
+        padding="md"
         style={{ borderLeft: '4px solid #6366f1' }}
       >
-        <Stack gap="md">
-          <Grid align="flex-end" gap="md">
-            <Grid.Col span={{ base: 12, sm: 3 }}>
-              <Text size="xs" fw={700} c="dimmed">
-                QUIZ POOL RANGE
+        <Stack gap="sm">
+          {/* Collapsible Header */}
+          <Group
+            justify="space-between"
+            align="center"
+            style={{ cursor: 'pointer' }}
+            onClick={() => setOptionsExpanded((v) => !v)}
+          >
+            <Group gap="xs" align="center" wrap="wrap">
+              <IconBrain size={18} style={{ color: '#6366f1' }} />
+              <Text size="sm" fw={800} style={{ letterSpacing: '-0.01em' }}>
+                Quiz Settings
               </Text>
-              <SelectLike
-                data={Object.entries(quizRanges).map(([value, label]) => ({ value, label }))}
-                value={quizRange}
-                onChange={(value) => onSetQuizRange((value as QuizRangeKey) ?? 'all')}
-              />
-            </Grid.Col>
+              <Badge size="xs" variant="light" color="indigo">
+                {quizRanges[quizRange] || quizRange}
+              </Badge>
+              <Badge size="xs" variant="light" color="violet">
+                {quizSources[quizSource] || quizSource}
+              </Badge>
+              <Badge size="xs" variant="light" color="teal">
+                {quizDirections[quizDirection] || quizDirection}
+              </Badge>
+              {quizGroupFilter !== 'all' && (
+                <Badge size="xs" variant="outline" color="gray">
+                  Group: {quizGroupFilter}
+                </Badge>
+              )}
+            </Group>
 
-            <Grid.Col span={{ base: 12, sm: 3 }}>
-              <Text size="xs" fw={700} c="dimmed">
-                QUIZ SOURCE
-              </Text>
-              <SelectLike
-                data={Object.entries(quizSources).map(([value, label]) => ({ value, label }))}
-                value={quizSource}
-                onChange={(value) => onSetQuizSource((value as QuizSourceKey) ?? 'words')}
-              />
-            </Grid.Col>
-
-            <Grid.Col span={{ base: 12, sm: 3 }}>
-              <Text size="xs" fw={700} c="dimmed">
-                QUIZ MODE
-              </Text>
-              <SelectLike
-                data={Object.entries(quizDirections).map(([value, label]) => ({ value, label }))}
-                value={quizDirection}
-                onChange={(value) =>
-                  onSetQuizDirection((value as QuizDirectionKey) ?? 'wordToMeaning')
-                }
-              />
-            </Grid.Col>
-
-            <Grid.Col span={{ base: 12, sm: 3 }}>
-              <Text size="xs" fw={700} c="dimmed">
-                QUIZ GROUP
-              </Text>
-              <SelectLike
-                data={[
-                  { value: 'all', label: 'All Groups' },
-                  { value: 'none', label: 'No Group' },
-                  ...customGroups.map((g) => ({ value: g, label: g })),
-                ]}
-                value={quizGroupFilter}
-                onChange={(value) => onSetQuizGroupFilter(value ?? 'all')}
-              />
-            </Grid.Col>
-          </Grid>
-
-          {quizRange === 'custom' && (
-            <div
-              style={{
-                borderRadius: '12px',
-                border: '1px solid rgba(99,102,241,0.2)',
-                background: 'rgba(99,102,241,0.04)',
-                padding: '16px',
+            <Button
+              variant="subtle"
+              color="indigo"
+              size="xs"
+              radius="md"
+              leftSection={<IconAdjustmentsHorizontal size={14} />}
+              rightSection={
+                optionsExpanded ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />
+              }
+              onClick={(e) => {
+                e.stopPropagation();
+                setOptionsExpanded((v) => !v);
               }}
             >
-              <Stack gap="sm">
-                <Group gap="xs" align="center" mb={4}>
-                  <div
-                    style={{
-                      width: 6,
-                      height: 6,
-                      borderRadius: '50%',
-                      background: 'linear-gradient(135deg, #6366f1, #a855f7)',
-                    }}
-                  />
-                  <Text size="xs" fw={700} c="indigo" style={{ letterSpacing: '0.05em' }}>
-                    CUSTOM DATE RANGE
-                  </Text>
-                </Group>
-                <Grid gap="md">
-                  <Grid.Col span={{ base: 12, sm: 6 }}>
-                    <TextInput
-                      label={
-                        <Text size="xs" fw={600} c="dimmed">
-                          From
-                        </Text>
-                      }
-                      type="datetime-local"
-                      value={customStart}
-                      onChange={(e) => onSetCustomStart(e.currentTarget.value)}
-                      size="md"
-                      radius="md"
-                      max={customEnd}
-                    />
-                  </Grid.Col>
-                  <Grid.Col span={{ base: 12, sm: 6 }}>
-                    <TextInput
-                      label={
-                        <Text size="xs" fw={600} c="dimmed">
-                          To
-                        </Text>
-                      }
-                      type="datetime-local"
-                      value={customEnd}
-                      onChange={(e) => onSetCustomEnd(e.currentTarget.value)}
-                      size="md"
-                      radius="md"
-                      min={customStart}
-                    />
-                  </Grid.Col>
-                </Grid>
-              </Stack>
-            </div>
-          )}
-
-          <Group justify="space-between" align="center" mt="xs" gap="sm" wrap="wrap">
-            <Text size="xs" c="dimmed">
-              {quizCandidatesCount} word{quizCandidatesCount !== 1 ? 's' : ''} in this selection
-            </Text>
-            <Group gap="xs" wrap="wrap" justify="flex-end">
-              <Tooltip
-                label="Automatically pronounce the word when it becomes visible in quiz"
-                withArrow
-              >
-                <Button
-                  variant={autoPronounceQuizWord ? 'light' : 'subtle'}
-                  color={autoPronounceQuizWord ? 'indigo' : 'gray'}
-                  size="sm"
-                  radius="md"
-                  leftSection={<IconVolume size={16} />}
-                  onClick={() => onSetAutoPronounceQuizWord(!autoPronounceQuizWord)}
-                  style={{ fontWeight: 600 }}
-                >
-                  {autoPronounceQuizWord ? 'Auto Pronounce On' : 'Auto Pronounce Off'}
-                </Button>
-              </Tooltip>
-              <Button
-                variant="light"
-                color="indigo"
-                size="md"
-                radius="md"
-                onClick={onResetQuiz}
-                disabled={quizQueueLength === 0}
-                leftSection={<IconRotateClockwise size={18} />}
-              >
-                Restart Quiz
-              </Button>
-            </Group>
+              {optionsExpanded ? 'Hide Options' : 'Options'}
+            </Button>
           </Group>
+
+          <Collapse expanded={optionsExpanded}>
+            <Stack gap="md" mt="xs">
+              <Grid align="flex-end" gap="md">
+                <Grid.Col span={{ base: 12, sm: 3 }}>
+                  <Text size="xs" fw={700} c="dimmed">
+                    QUIZ POOL RANGE
+                  </Text>
+                  <SelectLike
+                    data={Object.entries(quizRanges).map(([value, label]) => ({ value, label }))}
+                    value={quizRange}
+                    onChange={(value) => onSetQuizRange((value as QuizRangeKey) ?? 'all')}
+                  />
+                </Grid.Col>
+
+                <Grid.Col span={{ base: 12, sm: 3 }}>
+                  <Text size="xs" fw={700} c="dimmed">
+                    QUIZ SOURCE
+                  </Text>
+                  <SelectLike
+                    data={Object.entries(quizSources).map(([value, label]) => ({ value, label }))}
+                    value={quizSource}
+                    onChange={(value) => onSetQuizSource((value as QuizSourceKey) ?? 'words')}
+                  />
+                </Grid.Col>
+
+                <Grid.Col span={{ base: 12, sm: 3 }}>
+                  <Text size="xs" fw={700} c="dimmed">
+                    QUIZ MODE
+                  </Text>
+                  <SelectLike
+                    data={Object.entries(quizDirections).map(([value, label]) => ({
+                      value,
+                      label,
+                    }))}
+                    value={quizDirection}
+                    onChange={(value) =>
+                      onSetQuizDirection((value as QuizDirectionKey) ?? 'wordToMeaning')
+                    }
+                  />
+                </Grid.Col>
+
+                <Grid.Col span={{ base: 12, sm: 3 }}>
+                  <Text size="xs" fw={700} c="dimmed">
+                    QUIZ GROUP
+                  </Text>
+                  <SelectLike
+                    data={[
+                      { value: 'all', label: 'All Groups' },
+                      { value: 'none', label: 'No Group' },
+                      ...customGroups.map((g) => ({ value: g, label: g })),
+                    ]}
+                    value={quizGroupFilter}
+                    onChange={(value) => onSetQuizGroupFilter(value ?? 'all')}
+                  />
+                </Grid.Col>
+              </Grid>
+
+              {quizRange === 'custom' && (
+                <div
+                  style={{
+                    borderRadius: '12px',
+                    border: '1px solid rgba(99,102,241,0.2)',
+                    background: 'rgba(99,102,241,0.04)',
+                    padding: '16px',
+                  }}
+                >
+                  <Stack gap="sm">
+                    <Group gap="xs" align="center" mb={4}>
+                      <div
+                        style={{
+                          width: 6,
+                          height: 6,
+                          borderRadius: '50%',
+                          background: 'linear-gradient(135deg, #6366f1, #a855f7)',
+                        }}
+                      />
+                      <Text size="xs" fw={700} c="indigo" style={{ letterSpacing: '0.05em' }}>
+                        CUSTOM DATE RANGE
+                      </Text>
+                    </Group>
+                    <Grid gap="md">
+                      <Grid.Col span={{ base: 12, sm: 6 }}>
+                        <TextInput
+                          label={
+                            <Text size="xs" fw={600} c="dimmed">
+                              From
+                            </Text>
+                          }
+                          type="datetime-local"
+                          value={customStart}
+                          onChange={(e) => onSetCustomStart(e.currentTarget.value)}
+                          size="md"
+                          radius="md"
+                          max={customEnd}
+                        />
+                      </Grid.Col>
+                      <Grid.Col span={{ base: 12, sm: 6 }}>
+                        <TextInput
+                          label={
+                            <Text size="xs" fw={600} c="dimmed">
+                              To
+                            </Text>
+                          }
+                          type="datetime-local"
+                          value={customEnd}
+                          onChange={(e) => onSetCustomEnd(e.currentTarget.value)}
+                          size="md"
+                          radius="md"
+                          min={customStart}
+                        />
+                      </Grid.Col>
+                    </Grid>
+                  </Stack>
+                </div>
+              )}
+
+              <Group justify="space-between" align="center" mt="xs" gap="sm" wrap="wrap">
+                <Text size="xs" c="dimmed">
+                  {quizCandidatesCount} word{quizCandidatesCount !== 1 ? 's' : ''} in this selection
+                </Text>
+                <Group gap="xs" wrap="wrap" justify="flex-end">
+                  <Tooltip
+                    label="Automatically pronounce the word when it becomes visible in quiz"
+                    withArrow
+                  >
+                    <Button
+                      variant={autoPronounceQuizWord ? 'light' : 'subtle'}
+                      color={autoPronounceQuizWord ? 'indigo' : 'gray'}
+                      size="sm"
+                      radius="md"
+                      leftSection={<IconVolume size={16} />}
+                      onClick={() => onSetAutoPronounceQuizWord(!autoPronounceQuizWord)}
+                      style={{ fontWeight: 600 }}
+                    >
+                      {autoPronounceQuizWord ? 'Auto Pronounce On' : 'Auto Pronounce Off'}
+                    </Button>
+                  </Tooltip>
+                  <Button
+                    variant="light"
+                    color="indigo"
+                    size="md"
+                    radius="md"
+                    onClick={onResetQuiz}
+                    disabled={quizQueueLength === 0}
+                    leftSection={<IconRotateClockwise size={18} />}
+                  >
+                    Restart Quiz
+                  </Button>
+                </Group>
+              </Group>
+            </Stack>
+          </Collapse>
         </Stack>
       </Card>
 
