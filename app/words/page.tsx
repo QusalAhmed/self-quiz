@@ -1,21 +1,9 @@
 'use client';
 
-import {
-  Box,
-  Button,
-  Container,
-  Group,
-  Modal,
-  Stack,
-  Text,
-  useMantineColorScheme,
-} from '@mantine/core';
-import { useRouter } from 'next/navigation';
+import { Button, Container, Group, Modal, Stack, Text } from '@mantine/core';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { EditWordModal } from '@/components/EditWordModal/EditWordModal';
 import { GroupManager } from '@/components/GroupManager/GroupManager';
-import { PwaRegister } from '@/components/PwaRegister/PwaRegister';
-import { AppSidebar } from '@/components/Sidebar/AppSidebar';
 import {
   type SearchScope,
   type WordSortOption,
@@ -23,6 +11,7 @@ import {
   WordExplorerHeader,
 } from '@/components/WordExplorer/WordExplorerHeader';
 import { WordExplorerVirtualList } from '@/components/WordExplorer/WordExplorerVirtualList';
+import { BatchWordFamilyModal } from '@/components/WordFamily/BatchWordFamilyModal';
 import { WordForm } from '@/components/WordForm/WordForm';
 import {
   type AppDatabase,
@@ -46,23 +35,12 @@ import {
   wordHasAnyGroup,
   wordHasGroup,
 } from '@/lib/groups';
-import { useAppDispatch } from '@/lib/redux/hooks';
-import {
-  openAllWordsQuiz,
-  openFsrsQuiz,
-  openTodayQuiz,
-  setMode,
-} from '@/lib/redux/slices/quizSlice';
 import { setupSupabaseReplication } from '@/lib/replication';
 import { notifyFsrsWordAdded, notifyWordSaved } from '@/lib/system-notifications';
 import { buildWordFamilyId, isWordFamilyId } from '@/lib/word-family';
 import { filterAndSortWords } from '@/lib/word-search';
 
 export default function WordsPage() {
-  const router = useRouter();
-  const dispatch = useAppDispatch();
-  const { colorScheme, setColorScheme } = useMantineColorScheme();
-
   const [database, setDatabase] = useState<AppDatabase | null>(null);
   const [words, setWords] = useState<WordRecord[]>([]);
   const [groups, setGroups] = useState<GroupRecord[]>([]);
@@ -92,6 +70,7 @@ export default function WordsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; word: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [groupManagerOpen, setGroupManagerOpen] = useState(false);
+  const [batchWordFamilyModalOpen, setBatchWordFamilyModalOpen] = useState(false);
 
   // Timer ticker (refreshes every 30s for FSRS due date calculation)
   const [nowTicker, setNowTicker] = useState(() => new Date().toISOString());
@@ -211,13 +190,6 @@ export default function WordsPage() {
       }
     }
     return letters;
-  }, [words]);
-
-  // Counts for Stats Dashboard
-  const todayCount = useMemo(() => {
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    return words.filter((w) => new Date(w.createdAt) >= todayStart).length;
   }, [words]);
 
   const fsrsDueTodayCount = useMemo(() => {
@@ -768,7 +740,12 @@ export default function WordsPage() {
       } else if (statusFilter === 'withWordFamily') {
         result = result.filter((w) => {
           const fam = wordFamilies[w.id];
-          return fam && fam.length > 0;
+          return fam && fam.filter((m) => !m.isDeleted).length > 0;
+        });
+      } else if (statusFilter === 'withoutWordFamily') {
+        result = result.filter((w) => {
+          const fam = wordFamilies[w.id];
+          return !fam || fam.filter((m) => !m.isDeleted).length === 0;
         });
       }
     }
@@ -799,6 +776,20 @@ export default function WordsPage() {
     nowTicker,
   ]);
 
+  const allMissingWordFamilyWords = useMemo(() => {
+    return words.filter((w) => {
+      const fam = wordFamilies[w.id];
+      return !fam || fam.filter((m) => !m.isDeleted).length === 0;
+    });
+  }, [words, wordFamilies]);
+
+  const filteredMissingWordFamilyWords = useMemo(() => {
+    return filteredWords.filter((w) => {
+      const fam = wordFamilies[w.id];
+      return !fam || fam.filter((m) => !m.isDeleted).length === 0;
+    });
+  }, [filteredWords, wordFamilies]);
+
   const handleResetFilters = () => {
     setSearchQuery('');
     setSelectedLetter('ALL');
@@ -808,207 +799,180 @@ export default function WordsPage() {
     setSortOption('newest');
   };
 
-  const toggleTheme = () => {
-    setColorScheme(colorScheme === 'dark' ? 'light' : 'dark');
-  };
-
   return (
-    <Box style={{ display: 'flex', minHeight: '100vh', width: '100%' }}>
-      <AppSidebar
-        mode="study"
-        onSetMode={(m) => {
-          dispatch(setMode(m));
-          if (m === 'quiz') {
-            router.push('/');
-          }
+    <Container size="md" pt={0} pb={{ base: 'md', sm: 'xl' }} px={{ base: 'xs', sm: 'md' }}>
+      <Stack gap="xl">
+        <WordExplorerHeader
+          totalCount={words.length}
+          filteredCount={filteredWords.length}
+          masteredCount={masteredCount}
+          learningCount={learningCount}
+          dueTodayCount={fsrsDueTodayCount}
+          withNotesCount={withNotesCount}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          searchScope={searchScope}
+          onSearchScopeChange={setSearchScope}
+          selectedLetter={selectedLetter}
+          onSelectLetter={setSelectedLetter}
+          availableLetters={availableLetters}
+          groupFilter={groupFilter}
+          onGroupFilterChange={setGroupFilter}
+          customGroups={customGroups}
+          posFilter={posFilter}
+          onPosFilterChange={setPosFilter}
+          statusFilter={statusFilter}
+          onStatusFilterChange={setStatusFilter}
+          sortOption={sortOption}
+          onSortOptionChange={setSortOption}
+          density={density}
+          onDensityChange={setDensity}
+          missingWordFamilyCount={allMissingWordFamilyWords.length}
+          onOpenBatchWordFamilyModal={() => setBatchWordFamilyModalOpen(true)}
+          onOpenAddModal={() => setAddModalOpen(true)}
+          onOpenGroupManager={() => setGroupManagerOpen(true)}
+        />
+
+        <WordExplorerVirtualList
+          words={filteredWords}
+          fsrsRecords={fsrsRecords}
+          missedRecords={missedWords}
+          wordFamilies={wordFamilies}
+          density={density}
+          searchQuery={searchQuery}
+          generatingExampleWordIds={generatingExampleWordIds}
+          generatingWordFamilyWordIds={generatingWordFamilyWordIds}
+          onEdit={(w) => setEditingWord(w)}
+          onDelete={(id, w) => setDeleteConfirm({ id, word: w })}
+          onRefreshExamples={(id) => void ensureMissingAiExamples(id)}
+          onRefreshWordFamily={(id, w) => void fetchAndStoreWordFamily(id, w)}
+          onDeleteWordFamilyMember={(mid) => void handleDeleteWordFamilyMember(mid)}
+          onToggleMissed={(id, w, m) => void handleToggleMissed(id, w, m)}
+          onGroupClick={(g) => {
+            setGroupFilter(g);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          onResetFilters={handleResetFilters}
+          onOpenAddModal={() => setAddModalOpen(true)}
+        />
+      </Stack>
+
+      {/* Add Word Modal */}
+      <Modal
+        opened={addModalOpen}
+        onClose={() => setAddModalOpen(false)}
+        title={
+          <Text fw={700} size="md" style={{ fontFamily: 'var(--font-title)' }}>
+            Add New Word
+          </Text>
+        }
+        centered
+        radius="lg"
+        size="auto"
+        overlayProps={{ backgroundOpacity: 0.45, blur: 4 }}
+      >
+        <WordForm
+          variant="plain"
+          customGroups={customGroups}
+          onAddCustomGroup={(g) => void ensureGroupExists(g)}
+          existingWords={words}
+          onEditExisting={async (id, w, m, d, g, c, n) => {
+            await handleEditWord(id, w, m, d, g, c, n);
+            setAddModalOpen(false);
+          }}
+          onSubmit={async (w, m, d, g, c, n) => {
+            await handleAddWord(w, m, d, g, c, n);
+            setAddModalOpen(false);
+          }}
+          onCancel={() => setAddModalOpen(false)}
+        />
+      </Modal>
+
+      {/* Edit Word Modal */}
+      <EditWordModal
+        opened={editingWord !== null}
+        onClose={() => setEditingWord(null)}
+        wordRecord={editingWord}
+        customGroups={customGroups}
+        onSave={async (id, w, m, d, g, c, n) => {
+          await handleEditWord(id, w, m, d, g, c, n);
+          setEditingWord(null);
         }}
-        onOpenAllWordsQuiz={() => {
-          dispatch(openAllWordsQuiz());
-          router.push('/');
-        }}
-        onOpenTodayQuiz={() => {
-          dispatch(openTodayQuiz());
-          router.push('/');
-        }}
-        onOpenFsrsQuiz={() => {
-          dispatch(openFsrsQuiz());
-          router.push('/');
-        }}
-        onOpenGroupManager={() => setGroupManagerOpen(true)}
-        totalWords={words.length}
-        todayCount={todayCount}
-        fsrsDueTodayCount={fsrsDueTodayCount}
-        colorScheme={colorScheme}
-        onToggleTheme={toggleTheme}
+        onAddCustomGroup={(g) => void ensureGroupExists(g)}
       />
 
-      <Box style={{ flex: 1, minWidth: 0 }}>
-        <Container size="md" py={{ base: 'md', sm: 'xl' }} px={{ base: 'xs', sm: 'md' }}>
-          <PwaRegister />
+      {/* Group Manager Modal */}
+      <GroupManager
+        opened={groupManagerOpen}
+        onClose={() => setGroupManagerOpen(false)}
+        groups={groups}
+        onRename={handleRenameGroup}
+        onDelete={handleDeleteGroup}
+        onAdd={handleCreateGroup}
+      />
 
-          <Stack gap="xl">
-            <WordExplorerHeader
-              totalCount={words.length}
-              filteredCount={filteredWords.length}
-              masteredCount={masteredCount}
-              learningCount={learningCount}
-              dueTodayCount={fsrsDueTodayCount}
-              withNotesCount={withNotesCount}
-              searchQuery={searchQuery}
-              onSearchChange={setSearchQuery}
-              searchScope={searchScope}
-              onSearchScopeChange={setSearchScope}
-              selectedLetter={selectedLetter}
-              onSelectLetter={setSelectedLetter}
-              availableLetters={availableLetters}
-              groupFilter={groupFilter}
-              onGroupFilterChange={setGroupFilter}
-              customGroups={customGroups}
-              posFilter={posFilter}
-              onPosFilterChange={setPosFilter}
-              statusFilter={statusFilter}
-              onStatusFilterChange={setStatusFilter}
-              sortOption={sortOption}
-              onSortOptionChange={setSortOption}
-              density={density}
-              onDensityChange={setDensity}
-              onOpenAddModal={() => setAddModalOpen(true)}
-              onOpenGroupManager={() => setGroupManagerOpen(true)}
-            />
+      {/* Batch Word Family Modal */}
+      <BatchWordFamilyModal
+        opened={batchWordFamilyModalOpen}
+        onClose={() => setBatchWordFamilyModalOpen(false)}
+        allMissingWords={allMissingWordFamilyWords}
+        filteredMissingWords={filteredMissingWordFamilyWords}
+        onGenerateWordFamily={fetchAndStoreWordFamily}
+      />
 
-            <WordExplorerVirtualList
-              words={filteredWords}
-              fsrsRecords={fsrsRecords}
-              missedRecords={missedWords}
-              wordFamilies={wordFamilies}
-              density={density}
-              searchQuery={searchQuery}
-              generatingExampleWordIds={generatingExampleWordIds}
-              generatingWordFamilyWordIds={generatingWordFamilyWordIds}
-              onEdit={(w) => setEditingWord(w)}
-              onDelete={(id, w) => setDeleteConfirm({ id, word: w })}
-              onRefreshExamples={(id) => void ensureMissingAiExamples(id)}
-              onRefreshWordFamily={(id, w) => void fetchAndStoreWordFamily(id, w)}
-              onDeleteWordFamilyMember={(mid) => void handleDeleteWordFamilyMember(mid)}
-              onToggleMissed={(id, w, m) => void handleToggleMissed(id, w, m)}
-              onGroupClick={(g) => {
-                setGroupFilter(g);
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+      {/* Delete Confirmation Modal */}
+      <Modal
+        opened={deleteConfirm !== null}
+        onClose={() => !isDeleting && setDeleteConfirm(null)}
+        title={
+          <Text fw={700} size="md" style={{ fontFamily: 'var(--font-title)' }}>
+            Delete Word
+          </Text>
+        }
+        centered
+        radius="lg"
+        size="sm"
+        overlayProps={{ backgroundOpacity: 0.5, blur: 4 }}
+      >
+        <Stack gap="lg">
+          <Text size="sm" c="dimmed" style={{ lineHeight: 1.6 }}>
+            Are you sure you want to delete{' '}
+            <strong style={{ color: 'var(--text-primary)' }}>{deleteConfirm?.word}</strong>? This
+            will remove the word, its examples, and FSRS history.
+          </Text>
+          <Group justify="flex-end" gap="sm">
+            <Button
+              variant="default"
+              size="sm"
+              radius="md"
+              onClick={() => setDeleteConfirm(null)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              color="red"
+              size="sm"
+              radius="md"
+              loading={isDeleting}
+              onClick={async () => {
+                if (!deleteConfirm) {
+                  return;
+                }
+                setIsDeleting(true);
+                try {
+                  await handleDeleteWord(deleteConfirm.id);
+                  setDeleteConfirm(null);
+                } finally {
+                  setIsDeleting(false);
+                }
               }}
-              onResetFilters={handleResetFilters}
-              onOpenAddModal={() => setAddModalOpen(true)}
-            />
-          </Stack>
-
-          {/* Add Word Modal */}
-          <Modal
-            opened={addModalOpen}
-            onClose={() => setAddModalOpen(false)}
-            title={
-              <Text fw={700} size="md" style={{ fontFamily: 'var(--font-title)' }}>
-                Add New Word
-              </Text>
-            }
-            centered
-            radius="lg"
-            size="auto"
-            overlayProps={{ backgroundOpacity: 0.45, blur: 4 }}
-          >
-            <WordForm
-              variant="plain"
-              customGroups={customGroups}
-              onAddCustomGroup={(g) => void ensureGroupExists(g)}
-              existingWords={words}
-              onEditExisting={async (id, w, m, d, g, c, n) => {
-                await handleEditWord(id, w, m, d, g, c, n);
-                setAddModalOpen(false);
-              }}
-              onSubmit={async (w, m, d, g, c, n) => {
-                await handleAddWord(w, m, d, g, c, n);
-                setAddModalOpen(false);
-              }}
-              onCancel={() => setAddModalOpen(false)}
-            />
-          </Modal>
-
-          {/* Edit Word Modal */}
-          <EditWordModal
-            opened={editingWord !== null}
-            onClose={() => setEditingWord(null)}
-            wordRecord={editingWord}
-            customGroups={customGroups}
-            onSave={async (id, w, m, d, g, c, n) => {
-              await handleEditWord(id, w, m, d, g, c, n);
-              setEditingWord(null);
-            }}
-            onAddCustomGroup={(g) => void ensureGroupExists(g)}
-          />
-
-          {/* Group Manager Modal */}
-          <GroupManager
-            opened={groupManagerOpen}
-            onClose={() => setGroupManagerOpen(false)}
-            groups={groups}
-            onRename={handleRenameGroup}
-            onDelete={handleDeleteGroup}
-            onAdd={handleCreateGroup}
-          />
-
-          {/* Delete Confirmation Modal */}
-          <Modal
-            opened={deleteConfirm !== null}
-            onClose={() => !isDeleting && setDeleteConfirm(null)}
-            title={
-              <Text fw={700} size="md" style={{ fontFamily: 'var(--font-title)' }}>
-                Delete Word
-              </Text>
-            }
-            centered
-            radius="lg"
-            size="sm"
-            overlayProps={{ backgroundOpacity: 0.5, blur: 4 }}
-          >
-            <Stack gap="lg">
-              <Text size="sm" c="dimmed" style={{ lineHeight: 1.6 }}>
-                Are you sure you want to delete{' '}
-                <strong style={{ color: 'var(--text-primary)' }}>{deleteConfirm?.word}</strong>?
-                This will remove the word, its examples, and FSRS history.
-              </Text>
-              <Group justify="flex-end" gap="sm">
-                <Button
-                  variant="default"
-                  size="sm"
-                  radius="md"
-                  onClick={() => setDeleteConfirm(null)}
-                  disabled={isDeleting}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  color="red"
-                  size="sm"
-                  radius="md"
-                  loading={isDeleting}
-                  onClick={async () => {
-                    if (!deleteConfirm) {
-                      return;
-                    }
-                    setIsDeleting(true);
-                    try {
-                      await handleDeleteWord(deleteConfirm.id);
-                      setDeleteConfirm(null);
-                    } finally {
-                      setIsDeleting(false);
-                    }
-                  }}
-                >
-                  Delete
-                </Button>
-              </Group>
-            </Stack>
-          </Modal>
-        </Container>
-      </Box>
-    </Box>
+            >
+              Delete
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+    </Container>
   );
 }

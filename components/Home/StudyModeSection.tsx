@@ -13,7 +13,14 @@ import {
   TextInput,
   Title,
 } from '@mantine/core';
-import { IconBook, IconCheck, IconExternalLink, IconSearch, IconTags } from '@tabler/icons-react';
+import {
+  IconBook,
+  IconCheck,
+  IconExternalLink,
+  IconHierarchy,
+  IconSearch,
+  IconTags,
+} from '@tabler/icons-react';
 import { useRouter } from 'next/navigation';
 import { GroupManager } from '@/components/GroupManager/GroupManager';
 import { WordForm } from '@/components/WordForm/WordForm';
@@ -36,6 +43,8 @@ type StudyModeSectionProps = {
   generatingExampleWordIds: Record<string, boolean>;
   generatingWordFamilyWordIds?: Record<string, boolean>;
   wordFamilies?: Record<string, WordFamilyMemberRecord[]>;
+  missingWordFamilyCount?: number;
+  onOpenBatchWordFamilyModal?: () => void;
   onSubmitWord: (
     word: string,
     meaning: string,
@@ -94,6 +103,8 @@ export function StudyModeSection({
   generatingExampleWordIds,
   generatingWordFamilyWordIds = {},
   wordFamilies = {},
+  missingWordFamilyCount = 0,
+  onOpenBatchWordFamilyModal,
   onSubmitWord,
   onAddCustomGroup,
   onEditExisting,
@@ -150,6 +161,18 @@ export function StudyModeSection({
               </Title>
             </Group>
             <Group gap="xs" wrap="wrap" w={{ base: '100%', sm: 'auto' }} justify="space-between">
+              {missingWordFamilyCount > 0 && onOpenBatchWordFamilyModal && (
+                <Button
+                  variant="light"
+                  color="indigo"
+                  size="xs"
+                  radius="md"
+                  leftSection={<IconHierarchy size={14} />}
+                  onClick={onOpenBatchWordFamilyModal}
+                >
+                  Generate Word Families ({missingWordFamilyCount})
+                </Button>
+              )}
               <Button
                 variant="filled"
                 color="indigo"

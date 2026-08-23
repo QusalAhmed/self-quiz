@@ -1,13 +1,6 @@
 'use client';
 
-import {
-  Box,
-  Container,
-  SegmentedControl,
-  SimpleGrid,
-  Stack,
-  useMantineColorScheme,
-} from '@mantine/core';
+import { Container, SegmentedControl, Stack } from '@mantine/core';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { type QuizDirectionKey, quizDirections } from '@/app/home/constants';
 import {
@@ -23,13 +16,9 @@ import {
 } from '@/app/home/utils';
 import { EditWordModal } from '@/components/EditWordModal/EditWordModal';
 import { ClearMissedWordsModal } from '@/components/Home/ClearMissedWordsModal';
-import { CloudSyncCard } from '@/components/Home/CloudSyncCard';
-import { DailyUsageTimer } from '@/components/Home/DailyUsageTimer';
 import { QuizModeSection } from '@/components/Home/QuizModeSection';
-import { StatsDashboard } from '@/components/Home/StatsDashboard';
 import { StudyModeSection } from '@/components/Home/StudyModeSection';
-import { PwaRegister } from '@/components/PwaRegister/PwaRegister';
-import { AppSidebar } from '@/components/Sidebar/AppSidebar';
+import { BatchWordFamilyModal } from '@/components/WordFamily/BatchWordFamilyModal';
 import {
   type AppDatabase,
   buildMissedWordId,
@@ -49,7 +38,6 @@ import {
   computeFsrsIntervals,
   createInitialFsrsRecord,
   createReviewLogEvent,
-  formatInterval,
   type FsrsRating,
   softDeleteFsrsRecord,
   updateFsrsRecordContent,
@@ -67,11 +55,8 @@ import { useAppDispatch, useAppSelector } from '@/lib/redux/hooks';
 import {
   computePoolSignature,
   nextCard,
-  openAllWordsQuiz,
   openForgettingQuiz,
-  openFsrsQuiz,
   openSrsPracticeQuiz,
-  openTodayQuiz,
   previousCard,
   pushQuizHistory,
   removeQuizItem,
@@ -95,16 +80,10 @@ import {
   undoQuizHistory,
   updateQuizItem,
 } from '@/lib/redux/slices/quizSlice';
-import {
-  setupSupabaseReplication,
-  type ReplicationsHolder,
-  type SyncCollectionKey,
-  type UnifiedSyncState,
-} from '@/lib/replication';
+import { setupSupabaseReplication, type ReplicationsHolder } from '@/lib/replication';
 import {
   notifyFsrsQueueRefill,
   notifyFsrsWordAdded,
-  notifySyncStatus,
   notifyWordSaved,
 } from '@/lib/system-notifications';
 import { resolveWordTextFromMainTable } from '@/lib/word-display';
@@ -142,7 +121,6 @@ export default function HomePage() {
   const [groups, setGroups] = useState<GroupRecord[]>([]);
   const [missedWords, setMissedWords] = useState<MissedWordRecord[]>([]);
   const [fsrsRecords, setFsrsRecords] = useState<FsrsRecord[]>([]);
-  const [reviewLogsCount, setReviewLogsCount] = useState<number>(0);
   const [wordFamilies, setWordFamilies] = useState<Record<string, WordFamilyMemberRecord[]>>({});
   const [generatingWordFamilyWordIds, setGeneratingWordFamilyWordIds] = useState<
     Record<string, boolean>
@@ -156,6 +134,7 @@ export default function HomePage() {
 
   // Custom Groups states
   const [groupManagerOpen, setGroupManagerOpen] = useState(false);
+  const [batchWordFamilyModalOpen, setBatchWordFamilyModalOpen] = useState(false);
   const [groupFilter, setGroupFilter] = useState<string>('all');
   const [exampleGenerationCounts, setExampleGenerationCounts] = useState<Record<string, number>>(
     {}
@@ -174,10 +153,7 @@ export default function HomePage() {
   }, []);
 
   // Custom states for UI Enhancements
-  const { colorScheme, setColorScheme } = useMantineColorScheme();
   const [onlineStatus, setOnlineStatus] = useState(true);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [syncState, setSyncState] = useState<UnifiedSyncState | undefined>(undefined);
   const syncInProgressRef = useRef(false);
   const replicationsRef = useRef<ReplicationsHolder | null>(null);
 
@@ -187,14 +163,12 @@ export default function HomePage() {
     }
 
     syncInProgressRef.current = true;
-    setIsSyncing(true);
     try {
       await task();
     } catch (error) {
       console.error(error);
     } finally {
       syncInProgressRef.current = false;
-      setIsSyncing(false);
     }
   }, []);
 
@@ -393,19 +367,6 @@ export default function HomePage() {
   }, [filteredWords, page]);
 
   // Compute Stats dashboard numbers
-  const unsyncedCount = useMemo(() => {
-    if (syncState !== undefined) {
-      return syncState.pendingCount;
-    }
-    return 0;
-  }, [syncState]);
-
-  const todayCount = useMemo(() => {
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    return words.filter((word) => new Date(word.createdAt) >= todayStart).length;
-  }, [words]);
-
   const missedWordsForMode = useMemo(
     () =>
       missedWords
@@ -446,31 +407,6 @@ export default function HomePage() {
       .map((record) => resolveWordTextFromMainTable(record, wordsById))
       .filter((record): record is WordWithDefinitions<FsrsRecord> => record !== null);
   }, [fsrsRecords, quizDirection, wordsById, nowTicker]);
-
-  const fsrsDueTodayCount = useMemo(() => fsrsDueRecords.length, [fsrsDueRecords]);
-
-  const fsrsNextDueText = useMemo(() => {
-    const futureCards = fsrsRecords
-      .filter((r) => !r.isDeleted && r.quizMode === quizDirection && r.dueAt > nowTicker)
-      .sort((a, b) => a.dueAt.localeCompare(b.dueAt));
-
-    if (fsrsDueTodayCount > 0) {
-      if (futureCards.length > 0) {
-        const interval = formatInterval(futureCards[0].dueAt, new Date(nowTicker));
-        return `Next in ${interval}`;
-      }
-      return 'All due now';
-    }
-
-    if (futureCards.length > 0) {
-      const interval = formatInterval(futureCards[0].dueAt, new Date(nowTicker));
-      return `Next due in ${interval}`;
-    }
-
-    return fsrsRecords.some((r) => !r.isDeleted && r.quizMode === quizDirection)
-      ? 'All caught up'
-      : '';
-  }, [fsrsRecords, quizDirection, nowTicker, fsrsDueTodayCount]);
 
   const generatingExampleWordIds = useMemo(
     () => Object.fromEntries(Object.keys(exampleGenerationCounts).map((id) => [id, true])),
@@ -928,23 +864,13 @@ export default function HomePage() {
         selector: { isDeleted: { $ne: true } },
       });
 
-      reviewLogSubscription = reviewLogQuery.$.subscribe((docs) => {
-        if (!isMounted) {
-          return;
-        }
-        setReviewLogsCount(docs.length);
-      });
+      reviewLogSubscription = reviewLogQuery.$.subscribe(() => {});
 
       // Initialize automatic two-way Supabase replication
       const replications = setupSupabaseReplication(db);
       replicationsRef.current = replications;
 
-      unsubscribeSyncState = replications.subscribeSyncState((newState) => {
-        if (!isMounted) {
-          return;
-        }
-        setSyncState(newState);
-      });
+      unsubscribeSyncState = replications.subscribeSyncState(() => {});
 
       // Mark UI as ready immediately — local DB is available
       if (isMounted) {
@@ -1453,6 +1379,20 @@ export default function HomePage() {
     [database]
   );
 
+  const missingWordFamilyWords = useMemo(() => {
+    return words.filter((w) => {
+      const fam = wordFamilies[w.id];
+      return !fam || fam.filter((m) => !m.isDeleted).length === 0;
+    });
+  }, [words, wordFamilies]);
+
+  const filteredMissingWordFamilyWords = useMemo(() => {
+    return filteredWords.filter((w) => {
+      const fam = wordFamilies[w.id];
+      return !fam || fam.filter((m) => !m.isDeleted).length === 0;
+    });
+  }, [filteredWords, wordFamilies]);
+
   const handleAdd = async (
     word: string,
     meaning: string,
@@ -1833,56 +1773,6 @@ export default function HomePage() {
     });
   }, [database, withSyncState]);
 
-  const handleManualSync = async () => {
-    if (!database) {
-      return;
-    }
-    console.log('User triggered manual sync...');
-    try {
-      await runFullSync();
-      void notifySyncStatus({ success: true });
-    } catch (err) {
-      void notifySyncStatus({
-        success: false,
-        errorMessage: err instanceof Error ? err.message : 'Sync failed',
-      });
-    }
-  };
-
-  const handleTogglePause = useCallback(async () => {
-    if (!replicationsRef.current) {
-      return;
-    }
-    if (replicationsRef.current.isPaused()) {
-      await replicationsRef.current.resumeAll();
-    } else {
-      await replicationsRef.current.pauseAll();
-    }
-  }, []);
-
-  const handleVerifyInSync = useCallback(async () => {
-    if (!replicationsRef.current) {
-      return false;
-    }
-    return await replicationsRef.current.awaitInSync();
-  }, []);
-
-  const handleSyncCollection = useCallback((collection: SyncCollectionKey) => {
-    replicationsRef.current?.reSyncCollection(collection);
-  }, []);
-
-  const handlePauseCollection = useCallback(async (collection: SyncCollectionKey) => {
-    await replicationsRef.current?.pauseCollection(collection);
-  }, []);
-
-  const handleResumeCollection = useCallback(async (collection: SyncCollectionKey) => {
-    await replicationsRef.current?.resumeCollection(collection);
-  }, []);
-
-  const handleClearActivities = useCallback(() => {
-    replicationsRef.current?.clearActivities();
-  }, []);
-
   useEffect(() => {
     if (!database || !onlineStatus) {
       return;
@@ -1929,10 +1819,6 @@ export default function HomePage() {
       });
     };
   }, []);
-
-  const toggleTheme = () => {
-    setColorScheme(colorScheme === 'dark' ? 'light' : 'dark');
-  };
 
   const handleUndoQuiz = useCallback(async () => {
     if (!database || quizHistory.length === 0) {
@@ -2012,211 +1898,157 @@ export default function HomePage() {
   );
 
   return (
-    <Box style={{ display: 'flex', minHeight: '100vh', width: '100%' }}>
-      <AppSidebar
-        mode={mode}
-        onSetMode={(m) => dispatch(setMode(m))}
-        onOpenAllWordsQuiz={() => dispatch(openAllWordsQuiz())}
-        onOpenTodayQuiz={() => dispatch(openTodayQuiz())}
-        onOpenFsrsQuiz={() => dispatch(openFsrsQuiz())}
-        onOpenGroupManager={() => setGroupManagerOpen(true)}
-        totalWords={words.length}
-        todayCount={todayCount}
-        fsrsDueTodayCount={fsrsDueTodayCount}
-        colorScheme={colorScheme}
-        onToggleTheme={toggleTheme}
+    <Container size="md" pt={0} pb={{ base: 'md', sm: 'xl' }} px={{ base: 'xs', sm: 'md' }}>
+      <ClearMissedWordsModal
+        opened={confirmClearAllOpen}
+        count={missedWordsForMode.length}
+        quizDirectionLabel={quizDirections[quizDirection]}
+        onClose={() => setConfirmClearAllOpen(false)}
+        onConfirm={handleConfirmClearAll}
       />
 
-      <Box style={{ flex: 1, minWidth: 0 }}>
-        <Container size="md" py={{ base: 'md', sm: 'xl' }} px={{ base: 'xs', sm: 'md' }}>
-          <PwaRegister />
+      <Stack gap="xl">
+        <SegmentedControl
+          value={mode}
+          onChange={(value) => dispatch(setMode(value as 'study' | 'quiz'))}
+          data={[
+            { label: 'Study Library', value: 'study' },
+            { label: 'Quiz Session', value: 'quiz' },
+          ]}
+          fullWidth
+          size="md"
+          radius="lg"
+          className="glass-panel"
+          style={{ padding: '4px' }}
+        />
 
-          <ClearMissedWordsModal
-            opened={confirmClearAllOpen}
-            count={missedWordsForMode.length}
-            quizDirectionLabel={quizDirections[quizDirection]}
-            onClose={() => setConfirmClearAllOpen(false)}
-            onConfirm={handleConfirmClearAll}
-          />
-
-          <Stack gap="xl">
-            <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
-              <DailyUsageTimer />
-              <Box id="cloud-sync-card">
-                <CloudSyncCard
-                  syncState={syncState}
-                  unsyncedCount={unsyncedCount}
-                  onlineStatus={onlineStatus}
-                  isSyncing={isSyncing}
-                  onSyncNow={handleManualSync}
-                  onTogglePause={handleTogglePause}
-                  onVerifyInSync={handleVerifyInSync}
-                  onSyncCollection={handleSyncCollection}
-                  onPauseCollection={handlePauseCollection}
-                  onResumeCollection={handleResumeCollection}
-                  onClearActivities={handleClearActivities}
-                  collectionCounts={{
-                    words: words.length,
-                    groups: groups.length,
-                    missedWords: missedWords.length,
-                    wordFamilies: Object.values(wordFamilies).reduce(
-                      (acc, list) => acc + list.length,
-                      0
-                    ),
-                    fsrsRecords: fsrsRecords.length,
-                    reviewLogs: reviewLogsCount,
-                  }}
-                />
-              </Box>
-            </SimpleGrid>
-
-            <Box id="stats-dashboard">
-              <StatsDashboard
-                totalWords={words.length}
-                todayCount={todayCount}
-                fsrsDueTodayCount={fsrsDueTodayCount}
-                fsrsNextDueText={fsrsNextDueText}
-                onOpenAllWordsQuiz={() => dispatch(openAllWordsQuiz())}
-                onOpenTodayQuiz={() => dispatch(openTodayQuiz())}
-                onOpenFsrsQuiz={() => dispatch(openFsrsQuiz())}
-              />
-            </Box>
-
-            <SegmentedControl
-              value={mode}
-              onChange={(value) => dispatch(setMode(value as 'study' | 'quiz'))}
-              data={[
-                { label: 'Study Library', value: 'study' },
-                { label: 'Quiz Session', value: 'quiz' },
-              ]}
-              fullWidth
-              size="md"
-              radius="lg"
-              className="glass-panel"
-              style={{ padding: '4px' }}
-            />
-
-            {mode === 'study' && (
-              <StudyModeSection
-                isLoading={isLoading}
-                customGroups={customGroups}
-                words={words}
-                pagedWords={pagedWords}
-                filteredWordsCount={filteredWords.length}
-                totalPages={totalPages}
-                page={page}
-                searchQuery={searchQuery}
-                searchScope={searchScope}
-                groupFilter={groupFilter}
-                groupManagerOpen={groupManagerOpen}
-                groups={groups}
-                generatingExampleWordIds={generatingExampleWordIds}
-                generatingWordFamilyWordIds={generatingWordFamilyWordIds}
-                wordFamilies={wordFamilies}
-                onSubmitWord={handleAdd}
-                onAddCustomGroup={handleAddCustomGroup}
-                onEditExisting={handleEdit}
-                onDeleteWord={handleDelete}
-                onEditWord={handleEdit}
-                onRefreshExamples={handleRefreshExamples}
-                onRefreshWordFamily={handleRefreshWordFamily}
-                onDeleteWordFamilyMember={handleDeleteWordFamilyMember}
-                onCreateGroup={handleCreateGroup}
-                onRenameGroup={handleRenameGroup}
-                onDeleteGroup={handleDeleteGroup}
-                onOpenGroupManager={() => setGroupManagerOpen(true)}
-                onCloseGroupManager={() => setGroupManagerOpen(false)}
-                onSetSearchQuery={setSearchQuery}
-                onSetSearchScope={setSearchScope}
-                onSetGroupFilter={setGroupFilter}
-                onSetPage={setPage}
-              />
-            )}
-
-            {mode === 'quiz' && (
-              <QuizModeSection
-                quizRange={quizRange}
-                quizSource={quizSource}
-                quizDirection={quizDirection}
-                quizGroupFilter={quizGroupFilter}
-                customGroups={customGroups}
-                customStart={customStart}
-                customEnd={customEnd}
-                quizCandidatesCount={quizCandidates.length}
-                quizQueueLength={quizQueue.length}
-                currentQuizItem={currentQuizItem}
-                revealed={revealed}
-                completed={completed}
-                quizIndex={quizIndex}
-                isCurrentMarkedMissed={isCurrentMarkedMissed}
-                practiceDisplayMode={practiceDisplayMode}
-                hideMissedMeanings={hideMissedMeanings}
-                hideSrsPracticeMeanings={hideSrsPracticeMeanings}
-                revealedMissedWordIds={revealedMissedWordIds}
-                revealedSrsPracticeWordIds={revealedSrsPracticeWordIds}
-                missedWordsForMode={missedWordsForMode}
-                fsrsForgettingWordsForMode={fsrsForgettingWordsForMode}
-                recentSrsPracticeWords={[]}
-                missedWordIdSet={missedWordIdSet}
-                generatingExampleWordIds={generatingExampleWordIds}
-                autoPronounceQuizWord={autoPronounceQuizWord}
-                wordFamilies={wordFamilies}
-                generatingWordFamilyWordIds={generatingWordFamilyWordIds}
-                onSetQuizRange={(value) => dispatch(setQuizRange(value))}
-                onSetQuizSource={(value) => dispatch(setQuizSource(value))}
-                onSetQuizDirection={(value) => dispatch(setQuizDirection(value))}
-                onSetQuizGroupFilter={(value) => dispatch(setQuizGroupFilter(value))}
-                onSetCustomStart={(value) => dispatch(setCustomStart(value))}
-                onSetCustomEnd={(value) => dispatch(setCustomEnd(value))}
-                onResetQuiz={resetQuiz}
-                onReveal={handleReveal}
-                onToggleMissed={handleToggleMissed}
-                onNext={handleNext}
-                onPrevious={handlePrevious}
-                onRefreshExamples={handleRefreshExamples}
-                onRefreshWordFamily={handleRefreshWordFamily}
-                onDeleteWordFamilyMember={handleDeleteWordFamilyMember}
-                onSrsRate={handleSrsRate}
-                srsIntervals={srsIntervals}
-                onEditClick={(id) => setEditingQuizWordId(id)}
-                onSetPracticeDisplayMode={(value) => dispatch(setPracticeDisplayMode(value))}
-                onSetAutoPronounceQuizWord={(value) => dispatch(setAutoPronounceQuizWord(value))}
-                onSetHideMissedMeanings={(value) => dispatch(setHideMissedMeanings(value))}
-                onSetHideSrsPracticeMeanings={(value) =>
-                  dispatch(setHideSrsPracticeMeanings(value))
-                }
-                onSetRevealedMissedWordIds={(value) => dispatch(setRevealedMissedWordIds(value))}
-                onSetRevealedSrsPracticeWordIds={(value) =>
-                  dispatch(setRevealedSrsPracticeWordIds(value))
-                }
-                onUnmarkMissed={handleUnmarkMissed}
-                onTogglePracticeMissed={(word) =>
-                  void toggleMissedWordRecord(word.wordId, word.word, word.meaning, word.quizMode)
-                }
-                onOpenSrsPracticeQuiz={() => dispatch(openSrsPracticeQuiz())}
-                onStartForgettingQuiz={() => dispatch(openForgettingQuiz())}
-                onOpenClearAllMissed={() => setConfirmClearAllOpen(true)}
-                onDeleteFsrsRecord={handleDeleteFsrsRecord}
-                canUndo={quizHistory.length > 0}
-                onUndo={handleUndoQuiz}
-              />
-            )}
-          </Stack>
-
-          <EditWordModal
-            opened={editingQuizWordId !== null}
-            onClose={() => setEditingQuizWordId(null)}
-            wordRecord={
-              editingQuizWordId ? words.find((w) => w.id === editingQuizWordId) || null : null
-            }
+        {mode === 'study' && (
+          <StudyModeSection
+            isLoading={isLoading}
             customGroups={customGroups}
-            onSave={async (id, word, meaning, definitions, groups, aiExampleCount, notes) => {
-              await handleEdit(id, word, meaning, definitions, groups, aiExampleCount, notes);
-            }}
+            words={words}
+            pagedWords={pagedWords}
+            filteredWordsCount={filteredWords.length}
+            totalPages={totalPages}
+            page={page}
+            searchQuery={searchQuery}
+            searchScope={searchScope}
+            groupFilter={groupFilter}
+            groupManagerOpen={groupManagerOpen}
+            groups={groups}
+            generatingExampleWordIds={generatingExampleWordIds}
+            generatingWordFamilyWordIds={generatingWordFamilyWordIds}
+            wordFamilies={wordFamilies}
+            missingWordFamilyCount={missingWordFamilyWords.length}
+            onOpenBatchWordFamilyModal={() => setBatchWordFamilyModalOpen(true)}
+            onSubmitWord={handleAdd}
             onAddCustomGroup={handleAddCustomGroup}
+            onEditExisting={handleEdit}
+            onDeleteWord={handleDelete}
+            onEditWord={handleEdit}
+            onRefreshExamples={handleRefreshExamples}
+            onRefreshWordFamily={handleRefreshWordFamily}
+            onDeleteWordFamilyMember={handleDeleteWordFamilyMember}
+            onCreateGroup={handleCreateGroup}
+            onRenameGroup={handleRenameGroup}
+            onDeleteGroup={handleDeleteGroup}
+            onOpenGroupManager={() => setGroupManagerOpen(true)}
+            onCloseGroupManager={() => setGroupManagerOpen(false)}
+            onSetSearchQuery={setSearchQuery}
+            onSetSearchScope={setSearchScope}
+            onSetGroupFilter={setGroupFilter}
+            onSetPage={setPage}
           />
-        </Container>
-      </Box>
-    </Box>
+        )}
+
+        {mode === 'quiz' && (
+          <QuizModeSection
+            quizRange={quizRange}
+            quizSource={quizSource}
+            quizDirection={quizDirection}
+            quizGroupFilter={quizGroupFilter}
+            customGroups={customGroups}
+            customStart={customStart}
+            customEnd={customEnd}
+            quizCandidatesCount={quizCandidates.length}
+            quizQueueLength={quizQueue.length}
+            currentQuizItem={currentQuizItem}
+            revealed={revealed}
+            completed={completed}
+            quizIndex={quizIndex}
+            isCurrentMarkedMissed={isCurrentMarkedMissed}
+            practiceDisplayMode={practiceDisplayMode}
+            hideMissedMeanings={hideMissedMeanings}
+            hideSrsPracticeMeanings={hideSrsPracticeMeanings}
+            revealedMissedWordIds={revealedMissedWordIds}
+            revealedSrsPracticeWordIds={revealedSrsPracticeWordIds}
+            missedWordsForMode={missedWordsForMode}
+            fsrsForgettingWordsForMode={fsrsForgettingWordsForMode}
+            recentSrsPracticeWords={[]}
+            missedWordIdSet={missedWordIdSet}
+            generatingExampleWordIds={generatingExampleWordIds}
+            autoPronounceQuizWord={autoPronounceQuizWord}
+            wordFamilies={wordFamilies}
+            generatingWordFamilyWordIds={generatingWordFamilyWordIds}
+            onSetQuizRange={(value) => dispatch(setQuizRange(value))}
+            onSetQuizSource={(value) => dispatch(setQuizSource(value))}
+            onSetQuizDirection={(value) => dispatch(setQuizDirection(value))}
+            onSetQuizGroupFilter={(value) => dispatch(setQuizGroupFilter(value))}
+            onSetCustomStart={(value) => dispatch(setCustomStart(value))}
+            onSetCustomEnd={(value) => dispatch(setCustomEnd(value))}
+            onResetQuiz={resetQuiz}
+            onReveal={handleReveal}
+            onToggleMissed={handleToggleMissed}
+            onNext={handleNext}
+            onPrevious={handlePrevious}
+            onRefreshExamples={handleRefreshExamples}
+            onRefreshWordFamily={handleRefreshWordFamily}
+            onDeleteWordFamilyMember={handleDeleteWordFamilyMember}
+            onSrsRate={handleSrsRate}
+            srsIntervals={srsIntervals}
+            onEditClick={(id) => setEditingQuizWordId(id)}
+            onSetPracticeDisplayMode={(value) => dispatch(setPracticeDisplayMode(value))}
+            onSetAutoPronounceQuizWord={(value) => dispatch(setAutoPronounceQuizWord(value))}
+            onSetHideMissedMeanings={(value) => dispatch(setHideMissedMeanings(value))}
+            onSetHideSrsPracticeMeanings={(value) => dispatch(setHideSrsPracticeMeanings(value))}
+            onSetRevealedMissedWordIds={(value) => dispatch(setRevealedMissedWordIds(value))}
+            onSetRevealedSrsPracticeWordIds={(value) =>
+              dispatch(setRevealedSrsPracticeWordIds(value))
+            }
+            onUnmarkMissed={handleUnmarkMissed}
+            onTogglePracticeMissed={(word) =>
+              void toggleMissedWordRecord(word.wordId, word.word, word.meaning, word.quizMode)
+            }
+            onOpenSrsPracticeQuiz={() => dispatch(openSrsPracticeQuiz())}
+            onStartForgettingQuiz={() => dispatch(openForgettingQuiz())}
+            onOpenClearAllMissed={() => setConfirmClearAllOpen(true)}
+            onDeleteFsrsRecord={handleDeleteFsrsRecord}
+            canUndo={quizHistory.length > 0}
+            onUndo={handleUndoQuiz}
+          />
+        )}
+      </Stack>
+
+      <EditWordModal
+        opened={editingQuizWordId !== null}
+        onClose={() => setEditingQuizWordId(null)}
+        wordRecord={
+          editingQuizWordId ? words.find((w) => w.id === editingQuizWordId) || null : null
+        }
+        customGroups={customGroups}
+        onSave={async (id, word, meaning, definitions, groups, aiExampleCount, notes) => {
+          await handleEdit(id, word, meaning, definitions, groups, aiExampleCount, notes);
+        }}
+        onAddCustomGroup={handleAddCustomGroup}
+      />
+
+      <BatchWordFamilyModal
+        opened={batchWordFamilyModalOpen}
+        onClose={() => setBatchWordFamilyModalOpen(false)}
+        allMissingWords={missingWordFamilyWords}
+        filteredMissingWords={filteredMissingWordFamilyWords}
+        onGenerateWordFamily={fetchAndStoreWordFamily}
+      />
+    </Container>
   );
 }

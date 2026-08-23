@@ -2,6 +2,7 @@ import { Badge, Button, Card, Group, Modal, Stack, Text, Tooltip } from '@mantin
 import {
   IconChartBar,
   IconEdit,
+  IconHierarchy,
   IconRotateClockwise,
   IconSparkles,
   IconTrash,
@@ -252,6 +253,27 @@ export function WordList({
                       >
                         <IconRotateClockwise size={15} />
                       </WordActionIcon>
+                      {onRefreshWordFamily && (
+                        <WordActionIcon
+                          label={
+                            (wordFamilies[item.id] || []).some((m) => !m.isDeleted)
+                              ? `Regenerate word family for ${item.word}`
+                              : `Generate word family for ${item.word}`
+                          }
+                          ariaLabel={
+                            (wordFamilies[item.id] || []).some((m) => !m.isDeleted)
+                              ? `Regenerate word family for ${item.word}`
+                              : `Generate word family for ${item.word}`
+                          }
+                          color="indigo"
+                          size="sm"
+                          onClick={() => onRefreshWordFamily(item.id, item.word)}
+                          disabled={generatingWordFamilyWordIds[item.id]}
+                          loading={generatingWordFamilyWordIds[item.id]}
+                        >
+                          <IconHierarchy size={15} />
+                        </WordActionIcon>
+                      )}
                       <WordActionIcon
                         label="Edit word"
                         ariaLabel={`Edit ${item.word}`}

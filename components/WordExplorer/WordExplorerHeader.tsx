@@ -24,6 +24,7 @@ import {
   IconBook,
   IconCheck,
   IconFilter,
+  IconHierarchy,
   IconPlus,
   IconSearch,
   IconSortAscending,
@@ -41,7 +42,8 @@ export type WordStatusFilter =
   | 'review'
   | 'missed'
   | 'withNotes'
-  | 'withWordFamily';
+  | 'withWordFamily'
+  | 'withoutWordFamily';
 
 export type WordSortOption =
   | 'alphaAsc'
@@ -77,6 +79,8 @@ export type WordExplorerHeaderProps = {
   onSortOptionChange: (sort: WordSortOption) => void;
   density: WordViewDensity;
   onDensityChange: (density: WordViewDensity) => void;
+  missingWordFamilyCount?: number;
+  onOpenBatchWordFamilyModal?: () => void;
   onOpenAddModal: () => void;
   onOpenGroupManager: () => void;
 };
@@ -132,6 +136,7 @@ const STATUS_OPTIONS = [
   { value: 'missed', label: '⚠️ Missed in Quizzes' },
   { value: 'withNotes', label: '📝 Has Personal Notes' },
   { value: 'withWordFamily', label: '🌳 Has Word Family' },
+  { value: 'withoutWordFamily', label: '🌱 Missing Word Family' },
 ];
 
 const SORT_OPTIONS = [
@@ -169,6 +174,8 @@ export function WordExplorerHeader({
   onSortOptionChange,
   density,
   onDensityChange,
+  missingWordFamilyCount = 0,
+  onOpenBatchWordFamilyModal,
   onOpenAddModal,
   onOpenGroupManager,
 }: WordExplorerHeaderProps) {
@@ -215,7 +222,7 @@ export function WordExplorerHeader({
               </div>
             </Group>
 
-            <Group gap="xs">
+            <Group gap="xs" wrap="wrap">
               <Badge
                 variant="gradient"
                 gradient={{ from: 'indigo', to: 'purple' }}
@@ -225,6 +232,19 @@ export function WordExplorerHeader({
               >
                 Showing {filteredCount} of {totalCount}
               </Badge>
+
+              {missingWordFamilyCount > 0 && onOpenBatchWordFamilyModal && (
+                <Button
+                  variant="light"
+                  color="indigo"
+                  size="sm"
+                  radius="md"
+                  leftSection={<IconHierarchy size={16} />}
+                  onClick={onOpenBatchWordFamilyModal}
+                >
+                  Generate Missing Families ({missingWordFamilyCount})
+                </Button>
+              )}
 
               <Button
                 variant="light"

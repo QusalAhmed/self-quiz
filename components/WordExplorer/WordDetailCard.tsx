@@ -29,6 +29,7 @@ import {
   IconChevronUp,
   IconCopy,
   IconEdit,
+  IconHierarchy,
   IconNotes,
   IconRotateClockwise,
   IconSparkles,
@@ -395,6 +396,28 @@ export function WordDetailCard({
           >
             <IconRotateClockwise size={16} />
           </WordActionIcon>
+
+          {onRefreshWordFamily && (
+            <WordActionIcon
+              label={
+                wordFamilyMembers.some((m) => !m.isDeleted)
+                  ? `Regenerate word family for ${word.word}`
+                  : `Generate word family for ${word.word}`
+              }
+              ariaLabel={
+                wordFamilyMembers.some((m) => !m.isDeleted)
+                  ? `Regenerate word family for ${word.word}`
+                  : `Generate word family for ${word.word}`
+              }
+              color="indigo"
+              size="sm"
+              onClick={() => onRefreshWordFamily(word.id, word.word)}
+              disabled={isGeneratingWordFamily}
+              loading={isGeneratingWordFamily}
+            >
+              <IconHierarchy size={16} />
+            </WordActionIcon>
+          )}
 
           <WordActionIcon
             label="Edit word details"

@@ -4,6 +4,7 @@ import './global.css';
 import { ColorSchemeScript, mantineHtmlProps, MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import React from 'react';
+import { AppShellLayout } from '@/components/Layout/AppShellLayout';
 import { ReduxProvider } from '@/lib/redux/provider';
 import { theme } from '@/theme';
 
@@ -12,7 +13,7 @@ export const metadata = {
   description: 'Local-first English word memorization with quiz practice.',
 };
 
-export default function RootLayout({ children }: { children: any }) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" {...mantineHtmlProps}>
       <head>
@@ -30,7 +31,7 @@ export default function RootLayout({ children }: { children: any }) {
         <ReduxProvider>
           <MantineProvider theme={theme}>
             <Notifications position="top-right" zIndex={2000} autoClose={4000} />
-            {children}
+            <AppShellLayout>{children}</AppShellLayout>
           </MantineProvider>
         </ReduxProvider>
       </body>

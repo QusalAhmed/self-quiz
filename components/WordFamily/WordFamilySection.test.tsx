@@ -37,8 +37,33 @@ const mockMembers: WordFamilyMemberRecord[] = [
 ];
 
 describe('WordFamilySection component', () => {
-  it('returns null when members are empty and not loading', () => {
+  it('returns null when members are empty, not loading, and no onRefresh is provided', () => {
     render(<WordFamilySection wordId="w1" word="decide" members={[]} />);
+    expect(screen.queryByText(/Word Family/i)).toBeNull();
+  });
+
+  it('renders generate button when members are empty and onRefresh is provided', () => {
+    const handleRefresh = jest.fn();
+    render(<WordFamilySection wordId="w1" word="decide" members={[]} onRefresh={handleRefresh} />);
+    expect(screen.getByText('Word Family')).toBeInTheDocument();
+    expect(screen.getByText('(Never generated)')).toBeInTheDocument();
+    const genBtn = screen.getByRole('button', { name: /generate word family for decide/i });
+    expect(genBtn).toBeInTheDocument();
+    fireEvent.click(genBtn);
+    expect(handleRefresh).toHaveBeenCalledWith('w1', 'decide');
+  });
+
+  it('returns null when hideWhenEmpty is true even if onRefresh is provided', () => {
+    const handleRefresh = jest.fn();
+    render(
+      <WordFamilySection
+        wordId="w1"
+        word="decide"
+        members={[]}
+        hideWhenEmpty
+        onRefresh={handleRefresh}
+      />
+    );
     expect(screen.queryByText(/Word Family/i)).toBeNull();
   });
 

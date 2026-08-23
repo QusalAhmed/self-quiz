@@ -1,7 +1,6 @@
 'use client';
 
 import {
-  Box,
   Card,
   Container,
   Group,
@@ -11,9 +10,7 @@ import {
   Stack,
   Text,
   Title,
-  useMantineColorScheme,
 } from '@mantine/core';
-import { useRouter } from 'next/navigation';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AnalysisHeader,
@@ -40,8 +37,6 @@ import {
 } from '@/components/Analysis';
 import { EditWordModal } from '@/components/EditWordModal/EditWordModal';
 import { GroupManager } from '@/components/GroupManager/GroupManager';
-import { PwaRegister } from '@/components/PwaRegister/PwaRegister';
-import { AppSidebar } from '@/components/Sidebar/AppSidebar';
 import { calculateAnalysis } from '@/lib/analysis/calculator';
 import type { AnalysisFilters } from '@/lib/analysis/types';
 import {
@@ -56,20 +51,9 @@ import {
   type WordRecord,
 } from '@/lib/db';
 import { getActiveGroupNames, replaceGroupInWordGroups, wordHasGroup } from '@/lib/groups';
-import { useAppDispatch } from '@/lib/redux/hooks';
-import {
-  openAllWordsQuiz,
-  openFsrsQuiz,
-  openTodayQuiz,
-  setMode,
-} from '@/lib/redux/slices/quizSlice';
 import { setupSupabaseReplication } from '@/lib/replication';
 
 export default function AnalysisPage() {
-  const router = useRouter();
-  const dispatch = useAppDispatch();
-  const { colorScheme, setColorScheme } = useMantineColorScheme();
-
   const [database, setDatabase] = useState<AppDatabase | null>(null);
   const [words, setWords] = useState<WordRecord[]>([]);
   const [groups, setGroups] = useState<GroupRecord[]>([]);
@@ -222,26 +206,6 @@ export default function AnalysisPage() {
     });
   }, [words, fsrsRecords, dailyUsage, missedWords, groups, reviewLogs, filters, nowTicker]);
 
-  // Derived counts for sidebar
-  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
-  const todayCount = useMemo(
-    () => words.filter((w) => !w.isDeleted && w.createdAt.startsWith(todayStr)).length,
-    [words, todayStr]
-  );
-
-  const fsrsDueTodayCount = useMemo(() => {
-    const nowTime = new Date().getTime();
-    return fsrsRecords.filter((r) => {
-      if (r.isDeleted) {
-        return false;
-      }
-      if (!r.dueAt) {
-        return true;
-      }
-      return new Date(r.dueAt).getTime() <= nowTime;
-    }).length;
-  }, [fsrsRecords]);
-
   // Word selection for Edit Modal
   const handleSelectWord = useCallback(
     (wordId: string) => {
@@ -368,262 +332,226 @@ export default function AnalysisPage() {
   );
 
   return (
-    <Box style={{ display: 'flex', minHeight: '100vh', width: '100%' }}>
-      <PwaRegister />
+    <Container size="xl" pt={0} pb={{ base: 'md', sm: 'xl' }} px={{ base: 'xs', sm: 'md' }}>
+      {isLoading ? (
+        <Card
+          className="glass-panel"
+          radius="xl"
+          padding="xl"
+          style={{ textAlign: 'center' }}
+          py={60}
+        >
+          <Stack align="center" gap="sm">
+            <Loader color="indigo" size="lg" type="dots" />
+            <Text size="sm" c="dimmed">
+              Aggregating FSRS records and study analytics...
+            </Text>
+          </Stack>
+        </Card>
+      ) : (
+        <Stack gap="lg">
+          {/* 1. Header with Period & Attribute Controls */}
+          <AnalysisHeader
+            filters={filters}
+            onFiltersChange={setFilters}
+            availableGroups={customGroups}
+            totalWords={words.length}
+            totalMastered={analysis.kpis.wordsMastered.value}
+            onRefresh={() => setNowTicker(new Date().toISOString())}
+          />
 
-      {/* Navigation Sidebar */}
-      <AppSidebar
-        mode="study"
-        onSetMode={(m) => {
-          dispatch(setMode(m));
-          if (m === 'quiz') {
-            router.push('/');
-          }
-        }}
-        onOpenAllWordsQuiz={() => {
-          dispatch(openAllWordsQuiz());
-          router.push('/');
-        }}
-        onOpenTodayQuiz={() => {
-          dispatch(openTodayQuiz());
-          router.push('/');
-        }}
-        onOpenFsrsQuiz={() => {
-          dispatch(openFsrsQuiz());
-          router.push('/');
-        }}
-        onOpenGroupManager={() => setGroupManagerOpen(true)}
-        totalWords={words.length}
-        todayCount={todayCount}
-        fsrsDueTodayCount={fsrsDueTodayCount}
-        colorScheme={colorScheme}
-        onToggleTheme={() => setColorScheme(colorScheme === 'dark' ? 'light' : 'dark')}
-      />
-
-      {/* Main Analysis Content Body */}
-      <Box component="main" style={{ flex: 1, minWidth: 0, overflowY: 'auto' }}>
-        <Container size="xl" py={{ base: 'md', sm: 'xl' }} px={{ base: 'xs', sm: 'md' }}>
-          {isLoading ? (
-            <Card
-              className="glass-panel"
-              radius="xl"
-              padding="xl"
-              style={{ textAlign: 'center' }}
-              py={60}
-            >
-              <Stack align="center" gap="sm">
-                <Loader color="indigo" size="lg" type="dots" />
-                <Text size="sm" c="dimmed">
-                  Aggregating FSRS records and study analytics...
-                </Text>
-              </Stack>
-            </Card>
+          {!analysis.hasData ? (
+            <EmptyAnalysisState totalWords={words.length} />
           ) : (
-            <Stack gap="lg">
-              {/* 1. Header with Period & Attribute Controls */}
-              <AnalysisHeader
-                filters={filters}
-                onFiltersChange={setFilters}
-                availableGroups={customGroups}
-                totalWords={words.length}
-                totalMastered={analysis.kpis.wordsMastered.value}
-                onRefresh={() => setNowTicker(new Date().toISOString())}
+            <>
+              {/* 2. High-Value Overview KPI Cards */}
+              <KpiOverview kpis={analysis.kpis} />
+
+              {/* 3. Vocabulary Growth & Learning Trajectory */}
+              <LearningProgressChart
+                data={analysis.timeSeries}
+                weeklyData={analysis.timeSeriesWeekly}
+                monthlyData={analysis.timeSeriesMonthly}
+                vocabularyGrowth={analysis.vocabularyGrowth}
+                totalWords={analysis.totalWordsCount}
+                masteredWords={analysis.kpis.wordsMastered.value}
+                statusInfo={analysis.statuses.progress}
               />
 
-              {!analysis.hasData ? (
-                <EmptyAnalysisState totalWords={words.length} />
-              ) : (
-                <>
-                  {/* 2. High-Value Overview KPI Cards */}
-                  <KpiOverview kpis={analysis.kpis} />
+              {/* 3.1 Words Added per Day Bar Chart */}
+              <DailyWordsAddedChart
+                data={analysis.dailyWordsAdded}
+                statusInfo={analysis.statuses.dailyWordsAdded}
+              />
 
-                  {/* 3. Vocabulary Growth & Learning Trajectory */}
-                  <LearningProgressChart
-                    data={analysis.timeSeries}
-                    weeklyData={analysis.timeSeriesWeekly}
-                    monthlyData={analysis.timeSeriesMonthly}
-                    vocabularyGrowth={analysis.vocabularyGrowth}
-                    totalWords={analysis.totalWordsCount}
-                    masteredWords={analysis.kpis.wordsMastered.value}
-                    statusInfo={analysis.statuses.progress}
-                  />
+              {/* 4. Words by Learning State (Interactive) */}
+              <LearningStateDistribution
+                data={analysis.stateDistribution}
+                activeFilter={filters.stateFilter}
+                onSelectState={(state) => setFilters((f) => ({ ...f, stateFilter: state }))}
+                statusInfo={analysis.statuses.stateDistribution}
+              />
 
-                  {/* 3.1 Words Added per Day Bar Chart */}
-                  <DailyWordsAddedChart
-                    data={analysis.dailyWordsAdded}
-                    statusInfo={analysis.statuses.dailyWordsAdded}
-                  />
+              {/* 5. Study Time Over Time & Pacing */}
+              <StudyTimeAnalytics
+                data={analysis.timeSeries}
+                weeklyData={analysis.timeSeriesWeekly}
+                monthlyData={analysis.timeSeriesMonthly}
+                totalStudyTimeMetric={analysis.kpis.totalStudyTimeSec}
+                efficiency={analysis.efficiency}
+                totalReviews={analysis.totalReviewsCount}
+                activeStudyDays={analysis.activity.daysStudied}
+                statusInfo={analysis.statuses.studyTime}
+              />
 
-                  {/* 4. Words by Learning State (Interactive) */}
-                  <LearningStateDistribution
-                    data={analysis.stateDistribution}
-                    activeFilter={filters.stateFilter}
-                    onSelectState={(state) => setFilters((f) => ({ ...f, stateFilter: state }))}
-                    statusInfo={analysis.statuses.stateDistribution}
-                  />
+              {/* 6. Time Spent Per Word (Ranked Table & Top Consuming Chart) */}
+              <WordTimeAnalysis
+                words={analysis.timeSpentPerWord}
+                allWordsMap={wordsById}
+                onSelectWord={(w) => setSelectedWordRecord(w)}
+                statusInfo={analysis.statuses.wordTime}
+              />
 
-                  {/* 5. Study Time Over Time & Pacing */}
-                  <StudyTimeAnalytics
-                    data={analysis.timeSeries}
-                    weeklyData={analysis.timeSeriesWeekly}
-                    monthlyData={analysis.timeSeriesMonthly}
-                    totalStudyTimeMetric={analysis.kpis.totalStudyTimeSec}
-                    efficiency={analysis.efficiency}
-                    totalReviews={analysis.totalReviewsCount}
-                    activeStudyDays={analysis.activity.daysStudied}
-                    statusInfo={analysis.statuses.studyTime}
-                  />
+              {/* 7. Time-to-Mastery Trajectory & Fastest/Slowest Words */}
+              <TimeToMasteryCard
+                data={analysis.timeToMastery}
+                allWordsMap={wordsById}
+                onSelectWord={(w) => setSelectedWordRecord(w)}
+                statusInfo={analysis.statuses.timeToMastery}
+              />
 
-                  {/* 6. Time Spent Per Word (Ranked Table & Top Consuming Chart) */}
-                  <WordTimeAnalysis
-                    words={analysis.timeSpentPerWord}
-                    allWordsMap={wordsById}
-                    onSelectWord={(w) => setSelectedWordRecord(w)}
-                    statusInfo={analysis.statuses.wordTime}
-                  />
+              {/* 8. Word Difficulty vs Study Effort Scatter */}
+              <WordDifficultyVsTime
+                data={analysis.wordEffortPoints}
+                allWordsMap={wordsById}
+                onSelectWord={(w) => setSelectedWordRecord(w)}
+                statusInfo={analysis.statuses.difficultyVsTime}
+              />
 
-                  {/* 7. Time-to-Mastery Trajectory & Fastest/Slowest Words */}
-                  <TimeToMasteryCard
-                    data={analysis.timeToMastery}
-                    allWordsMap={wordsById}
-                    onSelectWord={(w) => setSelectedWordRecord(w)}
-                    statusInfo={analysis.statuses.timeToMastery}
-                  />
+              {/* 9. Category & Tag Analysis (when applicable) */}
+              {analysis.categoryComparisons.length > 0 && (
+                <CategoryAnalysis
+                  categories={analysis.categoryComparisons}
+                  statusInfo={analysis.statuses.categoryComparison}
+                />
+              )}
 
-                  {/* 8. Word Difficulty vs Study Effort Scatter */}
-                  <WordDifficultyVsTime
-                    data={analysis.wordEffortPoints}
-                    allWordsMap={wordsById}
-                    onSelectWord={(w) => setSelectedWordRecord(w)}
-                    statusInfo={analysis.statuses.difficultyVsTime}
-                  />
+              {/* 10. Retention & Response Quality Analysis */}
+              <RetentionAnalysis
+                distribution={analysis.ratingDistribution}
+                statusInfo={analysis.statuses.retention}
+              />
 
-                  {/* 9. Category & Tag Analysis (when applicable) */}
-                  {analysis.categoryComparisons.length > 0 && (
-                    <CategoryAnalysis
-                      categories={analysis.categoryComparisons}
-                      statusInfo={analysis.statuses.categoryComparison}
+              {/* 11. FSRS Memory Health & Diagnostics */}
+              <FsrsMemoryHealth
+                memoryHealth={analysis.memoryHealth}
+                statusInfo={analysis.statuses.memoryHealth}
+              />
+
+              {/* 12. Study Consistency & Habit Heatmap */}
+              <StudyActivityHeatmap
+                activity={analysis.activity}
+                statusInfo={analysis.statuses.activity}
+              />
+
+              {/* 13. Patterns, Insights & Actionable Recommendations */}
+              <InsightsAndRecommendations
+                insights={analysis.insights}
+                recommendations={analysis.recommendations}
+                statusInfo={analysis.statuses.insights}
+              />
+
+              {/* 14. Difficult Words vs Strongest Words Tabs */}
+              <Card className="glass-panel" radius="xl" padding="md">
+                <Stack gap="md">
+                  <Group justify="space-between" align="center" wrap="wrap">
+                    <Group gap="xs" align="center">
+                      <Title order={3} style={{ fontSize: '1.2rem' }}>
+                        Vocabulary Breakdown by Memory Strength
+                      </Title>
+                      <SectionStatusBadge statusInfo={analysis.statuses.wordsBreakdown} />
+                    </Group>
+                    <SegmentedControl
+                      size="xs"
+                      radius="md"
+                      value={wordsTab}
+                      onChange={(val) => setWordsTab(val as 'difficult' | 'strong')}
+                      data={[
+                        {
+                          label: `Difficult Words (${analysis.difficultWords.length})`,
+                          value: 'difficult',
+                        },
+                        {
+                          label: `Strongest Words (${analysis.strongestWords.length})`,
+                          value: 'strong',
+                        },
+                      ]}
+                    />
+                  </Group>
+
+                  {wordsTab === 'difficult' ? (
+                    <DifficultWordsTable
+                      words={analysis.difficultWords}
+                      onSelectWord={handleSelectWord}
+                    />
+                  ) : (
+                    <StrongestWordsTable
+                      words={analysis.strongestWords}
+                      onSelectWord={handleSelectWord}
                     />
                   )}
+                </Stack>
+              </Card>
 
-                  {/* 10. Retention & Response Quality Analysis */}
-                  <RetentionAnalysis
-                    distribution={analysis.ratingDistribution}
-                    statusInfo={analysis.statuses.retention}
-                  />
+              {/* 15. Vocabulary Growth Velocity & Study Efficiency */}
+              <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
+                <VocabularyGrowth
+                  growth={analysis.vocabularyGrowth}
+                  totalWords={analysis.totalWordsCount}
+                  masteredWords={analysis.kpis.wordsMastered.value}
+                  statusInfo={analysis.statuses.growth}
+                />
+                <StudyEfficiency
+                  efficiency={analysis.efficiency}
+                  statusInfo={analysis.statuses.efficiency}
+                />
+              </SimpleGrid>
 
-                  {/* 11. FSRS Memory Health & Diagnostics */}
-                  <FsrsMemoryHealth
-                    memoryHealth={analysis.memoryHealth}
-                    statusInfo={analysis.statuses.memoryHealth}
-                  />
-
-                  {/* 12. Study Consistency & Habit Heatmap */}
-                  <StudyActivityHeatmap
-                    activity={analysis.activity}
-                    statusInfo={analysis.statuses.activity}
-                  />
-
-                  {/* 13. Patterns, Insights & Actionable Recommendations */}
-                  <InsightsAndRecommendations
-                    insights={analysis.insights}
-                    recommendations={analysis.recommendations}
-                    statusInfo={analysis.statuses.insights}
-                  />
-
-                  {/* 14. Difficult Words vs Strongest Words Tabs */}
-                  <Card className="glass-panel" radius="xl" padding="md">
-                    <Stack gap="md">
-                      <Group justify="space-between" align="center" wrap="wrap">
-                        <Group gap="xs" align="center">
-                          <Title order={3} style={{ fontSize: '1.2rem' }}>
-                            Vocabulary Breakdown by Memory Strength
-                          </Title>
-                          <SectionStatusBadge statusInfo={analysis.statuses.wordsBreakdown} />
-                        </Group>
-                        <SegmentedControl
-                          size="xs"
-                          radius="md"
-                          value={wordsTab}
-                          onChange={(val) => setWordsTab(val as 'difficult' | 'strong')}
-                          data={[
-                            {
-                              label: `Difficult Words (${analysis.difficultWords.length})`,
-                              value: 'difficult',
-                            },
-                            {
-                              label: `Strongest Words (${analysis.strongestWords.length})`,
-                              value: 'strong',
-                            },
-                          ]}
-                        />
-                      </Group>
-
-                      {wordsTab === 'difficult' ? (
-                        <DifficultWordsTable
-                          words={analysis.difficultWords}
-                          onSelectWord={handleSelectWord}
-                        />
-                      ) : (
-                        <StrongestWordsTable
-                          words={analysis.strongestWords}
-                          onSelectWord={handleSelectWord}
-                        />
-                      )}
-                    </Stack>
-                  </Card>
-
-                  {/* 15. Vocabulary Growth Velocity & Study Efficiency */}
-                  <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
-                    <VocabularyGrowth
-                      growth={analysis.vocabularyGrowth}
-                      totalWords={analysis.totalWordsCount}
-                      masteredWords={analysis.kpis.wordsMastered.value}
-                      statusInfo={analysis.statuses.growth}
-                    />
-                    <StudyEfficiency
-                      efficiency={analysis.efficiency}
-                      statusInfo={analysis.statuses.efficiency}
-                    />
-                  </SimpleGrid>
-
-                  {/* 16. Historical Review Log & Audit Section */}
-                  <ReviewLogSection
-                    reviewLogs={reviewLogs}
-                    words={words}
-                    customGroups={customGroups}
-                    statusInfo={analysis.statuses.overview}
-                    onSelectWord={handleSelectWord}
-                  />
-                </>
-              )}
-            </Stack>
+              {/* 16. Historical Review Log & Audit Section */}
+              <ReviewLogSection
+                reviewLogs={reviewLogs}
+                words={words}
+                customGroups={customGroups}
+                statusInfo={analysis.statuses.overview}
+                onSelectWord={handleSelectWord}
+              />
+            </>
           )}
+        </Stack>
+      )}
 
-          {/* Edit Word Modal */}
-          <EditWordModal
-            opened={selectedWordRecord !== null}
-            onClose={() => setSelectedWordRecord(null)}
-            wordRecord={selectedWordRecord}
-            customGroups={customGroups}
-            onSave={async (id, w, m, d, g, aiCount, n) => {
-              await handleEditWord(id, w, m, d, g, aiCount, n);
-              setSelectedWordRecord(null);
-            }}
-            onAddCustomGroup={(g) => void handleAddGroup(g)}
-          />
+      {/* Edit Word Modal */}
+      <EditWordModal
+        opened={selectedWordRecord !== null}
+        onClose={() => setSelectedWordRecord(null)}
+        wordRecord={selectedWordRecord}
+        customGroups={customGroups}
+        onSave={async (id, w, m, d, g, aiCount, n) => {
+          await handleEditWord(id, w, m, d, g, aiCount, n);
+          setSelectedWordRecord(null);
+        }}
+        onAddCustomGroup={(g) => void handleAddGroup(g)}
+      />
 
-          {/* Group Manager Modal */}
-          <GroupManager
-            opened={groupManagerOpen}
-            onClose={() => setGroupManagerOpen(false)}
-            groups={groups}
-            onRename={handleRenameGroup}
-            onDelete={handleDeleteGroup}
-            onAdd={handleAddGroup}
-          />
-        </Container>
-      </Box>
-    </Box>
+      {/* Group Manager Modal */}
+      <GroupManager
+        opened={groupManagerOpen}
+        onClose={() => setGroupManagerOpen(false)}
+        groups={groups}
+        onRename={handleRenameGroup}
+        onDelete={handleDeleteGroup}
+        onAdd={handleAddGroup}
+      />
+    </Container>
   );
 }

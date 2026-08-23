@@ -32,6 +32,7 @@ export type WordFamilySectionProps = {
   members: WordFamilyMemberRecord[];
   isLoading?: boolean;
   defaultExpanded?: boolean;
+  hideWhenEmpty?: boolean;
   style?: React.CSSProperties;
   className?: string;
   onRefresh?: (wordId: string, word: string) => Promise<void> | void;
@@ -65,6 +66,7 @@ export function WordFamilySection({
   members,
   isLoading = false,
   defaultExpanded = false,
+  hideWhenEmpty = false,
   style,
   className,
   onRefresh,
@@ -81,8 +83,74 @@ export function WordFamilySection({
   const validMembers = (members || []).filter((m) => !m.isDeleted);
   const aiModel = validMembers.find((m) => m.generatorAiDetails)?.generatorAiDetails;
 
-  if (validMembers.length === 0 && !isLoading) {
-    return null;
+  if (validMembers.length === 0) {
+    if (hideWhenEmpty || (!onRefresh && !isLoading)) {
+      return null;
+    }
+
+    return (
+      <div
+        className={className}
+        style={{
+          marginTop: 10,
+          padding: '6px 12px',
+          borderRadius: '8px',
+          background: 'rgba(99, 102, 241, 0.03)',
+          border: '1px dashed rgba(99, 102, 241, 0.25)',
+          ...style,
+        }}
+      >
+        <Group justify="space-between" align="center" wrap="wrap" gap="xs">
+          <Group gap={6} align="center">
+            <ThemeIcon size="xs" variant="light" color="indigo" radius="xl">
+              <IconHierarchy size={12} />
+            </ThemeIcon>
+            <Text size="xs" fw={700} c="indigo">
+              Word Family
+            </Text>
+            {isLoading ? (
+              <Badge
+                size="xs"
+                variant="light"
+                color="indigo"
+                leftSection={<IconSparkles size={10} />}
+              >
+                Generating...
+              </Badge>
+            ) : (
+              <Text size="xs" c="dimmed" fs="italic">
+                (Never generated)
+              </Text>
+            )}
+          </Group>
+
+          {onRefresh && (
+            <Tooltip
+              label={`Generate morphological word family & derivatives for "${word}"`}
+              withArrow
+              position="top"
+            >
+              <Button
+                size="compact-xs"
+                variant="light"
+                color="indigo"
+                radius="md"
+                loading={isLoading}
+                disabled={isLoading}
+                leftSection={<IconSparkles size={12} />}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void onRefresh(wordId, word);
+                }}
+                aria-label={`Generate word family for ${word}`}
+              >
+                Generate Word Family
+              </Button>
+            </Tooltip>
+          )}
+        </Group>
+      </div>
+    );
   }
 
   const handleConfirmDelete = async () => {
