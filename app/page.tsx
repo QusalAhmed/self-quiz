@@ -2025,6 +2025,8 @@ export default function HomePage() {
             onDeleteFsrsRecord={handleDeleteFsrsRecord}
             canUndo={quizHistory.length > 0}
             onUndo={handleUndoQuiz}
+            quizCandidates={quizCandidates}
+            words={words}
           />
         )}
       </Stack>

@@ -20,6 +20,7 @@ import {
   IconBrain,
   IconChevronDown,
   IconChevronUp,
+  IconDownload,
   IconEye,
   IconEyeOff,
   IconFlame,
@@ -38,6 +39,7 @@ import {
   type QuizRangeKey,
   type QuizSourceKey,
 } from '@/app/home/constants';
+import { ExportWordsModal } from '@/components/Home/ExportWordsModal';
 import { MissedWordVirtualList } from '@/components/Practice/MissedWordVirtualList';
 import { PracticeDisplayCombobox } from '@/components/Practice/PracticeDisplayCombobox';
 import { QuizPanel, type QuizDirection, type QuizItem } from '@/components/QuizPanel/QuizPanel';
@@ -113,6 +115,13 @@ type QuizModeSectionProps = {
   onDeleteFsrsRecord?: (wordId: string, quizMode: QuizDirection) => void;
   canUndo?: boolean;
   onUndo?: () => void;
+  quizCandidates?: Array<
+    | import('@/lib/db').WordRecord
+    | import('@/lib/db').MissedWordRecord
+    | import('@/lib/db').FsrsRecord
+    | QuizItem
+  >;
+  words?: import('@/lib/db').WordRecord[];
 };
 
 export function QuizModeSection({
@@ -174,6 +183,8 @@ export function QuizModeSection({
   onDeleteFsrsRecord,
   canUndo,
   onUndo,
+  quizCandidates,
+  words,
 }: QuizModeSectionProps) {
   const displayedMissedItems = useMemo(() => {
     const fsrsWords = fsrsForgettingWordsForMode || [];
@@ -191,6 +202,19 @@ export function QuizModeSection({
   }, [practiceDisplayMode, missedWordsForMode, fsrsForgettingWordsForMode]);
 
   const [optionsExpanded, setOptionsExpanded] = useState(true);
+  const [exportModalConfig, setExportModalConfig] = useState<{
+    opened: boolean;
+    title: string;
+    filenamePrefix: string;
+    items: Array<any>;
+  } | null>(null);
+
+  const wordsMap = useMemo(() => {
+    if (!words) {
+      return undefined;
+    }
+    return new Map(words.map((w) => [w.id, w]));
+  }, [words]);
 
   return (
     <Stack gap="lg" style={{ minHeight: '100vh' }}>
@@ -369,6 +393,36 @@ export function QuizModeSection({
                 </Text>
                 <Group gap="xs" wrap="wrap" justify="flex-end">
                   <Tooltip
+                    label="Export current quiz selection words to CSV, JSON, or Plain Text"
+                    withArrow
+                  >
+                    <Button
+                      variant="light"
+                      color="indigo"
+                      size="sm"
+                      radius="md"
+                      leftSection={<IconDownload size={16} />}
+                      onClick={() =>
+                        setExportModalConfig({
+                          opened: true,
+                          title: 'Export Quiz Selection Words',
+                          filenamePrefix: `quiz-${quizSource}-${quizDirection}`,
+                          items:
+                            quizCandidates && quizCandidates.length > 0
+                              ? quizCandidates
+                              : currentQuizItem
+                                ? [currentQuizItem]
+                                : [],
+                        })
+                      }
+                      disabled={quizCandidatesCount === 0}
+                      style={{ fontWeight: 600 }}
+                    >
+                      Export ({quizCandidatesCount})
+                    </Button>
+                  </Tooltip>
+
+                  <Tooltip
                     label="Automatically pronounce the word when it becomes visible in quiz"
                     withArrow
                   >
@@ -513,6 +567,27 @@ export function QuizModeSection({
               </ActionIcon>
             </Tooltip>
 
+            <Tooltip label="Export displayed review/missed words" withArrow>
+              <Button
+                variant="light"
+                color="red"
+                size="xs"
+                radius="md"
+                leftSection={<IconDownload size={14} />}
+                onClick={() =>
+                  setExportModalConfig({
+                    opened: true,
+                    title: `Export ${practiceDisplayModes[practiceDisplayMode]}`,
+                    filenamePrefix: `review-${practiceDisplayMode}-${quizDirection}`,
+                    items: displayedMissedItems,
+                  })
+                }
+                disabled={displayedMissedItems.length === 0}
+              >
+                Export ({displayedMissedItems.length})
+              </Button>
+            </Tooltip>
+
             <Button
               variant="light"
               color="indigo"
@@ -580,6 +655,17 @@ export function QuizModeSection({
           />
         )}
       </Card>
+
+      {exportModalConfig && (
+        <ExportWordsModal
+          opened={exportModalConfig.opened}
+          onClose={() => setExportModalConfig(null)}
+          title={exportModalConfig.title}
+          filenamePrefix={exportModalConfig.filenamePrefix}
+          rawItems={exportModalConfig.items}
+          wordsMap={wordsMap}
+        />
+      )}
     </Stack>
   );
 }

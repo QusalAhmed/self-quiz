@@ -1,8 +1,9 @@
 'use client';
 
-import { Box, Card, Group, Stack, Text, Title } from '@mantine/core';
-import { IconHistory } from '@tabler/icons-react';
+import { Box, Button, Card, Group, Stack, Text, Title } from '@mantine/core';
+import { IconDownload, IconHistory } from '@tabler/icons-react';
 import React, { useMemo, useState } from 'react';
+import { ExportWordsModal } from '@/components/Home/ExportWordsModal';
 import {
   ReviewDetailModal,
   ReviewLogFilters,
@@ -30,6 +31,7 @@ export function ReviewLogSection({
   onSelectWord,
 }: ReviewLogSectionProps) {
   const [selectedLog, setSelectedLog] = useState<ReviewLogRecord | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const [filters, setFilters] = useState<ReviewLogFilterState>({
     searchQuery: '',
@@ -100,13 +102,13 @@ export function ReviewLogSection({
               return false;
             }
           } else if (filters.datePreset === '7d') {
-            const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-            if (logDate < sevenDaysAgo) {
+            const cutoff = new Date(now.getTime() - 7 * 86400 * 1000);
+            if (logDate < cutoff) {
               return false;
             }
           } else if (filters.datePreset === '30d') {
-            const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-            if (logDate < thirtyDaysAgo) {
+            const cutoff = new Date(now.getTime() - 30 * 86400 * 1000);
+            if (logDate < cutoff) {
               return false;
             }
           } else if (filters.datePreset === 'custom') {
@@ -183,6 +185,18 @@ export function ReviewLogSection({
               </Text>
             </div>
           </Group>
+
+          <Button
+            variant="light"
+            color="indigo"
+            size="xs"
+            radius="md"
+            leftSection={<IconDownload size={14} />}
+            onClick={() => setExportOpen(true)}
+            disabled={filteredLogs.length === 0}
+          >
+            Export Logs ({filteredLogs.length})
+          </Button>
         </Group>
 
         {/* 1. Quick Stats Strip */}
@@ -211,6 +225,16 @@ export function ReviewLogSection({
           reviewLog={selectedLog}
           wordRecord={selectedLog ? wordsById.get(selectedLog.wordId) : null}
           onEditWord={onSelectWord}
+        />
+
+        {/* 5. Export Review Logs Modal */}
+        <ExportWordsModal
+          opened={exportOpen}
+          onClose={() => setExportOpen(false)}
+          title="Export Review Logs"
+          filenamePrefix="review-logs"
+          rawItems={filteredLogs}
+          wordsMap={wordsById}
         />
       </Stack>
     </Card>
