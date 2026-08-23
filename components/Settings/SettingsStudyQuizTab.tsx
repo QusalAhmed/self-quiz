@@ -143,7 +143,7 @@ export function SettingsStudyQuizTab({ settings, onChange }: SettingsStudyQuizTa
         <Stack gap="md">
           {/* Default Range */}
           <Group justify="space-between" align="center" wrap="wrap" gap="sm">
-            <div>
+            <div style={{ flex: '1 1 200px' }}>
               <Text size="sm" fw={600}>
                 Default Quiz Batch Range
               </Text>
@@ -162,15 +162,15 @@ export function SettingsStudyQuizTab({ settings, onChange }: SettingsStudyQuizTa
                 { value: '100', label: 'First 100 Words' },
               ]}
               size="xs"
-              style={{ width: 170 }}
+              style={{ width: '100%', maxWidth: 200 }}
             />
           </Group>
 
           <Divider />
 
           {/* Auto Pronounce */}
-          <Group justify="space-between" align="center">
-            <div>
+          <Group justify="space-between" align="center" wrap="wrap" gap="sm">
+            <div style={{ flex: '1 1 200px' }}>
               <Group gap="xs">
                 <IconVolume size={16} color="var(--mantine-color-indigo-5)" />
                 <Text size="sm" fw={600}>
@@ -191,8 +191,8 @@ export function SettingsStudyQuizTab({ settings, onChange }: SettingsStudyQuizTa
           <Divider />
 
           {/* Auto Advance */}
-          <Group justify="space-between" align="center">
-            <div>
+          <Group justify="space-between" align="center" wrap="wrap" gap="sm">
+            <div style={{ flex: '1 1 200px' }}>
               <Group gap="xs">
                 <IconPlayerTrackNext size={16} color="var(--mantine-color-violet-5)" />
                 <Text size="sm" fw={600}>
@@ -246,8 +246,8 @@ export function SettingsStudyQuizTab({ settings, onChange }: SettingsStudyQuizTa
           <Divider />
 
           {/* Shuffle Choices */}
-          <Group justify="space-between" align="center">
-            <div>
+          <Group justify="space-between" align="center" wrap="wrap" gap="sm">
+            <div style={{ flex: '1 1 200px' }}>
               <Text size="sm" fw={600}>
                 Randomize & Shuffle Card Order
               </Text>
@@ -290,8 +290,8 @@ export function SettingsStudyQuizTab({ settings, onChange }: SettingsStudyQuizTa
         </Group>
 
         <Stack gap="md">
-          <Group justify="space-between" align="center">
-            <div>
+          <Group justify="space-between" align="center" wrap="wrap" gap="sm">
+            <div style={{ flex: '1 1 200px' }}>
               <Text size="sm" fw={600}>
                 Hide Missed Words Meanings by Default
               </Text>
@@ -308,8 +308,8 @@ export function SettingsStudyQuizTab({ settings, onChange }: SettingsStudyQuizTa
 
           <Divider />
 
-          <Group justify="space-between" align="center">
-            <div>
+          <Group justify="space-between" align="center" wrap="wrap" gap="sm">
+            <div style={{ flex: '1 1 200px' }}>
               <Text size="sm" fw={600}>
                 Hide SRS Practice Meanings by Default
               </Text>

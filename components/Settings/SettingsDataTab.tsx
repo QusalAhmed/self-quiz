@@ -353,7 +353,7 @@ export function SettingsDataTab({
           mb="md"
         />
 
-        <SimpleGrid cols={{ base: 2, sm: 3, md: 6 }} spacing="sm">
+        <SimpleGrid cols={{ base: 2, xs: 3, md: 6 }} spacing="xs">
           <Paper withBorder p="xs" radius="md">
             <Text size="xs" c="dimmed">
               Words
@@ -555,20 +555,20 @@ export function SettingsDataTab({
               label="Import Strategy"
               description="Choose whether to merge with existing data or overwrite"
             >
-              <Group mt="xs">
-                <Radio value="merge" label="Merge (Keep existing words)" color="violet" />
+              <Group mt="xs" wrap="wrap" gap="xs">
+                <Radio value="merge" label="Merge (Keep existing)" color="violet" />
                 <Radio value="overwrite" label="Overwrite (Replace duplicates)" color="orange" />
               </Group>
             </Radio.Group>
 
             <Button
               color="violet"
-              size="sm"
+              size="xs"
               radius="md"
               disabled={!importFile}
               loading={isImporting}
               onClick={handleImportBackup}
-              leftSection={<IconUpload size={16} />}
+              leftSection={<IconUpload size={14} />}
             >
               Start Import
             </Button>

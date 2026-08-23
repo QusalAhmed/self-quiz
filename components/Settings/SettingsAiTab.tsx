@@ -302,8 +302,8 @@ export function SettingsAiTab({ settings, onChange }: SettingsAiTabProps) {
           boxShadow: 'var(--card-shadow)',
         }}
       >
-        <Group justify="space-between" align="center" mb="md">
-          <Group gap="sm">
+        <Group justify="space-between" align="center" wrap="wrap" gap="sm" mb="md">
+          <Group gap="sm" style={{ flex: '1 1 200px' }}>
             <ThemeIcon size="lg" radius="md" color="teal" variant="light">
               <IconKey size={20} />
             </ThemeIcon>
@@ -331,8 +331,8 @@ export function SettingsAiTab({ settings, onChange }: SettingsAiTabProps) {
         </Group>
 
         <Stack gap="md">
-          <Group justify="space-between" align="center">
-            <div>
+          <Group justify="space-between" align="center" wrap="wrap" gap="sm">
+            <div style={{ flex: '1 1 200px' }}>
               <Text size="sm" fw={600}>
                 Enable Custom API Key Overrides
               </Text>

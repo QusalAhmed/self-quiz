@@ -192,7 +192,7 @@ export function SettingsSyncTab({
             </div>
           </Group>
 
-          <Group gap="xs">
+          <Group gap="xs" wrap="wrap">
             <Button
               size="xs"
               variant="light"

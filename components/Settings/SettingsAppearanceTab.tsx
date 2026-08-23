@@ -80,7 +80,7 @@ export function SettingsAppearanceTab({ settings, onChange }: SettingsAppearance
           </Group>
         </Group>
 
-        <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
+        <SimpleGrid cols={{ base: 1, xs: 3 }} spacing="sm">
           <Paper
             withBorder
             p="md"
@@ -224,14 +224,15 @@ export function SettingsAppearanceTab({ settings, onChange }: SettingsAppearance
                   alignItems: 'center',
                   gap: 10,
                   transition: 'all 0.15s ease',
+                  minHeight: 48,
                 }}
                 onClick={() => onChange({ accentColor: item.key })}
               >
                 <ColorSwatch color={item.color} size={24}>
                   {isSelected && <IconCheck size={12} color="#fff" />}
                 </ColorSwatch>
-                <div>
-                  <Text size="xs" fw={isSelected ? 700 : 500}>
+                <div style={{ minWidth: 0 }}>
+                  <Text size="xs" fw={isSelected ? 700 : 500} truncate>
                     {item.label}
                   </Text>
                 </div>
@@ -267,8 +268,8 @@ export function SettingsAppearanceTab({ settings, onChange }: SettingsAppearance
         </Group>
 
         <Stack gap="md">
-          <Group justify="space-between" align="center">
-            <div>
+          <Group justify="space-between" align="center" wrap="wrap" gap="sm">
+            <div style={{ flex: '1 1 200px' }}>
               <Text size="sm" fw={600}>
                 UI Density Mode
               </Text>
@@ -290,8 +291,8 @@ export function SettingsAppearanceTab({ settings, onChange }: SettingsAppearance
 
           <Divider />
 
-          <Group justify="space-between" align="center">
-            <div>
+          <Group justify="space-between" align="center" wrap="wrap" gap="sm">
+            <div style={{ flex: '1 1 200px' }}>
               <Text size="sm" fw={600}>
                 Frosted Glassmorphism
               </Text>
@@ -309,8 +310,8 @@ export function SettingsAppearanceTab({ settings, onChange }: SettingsAppearance
 
           <Divider />
 
-          <Group justify="space-between" align="center">
-            <div>
+          <Group justify="space-between" align="center" wrap="wrap" gap="sm">
+            <div style={{ flex: '1 1 200px' }}>
               <Text size="sm" fw={600}>
                 Reduced Motion
               </Text>

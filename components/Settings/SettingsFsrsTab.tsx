@@ -163,7 +163,7 @@ export function SettingsFsrsTab({ settings, onChange, onResetFsrs }: SettingsFsr
         <Stack gap="md">
           {/* Max Interval */}
           <Group justify="space-between" align="center" wrap="wrap" gap="sm">
-            <div>
+            <div style={{ flex: '1 1 200px' }}>
               <Group gap="xs">
                 <IconClock size={16} color="var(--mantine-color-indigo-5)" />
                 <Text size="sm" fw={600}>
@@ -181,15 +181,15 @@ export function SettingsFsrsTab({ settings, onChange, onResetFsrs }: SettingsFsr
               max={36500}
               step={30}
               size="xs"
-              style={{ width: 140 }}
+              style={{ width: '100%', maxWidth: 160 }}
             />
           </Group>
 
           <Divider />
 
           {/* Enable Fuzz */}
-          <Group justify="space-between" align="center">
-            <div>
+          <Group justify="space-between" align="center" wrap="wrap" gap="sm">
+            <div style={{ flex: '1 1 200px' }}>
               <Group gap="xs">
                 <IconDice size={16} color="var(--mantine-color-teal-5)" />
                 <Text size="sm" fw={600}>
@@ -211,8 +211,8 @@ export function SettingsFsrsTab({ settings, onChange, onResetFsrs }: SettingsFsr
           <Divider />
 
           {/* Auto Refill Queue */}
-          <Group justify="space-between" align="center">
-            <div>
+          <Group justify="space-between" align="center" wrap="wrap" gap="sm">
+            <div style={{ flex: '1 1 200px' }}>
               <Group gap="xs">
                 <IconSparkles size={16} color="var(--mantine-color-violet-5)" />
                 <Text size="sm" fw={600}>
@@ -244,7 +244,7 @@ export function SettingsFsrsTab({ settings, onChange, onResetFsrs }: SettingsFsr
           boxShadow: 'var(--card-shadow)',
         }}
       >
-        <Group justify="space-between" align="center" mb="sm">
+        <Group justify="space-between" align="center" wrap="wrap" gap="xs" mb="sm">
           <Group gap="xs">
             <ThemeIcon size="md" radius="md" color="blue" variant="light">
               <IconInfoCircle size={18} />
@@ -271,7 +271,7 @@ export function SettingsFsrsTab({ settings, onChange, onResetFsrs }: SettingsFsr
           testing modes:
         </Text>
 
-        <SimpleGrid cols={{ base: 1, sm: 4 }} spacing="xs">
+        <SimpleGrid cols={{ base: 1, xs: 2, sm: 4 }} spacing="xs">
           <Paper withBorder p="xs" radius="md">
             <Text size="xs" fw={700} c="red">
               1. Again (Fail)

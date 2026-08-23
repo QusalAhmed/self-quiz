@@ -172,8 +172,8 @@ export function SettingsNotificationsTab({ settings, onChange }: SettingsNotific
         </Group>
 
         <Stack gap="md">
-          <Group justify="space-between" align="center">
-            <div>
+          <Group justify="space-between" align="center" wrap="wrap" gap="sm">
+            <div style={{ flex: '1 1 200px' }}>
               <Group gap="xs">
                 <IconBell size={16} color="var(--mantine-color-violet-5)" />
                 <Text size="sm" fw={600}>
@@ -193,8 +193,8 @@ export function SettingsNotificationsTab({ settings, onChange }: SettingsNotific
 
           <Divider />
 
-          <Group justify="space-between" align="center">
-            <div>
+          <Group justify="space-between" align="center" wrap="wrap" gap="sm">
+            <div style={{ flex: '1 1 200px' }}>
               <Group gap="xs">
                 <IconSparkles size={16} color="var(--mantine-color-teal-5)" />
                 <Text size="sm" fw={600}>
@@ -214,8 +214,8 @@ export function SettingsNotificationsTab({ settings, onChange }: SettingsNotific
 
           <Divider />
 
-          <Group justify="space-between" align="center">
-            <div>
+          <Group justify="space-between" align="center" wrap="wrap" gap="sm">
+            <div style={{ flex: '1 1 200px' }}>
               <Group gap="xs">
                 <IconVolume size={16} color="var(--mantine-color-blue-5)" />
                 <Text size="sm" fw={600}>
@@ -262,8 +262,8 @@ export function SettingsNotificationsTab({ settings, onChange }: SettingsNotific
 
         <Stack gap="md">
           {/* FSRS Word Added */}
-          <Group justify="space-between" align="center">
-            <div>
+          <Group justify="space-between" align="center" wrap="wrap" gap="sm">
+            <div style={{ flex: '1 1 200px' }}>
               <Group gap="xs">
                 <IconBrain size={16} color="var(--mantine-color-violet-5)" />
                 <Text size="sm" fw={600}>
@@ -291,8 +291,8 @@ export function SettingsNotificationsTab({ settings, onChange }: SettingsNotific
           <Divider />
 
           {/* FSRS Queue Refill */}
-          <Group justify="space-between" align="center">
-            <div>
+          <Group justify="space-between" align="center" wrap="wrap" gap="sm">
+            <div style={{ flex: '1 1 200px' }}>
               <Group gap="xs">
                 <IconClock size={16} color="var(--mantine-color-indigo-5)" />
                 <Text size="sm" fw={600}>
@@ -320,8 +320,8 @@ export function SettingsNotificationsTab({ settings, onChange }: SettingsNotific
           <Divider />
 
           {/* Quiz Completed */}
-          <Group justify="space-between" align="center">
-            <div>
+          <Group justify="space-between" align="center" wrap="wrap" gap="sm">
+            <div style={{ flex: '1 1 200px' }}>
               <Group gap="xs">
                 <IconTrophy size={16} color="var(--mantine-color-yellow-5)" />
                 <Text size="sm" fw={600}>
@@ -349,8 +349,8 @@ export function SettingsNotificationsTab({ settings, onChange }: SettingsNotific
           <Divider />
 
           {/* Daily Goals */}
-          <Group justify="space-between" align="center">
-            <div>
+          <Group justify="space-between" align="center" wrap="wrap" gap="sm">
+            <div style={{ flex: '1 1 200px' }}>
               <Group gap="xs">
                 <IconFlame size={16} color="var(--mantine-color-orange-5)" />
                 <Text size="sm" fw={600}>
@@ -378,8 +378,8 @@ export function SettingsNotificationsTab({ settings, onChange }: SettingsNotific
           <Divider />
 
           {/* Cloud Sync */}
-          <Group justify="space-between" align="center">
-            <div>
+          <Group justify="space-between" align="center" wrap="wrap" gap="sm">
+            <div style={{ flex: '1 1 200px' }}>
               <Group gap="xs">
                 <IconCloudCheck size={16} color="var(--mantine-color-teal-5)" />
                 <Text size="sm" fw={600}>
@@ -407,8 +407,8 @@ export function SettingsNotificationsTab({ settings, onChange }: SettingsNotific
           <Divider />
 
           {/* Word Saved */}
-          <Group justify="space-between" align="center">
-            <div>
+          <Group justify="space-between" align="center" wrap="wrap" gap="sm">
+            <div style={{ flex: '1 1 200px' }}>
               <Group gap="xs">
                 <IconWriting size={16} color="var(--mantine-color-cyan-5)" />
                 <Text size="sm" fw={600}>

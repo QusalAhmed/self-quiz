@@ -81,48 +81,54 @@ export function SettingsHeader({ settings, onResetAll }: SettingsHeaderProps) {
       />
 
       <Stack gap="md">
-        <Group justify="space-between" align="center" wrap="wrap" gap="sm">
-          <Group gap="sm" align="center">
+        <Group justify="space-between" align="flex-start" wrap="wrap" gap="sm">
+          <Group gap="sm" align="center" style={{ flex: '1 1 280px', minWidth: 0 }}>
             <Tooltip label="Back to Dashboard">
               <ActionIcon
                 variant="light"
                 color="indigo"
-                size="lg"
+                size="md"
                 radius="md"
                 onClick={() => router.push('/')}
                 aria-label="Back to Dashboard"
               >
-                <IconArrowLeft size={20} />
+                <IconArrowLeft size={18} />
               </ActionIcon>
             </Tooltip>
 
             <ThemeIcon
-              size={42}
+              size={40}
               radius="md"
               variant="gradient"
               gradient={{ from: 'indigo', to: 'violet', deg: 135 }}
-              style={{ boxShadow: '0 4px 14px rgba(99, 102, 241, 0.35)' }}
+              style={{ boxShadow: '0 4px 14px rgba(99, 102, 241, 0.35)', flexShrink: 0 }}
             >
-              <IconAdjustmentsHorizontal size={24} />
+              <IconAdjustmentsHorizontal size={20} />
             </ThemeIcon>
 
-            <div>
-              <Group gap="xs" align="center">
-                <Title order={2} style={{ fontSize: '1.45rem', lineHeight: 1.2 }}>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <Group gap="xs" align="center" wrap="wrap">
+                <Title
+                  order={2}
+                  style={{
+                    fontSize: 'clamp(1.15rem, 3.5vw, 1.45rem)',
+                    lineHeight: 1.2,
+                  }}
+                >
                   <span className="text-gradient">Application Settings</span>
                 </Title>
-                <Badge variant="light" color="indigo" size="sm" radius="sm">
+                <Badge variant="light" color="indigo" size="xs" radius="sm">
                   Personal Preferences
                 </Badge>
               </Group>
-              <Text size="xs" c="dimmed" mt={2}>
+              <Text size="xs" c="dimmed" mt={2} style={{ wordBreak: 'break-word' }}>
                 Customize appearance, quiz algorithms, voice audio, AI models, and data
                 synchronization
               </Text>
             </div>
           </Group>
 
-          <Group gap="xs">
+          <Group gap="xs" wrap="wrap" style={{ alignSelf: 'flex-start' }}>
             <Tooltip label="Export configuration file (JSON)">
               <Button
                 variant="subtle"

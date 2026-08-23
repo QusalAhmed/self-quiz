@@ -128,8 +128,8 @@ export function SettingsAudioTab({ settings, onChange }: SettingsAudioTabProps) 
         </Group>
 
         <Stack gap="md">
-          <Group justify="space-between" align="center">
-            <div>
+          <Group justify="space-between" align="center" wrap="wrap" gap="sm">
+            <div style={{ flex: '1 1 200px' }}>
               <Text size="sm" fw={600}>
                 Quiz Review Sound FX
               </Text>
@@ -146,8 +146,8 @@ export function SettingsAudioTab({ settings, onChange }: SettingsAudioTabProps) 
 
           <Divider />
 
-          <Group justify="space-between" align="center">
-            <div>
+          <Group justify="space-between" align="center" wrap="wrap" gap="sm">
+            <div style={{ flex: '1 1 200px' }}>
               <Text size="sm" fw={600}>
                 Notification Chimes
               </Text>
@@ -372,12 +372,12 @@ export function SettingsAudioTab({ settings, onChange }: SettingsAudioTabProps) 
             <Text size="xs" fw={700} c="dimmed" tt="uppercase" lts={1} mb="xs">
               Live Voice Preview
             </Text>
-            <Group align="flex-end" gap="sm">
+            <Group align="flex-end" wrap="wrap" gap="sm">
               <TextInput
                 label="Sample Sentence / Word"
                 value={testPhrase}
                 onChange={(e) => setTestPhrase(e.currentTarget.value)}
-                style={{ flex: 1 }}
+                style={{ flex: '1 1 200px' }}
                 radius="md"
                 size="sm"
               />
@@ -388,6 +388,7 @@ export function SettingsAudioTab({ settings, onChange }: SettingsAudioTabProps) 
                 loading={isSpeaking}
                 onClick={handleSpeakTestPhrase}
                 leftSection={<IconPlayerPlay size={16} />}
+                style={{ flexShrink: 0 }}
               >
                 Speak Sample
               </Button>

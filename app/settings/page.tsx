@@ -123,29 +123,40 @@ function SettingsContent() {
   };
 
   return (
-    <Container size="lg" py="xl">
-      <Stack gap="xl">
+    <Container size="lg" px={{ base: 'xs', sm: 'md', md: 'lg' }} py={{ base: 'sm', sm: 'xl' }}>
+      <Stack gap="md">
         {/* Top Header */}
         <SettingsHeader settings={settings} onResetAll={resetSettings} />
 
         {/* Tabbed Navigation & Content Panels */}
         <Tabs value={activeTab} onChange={setActiveTab} color="indigo" variant="pills" radius="md">
           {/* Scrollable Tab List for Mobile/Desktop */}
-          <ScrollArea type="never" offsetScrollbars={false}>
+          <ScrollArea
+            type="never"
+            offsetScrollbars={false}
+            styles={{
+              root: {
+                WebkitOverflowScrolling: 'touch',
+                touchAction: 'pan-x',
+              },
+            }}
+          >
             <Tabs.List
               style={{
                 flexWrap: 'nowrap',
                 gap: 6,
-                padding: 4,
+                padding: '6px 4px',
                 background: 'var(--card-bg)',
                 border: '1px solid var(--card-border)',
                 borderRadius: 12,
                 boxShadow: 'var(--card-shadow)',
+                minWidth: 'max-content',
               }}
             >
               <Tabs.Tab
                 value="appearance"
                 leftSection={<IconPalette size={16} />}
+                px={{ base: 'xs', sm: 'sm' }}
                 style={{ fontWeight: 600, fontSize: '0.85rem' }}
               >
                 Appearance
@@ -154,6 +165,7 @@ function SettingsContent() {
               <Tabs.Tab
                 value="study"
                 leftSection={<IconBrain size={16} />}
+                px={{ base: 'xs', sm: 'sm' }}
                 style={{ fontWeight: 600, fontSize: '0.85rem' }}
               >
                 Study & Quiz
@@ -162,6 +174,7 @@ function SettingsContent() {
               <Tabs.Tab
                 value="audio"
                 leftSection={<IconVolume size={16} />}
+                px={{ base: 'xs', sm: 'sm' }}
                 style={{ fontWeight: 600, fontSize: '0.85rem' }}
               >
                 Audio & Voice
@@ -170,6 +183,7 @@ function SettingsContent() {
               <Tabs.Tab
                 value="fsrs"
                 leftSection={<IconAdjustments size={16} />}
+                px={{ base: 'xs', sm: 'sm' }}
                 style={{ fontWeight: 600, fontSize: '0.85rem' }}
               >
                 FSRS Algorithm
@@ -178,6 +192,7 @@ function SettingsContent() {
               <Tabs.Tab
                 value="notifications"
                 leftSection={<IconBell size={16} />}
+                px={{ base: 'xs', sm: 'sm' }}
                 style={{ fontWeight: 600, fontSize: '0.85rem' }}
               >
                 Notifications
@@ -186,6 +201,7 @@ function SettingsContent() {
               <Tabs.Tab
                 value="ai"
                 leftSection={<IconCpu size={16} />}
+                px={{ base: 'xs', sm: 'sm' }}
                 style={{ fontWeight: 600, fontSize: '0.85rem' }}
               >
                 AI Models
@@ -194,6 +210,7 @@ function SettingsContent() {
               <Tabs.Tab
                 value="sync"
                 leftSection={<IconRefresh size={16} />}
+                px={{ base: 'xs', sm: 'sm' }}
                 style={{ fontWeight: 600, fontSize: '0.85rem' }}
               >
                 Cloud Sync
@@ -202,6 +219,7 @@ function SettingsContent() {
               <Tabs.Tab
                 value="data"
                 leftSection={<IconDatabase size={16} />}
+                px={{ base: 'xs', sm: 'sm' }}
                 style={{ fontWeight: 600, fontSize: '0.85rem' }}
               >
                 Data & Storage
@@ -210,6 +228,7 @@ function SettingsContent() {
               <Tabs.Tab
                 value="about"
                 leftSection={<IconInfoCircle size={16} />}
+                px={{ base: 'xs', sm: 'sm' }}
                 style={{ fontWeight: 600, fontSize: '0.85rem' }}
               >
                 About
