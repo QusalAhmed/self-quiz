@@ -141,10 +141,10 @@ export function ExportWordsModal({
           gap="xs"
           align="center"
           justify="space-between"
-          wrap="nowrap"
-          style={{ width: '100%', overflow: 'hidden' }}
+          wrap="wrap"
+          style={{ width: '100%', minWidth: 0, paddingRight: '24px' }}
         >
-          <Group gap="xs" align="center" wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
+          <Group gap="xs" align="center" wrap="nowrap" style={{ minWidth: 0 }}>
             <ThemeIcon
               size="md"
               variant="light"
@@ -188,7 +188,7 @@ export function ExportWordsModal({
       }}
     >
       <Stack gap="md">
-        {/* Format Selector */}
+        {/* Format Selector / Tab Headers */}
         <div>
           <Text size="xs" fw={700} c="dimmed" mb={6} style={{ letterSpacing: '0.04em' }}>
             EXPORT FORMAT
@@ -200,10 +200,19 @@ export function ExportWordsModal({
               {
                 value: 'csv',
                 label: (
-                  <Group gap={6} justify="center" wrap="nowrap">
+                  <Group gap={4} justify="center" wrap="nowrap" style={{ minWidth: 0 }}>
                     <IconFileSpreadsheet size={15} style={{ flexShrink: 0 }} />
-                    <Text size="xs" fw={600}>
-                      CSV (Excel)
+                    <Text size="xs" fw={600} style={{ whiteSpace: 'nowrap' }}>
+                      CSV
+                    </Text>
+                    <Text
+                      span
+                      size="xs"
+                      c="dimmed"
+                      visibleFrom="sm"
+                      style={{ whiteSpace: 'nowrap', opacity: 0.8 }}
+                    >
+                      (Excel)
                     </Text>
                   </Group>
                 ),
@@ -211,10 +220,19 @@ export function ExportWordsModal({
               {
                 value: 'json',
                 label: (
-                  <Group gap={6} justify="center" wrap="nowrap">
+                  <Group gap={4} justify="center" wrap="nowrap" style={{ minWidth: 0 }}>
                     <IconJson size={15} style={{ flexShrink: 0 }} />
-                    <Text size="xs" fw={600}>
-                      JSON (Backup)
+                    <Text size="xs" fw={600} style={{ whiteSpace: 'nowrap' }}>
+                      JSON
+                    </Text>
+                    <Text
+                      span
+                      size="xs"
+                      c="dimmed"
+                      visibleFrom="sm"
+                      style={{ whiteSpace: 'nowrap', opacity: 0.8 }}
+                    >
+                      (Backup)
                     </Text>
                   </Group>
                 ),
@@ -222,9 +240,9 @@ export function ExportWordsModal({
               {
                 value: 'txt',
                 label: (
-                  <Group gap={6} justify="center" wrap="nowrap">
+                  <Group gap={4} justify="center" wrap="nowrap" style={{ minWidth: 0 }}>
                     <IconFileTypeTxt size={15} style={{ flexShrink: 0 }} />
-                    <Text size="xs" fw={600}>
+                    <Text size="xs" fw={600} style={{ whiteSpace: 'nowrap' }}>
                       Plain Text
                     </Text>
                   </Group>
@@ -234,6 +252,16 @@ export function ExportWordsModal({
             fullWidth
             radius="md"
             size="sm"
+            styles={{
+              root: {
+                minWidth: 0,
+                width: '100%',
+              },
+              label: {
+                padding: '6px 4px',
+                minWidth: 0,
+              },
+            }}
           />
         </div>
 

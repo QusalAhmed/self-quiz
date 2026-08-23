@@ -62,7 +62,7 @@ describe('ExportWordsModal component', () => {
       />
     );
 
-    const jsonRadio = screen.getByText('JSON (Backup)');
+    const jsonRadio = screen.getByText('JSON');
     fireEvent.click(jsonRadio);
     expect(screen.getByRole('button', { name: /download json/i })).toBeInTheDocument();
 
