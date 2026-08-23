@@ -23,7 +23,7 @@ const getTodayDateString = () => {
   return new Date().toLocaleDateString('en-CA');
 };
 
-const formatDuration = (totalSeconds: number) => {
+export const formatDuration = (totalSeconds: number) => {
   if (totalSeconds <= 0) {
     return '0s';
   }
@@ -47,6 +47,8 @@ const formatDuration = (totalSeconds: number) => {
 
 // How often (in seconds) we persist local usage to RxDB (which triggers remote sync)
 const SAVE_INTERVAL_SECS = 30;
+// Idle timeout in milliseconds (30 seconds of inactivity pauses the study timer)
+export const IDLE_THRESHOLD_MS = 30000;
 
 export function DailyUsageTimer() {
   const [mounted, setMounted] = useState(false);
@@ -168,61 +170,59 @@ export function DailyUsageTimer() {
       return;
     }
 
-    let isUserIdle = false;
-    let isVisible = document.visibilityState === 'visible';
-    let isFocused = document.hasFocus();
+    const lastActivityTimeRef = { current: Date.now() };
+    let wasActive = true;
 
-    const checkState = () => {
-      const currentlyActive = !isUserIdle && isVisible && isFocused;
-      setIsActive(currentlyActive);
-      if (!currentlyActive) {
-        // Save immediately when switching from active to idle/hidden/blurred
+    const updateActivity = () => {
+      lastActivityTimeRef.current = Date.now();
+      const isVisible =
+        typeof document !== 'undefined' ? document.visibilityState === 'visible' : true;
+      if (isVisible && !wasActive) {
+        wasActive = true;
+        setIsActive(true);
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      const isVisible =
+        typeof document !== 'undefined' ? document.visibilityState === 'visible' : true;
+      if (isVisible) {
+        lastActivityTimeRef.current = Date.now();
+        if (!wasActive) {
+          wasActive = true;
+          setIsActive(true);
+        }
+      } else if (wasActive) {
+        wasActive = false;
+        setIsActive(false);
         void flushUsageToDb();
       }
     };
 
-    let idleTimeoutId: NodeJS.Timeout;
-    const resetIdleTimeout = () => {
-      if (isUserIdle) {
-        isUserIdle = false;
-        checkState();
-      }
-      clearTimeout(idleTimeoutId);
-      idleTimeoutId = setTimeout(() => {
-        isUserIdle = true;
-        checkState();
-      }, 30000); // 30 seconds idle threshold
-    };
-
-    resetIdleTimeout();
-
-    const handleActivity = () => {
-      resetIdleTimeout();
-    };
-    const handleVisibilityChange = () => {
-      isVisible = document.visibilityState === 'visible';
-      if (isVisible) {
-        resetIdleTimeout();
-      }
-      checkState();
-    };
     const handleFocus = () => {
-      isFocused = true;
-      resetIdleTimeout();
-      checkState();
-    };
-    const handleBlur = () => {
-      isFocused = false;
-      checkState();
+      updateActivity();
     };
 
-    const activityEvents = ['mousemove', 'keydown', 'mousedown', 'click', 'touchstart', 'scroll'];
+    const activityEvents = [
+      'mousemove',
+      'mousedown',
+      'mouseup',
+      'pointerdown',
+      'pointermove',
+      'click',
+      'keydown',
+      'keyup',
+      'touchstart',
+      'touchend',
+      'scroll',
+      'wheel',
+    ];
+
     activityEvents.forEach((event) => {
-      window.addEventListener(event, handleActivity, { passive: true });
+      window.addEventListener(event, updateActivity, { passive: true });
     });
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', handleFocus);
-    window.addEventListener('blur', handleBlur);
 
     // Timer interval: updates UI every 1s in memory, throttles DB saves to every SAVE_INTERVAL_SECS
     const intervalId = setInterval(() => {
@@ -258,7 +258,19 @@ export function DailyUsageTimer() {
         return;
       }
 
-      const currentlyActive = !isUserIdle && isVisible && isFocused;
+      const isVisible =
+        typeof document !== 'undefined' ? document.visibilityState === 'visible' : true;
+      const idleTime = Date.now() - lastActivityTimeRef.current;
+      const currentlyActive = isVisible && idleTime < IDLE_THRESHOLD_MS;
+
+      if (currentlyActive !== wasActive) {
+        wasActive = currentlyActive;
+        setIsActive(currentlyActive);
+        if (!currentlyActive) {
+          void flushUsageToDb();
+        }
+      }
+
       if (!currentlyActive) {
         return;
       }
@@ -294,14 +306,12 @@ export function DailyUsageTimer() {
       void flushUsageToDb();
 
       activityEvents.forEach((event) => {
-        window.removeEventListener(event, handleActivity);
+        window.removeEventListener(event, updateActivity);
       });
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
-      window.removeEventListener('blur', handleBlur);
       window.removeEventListener('pagehide', handlePageHide);
       window.removeEventListener('beforeunload', handlePageHide);
-      clearTimeout(idleTimeoutId);
       clearInterval(intervalId);
     };
   }, [mounted]);

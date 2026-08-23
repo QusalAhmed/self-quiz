@@ -124,11 +124,11 @@ export function ExportWordsModal({
   const getFormatIcon = () => {
     switch (format) {
       case 'json':
-        return <IconJson size={18} />;
+        return <IconJson size={17} style={{ flexShrink: 0 }} />;
       case 'csv':
-        return <IconFileTypeCsv size={18} />;
+        return <IconFileTypeCsv size={17} style={{ flexShrink: 0 }} />;
       case 'txt':
-        return <IconFileTypeTxt size={18} />;
+        return <IconFileTypeTxt size={17} style={{ flexShrink: 0 }} />;
     }
   };
 
@@ -137,24 +137,55 @@ export function ExportWordsModal({
       opened={opened}
       onClose={onClose}
       title={
-        <Group gap="xs" align="center">
-          <ThemeIcon size="md" variant="light" color="indigo" radius="md">
-            <IconDownload size={18} />
-          </ThemeIcon>
-          <div>
-            <Text fw={700} size="md" style={{ fontFamily: 'var(--font-title)' }}>
+        <Group
+          gap="xs"
+          align="center"
+          justify="space-between"
+          wrap="nowrap"
+          style={{ width: '100%', overflow: 'hidden' }}
+        >
+          <Group gap="xs" align="center" wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
+            <ThemeIcon
+              size="md"
+              variant="light"
+              color="indigo"
+              radius="md"
+              style={{ flexShrink: 0 }}
+            >
+              <IconDownload size={18} />
+            </ThemeIcon>
+            <Text
+              fw={700}
+              size="md"
+              style={{
+                fontFamily: 'var(--font-title)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
               {title}
             </Text>
-          </div>
-          <Badge size="sm" variant="filled" color="indigo" radius="sm">
+          </Group>
+          <Badge size="sm" variant="filled" color="indigo" radius="sm" style={{ flexShrink: 0 }}>
             {normalizedItems.length} word{normalizedItems.length === 1 ? '' : 's'}
           </Badge>
         </Group>
       }
       size="lg"
       radius="lg"
+      padding="md"
       centered
       overlayProps={{ backgroundOpacity: 0.5, blur: 4 }}
+      styles={{
+        content: {
+          maxWidth: '100%',
+          overflow: 'hidden',
+        },
+        header: {
+          paddingBottom: '12px',
+        },
+      }}
     >
       <Stack gap="md">
         {/* Format Selector */}
@@ -170,8 +201,10 @@ export function ExportWordsModal({
                 value: 'csv',
                 label: (
                   <Group gap={6} justify="center" wrap="nowrap">
-                    <IconFileSpreadsheet size={15} />
-                    <span>CSV (Excel / Anki)</span>
+                    <IconFileSpreadsheet size={15} style={{ flexShrink: 0 }} />
+                    <Text size="xs" fw={600}>
+                      CSV (Excel)
+                    </Text>
                   </Group>
                 ),
               },
@@ -179,8 +212,10 @@ export function ExportWordsModal({
                 value: 'json',
                 label: (
                   <Group gap={6} justify="center" wrap="nowrap">
-                    <IconJson size={15} />
-                    <span>JSON (Full Backup)</span>
+                    <IconJson size={15} style={{ flexShrink: 0 }} />
+                    <Text size="xs" fw={600}>
+                      JSON (Backup)
+                    </Text>
                   </Group>
                 ),
               },
@@ -188,34 +223,40 @@ export function ExportWordsModal({
                 value: 'txt',
                 label: (
                   <Group gap={6} justify="center" wrap="nowrap">
-                    <IconFileTypeTxt size={15} />
-                    <span>Plain Text</span>
+                    <IconFileTypeTxt size={15} style={{ flexShrink: 0 }} />
+                    <Text size="xs" fw={600}>
+                      Plain Text
+                    </Text>
                   </Group>
                 ),
               },
             ]}
             fullWidth
             radius="md"
+            size="sm"
           />
         </div>
 
         {/* Data / Fields Selection */}
         <Paper
-          p="sm"
+          p={{ base: 'xs', sm: 'sm' }}
           radius="md"
           withBorder
-          style={{ background: 'var(--mantine-color-default-hover, rgba(99,102,241,0.03))' }}
+          style={{
+            background: 'var(--mantine-color-default-hover, rgba(99,102,241,0.03))',
+            width: '100%',
+          }}
         >
           <Stack gap="xs">
-            <Group justify="space-between" align="center" wrap="wrap">
+            <Group justify="space-between" align="center" wrap="wrap" gap="xs">
               <Group gap={6} align="center">
-                <IconListCheck size={16} style={{ color: '#6366f1' }} />
+                <IconListCheck size={16} style={{ color: '#6366f1', flexShrink: 0 }} />
                 <Text size="xs" fw={700} c="indigo" style={{ letterSpacing: '0.04em' }}>
-                  CHOOSE DATA TO EXPORT WITH WORDS
+                  CHOOSE DATA TO EXPORT
                 </Text>
               </Group>
 
-              <Group gap="xs">
+              <Group gap="xs" wrap="wrap">
                 <UnstyledButton onClick={() => setAllFields(true)}>
                   <Text size="xs" c="indigo" fw={600} style={{ cursor: 'pointer' }}>
                     Select All
@@ -242,7 +283,11 @@ export function ExportWordsModal({
 
             <Divider my={2} style={{ opacity: 0.5 }} />
 
-            <SimpleGrid cols={{ base: 1, xs: 2, sm: 3 }} spacing="xs">
+            <SimpleGrid
+              cols={{ base: 1, xs: 2, sm: 3 }}
+              spacing={{ base: 'xs', sm: 'sm' }}
+              verticalSpacing="xs"
+            >
               <Checkbox
                 size="xs"
                 label="Meaning / Definitions"
@@ -251,6 +296,7 @@ export function ExportWordsModal({
                   const checked = e.currentTarget.checked;
                   setFieldOptions((prev) => ({ ...prev, includeMeaning: checked }));
                 }}
+                styles={{ label: { fontSize: '0.8rem', cursor: 'pointer' } }}
               />
               <Checkbox
                 size="xs"
@@ -260,6 +306,7 @@ export function ExportWordsModal({
                   const checked = e.currentTarget.checked;
                   setFieldOptions((prev) => ({ ...prev, includePartOfSpeech: checked }));
                 }}
+                styles={{ label: { fontSize: '0.8rem', cursor: 'pointer' } }}
               />
               <Checkbox
                 size="xs"
@@ -269,6 +316,7 @@ export function ExportWordsModal({
                   const checked = e.currentTarget.checked;
                   setFieldOptions((prev) => ({ ...prev, includeExamples: checked }));
                 }}
+                styles={{ label: { fontSize: '0.8rem', cursor: 'pointer' } }}
               />
               <Checkbox
                 size="xs"
@@ -278,6 +326,7 @@ export function ExportWordsModal({
                   const checked = e.currentTarget.checked;
                   setFieldOptions((prev) => ({ ...prev, includeGroups: checked }));
                 }}
+                styles={{ label: { fontSize: '0.8rem', cursor: 'pointer' } }}
               />
               <Checkbox
                 size="xs"
@@ -287,6 +336,7 @@ export function ExportWordsModal({
                   const checked = e.currentTarget.checked;
                   setFieldOptions((prev) => ({ ...prev, includeNotes: checked }));
                 }}
+                styles={{ label: { fontSize: '0.8rem', cursor: 'pointer' } }}
               />
               <Checkbox
                 size="xs"
@@ -296,6 +346,7 @@ export function ExportWordsModal({
                   const checked = e.currentTarget.checked;
                   setFieldOptions((prev) => ({ ...prev, includeFrequency: checked }));
                 }}
+                styles={{ label: { fontSize: '0.8rem', cursor: 'pointer' } }}
               />
               <Checkbox
                 size="xs"
@@ -305,6 +356,7 @@ export function ExportWordsModal({
                   const checked = e.currentTarget.checked;
                   setFieldOptions((prev) => ({ ...prev, includeAiDetails: checked }));
                 }}
+                styles={{ label: { fontSize: '0.8rem', cursor: 'pointer' } }}
               />
             </SimpleGrid>
           </Stack>
@@ -312,7 +364,7 @@ export function ExportWordsModal({
 
         {/* Live Preview */}
         <div>
-          <Group justify="space-between" align="center" mb={4}>
+          <Group justify="space-between" align="center" mb={4} wrap="wrap" gap="xs">
             <Text size="xs" fw={700} c="dimmed" style={{ letterSpacing: '0.04em' }}>
               PREVIEW
             </Text>
@@ -326,12 +378,19 @@ export function ExportWordsModal({
             radius="md"
             withBorder
             style={{
-              background: 'rgba(0, 0, 0, 0.04)',
+              background: 'rgba(0, 0, 0, 0.03)',
               borderColor: 'var(--card-border)',
               position: 'relative',
+              width: '100%',
+              overflow: 'hidden',
             }}
           >
-            <ScrollArea.Autosize mah={200} offsetScrollbars scrollbarSize={6} type="auto">
+            <ScrollArea.Autosize
+              mah={{ base: 140, sm: 200 }}
+              offsetScrollbars
+              scrollbarSize={6}
+              type="auto"
+            >
               <pre
                 style={{
                   margin: 0,
@@ -351,11 +410,22 @@ export function ExportWordsModal({
 
         {/* Action Controls */}
         <Group justify="space-between" align="center" mt="xs" wrap="wrap" gap="sm">
-          <Button variant="subtle" color="gray" size="sm" radius="md" onClick={onClose}>
+          <Button
+            variant="subtle"
+            color="gray"
+            size="sm"
+            radius="md"
+            onClick={onClose}
+            w={{ base: '100%', xs: 'auto' }}
+          >
             Close
           </Button>
 
-          <Group gap="xs">
+          <Group
+            gap="xs"
+            w={{ base: '100%', xs: 'auto' }}
+            style={{ flexWrap: 'wrap', justifyContent: 'flex-end' }}
+          >
             <CopyButton value={formattedContent} timeout={2000}>
               {({ copied, copy }) => (
                 <Button
@@ -366,8 +436,9 @@ export function ExportWordsModal({
                   leftSection={copied ? <IconCheck size={16} /> : <IconCopy size={16} />}
                   onClick={copy}
                   disabled={normalizedItems.length === 0}
+                  style={{ flex: 1, minWidth: '110px' }}
                 >
-                  {copied ? 'Copied Content!' : 'Copy to Clipboard'}
+                  {copied ? 'Copied!' : 'Copy'}
                 </Button>
               )}
             </CopyButton>
@@ -380,7 +451,7 @@ export function ExportWordsModal({
               leftSection={getFormatIcon()}
               onClick={handleDownload}
               disabled={normalizedItems.length === 0}
-              style={{ fontWeight: 700 }}
+              style={{ fontWeight: 700, flex: 1, minWidth: '140px' }}
             >
               Download {format.toUpperCase()}
             </Button>
