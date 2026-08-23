@@ -176,11 +176,11 @@ export function ExportWordsModal({
       radius="lg"
       padding="md"
       centered
+      scrollAreaComponent={ScrollArea.Autosize}
       overlayProps={{ backgroundOpacity: 0.5, blur: 4 }}
       styles={{
         content: {
           maxWidth: '100%',
-          overflow: 'hidden',
         },
         header: {
           paddingBottom: '12px',
