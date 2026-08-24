@@ -106,17 +106,7 @@ export const WordFamilySection = React.memo(function WordFamilySection({
     }
 
     return (
-      <div
-        className={className}
-        style={{
-          marginTop: 10,
-          padding: '6px 12px',
-          borderRadius: '8px',
-          background: 'rgba(99, 102, 241, 0.03)',
-          border: '1px dashed rgba(99, 102, 241, 0.25)',
-          ...style,
-        }}
-      >
+      <div className={className} style={style}>
         <Group justify="space-between" align="center" wrap="wrap" gap="xs">
           <Group gap={6} align="center">
             <ThemeIcon size="xs" variant="light" color="indigo" radius="xl">
@@ -186,17 +176,7 @@ export const WordFamilySection = React.memo(function WordFamilySection({
   };
 
   return (
-    <div
-      className={className}
-      style={{
-        marginTop: 10,
-        padding: '8px 12px',
-        borderRadius: '8px',
-        background: 'rgba(99, 102, 241, 0.05)',
-        border: '1px solid rgba(99, 102, 241, 0.15)',
-        ...style,
-      }}
-    >
+    <div className={className} style={style}>
       <Group justify="space-between" align="center" wrap="nowrap">
         <UnstyledButton
           onClick={() => setIsExpanded((prev) => !prev)}
