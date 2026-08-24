@@ -44,9 +44,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Word and meaning are required' }, { status: 400 });
   }
 
-  // 1. Try Groq AI (Llama 3.3 70B) first
+  // 1. Try Google AI (Gemma 4 26B A4B) first
   try {
-    const examples = await generateGroqExamples({
+    const examples = await generateGoogleExamples({
       word,
       meaning,
       targetCount,
@@ -54,12 +54,15 @@ export async function POST(request: Request) {
       referenceExamples,
     });
     return NextResponse.json({ examples });
-  } catch (groqError: any) {
-    console.warn('Groq AI failed, falling back to Google AI:', groqError.message || groqError);
+  } catch (googleError: any) {
+    console.warn(
+      'Google AI failed, falling back to Cloudflare AI:',
+      googleError.message || googleError
+    );
 
-    // 2. Fallback to Google AI (Gemini / Gemma)
+    // 2. Fallback to Cloudflare AI (Gemma 4 26B A4B)
     try {
-      const examples = await generateGoogleExamples({
+      const examples = await generateCloudflareExamples({
         word,
         meaning,
         targetCount,
@@ -67,15 +70,12 @@ export async function POST(request: Request) {
         referenceExamples,
       });
       return NextResponse.json({ examples });
-    } catch (googleError: any) {
-      console.warn(
-        'Google AI failed, falling back to Cloudflare AI:',
-        googleError.message || googleError
-      );
+    } catch (cfError: any) {
+      console.warn('Cloudflare AI failed, falling back to Groq AI:', cfError.message || cfError);
 
-      // 3. Fallback to Cloudflare AI (Llama)
+      // 3. Fallback to Groq AI (Qwen 3.6 27B / GPT-OSS 120B)
       try {
-        const examples = await generateCloudflareExamples({
+        const examples = await generateGroqExamples({
           word,
           meaning,
           targetCount,
@@ -83,13 +83,13 @@ export async function POST(request: Request) {
           referenceExamples,
         });
         return NextResponse.json({ examples });
-      } catch (cfError: any) {
+      } catch (groqError: any) {
         console.error(
-          'All AI services (Groq, Google, Cloudflare) failed:',
-          cfError.message || cfError
+          'All AI services (Google, Cloudflare, Groq) failed:',
+          groqError.message || groqError
         );
         return NextResponse.json(
-          { error: cfError?.message || 'Failed to generate examples using AI services' },
+          { error: groqError?.message || 'Failed to generate examples using AI services' },
           { status: 502 }
         );
       }

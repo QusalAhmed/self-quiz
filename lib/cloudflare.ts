@@ -40,6 +40,9 @@ type CloudflareAIResponse = {
 };
 
 export function formatCloudflareModelDetails(model: string): string {
+  if (model.includes('gemma-4-26b') || model.includes('gemma-4')) {
+    return 'Cloudflare Gemma 4 26B';
+  }
   if (model.includes('llama-3.3-70b')) {
     return 'Cloudflare Llama 3.3 70B';
   }
@@ -283,7 +286,7 @@ export async function generateCloudflareWordFamily(
     throw new Error('Cloudflare AI credentials are not configured');
   }
 
-  const model = process.env.CF_AI_MODEL || '@cf/meta/llama-3.1-8b-instruct';
+  const model = process.env.CF_AI_MODEL || '@cf/google/gemma-4-26b-a4b-it';
   const generatorAiDetails = formatCloudflareModelDetails(model);
 
   const messages: CloudflareMessage[] = [
@@ -337,7 +340,7 @@ export async function generateCloudflareExamples(
     throw new Error('Cloudflare AI credentials are not configured');
   }
 
-  const model = process.env.CF_AI_MODEL || '@cf/meta/llama-3.1-8b-instruct';
+  const model = process.env.CF_AI_MODEL || '@cf/google/gemma-4-26b-a4b-it';
 
   const partOfSpeechBlock = partOfSpeech ? `\nSelected part of speech: ${partOfSpeech}.` : '';
   const referenceBlock =
@@ -410,7 +413,7 @@ export async function generateCloudflareStory(
     throw new Error('Cloudflare AI credentials are not configured');
   }
 
-  const model = process.env.CF_AI_MODEL || '@cf/meta/llama-3.1-8b-instruct';
+  const model = process.env.CF_AI_MODEL || '@cf/google/gemma-4-26b-a4b-it';
   const generatorAiDetails = formatCloudflareModelDetails(model);
   const promptText = buildStoryUserPrompt(params);
 

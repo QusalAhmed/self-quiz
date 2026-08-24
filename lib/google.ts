@@ -27,7 +27,7 @@ export type GenerateWordFamilyParams = {
 };
 
 export function formatGoogleModelDetails(model: string): string {
-  if (model.includes('gemma-4-26b')) {
+  if (model.includes('gemma-4-26b') || model.includes('gemma-4') || model.includes('gemma')) {
     return 'Google Gemma 4 26B';
   }
   if (model.includes('gemini-2.5-flash')) {

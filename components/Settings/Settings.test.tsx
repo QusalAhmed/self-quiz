@@ -132,7 +132,7 @@ describe('Settings Components', () => {
       expect(screen.getByText('AI Generation Engine')).toBeInTheDocument();
       expect(screen.getByText('Groq Cloud AI')).toBeInTheDocument();
       expect(screen.getByText('Cloudflare Workers AI')).toBeInTheDocument();
-      expect(screen.getByText('Google Gemini AI')).toBeInTheDocument();
+      expect(screen.getByText('Google Gemma AI')).toBeInTheDocument();
       expect(screen.getByText('Test AI Connection')).toBeInTheDocument();
     });
   });

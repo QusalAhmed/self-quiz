@@ -122,8 +122,8 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     autoRefillQueue: true,
   },
   ai: {
-    preferredProvider: 'groq',
-    groqModel: 'llama-3.3-70b-versatile',
+    preferredProvider: 'gemini',
+    groqModel: 'qwen/qwen3.6-27b',
     exampleCount: 3,
     customGroqApiKey: '',
     customGeminiApiKey: '',
@@ -230,9 +230,9 @@ export function normalizeAppSettings(raw: Partial<AppSettings> | null | undefine
 
   const ai: AppAiSettings = {
     preferredProvider:
-      raw.ai?.preferredProvider === 'cloudflare' || raw.ai?.preferredProvider === 'gemini'
+      raw.ai?.preferredProvider === 'cloudflare' || raw.ai?.preferredProvider === 'groq'
         ? raw.ai.preferredProvider
-        : 'groq',
+        : 'gemini',
     groqModel: raw.ai?.groqModel || DEFAULT_APP_SETTINGS.ai.groqModel,
     exampleCount:
       typeof raw.ai?.exampleCount === 'number'

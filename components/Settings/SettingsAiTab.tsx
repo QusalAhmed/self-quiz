@@ -37,34 +37,35 @@ const PROVIDERS: Array<{
   color: string;
 }> = [
   {
-    key: 'groq',
-    label: 'Groq Cloud AI',
-    desc: 'LPU inference engine with sub-second generation (Llama 3.3 70B, Qwen 3.6, DeepSeek)',
-    badge: 'Fastest & Recommended',
-    color: 'indigo',
+    key: 'gemini',
+    label: 'Google Gemma AI',
+    desc: 'Google Gemma 4 26B A4B MoE with fast reasoning and rich multilingual knowledge',
+    badge: 'Primary & Recommended',
+    color: 'teal',
   },
   {
     key: 'cloudflare',
     label: 'Cloudflare Workers AI',
-    desc: 'Edge-distributed Meta Llama 3.3 70B Instruct with global low latency',
+    desc: 'Edge-distributed Google Gemma 4 26B A4B Instruct with global low latency',
     badge: 'Edge Powered',
     color: 'orange',
   },
   {
-    key: 'gemini',
-    label: 'Google Gemini AI',
-    desc: 'Google Gemini 2.5 Flash with deep semantic nuance and broad world knowledge',
-    badge: 'Rich Semantics',
-    color: 'teal',
+    key: 'groq',
+    label: 'Groq Cloud AI',
+    desc: 'LPU inference engine with sub-second generation (Qwen 3.6 27B, GPT-OSS 120B)',
+    badge: 'High Speed',
+    color: 'indigo',
   },
 ];
 
 const POPULAR_GROQ_MODELS = [
+  'qwen/qwen3.6-27b',
+  'openai/gpt-oss-120b',
   'llama-3.3-70b-versatile',
   'llama-3.1-8b-instant',
-  'qwen/qwen3.6-27b',
   'deepseek-r1-distill-llama-70b',
-  'openai/gpt-oss-120b',
+  'openai/gpt-oss-20b',
   'gemma2-9b-it',
 ];
 

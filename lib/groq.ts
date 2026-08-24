@@ -27,10 +27,10 @@ export type GenerateWordFamilyParams = {
 };
 
 const STATIC_FALLBACK_GROQ_MODELS = [
-  'llama-3.3-70b-versatile',
-  'llama-3.1-8b-instant',
   'qwen/qwen3.6-27b',
   'openai/gpt-oss-120b',
+  'llama-3.3-70b-versatile',
+  'llama-3.1-8b-instant',
   'openai/gpt-oss-20b',
   'deepseek-r1-distill-llama-70b',
   'gemma2-9b-it',
@@ -115,8 +115,12 @@ export function filterAndRankGroqModels(models: Array<{ id: string; active?: boo
     const lower = id.toLowerCase();
     let score = 0;
 
-    // Parameter size preference
-    if (lower.includes('120b')) {
+    // Parameter size & requested priority preference
+    if (lower.includes('qwen3.6-27b') || lower.includes('qwen-3.6-27b')) {
+      score += 2000;
+    } else if (lower.includes('gpt-oss-120b')) {
+      score += 1900;
+    } else if (lower.includes('120b')) {
       score += 1000;
     } else if (lower.includes('70b') || lower.includes('90b')) {
       score += 900;
@@ -252,7 +256,7 @@ function parseJsonFromContent(content: string): any {
 }
 
 function isModelUnavailableError(status: number, errorText: string): boolean {
-  if (status === 404) {
+  if (status === 404 || status === 429 || status === 503) {
     return true;
   }
   const lower = errorText.toLowerCase();
@@ -264,7 +268,10 @@ function isModelUnavailableError(status: number, errorText: string): boolean {
     lower.includes('deprecated') ||
     lower.includes('model_decommissioned') ||
     lower.includes('model_deprecated') ||
-    lower.includes('not supported')
+    lower.includes('not supported') ||
+    lower.includes('rate_limit') ||
+    lower.includes('rate limit') ||
+    lower.includes('overloaded')
   );
 }
 

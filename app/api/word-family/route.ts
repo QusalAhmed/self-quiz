@@ -25,9 +25,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Word is required' }, { status: 400 });
     }
 
-    // 1. Try Groq AI (Llama 3.3 70B) first
+    // 1. Try Google AI (Gemma 4 26B A4B) first
     try {
-      const result = await generateGroqWordFamily({ word, meaning });
+      const result = await generateGoogleWordFamily({ word, meaning });
       const validatedMembers = await filterValidWordFamilyMembers(
         result.members,
         word,
@@ -38,15 +38,15 @@ export async function POST(request: Request) {
         rootUsageFrequency: result.rootUsageFrequency || '',
         generatorAiDetails: result.generatorAiDetails || '',
       });
-    } catch (groqError: any) {
+    } catch (googleError: any) {
       console.warn(
-        'Groq AI failed for word family, falling back to Google AI:',
-        groqError.message || groqError
+        'Google AI failed for word family, falling back to Cloudflare AI:',
+        googleError.message || googleError
       );
 
-      // 2. Fallback to Google AI (Gemini / Gemma)
+      // 2. Fallback to Cloudflare AI (Gemma 4 26B A4B)
       try {
-        const result = await generateGoogleWordFamily({ word, meaning });
+        const result = await generateCloudflareWordFamily({ word, meaning });
         const validatedMembers = await filterValidWordFamilyMembers(
           result.members,
           word,
@@ -57,15 +57,15 @@ export async function POST(request: Request) {
           rootUsageFrequency: result.rootUsageFrequency || '',
           generatorAiDetails: result.generatorAiDetails || '',
         });
-      } catch (googleError: any) {
+      } catch (cfError: any) {
         console.warn(
-          'Google AI failed for word family, falling back to Cloudflare AI:',
-          googleError.message || googleError
+          'Cloudflare AI failed for word family, falling back to Groq AI:',
+          cfError.message || cfError
         );
 
-        // 3. Fallback to Cloudflare AI (Llama)
+        // 3. Fallback to Groq AI (Qwen 3.6 27B / GPT-OSS 120B)
         try {
-          const result = await generateCloudflareWordFamily({ word, meaning });
+          const result = await generateGroqWordFamily({ word, meaning });
           const validatedMembers = await filterValidWordFamilyMembers(
             result.members,
             word,
@@ -76,14 +76,14 @@ export async function POST(request: Request) {
             rootUsageFrequency: result.rootUsageFrequency || '',
             generatorAiDetails: result.generatorAiDetails || '',
           });
-        } catch (cfError: any) {
+        } catch (groqError: any) {
           console.error(
-            'All AI services (Groq, Google, Cloudflare) failed for word family:',
-            cfError.message || cfError
+            'All AI services (Google, Cloudflare, Groq) failed for word family:',
+            groqError.message || groqError
           );
           return NextResponse.json(
             {
-              error: cfError?.message || 'Failed to generate word family using AI services',
+              error: groqError?.message || 'Failed to generate word family using AI services',
             },
             { status: 502 }
           );

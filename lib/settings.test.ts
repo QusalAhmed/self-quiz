@@ -19,7 +19,7 @@ describe('lib/settings.ts', () => {
     expect(settings.appearance.accentColor).toBe('indigo');
     expect(settings.studyQuiz.defaultQuizDirection).toBe('wordToMeaning');
     expect(settings.fsrs.requestRetention).toBe(0.9);
-    expect(settings.ai.preferredProvider).toBe('groq');
+    expect(settings.ai.preferredProvider).toBe('gemini');
   });
 
   it('normalizes partial and invalid settings correctly', () => {

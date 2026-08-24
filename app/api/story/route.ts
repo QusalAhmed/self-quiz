@@ -58,38 +58,38 @@ export async function POST(request: Request) {
       includeBangla,
     };
 
-    // 1. Try Groq AI (Tier 1)
+    // 1. Try Google AI (Gemma 4 26B A4B) (Tier 1)
     try {
-      const result = await generateGroqStory(params);
+      const result = await generateGoogleStory(params);
       return NextResponse.json(result);
-    } catch (groqError: any) {
+    } catch (googleError: any) {
       console.warn(
-        'Groq AI failed for story generation, falling back to Google AI:',
-        groqError?.message || groqError
+        'Google AI failed for story generation, falling back to Cloudflare AI:',
+        googleError?.message || googleError
       );
 
-      // 2. Fallback to Google AI (Tier 2)
+      // 2. Fallback to Cloudflare AI (Gemma 4 26B A4B) (Tier 2)
       try {
-        const result = await generateGoogleStory(params);
+        const result = await generateCloudflareStory(params);
         return NextResponse.json(result);
-      } catch (googleError: any) {
+      } catch (cfError: any) {
         console.warn(
-          'Google AI failed for story generation, falling back to Cloudflare AI:',
-          googleError?.message || googleError
+          'Cloudflare AI failed for story generation, falling back to Groq AI:',
+          cfError?.message || cfError
         );
 
-        // 3. Fallback to Cloudflare AI (Tier 3)
+        // 3. Fallback to Groq AI (Qwen 3.6 27B / GPT-OSS 120B) (Tier 3)
         try {
-          const result = await generateCloudflareStory(params);
+          const result = await generateGroqStory(params);
           return NextResponse.json(result);
-        } catch (cfError: any) {
+        } catch (groqError: any) {
           console.error(
-            'All AI services (Groq, Google, Cloudflare) failed for story generation:',
-            cfError?.message || cfError
+            'All AI services (Google, Cloudflare, Groq) failed for story generation:',
+            groqError?.message || groqError
           );
           return NextResponse.json(
             {
-              error: cfError?.message || 'Failed to generate story using AI services',
+              error: groqError?.message || 'Failed to generate story using AI services',
             },
             { status: 502 }
           );

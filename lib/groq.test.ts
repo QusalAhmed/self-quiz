@@ -52,8 +52,8 @@ describe('groq module', () => {
       expect(ranked).not.toContain('whisper-large-v3');
       expect(ranked).not.toContain('llama-guard-3-8b');
       expect(ranked).not.toContain('inactive-model');
-      expect(ranked[0]).toBe('openai/gpt-oss-120b');
-      expect(ranked).toContain('qwen/qwen3.6-27b');
+      expect(ranked[0]).toBe('qwen/qwen3.6-27b');
+      expect(ranked[1]).toBe('openai/gpt-oss-120b');
       expect(ranked).toContain('llama-3.1-8b-instant');
     });
   });
@@ -175,15 +175,15 @@ describe('groq module', () => {
             ok: true,
             json: async () => ({
               data: [
-                { id: 'llama-3.3-70b-versatile', active: true },
                 { id: 'qwen/qwen3.6-27b', active: true },
+                { id: 'openai/gpt-oss-120b', active: true },
               ],
             }),
           };
         }
         completionCalls++;
         const parsedBody = JSON.parse(options.body);
-        if (parsedBody.model === 'llama-3.3-70b-versatile') {
+        if (parsedBody.model === 'qwen/qwen3.6-27b') {
           return {
             ok: false,
             status: 404,
@@ -191,7 +191,7 @@ describe('groq module', () => {
               JSON.stringify({
                 error: {
                   message:
-                    'The model `llama-3.3-70b-versatile` does not exist or you do not have access to it.',
+                    'The model `qwen/qwen3.6-27b` does not exist or you do not have access to it.',
                   type: 'invalid_request_error',
                   code: 'model_not_found',
                 },
@@ -227,7 +227,7 @@ describe('groq module', () => {
       try {
         const result = await generateGroqWordFamily({ word: 'decide' });
         expect(completionCalls).toBe(2);
-        expect(result.generatorAiDetails).toBe('Groq Qwen 3.6 27B');
+        expect(result.generatorAiDetails).toBe('Groq GPT-OSS 120B');
         expect(result.members.length).toBe(1);
         expect(result.members[0].word).toBe('decision');
       } finally {
@@ -350,15 +350,15 @@ describe('groq module', () => {
             ok: true,
             json: async () => ({
               data: [
-                { id: 'llama-3.3-70b-versatile', active: true },
                 { id: 'qwen/qwen3.6-27b', active: true },
+                { id: 'openai/gpt-oss-120b', active: true },
               ],
             }),
           };
         }
         completionCalls++;
         const parsedBody = JSON.parse(options.body);
-        if (parsedBody.model === 'llama-3.3-70b-versatile') {
+        if (parsedBody.model === 'qwen/qwen3.6-27b') {
           return {
             ok: false,
             status: 404,
