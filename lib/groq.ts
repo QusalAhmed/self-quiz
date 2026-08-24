@@ -1,5 +1,12 @@
 import { normalizeAiExamples } from './examples';
 import {
+  buildStoryUserPrompt,
+  parseStoryGenerationResponse,
+  STORY_SYSTEM_INSTRUCTION,
+  type GenerateStoryParams,
+  type StoryGenerationResult,
+} from './story';
+import {
   buildWordFamilyUserPrompt,
   extractWordFamilyGenerationResponse,
   WORD_FAMILY_SYSTEM_INSTRUCTION,
@@ -471,4 +478,103 @@ export async function generateGroqExamples(params: GenerateExamplesParams): Prom
   }
 
   throw lastError || new Error('Groq AI example generation failed across all models');
+}
+
+export async function generateGroqStory(
+  params: GenerateStoryParams
+): Promise<StoryGenerationResult> {
+  const { targetWords } = params;
+  if (!targetWords || targetWords.length === 0) {
+    throw new Error('Target words are required to generate a story');
+  }
+
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) {
+    throw new Error('Groq API key is not configured');
+  }
+
+  const modelCandidates = await getGroqModelCandidates(apiKey, process.env.GROQ_AI_MODEL);
+  const url = 'https://api.groq.com/openai/v1/chat/completions';
+  const promptText = buildStoryUserPrompt(params);
+
+  let lastError: Error | null = null;
+
+  for (const model of modelCandidates) {
+    const generatorAiDetails = formatGroqModelDetails(model);
+    try {
+      const payload = {
+        model,
+        messages: [
+          {
+            role: 'system',
+            content: STORY_SYSTEM_INSTRUCTION,
+          },
+          {
+            role: 'user',
+            content: promptText,
+          },
+        ],
+        response_format: {
+          type: 'json_object',
+        },
+        temperature: 0.7,
+      };
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        if (isModelUnavailableError(response.status, errorText)) {
+          console.warn(
+            `Groq model "${model}" unavailable (${response.status}) for story, trying next candidate:`,
+            errorText
+          );
+          if (cachedWorkingModel === model) {
+            cachedWorkingModel = null;
+          }
+          lastError = new Error(`Groq AI HTTP error: ${response.status} - ${errorText}`);
+          continue;
+        }
+        console.warn('Groq AI HTTP error for story:', response.status, errorText);
+        throw new Error(`Groq AI HTTP error: ${response.status} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      const rawContent = data.choices?.[0]?.message?.content;
+
+      if (!rawContent || typeof rawContent !== 'string') {
+        throw new Error('Groq AI response did not contain message content');
+      }
+
+      let parsed: any;
+      try {
+        parsed = parseJsonFromContent(rawContent);
+      } catch (err: any) {
+        console.warn('Failed to parse Groq AI story response as JSON:', rawContent);
+        throw new Error(`Groq AI story response was not valid JSON: ${err.message}`);
+      }
+
+      const result = parseStoryGenerationResponse(parsed, generatorAiDetails);
+      cachedWorkingModel = model;
+      return result;
+    } catch (err: any) {
+      lastError = err;
+      if (modelCandidates.indexOf(model) === modelCandidates.length - 1) {
+        throw err;
+      }
+      if (isModelUnavailableError(404, err.message || '')) {
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  throw lastError || new Error('Groq AI story generation failed across all models');
 }

@@ -25,9 +25,11 @@ import {
   IconEyeOff,
   IconFlame,
   IconRotateClockwise,
+  IconSparkles,
   IconTarget,
   IconVolume,
 } from '@tabler/icons-react';
+import { useRouter } from 'next/navigation';
 import { useMemo, useState, type ReactNode } from 'react';
 import {
   practiceDisplayModes,
@@ -186,6 +188,7 @@ export function QuizModeSection({
   quizCandidates,
   words,
 }: QuizModeSectionProps) {
+  const router = useRouter();
   const displayedMissedItems = useMemo(() => {
     const fsrsWords = fsrsForgettingWordsForMode || [];
     if (practiceDisplayMode === 'fsrsAgainHard') {
@@ -419,6 +422,39 @@ export function QuizModeSection({
                       style={{ fontWeight: 600 }}
                     >
                       Export ({quizCandidatesCount})
+                    </Button>
+                  </Tooltip>
+
+                  <Tooltip
+                    label="Practice these words in natural context with an AI generated story"
+                    withArrow
+                  >
+                    <Button
+                      variant="light"
+                      color="violet"
+                      size="sm"
+                      radius="md"
+                      leftSection={<IconSparkles size={16} />}
+                      onClick={() => {
+                        const ids = (
+                          quizCandidates && quizCandidates.length > 0
+                            ? quizCandidates
+                            : currentQuizItem
+                              ? [currentQuizItem]
+                              : []
+                        )
+                          .map((item) => item.id)
+                          .slice(0, 10);
+                        if (ids.length > 0) {
+                          router.push(`/stories?words=${ids.join(',')}`);
+                        } else {
+                          router.push('/stories');
+                        }
+                      }}
+                      disabled={quizCandidatesCount === 0}
+                      style={{ fontWeight: 600 }}
+                    >
+                      AI Story
                     </Button>
                   </Tooltip>
 

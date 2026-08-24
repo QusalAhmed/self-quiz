@@ -51,6 +51,9 @@ export type WordViewDensity = 'detailed' | 'compact' | 'card';
 
 export type WordDetailCardProps = {
   word: WordRecord;
+  primaryFsrsRecord?: FsrsRecord;
+  isWordMissed?: boolean;
+  missedWordCount?: number;
   fsrsRecords?: FsrsRecord[];
   missedRecords?: MissedWordRecord[];
   wordFamilyMembers?: WordFamilyMemberRecord[];
@@ -91,8 +94,11 @@ export function getPosBadgeColor(pos?: string): string {
   return 'gray';
 }
 
-export function WordDetailCard({
+export const WordDetailCard = React.memo(function WordDetailCard({
   word,
+  primaryFsrsRecord,
+  isWordMissed,
+  missedWordCount,
   fsrsRecords = [],
   missedRecords = [],
   wordFamilyMembers = [],
@@ -115,28 +121,31 @@ export function WordDetailCard({
   const definitions = useMemo(() => getWordDefinitions(word), [word]);
   const groups = useMemo(() => getWordGroups(word), [word]);
 
-  // Spaced Repetition (FSRS) metrics for this word across quiz modes
-  const wordFsrsRecords = useMemo(
-    () => fsrsRecords.filter((r) => !r.isDeleted && r.wordId === word.id),
-    [fsrsRecords, word.id]
-  );
-
-  const primaryFsrs = useMemo(
-    () => wordFsrsRecords.find((r) => r.quizMode === 'wordToMeaning') || wordFsrsRecords[0],
-    [wordFsrsRecords]
-  );
+  // Spaced Repetition (FSRS) metrics for this word
+  const primaryFsrs = useMemo(() => {
+    if (primaryFsrsRecord !== undefined) {
+      return primaryFsrsRecord;
+    }
+    const matching = fsrsRecords.filter((r) => !r.isDeleted && r.wordId === word.id);
+    return matching.find((r) => r.quizMode === 'wordToMeaning') || matching[0];
+  }, [primaryFsrsRecord, fsrsRecords, word.id]);
 
   // Missed records for this word
-  const wordMissedRecords = useMemo(
-    () => missedRecords.filter((m) => !m.isDeleted && m.wordId === word.id),
-    [missedRecords, word.id]
-  );
+  const isMissed = useMemo(() => {
+    if (isWordMissed !== undefined) {
+      return isWordMissed;
+    }
+    return missedRecords.some((m) => !m.isDeleted && m.wordId === word.id);
+  }, [isWordMissed, missedRecords, word.id]);
 
-  const isMissed = wordMissedRecords.length > 0;
-  const totalMissedCount = useMemo(
-    () => wordMissedRecords.reduce((acc, curr) => acc + curr.missedCount, 0),
-    [wordMissedRecords]
-  );
+  const totalMissedCount = useMemo(() => {
+    if (missedWordCount !== undefined) {
+      return missedWordCount;
+    }
+    return missedRecords
+      .filter((m) => !m.isDeleted && m.wordId === word.id)
+      .reduce((acc, curr) => acc + curr.missedCount, 0);
+  }, [missedWordCount, missedRecords, word.id]);
 
   // Audio pronunciation using Web Speech API
   const speakWord = (text: string) => {
@@ -180,7 +189,7 @@ export function WordDetailCard({
     <Card
       radius="lg"
       padding={density === 'compact' ? 'sm' : 'md'}
-      className="glass-panel hover-lift"
+      className="virtual-word-card"
       style={{
         borderLeft: isMissed
           ? '4px solid #ef4444'
@@ -539,7 +548,7 @@ export function WordDetailCard({
                             <Group
                               key={`user-ex-${exIdx}`}
                               align="flex-start"
-                              gap={6}
+                              gap={8}
                               wrap="nowrap"
                             >
                               <Badge
@@ -547,16 +556,17 @@ export function WordDetailCard({
                                 variant="light"
                                 color="grape"
                                 radius="sm"
-                                style={{ flexShrink: 0, marginTop: 2, fontSize: '9px' }}
+                                style={{ flexShrink: 0, marginTop: 3, fontSize: '10px' }}
                               >
                                 My Note
                               </Badge>
                               <Text
-                                size="xs"
+                                size="sm"
                                 fw={500}
                                 style={{
                                   color: '#c084fc',
-                                  lineHeight: 1.45,
+                                  lineHeight: 1.55,
+                                  fontSize: '0.925rem',
                                   wordBreak: 'break-word',
                                 }}
                               >
@@ -567,22 +577,23 @@ export function WordDetailCard({
 
                           {/* AI-Generated Examples (Indigo/Blue) */}
                           {aiExamples.map((ex, exIdx) => (
-                            <Group key={`ai-ex-${exIdx}`} align="flex-start" gap={6} wrap="nowrap">
+                            <Group key={`ai-ex-${exIdx}`} align="flex-start" gap={8} wrap="nowrap">
                               <ThemeIcon
-                                size="xs"
+                                size="sm"
                                 variant="light"
                                 color="indigo"
                                 radius="sm"
-                                style={{ flexShrink: 0, marginTop: 3 }}
+                                style={{ flexShrink: 0, marginTop: 2 }}
                               >
-                                <IconSparkles size={10} />
+                                <IconSparkles size={12} />
                               </ThemeIcon>
                               <Text
-                                size="xs"
+                                size="sm"
                                 fw={500}
                                 style={{
                                   color: '#818cf8',
-                                  lineHeight: 1.45,
+                                  lineHeight: 1.55,
+                                  fontSize: '0.925rem',
                                   wordBreak: 'break-word',
                                 }}
                               >
@@ -599,6 +610,14 @@ export function WordDetailCard({
             </Paper>
           );
         })}
+        {isGeneratingExamples && (
+          <Group gap={6} mt={4}>
+            <IconSparkles size={14} className="sync-spin-icon" style={{ color: '#6366f1' }} />
+            <Text size="xs" c="indigo" fw={600}>
+              Generating AI examples...
+            </Text>
+          </Group>
+        )}
       </Stack>
 
       {/* ── Rich Personal Notes Section (TipTap formatted) ── */}
@@ -756,4 +775,4 @@ export function WordDetailCard({
       )}
     </Card>
   );
-}
+});

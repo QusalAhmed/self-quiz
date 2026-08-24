@@ -28,8 +28,10 @@ import {
   IconPlus,
   IconSearch,
   IconSortAscending,
+  IconSparkles,
   IconTags,
 } from '@tabler/icons-react';
+import { useRouter } from 'next/navigation';
 import React from 'react';
 import type { WordViewDensity } from './WordDetailCard';
 
@@ -149,7 +151,7 @@ const SORT_OPTIONS = [
   { value: 'oldest', label: 'Oldest Added' },
 ];
 
-export function WordExplorerHeader({
+export const WordExplorerHeader = React.memo(function WordExplorerHeader({
   totalCount,
   filteredCount,
   masteredCount,
@@ -179,6 +181,7 @@ export function WordExplorerHeader({
   onOpenAddModal,
   onOpenGroupManager,
 }: WordExplorerHeaderProps) {
+  const router = useRouter();
   const isSearching = Boolean(searchQuery.trim());
 
   return (
@@ -232,6 +235,17 @@ export function WordExplorerHeader({
               >
                 Showing {filteredCount} of {totalCount}
               </Badge>
+
+              <Button
+                variant="light"
+                color="indigo"
+                size="sm"
+                radius="md"
+                leftSection={<IconSparkles size={16} />}
+                onClick={() => router.push('/stories')}
+              >
+                AI Stories
+              </Button>
 
               {missingWordFamilyCount > 0 && onOpenBatchWordFamilyModal && (
                 <Button
@@ -568,4 +582,4 @@ export function WordExplorerHeader({
       </Paper>
     </Stack>
   );
-}
+});

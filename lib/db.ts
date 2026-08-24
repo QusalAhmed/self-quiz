@@ -148,6 +148,30 @@ export type WordFamilyMemberRecord = {
   generatorAiDetails?: string;
 };
 
+export type StoryWordReference = {
+  wordId: string;
+  word: string;
+  meaning: string;
+  partOfSpeech?: string;
+};
+
+export type StoryDifficultyLevel = 'beginner' | 'intermediate' | 'advanced';
+
+export type StoryRecord = {
+  id: string;
+  title: string;
+  content: string;
+  banglaTranslation?: string;
+  genre: string;
+  difficulty?: StoryDifficultyLevel;
+  targetWords: StoryWordReference[];
+  isFavorite: boolean;
+  createdAt: string;
+  updatedAt: string;
+  isDeleted: boolean;
+  lastSyncedAt: string;
+};
+
 export type WordCollection = RxCollection<WordRecord>;
 export type MissedWordCollection = RxCollection<MissedWordRecord>;
 export type GroupCollection = RxCollection<GroupRecord>;
@@ -158,6 +182,7 @@ export type SrsPracticeCollection = RxCollection<SrsPracticeRecord>;
 export type DailyUsageCollection = RxCollection<DailyUsageRecord>;
 export type ReviewLogCollection = RxCollection<ReviewLogRecord>;
 export type SettingsCollection = RxCollection<SettingsRecord>;
+export type StoryCollection = RxCollection<StoryRecord>;
 export type AppDatabase = RxDatabase<{
   words: WordCollection;
   missedWords: MissedWordCollection;
@@ -169,6 +194,7 @@ export type AppDatabase = RxDatabase<{
   dailyUsage: DailyUsageCollection;
   reviewLogs: ReviewLogCollection;
   settings: SettingsCollection;
+  stories: StoryCollection;
 }>;
 
 const wordSchema: RxJsonSchema<WordRecord> = {
@@ -574,6 +600,54 @@ const settingsSchema: RxJsonSchema<SettingsRecord> = {
   indexes: ['updatedAt', 'isDeleted'],
 };
 
+const storySchema: RxJsonSchema<StoryRecord> = {
+  title: 'story schema',
+  version: 1,
+  description: 'AI-generated vocabulary learning stories',
+  primaryKey: 'id',
+  type: 'object',
+  properties: {
+    id: { type: 'string', maxLength: 64 },
+    title: { type: 'string', maxLength: 256 },
+    content: { type: 'string' },
+    banglaTranslation: { type: 'string', default: '' },
+    genre: { type: 'string', maxLength: 64 },
+    difficulty: { type: 'string', maxLength: 32, default: 'intermediate' },
+    targetWords: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          wordId: { type: 'string' },
+          word: { type: 'string' },
+          meaning: { type: 'string' },
+          partOfSpeech: { type: 'string' },
+        },
+        required: ['wordId', 'word', 'meaning'],
+      },
+      default: [],
+    },
+    isFavorite: { type: 'boolean', default: false },
+    createdAt: { type: 'string', maxLength: 32 },
+    updatedAt: { type: 'string', maxLength: 32 },
+    isDeleted: { type: 'boolean', default: false },
+    lastSyncedAt: { type: 'string', default: '' },
+  },
+  required: [
+    'id',
+    'title',
+    'content',
+    'genre',
+    'targetWords',
+    'isFavorite',
+    'createdAt',
+    'updatedAt',
+    'isDeleted',
+    'lastSyncedAt',
+  ],
+  indexes: ['updatedAt', 'isDeleted'],
+};
+
 if (process.env.NODE_ENV !== 'production') {
   addRxPlugin(RxDBDevModePlugin);
 }
@@ -789,6 +863,12 @@ async function createDatabase(): Promise<AppDatabase> {
     },
     settings: {
       schema: settingsSchema,
+      migrationStrategies: {
+        1: (oldDoc) => ({ ...oldDoc }),
+      },
+    },
+    stories: {
+      schema: storySchema,
       migrationStrategies: {
         1: (oldDoc) => ({ ...oldDoc }),
       },

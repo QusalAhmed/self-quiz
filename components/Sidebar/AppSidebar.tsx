@@ -27,6 +27,7 @@ import {
   IconPlus,
   IconRotateClockwise,
   IconSettings,
+  IconSparkles,
   IconSun,
   IconTags,
   IconVolume,
@@ -69,6 +70,7 @@ export function AppSidebar({
   const router = useRouter();
   const pathname = usePathname();
   const isWordsPage = pathname === '/words';
+  const isStoriesPage = pathname === '/stories';
   const isAnalysisPage = pathname === '/analysis';
   const isReviewLogPage = pathname === '/review-log';
   const isSettingsPage = pathname === '/settings';
@@ -79,7 +81,7 @@ export function AppSidebar({
   };
 
   const scrollToSection = (id: string) => {
-    if (isWordsPage || isAnalysisPage || isReviewLogPage || isSettingsPage) {
+    if (isWordsPage || isStoriesPage || isAnalysisPage || isReviewLogPage || isSettingsPage) {
       router.push(`/#${id}`);
       return;
     }
@@ -148,6 +150,15 @@ export function AppSidebar({
             />
 
             <NavLink
+              label="AI Story Mode"
+              description="Contextual reader & Cloze"
+              leftSection={<IconSparkles size={18} />}
+              active={isStoriesPage}
+              onClick={() => handleLinkClick(() => router.push('/stories'))}
+              style={{ borderRadius: 8 }}
+            />
+
+            <NavLink
               label="Learning Analysis"
               description="FSRS retention & memory health"
               leftSection={<IconChartBar size={18} />}
@@ -180,10 +191,10 @@ export function AppSidebar({
               label="Study & Practice"
               description="Manage & add words"
               leftSection={<IconCards size={18} />}
-              active={!isWordsPage && !isAnalysisPage && mode === 'study'}
+              active={!isWordsPage && !isStoriesPage && !isAnalysisPage && mode === 'study'}
               onClick={() =>
                 handleLinkClick(() => {
-                  if (isWordsPage || isAnalysisPage) {
+                  if (isWordsPage || isStoriesPage || isAnalysisPage) {
                     router.push('/');
                   } else {
                     onSetMode('study');
@@ -197,7 +208,7 @@ export function AppSidebar({
               label="Quiz & Flashcards"
               description="Interactive review session"
               leftSection={<IconBrain size={18} />}
-              active={!isWordsPage && !isAnalysisPage && mode === 'quiz'}
+              active={!isWordsPage && !isStoriesPage && !isAnalysisPage && mode === 'quiz'}
               childrenOffset={24}
               defaultOpened
               style={{ borderRadius: 8 }}
@@ -207,7 +218,7 @@ export function AppSidebar({
                 leftSection={<IconCards size={16} />}
                 onClick={() =>
                   handleLinkClick(() => {
-                    if (isWordsPage || isAnalysisPage) {
+                    if (isWordsPage || isStoriesPage || isAnalysisPage) {
                       router.push('/');
                     }
                     onOpenAllWordsQuiz();

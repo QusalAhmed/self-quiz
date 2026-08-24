@@ -7,7 +7,10 @@ type RichNoteViewerProps = {
   title?: string;
 };
 
-export function RichNoteViewer({ content, title = 'Note' }: RichNoteViewerProps) {
+export const RichNoteViewer = React.memo(function RichNoteViewer({
+  content,
+  title = 'Note',
+}: RichNoteViewerProps) {
   if (!content || content.trim() === '' || content === '<p></p>') {
     return null;
   }
@@ -42,4 +45,4 @@ export function RichNoteViewer({ content, title = 'Note' }: RichNoteViewerProps)
       </Stack>
     </Paper>
   );
-}
+});

@@ -1,5 +1,12 @@
 import { normalizeAiExamples } from './examples';
 import {
+  buildStoryUserPrompt,
+  parseStoryGenerationResponse,
+  STORY_SYSTEM_INSTRUCTION,
+  type GenerateStoryParams,
+  type StoryGenerationResult,
+} from './story';
+import {
   buildWordFamilyUserPrompt,
   extractWordFamilyGenerationResponse,
   WORD_FAMILY_SYSTEM_INSTRUCTION,
@@ -387,4 +394,77 @@ export async function generateCloudflareExamples(
   }
 
   return examples;
+}
+
+export async function generateCloudflareStory(
+  params: GenerateStoryParams
+): Promise<StoryGenerationResult> {
+  const { targetWords } = params;
+  if (!targetWords || targetWords.length === 0) {
+    throw new Error('Target words are required to generate a story');
+  }
+
+  const accountId = process.env.CF_ACCOUNT_ID;
+  const apiToken = process.env.CF_API_TOKEN;
+  if (!accountId || !apiToken) {
+    throw new Error('Cloudflare AI credentials are not configured');
+  }
+
+  const model = process.env.CF_AI_MODEL || '@cf/meta/llama-3.1-8b-instruct';
+  const generatorAiDetails = formatCloudflareModelDetails(model);
+  const promptText = buildStoryUserPrompt(params);
+
+  const messages: CloudflareMessage[] = [
+    {
+      role: 'system',
+      content: STORY_SYSTEM_INSTRUCTION,
+    },
+    {
+      role: 'user',
+      content: promptText,
+    },
+  ];
+
+  const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${model}`;
+
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${apiToken}` },
+    method: 'POST',
+    body: JSON.stringify({ messages }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.warn('Cloudflare AI HTTP error for story:', response.status, errorText);
+    throw new Error(`Cloudflare AI HTTP error: ${response.status} - ${errorText}`);
+  }
+
+  const data = (await response.json()) as CloudflareAIResponse;
+
+  if (data.success === false && data.errors?.length) {
+    const errMsg = data.errors.map((e) => e.message).join(', ');
+    console.warn('Cloudflare AI returned errors for story:', errMsg);
+    throw new Error(`AI service error: ${errMsg}`);
+  }
+
+  const rawResponse = data?.result?.response;
+  let parsed: any;
+
+  if (typeof rawResponse === 'object' && rawResponse !== null) {
+    parsed = rawResponse;
+  } else if (typeof rawResponse === 'string') {
+    const trimmed = rawResponse.trim();
+    const fencedMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    const jsonStr = fencedMatch ? fencedMatch[1].trim() : trimmed;
+    try {
+      parsed = JSON.parse(jsonStr);
+    } catch (err: any) {
+      console.warn('Failed to parse Cloudflare AI story response as JSON:', rawResponse);
+      throw new Error(`Cloudflare AI story response was not valid JSON: ${err.message}`);
+    }
+  } else {
+    throw new Error('Cloudflare AI returned unexpected response structure');
+  }
+
+  return parseStoryGenerationResponse(parsed, generatorAiDetails);
 }

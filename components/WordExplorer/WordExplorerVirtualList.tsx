@@ -27,7 +27,9 @@ export type WordExplorerVirtualListProps = {
   onOpenAddModal?: () => void;
 };
 
-export function WordExplorerVirtualList({
+const EMPTY_MEMBERS: WordFamilyMemberRecord[] = [];
+
+export const WordExplorerVirtualList = React.memo(function WordExplorerVirtualList({
   words,
   fsrsRecords = [],
   missedRecords = [],
@@ -62,39 +64,73 @@ export function WordExplorerVirtualList({
       window.removeEventListener('resize', updateScrollMargin);
       window.removeEventListener('orientationchange', updateScrollMargin);
     };
-  }, [density]);
+  }, [density, words.length]);
 
-  const fsrsByWordId = useMemo(() => {
-    const map = new Map<string, FsrsRecord[]>();
+  // Pre-indexed map: wordId -> primary FSRS record
+  const primaryFsrsByWordId = useMemo(() => {
+    const map = new Map<string, FsrsRecord>();
     for (const r of fsrsRecords) {
       if (r.isDeleted) {
         continue;
       }
-      const list = map.get(r.wordId) || [];
-      list.push(r);
-      map.set(r.wordId, list);
+      if (r.quizMode === 'wordToMeaning' || !map.has(r.wordId)) {
+        map.set(r.wordId, r);
+      }
     }
     return map;
   }, [fsrsRecords]);
 
-  const missedByWordId = useMemo(() => {
-    const map = new Map<string, MissedWordRecord[]>();
+  // Pre-indexed map: wordId -> missed stats
+  const missedStatsByWordId = useMemo(() => {
+    const map = new Map<string, { isMissed: boolean; count: number }>();
     for (const m of missedRecords) {
       if (m.isDeleted) {
         continue;
       }
-      const list = map.get(m.wordId) || [];
-      list.push(m);
-      map.set(m.wordId, list);
+      const existing = map.get(m.wordId);
+      if (existing) {
+        existing.count += m.missedCount || 1;
+      } else {
+        map.set(m.wordId, { isMissed: true, count: m.missedCount || 1 });
+      }
     }
     return map;
   }, [missedRecords]);
 
+  const estimateItemSize = useCallback(
+    (index: number) => {
+      const w = words[index];
+      if (!w) {
+        return density === 'compact' ? 120 : 260;
+      }
+      if (density === 'compact') {
+        return 120;
+      }
+      if (density === 'card') {
+        return 180;
+      }
+      // Detailed density pre-measurement estimation
+      let h = 200;
+      if (w.definitions && w.definitions.length > 1) {
+        h += (w.definitions.length - 1) * 75;
+      }
+      if (w.notes && w.notes.trim()) {
+        h += 80;
+      }
+      const fam = wordFamilies[w.id];
+      if (fam && fam.length > 0) {
+        h += 45;
+      }
+      return h;
+    },
+    [words, density, wordFamilies]
+  );
+
   const rowVirtualizer = useWindowVirtualizer({
     count: words.length,
-    estimateSize: () => (density === 'compact' ? 140 : 260),
-    getItemKey: useCallback((index: number) => words[index]?.id || index, [words]),
-    overscan: 6,
+    estimateSize: estimateItemSize,
+    getItemKey: useCallback((index: number) => words[index]?.id ?? index, [words]),
+    overscan: 8,
     scrollMargin,
   });
 
@@ -175,13 +211,15 @@ export function WordExplorerVirtualList({
 
           const isGeneratingExamples = Boolean(generatingExampleWordIds[item.id]);
           const isGeneratingFamily = Boolean(generatingWordFamilyWordIds[item.id]);
-          const familyMembers = wordFamilies[item.id] || [];
+          const familyMembers = wordFamilies[item.id] || EMPTY_MEMBERS;
+          const missedInfo = missedStatsByWordId.get(item.id);
 
           return (
             <div
               key={item.id}
               data-index={virtualRow.index}
               ref={rowVirtualizer.measureElement}
+              className="virtual-list-row"
               style={{
                 position: 'absolute',
                 top: 0,
@@ -193,8 +231,9 @@ export function WordExplorerVirtualList({
             >
               <WordDetailCard
                 word={item}
-                fsrsRecords={fsrsByWordId.get(item.id) || []}
-                missedRecords={missedByWordId.get(item.id) || []}
+                primaryFsrsRecord={primaryFsrsByWordId.get(item.id)}
+                isWordMissed={missedInfo?.isMissed ?? false}
+                missedWordCount={missedInfo?.count ?? 0}
                 wordFamilyMembers={familyMembers}
                 density={density}
                 searchQuery={searchQuery}
@@ -214,4 +253,4 @@ export function WordExplorerVirtualList({
       </div>
     </div>
   );
-}
+});

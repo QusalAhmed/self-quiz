@@ -2,6 +2,12 @@
 
 import { Button, Container, Group, Modal, Stack, Text } from '@mantine/core';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  capitalizeWord,
+  mergeExamplesIntoDefinitions,
+  requestExamplesForDefinitions,
+  toMutableWordRecord,
+} from '@/app/home/utils';
 import { EditWordModal } from '@/components/EditWordModal/EditWordModal';
 import { GroupManager } from '@/components/GroupManager/GroupManager';
 import {
@@ -348,45 +354,79 @@ export default function WordsPage() {
   // Word Operations (Add, Edit, Delete, Refresh Examples, Refresh Word Family)
   const ensureMissingAiExamples = useCallback(
     async (wordId: string) => {
-      if (!database || !navigator.onLine) {
+      if (!database) {
         return;
       }
-      const doc = await database.words.findOne(wordId).exec();
-      if (!doc) {
-        return;
-      }
-      const current = doc.toJSON() as WordRecord;
-      const currentDefinitions = getWordDefinitions(current);
-      const targetAiExampleCount = normalizeAiExampleCount(current.aiExampleCount);
 
       setGeneratingExampleWordIds((prev) => ({ ...prev, [wordId]: true }));
       try {
-        const response = await fetch('/api/examples', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            word: current.word,
-            meaning: current.meaning,
-            definitions: currentDefinitions,
-            count: targetAiExampleCount,
-          }),
-        });
-
-        if (!response.ok) {
-          return;
-        }
-        const data = await response.json();
-        if (!Array.isArray(data?.definitions)) {
+        const doc = await database.words.findOne(wordId).exec();
+        if (!doc) {
           return;
         }
 
-        const updatedDefinitions = data.definitions;
-        await database.words.upsert({
-          ...current,
-          definitions: updatedDefinitions,
+        const record = toMutableWordRecord(doc.toJSON());
+        let definitions = getWordDefinitions(record);
+
+        if (definitions.length === 0) {
+          if (!navigator.onLine) {
+            console.warn('Device is offline, skipping examples fetch for:', record.word);
+            return;
+          }
+
+          const response = await fetch('/api/meaning', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ word: record.word }),
+          });
+
+          if (!response.ok) {
+            console.warn('Failed to fetch meaning for examples:', record.word);
+            return;
+          }
+
+          const data = await response.json();
+          definitions = normalizeDefinitions(data?.definitions, String(data?.meaning ?? ''));
+          const meaning = definitionsToMeaning(definitions);
+
+          if (meaning) {
+            const updated = {
+              ...record,
+              meaning,
+              definitions,
+              updatedAt: new Date().toISOString(),
+            };
+            await database.words.upsert(updated);
+          }
+        }
+
+        if (definitions.length === 0) {
+          return;
+        }
+
+        const targetAiExampleCount = normalizeAiExampleCount(record.aiExampleCount);
+        const examplesPerDefinition = await requestExamplesForDefinitions(
+          record.word,
+          definitions,
+          targetAiExampleCount
+        );
+        if (examplesPerDefinition.every((examples) => examples.length === 0)) {
+          return;
+        }
+
+        const updatedDefinitions = mergeExamplesIntoDefinitions(
+          definitions,
+          examplesPerDefinition,
+          targetAiExampleCount
+        );
+        const updated = {
+          ...record,
           meaning: definitionsToMeaning(updatedDefinitions),
+          definitions: updatedDefinitions,
           updatedAt: new Date().toISOString(),
-        });
+        };
+
+        await database.words.upsert(updated);
       } catch (error) {
         console.error('Error generating AI examples:', error);
       } finally {
@@ -409,7 +449,7 @@ export default function WordsPage() {
         const response = await fetch('/api/word-family', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ word, meaning }),
+          body: JSON.stringify({ word: capitalizeWord(word), meaning }),
         });
 
         if (!response.ok) {
@@ -436,9 +476,9 @@ export default function WordsPage() {
             const wordDoc = await database.words.findOne(wordId).exec();
             if (wordDoc) {
               await wordDoc.patch({
-                ...(rootUsageFrequency ? { usageFrequency: rootUsageFrequency } : {}),
-                ...(generatorAiDetails ? { generatorAiDetails } : {}),
-                updatedAt: new Date().toISOString(),
+                 ...(rootUsageFrequency ? { usageFrequency: rootUsageFrequency } : {}),
+                 ...(generatorAiDetails ? { generatorAiDetails } : {}),
+                 updatedAt: new Date().toISOString(),
               });
             }
           } catch (err) {
@@ -446,17 +486,25 @@ export default function WordsPage() {
           }
         }
 
+        const normalizedMainWord = word.trim().toLowerCase();
+        const validMembers = members.filter(
+          (m) => m.word.trim().toLowerCase() !== normalizedMainWord
+        );
+        if (validMembers.length === 0) {
+          return;
+        }
+
         const timestamp = new Date().toISOString();
-        for (const member of members) {
+        for (const member of validMembers) {
           const memberId = buildWordFamilyId(wordId, member.word);
           const record: WordFamilyMemberRecord = {
             id: memberId,
             wordId,
-            word: member.word,
-            partOfSpeech: member.partOfSpeech || '',
-            banglaDefinition: member.banglaDefinition || '',
-            englishDefinition: member.englishDefinition || '',
-            examples: member.examples || [],
+            word: capitalizeWord(member.word),
+            partOfSpeech: member.partOfSpeech.toLowerCase().trim(),
+            banglaDefinition: member.banglaDefinition.trim(),
+            englishDefinition: member.englishDefinition.trim(),
+            examples: Array.isArray(member.examples) ? member.examples : [],
             usageFrequency: member.usageFrequency || '',
             generatorAiDetails: member.generatorAiDetails || generatorAiDetails || '',
             createdAt: timestamp,
@@ -478,203 +526,313 @@ export default function WordsPage() {
     [database]
   );
 
-  const handleAddWord = async (
-    word: string,
-    meaning: string,
-    definitions: WordDefinition[],
-    selectedGroups: string[],
-    aiExampleCount: number,
-    notes?: string,
-    usageFrequency?: string,
-    generatorAiDetails?: string
-  ) => {
-    if (!database) {
-      return;
-    }
-    const normalizedGroups = Array.from(
-      new Set(selectedGroups.map((g) => g.trim()).filter((g) => g.length > 0))
-    );
-    for (const groupName of normalizedGroups) {
-      await ensureGroupExists(groupName);
-    }
-
-    const timestamp = new Date().toISOString();
-    const normalizedDefinitions = normalizeDefinitions(definitions, meaning);
-    const normalizedMeaning = definitionsToMeaning(normalizedDefinitions);
-    const normalizedAiExampleCount = normalizeAiExampleCount(aiExampleCount);
-
-    const record: WordRecord = {
-      id: crypto.randomUUID(),
-      word: word.trim(),
-      meaning: normalizedMeaning,
-      definitions: normalizedDefinitions,
-      aiExampleCount: normalizedAiExampleCount,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-      isDeleted: false,
-      lastSyncedAt: '',
-      customGroups: normalizedGroups,
-      notes: notes || '',
-      usageFrequency: usageFrequency || '',
-      generatorAiDetails: generatorAiDetails || '',
-    };
-
-    await database.words.upsert(record);
-    void notifyWordSaved({ word: record.word, action: 'created' });
-
-    // Initial FSRS records
-    const fsrsQuizModes: import('@/lib/db').QuizMode[] = [
-      'wordToMeaning',
-      'meaningToWord',
-      'spelling',
-    ];
-    for (const qMode of fsrsQuizModes) {
-      const fsrsRecord = createInitialFsrsRecord(record.id, qMode, record.word, normalizedMeaning);
-      await database.fsrsRecords.upsert(fsrsRecord);
-    }
-    void notifyFsrsWordAdded({
-      word: record.word,
-      quizMode: 'wordToMeaning',
-      meaning: normalizedMeaning,
-    });
-
-    void fetchAndStoreWordFamily(record.id, record.word, normalizedMeaning);
-    if (normalizedDefinitions.length > 0) {
-      void ensureMissingAiExamples(record.id);
-    }
-  };
-
-  const handleEditWord = async (
-    id: string,
-    word: string,
-    meaning: string,
-    definitions: WordDefinition[],
-    selectedGroups: string[],
-    aiExampleCount: number,
-    notes?: string,
-    usageFrequency?: string,
-    generatorAiDetails?: string
-  ) => {
-    if (!database) {
-      return;
-    }
-    const doc = await database.words.findOne(id).exec();
-    if (!doc) {
-      return;
-    }
-
-    const normalizedGroups = Array.from(
-      new Set(selectedGroups.map((g) => g.trim()).filter((g) => g.length > 0))
-    );
-    for (const groupName of normalizedGroups) {
-      await ensureGroupExists(groupName);
-    }
-
-    const timestamp = new Date().toISOString();
-    const normalizedDefinitions = normalizeDefinitions(definitions, meaning);
-    const normalizedMeaning = definitionsToMeaning(normalizedDefinitions);
-    const normalizedAiExampleCount = normalizeAiExampleCount(aiExampleCount);
-
-    const current = doc.toJSON() as WordRecord;
-    const updated: WordRecord = {
-      ...current,
-      word: word.trim(),
-      meaning: normalizedMeaning,
-      definitions: normalizedDefinitions,
-      aiExampleCount: normalizedAiExampleCount,
-      customGroups: normalizedGroups,
-      notes: notes !== undefined ? notes : current.notes || '',
-      usageFrequency: usageFrequency !== undefined ? usageFrequency : current.usageFrequency || '',
-      generatorAiDetails:
-        generatorAiDetails !== undefined ? generatorAiDetails : current.generatorAiDetails || '',
-      updatedAt: timestamp,
-    };
-
-    await database.words.upsert(updated);
-    void notifyWordSaved({ word: updated.word, action: 'updated' });
-
-    const fsrsDocs = await database.fsrsRecords.find({ selector: { wordId: id } }).exec();
-    for (const fsrsDoc of fsrsDocs) {
-      const updatedFsrs = updateFsrsRecordContent(
-        fsrsDoc.toJSON() as FsrsRecord,
-        updated.word,
-        normalizedMeaning,
-        timestamp
+  const handleAddWord = useCallback(
+    async (
+      word: string,
+      meaning: string,
+      definitions: WordDefinition[],
+      selectedGroups: string[],
+      aiExampleCount: number,
+      notes?: string,
+      usageFrequency?: string,
+      generatorAiDetails?: string
+    ) => {
+      if (!database) {
+        return;
+      }
+      const capitalizedWord = capitalizeWord(word);
+      const normalizedGroups = Array.from(
+        new Set(selectedGroups.map((g) => g.trim()).filter((g) => g.length > 0))
       );
-      await database.fsrsRecords.upsert(updatedFsrs);
-    }
-  };
+      for (const groupName of normalizedGroups) {
+        await ensureGroupExists(groupName);
+      }
 
-  const handleDeleteWord = async (id: string) => {
-    if (!database) {
-      return;
-    }
-    const doc = await database.words.findOne(id).exec();
-    if (!doc) {
-      return;
-    }
+      const timestamp = new Date().toISOString();
+      const normalizedDefinitions = normalizeDefinitions(definitions, meaning);
+      const normalizedMeaning = definitionsToMeaning(normalizedDefinitions);
+      const normalizedAiExampleCount = normalizeAiExampleCount(aiExampleCount);
 
-    const timestamp = new Date().toISOString();
-    const wordText = (doc.toJSON() as WordRecord).word;
-    await database.words.upsert({
-      ...(doc.toJSON() as WordRecord),
-      isDeleted: true,
-      updatedAt: timestamp,
-    });
-    void notifyWordSaved({ word: wordText, action: 'deleted' });
+      const record: WordRecord = {
+        id: crypto.randomUUID(),
+        word: capitalizedWord,
+        meaning: normalizedMeaning,
+        definitions: normalizedDefinitions,
+        aiExampleCount: normalizedAiExampleCount,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        isDeleted: false,
+        lastSyncedAt: '',
+        customGroups: normalizedGroups,
+        notes: notes || '',
+        usageFrequency: usageFrequency || '',
+        generatorAiDetails: generatorAiDetails || '',
+      };
 
-    const fsrsDocs = await database.fsrsRecords.find({ selector: { wordId: id } }).exec();
-    for (const fsrsDoc of fsrsDocs) {
-      await database.fsrsRecords.upsert(
-        softDeleteFsrsRecord(fsrsDoc.toJSON() as FsrsRecord, timestamp)
+      await database.words.upsert(record);
+      void notifyWordSaved({ word: record.word, action: 'created' });
+
+      // Initial FSRS records
+      const fsrsQuizModes: import('@/lib/db').QuizMode[] = [
+        'wordToMeaning',
+        'meaningToWord',
+        'spelling',
+      ];
+      for (const qMode of fsrsQuizModes) {
+        const fsrsRecord = createInitialFsrsRecord(record.id, qMode, record.word, normalizedMeaning);
+        await database.fsrsRecords.upsert(fsrsRecord);
+      }
+      void notifyFsrsWordAdded({
+        word: record.word,
+        quizMode: 'wordToMeaning',
+        meaning: normalizedMeaning,
+      });
+
+      // Generate word family members using AI in background
+      void fetchAndStoreWordFamily(record.id, record.word, normalizedMeaning).catch((error) => {
+        console.error('Error generating word family after add:', error);
+      });
+
+      if (normalizedDefinitions.length > 0) {
+        void ensureMissingAiExamples(record.id).catch((error) => {
+          console.error('Error generating AI examples after add:', error);
+        });
+      }
+
+      // If definitions are empty, fetch definition & meaning from /api/meaning automatically!
+      if (normalizedDefinitions.length === 0) {
+        void (async () => {
+          try {
+            if (!navigator.onLine) {
+              console.warn('Device is offline, skipping definition fetch for:', record.word);
+              return;
+            }
+
+            const response = await fetch('/api/meaning', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ word: record.word }),
+            });
+
+            if (!response.ok) {
+              const errorText = await response.text();
+              console.warn(
+                'Definition API error for word:',
+                record.word,
+                'Status:',
+                response.status,
+                errorText
+              );
+              return;
+            }
+
+            const data = await response.json();
+            const aiDefinitions = normalizeDefinitions(
+              data?.definitions,
+              String(data?.meaning ?? '')
+            );
+            const aiMeaning = definitionsToMeaning(aiDefinitions);
+
+            if (!aiMeaning) {
+              console.warn('No definition returned for word:', record.word);
+              return;
+            }
+
+            const doc = await database.words.findOne(record.id).exec();
+            if (!doc) {
+              console.warn('Word document not found after fetch:', record.id);
+              return;
+            }
+
+            const current = toMutableWordRecord(doc.toJSON());
+            if (getWordDefinitions(current).length > 0) {
+              console.log('Meaning already exists, skipping update');
+              return;
+            }
+
+            const updated = {
+              ...current,
+              meaning: aiMeaning,
+              definitions: aiDefinitions,
+              updatedAt: new Date().toISOString(),
+            };
+
+            await database.words.upsert(updated);
+            const fsrsDocs = await database.fsrsRecords
+              .find({
+                selector: { wordId: record.id },
+              })
+              .exec();
+            for (const fsrsDoc of fsrsDocs) {
+              const updatedFsrs = updateFsrsRecordContent(
+                fsrsDoc.toJSON() as FsrsRecord,
+                record.word,
+                aiMeaning,
+                updated.updatedAt
+              );
+              await database.fsrsRecords.upsert(updatedFsrs);
+            }
+
+            // Now generate AI examples for the freshly fetched definitions
+            await ensureMissingAiExamples(record.id);
+            console.log('Definition and examples updated for word:', record.word, '-', aiMeaning);
+          } catch (error) {
+            console.error('Error fetching definition:', error);
+          }
+        })();
+      }
+    },
+    [database, ensureGroupExists, ensureMissingAiExamples, fetchAndStoreWordFamily]
+  );
+
+  const handleEditWord = useCallback(
+    async (
+      id: string,
+      word: string,
+      meaning: string,
+      definitions: WordDefinition[],
+      selectedGroups: string[],
+      aiExampleCount: number,
+      notes?: string,
+      usageFrequency?: string,
+      generatorAiDetails?: string
+    ) => {
+      if (!database) {
+        return;
+      }
+      const doc = await database.words.findOne(id).exec();
+      if (!doc) {
+        return;
+      }
+
+      const capitalizedWord = capitalizeWord(word);
+      const normalizedGroups = Array.from(
+        new Set(selectedGroups.map((g) => g.trim()).filter((g) => g.length > 0))
       );
-    }
-  };
+      for (const groupName of normalizedGroups) {
+        await ensureGroupExists(groupName);
+      }
 
-  const handleDeleteWordFamilyMember = async (memberId: string) => {
-    if (!database) {
-      return;
-    }
-    const doc = await database.wordFamilies.findOne(memberId).exec();
-    if (!doc) {
-      return;
-    }
-    await database.wordFamilies.upsert({
-      ...(doc.toJSON() as WordFamilyMemberRecord),
-      isDeleted: true,
-      updatedAt: new Date().toISOString(),
-    });
-  };
+      const timestamp = new Date().toISOString();
+      const normalizedDefinitions = normalizeDefinitions(definitions, meaning);
+      const normalizedMeaning = definitionsToMeaning(normalizedDefinitions);
+      const normalizedAiExampleCount = normalizeAiExampleCount(aiExampleCount);
 
-  const handleToggleMissed = async (wordId: string, word: string, meaning: string) => {
-    if (!database) {
-      return;
-    }
-    const missedId = buildMissedWordId(wordId, 'wordToMeaning');
-    const existing = await database.missedWords.findOne(missedId).exec();
-    const timestamp = new Date().toISOString();
+      const current = toMutableWordRecord(doc.toJSON());
+      const updated: WordRecord = {
+        ...current,
+        word: capitalizedWord,
+        meaning: normalizedMeaning,
+        definitions: normalizedDefinitions,
+        aiExampleCount: normalizedAiExampleCount,
+        customGroups: normalizedGroups,
+        notes: notes !== undefined ? notes : current.notes || '',
+        usageFrequency: usageFrequency !== undefined ? usageFrequency : current.usageFrequency || '',
+        generatorAiDetails:
+          generatorAiDetails !== undefined ? generatorAiDetails : current.generatorAiDetails || '',
+        updatedAt: timestamp,
+      };
 
-    if (existing && !existing.isDeleted) {
-      await database.missedWords.upsert({
-        ...existing.toJSON(),
+      await database.words.upsert(updated);
+      void notifyWordSaved({ word: updated.word, action: 'updated' });
+
+      const fsrsDocs = await database.fsrsRecords.find({ selector: { wordId: id } }).exec();
+      for (const fsrsDoc of fsrsDocs) {
+        const updatedFsrs = updateFsrsRecordContent(
+          fsrsDoc.toJSON() as FsrsRecord,
+          updated.word,
+          normalizedMeaning,
+          timestamp
+        );
+        await database.fsrsRecords.upsert(updatedFsrs);
+      }
+
+      if (normalizedDefinitions.length > 0) {
+        void ensureMissingAiExamples(id);
+      }
+    },
+    [database, ensureGroupExists, ensureMissingAiExamples]
+  );
+
+  const handleDeleteWord = useCallback(
+    async (id: string) => {
+      if (!database) {
+        return;
+      }
+      const doc = await database.words.findOne(id).exec();
+      if (!doc) {
+        return;
+      }
+
+      const timestamp = new Date().toISOString();
+      const wordText = (doc.toJSON() as WordRecord).word;
+      await database.words.upsert({
+        ...(doc.toJSON() as WordRecord),
         isDeleted: true,
         updatedAt: timestamp,
       });
-    } else {
-      await database.missedWords.upsert({
-        id: missedId,
-        wordId,
-        quizMode: 'wordToMeaning',
-        word,
-        meaning,
-        missedAt: timestamp,
-        missedCount: (existing?.missedCount || 0) + 1,
-        updatedAt: timestamp,
-        lastSyncedAt: '',
-        isDeleted: false,
+      void notifyWordSaved({ word: wordText, action: 'deleted' });
+
+      const fsrsDocs = await database.fsrsRecords.find({ selector: { wordId: id } }).exec();
+      for (const fsrsDoc of fsrsDocs) {
+        await database.fsrsRecords.upsert(
+          softDeleteFsrsRecord(fsrsDoc.toJSON() as FsrsRecord, timestamp)
+        );
+      }
+    },
+    [database]
+  );
+
+  const handleDeleteWordFamilyMember = useCallback(
+    async (memberId: string) => {
+      if (!database) {
+        return;
+      }
+      const doc = await database.wordFamilies.findOne(memberId).exec();
+      if (!doc) {
+        return;
+      }
+      await database.wordFamilies.upsert({
+        ...(doc.toJSON() as WordFamilyMemberRecord),
+        isDeleted: true,
+        updatedAt: new Date().toISOString(),
       });
-    }
-  };
+    },
+    [database]
+  );
+
+  const handleToggleMissed = useCallback(
+    async (wordId: string, word: string, meaning: string) => {
+      if (!database) {
+        return;
+      }
+      const missedId = buildMissedWordId(wordId, 'wordToMeaning');
+      const existing = await database.missedWords.findOne(missedId).exec();
+      const timestamp = new Date().toISOString();
+
+      if (existing && !existing.isDeleted) {
+        await database.missedWords.upsert({
+          ...existing.toJSON(),
+          isDeleted: true,
+          updatedAt: timestamp,
+        });
+      } else {
+        await database.missedWords.upsert({
+          id: missedId,
+          wordId,
+          quizMode: 'wordToMeaning',
+          word,
+          meaning,
+          missedAt: timestamp,
+          missedCount: (existing?.missedCount || 0) + 1,
+          updatedAt: timestamp,
+          lastSyncedAt: '',
+          isDeleted: false,
+        });
+      }
+    },
+    [database]
+  );
 
   // Filter and Sort Engine
   const filteredWords = useMemo(() => {
@@ -751,8 +909,6 @@ export default function WordsPage() {
     }
 
     // 5 & 6. Search Filtering and Sorting
-    // When searchQuery is present, results are scored and sorted based on matching score only (ignoring UI sort order).
-    // When searchQuery is empty, UI set sortOption is used.
     return filterAndSortWords({
       words: result,
       searchQuery,
@@ -790,14 +946,60 @@ export default function WordsPage() {
     });
   }, [filteredWords, wordFamilies]);
 
-  const handleResetFilters = () => {
+  // Memoized stable event callbacks
+  const handleResetFilters = useCallback(() => {
     setSearchQuery('');
     setSelectedLetter('ALL');
     setGroupFilter('all');
     setPosFilter('all');
     setStatusFilter('all');
     setSortOption('newest');
-  };
+  }, []);
+
+  const handleEdit = useCallback((w: WordRecord) => {
+    setEditingWord(w);
+  }, []);
+
+  const handleDeletePrompt = useCallback((id: string, word: string) => {
+    setDeleteConfirm({ id, word });
+  }, []);
+
+  const handleRefreshExamplesCallback = useCallback(
+    (id: string) => {
+      void ensureMissingAiExamples(id);
+    },
+    [ensureMissingAiExamples]
+  );
+
+  const handleRefreshWordFamilyCallback = useCallback(
+    (id: string, w: string) => {
+      void fetchAndStoreWordFamily(id, w);
+    },
+    [fetchAndStoreWordFamily]
+  );
+
+  const handleDeleteWordFamilyMemberCallback = useCallback(
+    (mid: string) => {
+      void handleDeleteWordFamilyMember(mid);
+    },
+    [handleDeleteWordFamilyMember]
+  );
+
+  const handleToggleMissedCallback = useCallback(
+    (id: string, w: string, m: string) => {
+      void handleToggleMissed(id, w, m);
+    },
+    [handleToggleMissed]
+  );
+
+  const handleGroupClick = useCallback((g: string) => {
+    setGroupFilter(g);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  const handleOpenAddModal = useCallback(() => setAddModalOpen(true), []);
+  const handleOpenGroupManager = useCallback(() => setGroupManagerOpen(true), []);
+  const handleOpenBatchWordFamilyModal = useCallback(() => setBatchWordFamilyModalOpen(true), []);
 
   return (
     <Container size="md" pt={0} pb={{ base: 'md', sm: 'xl' }} px={{ base: 'xs', sm: 'md' }}>
@@ -828,9 +1030,9 @@ export default function WordsPage() {
           density={density}
           onDensityChange={setDensity}
           missingWordFamilyCount={allMissingWordFamilyWords.length}
-          onOpenBatchWordFamilyModal={() => setBatchWordFamilyModalOpen(true)}
-          onOpenAddModal={() => setAddModalOpen(true)}
-          onOpenGroupManager={() => setGroupManagerOpen(true)}
+          onOpenBatchWordFamilyModal={handleOpenBatchWordFamilyModal}
+          onOpenAddModal={handleOpenAddModal}
+          onOpenGroupManager={handleOpenGroupManager}
         />
 
         <WordExplorerVirtualList
@@ -842,18 +1044,15 @@ export default function WordsPage() {
           searchQuery={searchQuery}
           generatingExampleWordIds={generatingExampleWordIds}
           generatingWordFamilyWordIds={generatingWordFamilyWordIds}
-          onEdit={(w) => setEditingWord(w)}
-          onDelete={(id, w) => setDeleteConfirm({ id, word: w })}
-          onRefreshExamples={(id) => void ensureMissingAiExamples(id)}
-          onRefreshWordFamily={(id, w) => void fetchAndStoreWordFamily(id, w)}
-          onDeleteWordFamilyMember={(mid) => void handleDeleteWordFamilyMember(mid)}
-          onToggleMissed={(id, w, m) => void handleToggleMissed(id, w, m)}
-          onGroupClick={(g) => {
-            setGroupFilter(g);
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-          }}
+          onEdit={handleEdit}
+          onDelete={handleDeletePrompt}
+          onRefreshExamples={handleRefreshExamplesCallback}
+          onRefreshWordFamily={handleRefreshWordFamilyCallback}
+          onDeleteWordFamilyMember={handleDeleteWordFamilyMemberCallback}
+          onToggleMissed={handleToggleMissedCallback}
+          onGroupClick={handleGroupClick}
           onResetFilters={handleResetFilters}
-          onOpenAddModal={() => setAddModalOpen(true)}
+          onOpenAddModal={handleOpenAddModal}
         />
       </Stack>
 
@@ -876,12 +1075,12 @@ export default function WordsPage() {
           customGroups={customGroups}
           onAddCustomGroup={(g) => void ensureGroupExists(g)}
           existingWords={words}
-          onEditExisting={async (id, w, m, d, g, c, n) => {
-            await handleEditWord(id, w, m, d, g, c, n);
+          onEditExisting={async (id, w, m, d, g, c, n, freq, genDetails) => {
+            await handleEditWord(id, w, m, d, g, c, n, freq, genDetails);
             setAddModalOpen(false);
           }}
-          onSubmit={async (w, m, d, g, c, n) => {
-            await handleAddWord(w, m, d, g, c, n);
+          onSubmit={async (w, m, d, g, c, n, freq, genDetails) => {
+            await handleAddWord(w, m, d, g, c, n, freq, genDetails);
             setAddModalOpen(false);
           }}
           onCancel={() => setAddModalOpen(false)}
@@ -894,8 +1093,8 @@ export default function WordsPage() {
         onClose={() => setEditingWord(null)}
         wordRecord={editingWord}
         customGroups={customGroups}
-        onSave={async (id, w, m, d, g, c, n) => {
-          await handleEditWord(id, w, m, d, g, c, n);
+        onSave={async (id, w, m, d, g, c, n, freq, genDetails) => {
+          await handleEditWord(id, w, m, d, g, c, n, freq, genDetails);
           setEditingWord(null);
         }}
         onAddCustomGroup={(g) => void ensureGroupExists(g)}

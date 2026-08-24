@@ -61,7 +61,7 @@ function getPosColor(pos: string): string {
   return 'gray';
 }
 
-export function WordFamilySection({
+export const WordFamilySection = React.memo(function WordFamilySection({
   wordId,
   word,
   members,
@@ -492,4 +492,4 @@ export function WordFamilySection({
       </Modal>
     </div>
   );
-}
+});
