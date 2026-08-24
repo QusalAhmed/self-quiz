@@ -26,14 +26,24 @@ export type GenerateWordFamilyParams = {
   meaning?: string;
 };
 
-const STATIC_FALLBACK_GROQ_MODELS = [
+/**
+ * Strict whitelist of allowed Groq models:
+ * 1. Qwen 3.6 27B (`qwen/qwen3.6-27b`)
+ * 2. GPT OSS 120B (`openai/gpt-oss-120b`)
+ * 3. Groq Compound (`groq/compound`)
+ */
+export const ALLOWED_GROQ_MODELS = [
   'qwen/qwen3.6-27b',
   'openai/gpt-oss-120b',
-  'llama-3.3-70b-versatile',
-  'llama-3.1-8b-instant',
-  'openai/gpt-oss-20b',
-  'deepseek-r1-distill-llama-70b',
-  'gemma2-9b-it',
+  'groq/compound',
+] as const;
+
+export type AllowedGroqModel = (typeof ALLOWED_GROQ_MODELS)[number];
+
+export const STATIC_FALLBACK_GROQ_MODELS: string[] = [
+  'qwen/qwen3.6-27b',
+  'openai/gpt-oss-120b',
+  'groq/compound',
 ];
 
 let cachedWorkingModel: string | null = null;
@@ -42,127 +52,49 @@ const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 export function formatGroqModelDetails(model: string): string {
   const lower = model.toLowerCase();
-  if (lower.includes('llama-3.3-70b')) {
-    return 'Groq Llama 3.3 70B';
-  }
-  if (lower.includes('llama-3.1-70b')) {
-    return 'Groq Llama 3.1 70B';
-  }
-  if (lower.includes('llama-3.1-8b')) {
-    return 'Groq Llama 3.1 8B';
-  }
-  if (lower.includes('llama-3.2-11b')) {
-    return 'Groq Llama 3.2 11B';
-  }
-  if (lower.includes('llama-3.2-90b')) {
-    return 'Groq Llama 3.2 90B';
-  }
-  if (lower.includes('llama-3.2-3b')) {
-    return 'Groq Llama 3.2 3B';
-  }
-  if (lower.includes('llama-3.2-1b')) {
-    return 'Groq Llama 3.2 1B';
-  }
   if (lower.includes('qwen3.6-27b') || lower.includes('qwen-3.6-27b')) {
     return 'Groq Qwen 3.6 27B';
-  }
-  if (lower.includes('qwen-2.5-32b') || lower.includes('qwen2.5-32b')) {
-    return 'Groq Qwen 2.5 32B';
-  }
-  if (lower.includes('qwen')) {
-    return `Groq Qwen (${model.replace(/^.*\//, '')})`;
   }
   if (lower.includes('gpt-oss-120b')) {
     return 'Groq GPT-OSS 120B';
   }
-  if (lower.includes('gpt-oss-20b')) {
-    return 'Groq GPT-OSS 20B';
-  }
-  if (lower.includes('mixtral-8x7b')) {
-    return 'Groq Mixtral 8x7B';
-  }
-  if (lower.includes('deepseek-r1-distill-llama-70b')) {
-    return 'Groq DeepSeek R1 Distill 70B';
-  }
-  if (lower.includes('deepseek')) {
-    return `Groq DeepSeek (${model.replace(/^.*\//, '')})`;
-  }
-  if (lower.includes('gemma2-9b') || lower.includes('gemma-2-9b')) {
-    return 'Groq Gemma 2 9B';
+  if (lower.includes('compound')) {
+    return 'Groq Compound';
   }
   return `Groq AI (${model.replace(/^.*\//, '')})`;
+}
+
+export function isAllowedGroqModel(modelId: string): boolean {
+  const lower = modelId.toLowerCase().trim();
+  return (
+    lower === 'qwen/qwen3.6-27b' ||
+    lower === 'openai/gpt-oss-120b' ||
+    lower === 'groq/compound' ||
+    lower.includes('qwen3.6-27b') ||
+    lower.includes('gpt-oss-120b') ||
+    lower === 'compound' ||
+    lower === 'groq/compound'
+  );
 }
 
 export function filterAndRankGroqModels(models: Array<{ id: string; active?: boolean }>): string[] {
   const valid = models
     .filter((m) => m && typeof m.id === 'string' && m.active !== false)
     .map((m) => m.id)
-    .filter((id) => {
-      const lower = id.toLowerCase();
-      // Exclude audio, guardrail, and embedding models
-      if (
-        lower.includes('whisper') ||
-        lower.includes('guard') ||
-        lower.includes('embed') ||
-        lower.includes('tts')
-      ) {
-        return false;
-      }
-      return true;
-    });
+    .filter((id) => isAllowedGroqModel(id));
 
   const scoreModel = (id: string): number => {
     const lower = id.toLowerCase();
-    let score = 0;
-
-    // Parameter size & requested priority preference
     if (lower.includes('qwen3.6-27b') || lower.includes('qwen-3.6-27b')) {
-      score += 2000;
-    } else if (lower.includes('gpt-oss-120b')) {
-      score += 1900;
-    } else if (lower.includes('120b')) {
-      score += 1000;
-    } else if (lower.includes('70b') || lower.includes('90b')) {
-      score += 900;
-    } else if (lower.includes('32b') || lower.includes('27b')) {
-      score += 800;
-    } else if (lower.includes('14b') || lower.includes('11b') || lower.includes('12b')) {
-      score += 700;
-    } else if (lower.includes('8b') || lower.includes('9b') || lower.includes('7b')) {
-      score += 600;
-    } else if (lower.includes('3b') || lower.includes('1b')) {
-      score += 400;
-    } else {
-      score += 500;
+      return 3000;
     }
-
-    // Architecture preference
-    if (lower.includes('llama-3.3')) {
-      score += 100;
-    } else if (lower.includes('llama-3.2')) {
-      score += 90;
-    } else if (lower.includes('llama-3.1')) {
-      score += 80;
-    } else if (lower.includes('qwen')) {
-      score += 85;
-    } else if (lower.includes('deepseek')) {
-      score += 85;
-    } else if (lower.includes('gpt-oss')) {
-      score += 80;
-    } else if (lower.includes('gemma')) {
-      score += 60;
+    if (lower.includes('gpt-oss-120b')) {
+      return 2000;
     }
-
-    if (
-      lower.includes('versatile') ||
-      lower.includes('instruct') ||
-      lower.includes('it') ||
-      lower.includes('chat')
-    ) {
-      score += 20;
+    if (lower.includes('compound')) {
+      return 1000;
     }
-
-    return score;
+    return 0;
   };
 
   return valid.sort((a, b) => scoreModel(b) - scoreModel(a));
@@ -210,15 +142,22 @@ export async function getGroqModelCandidates(
   const liveModels = await fetchLiveGroqModels(apiKey);
 
   const candidates: string[] = [];
-  if (primary) {
+
+  // If user configured a specific model that is allowed, prioritize it
+  if (primary && isAllowedGroqModel(primary)) {
     candidates.push(primary);
   }
-  if (cachedWorkingModel && cachedWorkingModel !== primary) {
+
+  if (
+    cachedWorkingModel &&
+    isAllowedGroqModel(cachedWorkingModel) &&
+    !candidates.includes(cachedWorkingModel)
+  ) {
     candidates.push(cachedWorkingModel);
   }
 
   for (const m of liveModels) {
-    if (!candidates.includes(m)) {
+    if (isAllowedGroqModel(m) && !candidates.includes(m)) {
       candidates.push(m);
     }
   }
@@ -237,26 +176,122 @@ export function resetGroqWorkingModelCache(): void {
   cachedModelsList = null;
 }
 
-function parseJsonFromContent(content: string): any {
-  const trimmed = content.trim();
-  try {
-    return JSON.parse(trimmed);
-  } catch {
-    const fencedMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
-    if (fencedMatch?.[1]) {
-      return JSON.parse(fencedMatch[1].trim());
+export function isReasoningModel(model: string): boolean {
+  const lower = model.toLowerCase();
+  return (
+    lower.includes('qwen') ||
+    lower.includes('gpt-oss') ||
+    lower.includes('deepseek') ||
+    lower.includes('r1')
+  );
+}
+
+export function buildGroqPayload(
+  model: string,
+  messages: Array<{ role: string; content: string }>,
+  temperature = 0.2,
+  useJsonFormat = true
+): Record<string, any> {
+  const payload: Record<string, any> = {
+    model,
+    messages,
+    temperature,
+  };
+
+  if (useJsonFormat) {
+    payload.response_format = {
+      type: 'json_object',
+    };
+  }
+
+  if (isReasoningModel(model)) {
+    payload.reasoning_format = 'hidden';
+  }
+
+  return payload;
+}
+
+export async function fetchGroqChatCompletion(
+  apiKey: string,
+  model: string,
+  messages: Array<{ role: string; content: string }>,
+  temperature = 0.2
+): Promise<any> {
+  const url = 'https://api.groq.com/openai/v1/chat/completions';
+  const payload = buildGroqPayload(model, messages, temperature, true);
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+
+    // If Groq failed strict server-side JSON validation (e.g. reasoning token overlap), retry without response_format constraint
+    if (
+      response.status === 400 &&
+      (errorText.includes('json_validate_failed') || errorText.includes('Failed to validate JSON'))
+    ) {
+      console.warn(
+        `Groq model "${model}" failed JSON mode validation, retrying in standard text mode:`,
+        errorText
+      );
+      const rawPayload = buildGroqPayload(model, messages, temperature, false);
+      const retryResponse = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(rawPayload),
+      });
+
+      if (retryResponse.ok) {
+        return retryResponse.json();
+      }
+
+      const retryErrorText = await retryResponse.text();
+      throw new Error(`Groq AI HTTP error: ${retryResponse.status} - ${retryErrorText}`);
     }
-    const firstBrace = trimmed.indexOf('{');
-    const lastBrace = trimmed.lastIndexOf('}');
+
+    throw new Error(`Groq AI HTTP error: ${response.status} - ${errorText}`);
+  }
+
+  return response.json();
+}
+
+export function parseJsonFromContent(content: string): any {
+  let cleaned = content.trim();
+  // Strip reasoning / thought blocks if present in raw model output
+  cleaned = cleaned.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    const fencedMatch = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    if (fencedMatch?.[1]) {
+      try {
+        return JSON.parse(fencedMatch[1].trim());
+      } catch {
+        // Fall through to brace extraction
+      }
+    }
+    const firstBrace = cleaned.indexOf('{');
+    const lastBrace = cleaned.lastIndexOf('}');
     if (firstBrace !== -1 && lastBrace > firstBrace) {
-      return JSON.parse(trimmed.slice(firstBrace, lastBrace + 1));
+      return JSON.parse(cleaned.slice(firstBrace, lastBrace + 1));
     }
     throw new Error('Could not parse JSON from Groq AI response');
   }
 }
 
-function isModelUnavailableError(status: number, errorText: string): boolean {
-  if (status === 404 || status === 429 || status === 503) {
+export function isModelUnavailableError(status: number, errorText: string): boolean {
+  if (status === 404 || status === 429 || status === 503 || status === 400) {
     return true;
   }
   const lower = errorText.toLowerCase();
@@ -271,7 +306,9 @@ function isModelUnavailableError(status: number, errorText: string): boolean {
     lower.includes('not supported') ||
     lower.includes('rate_limit') ||
     lower.includes('rate limit') ||
-    lower.includes('overloaded')
+    lower.includes('overloaded') ||
+    lower.includes('json_validate_failed') ||
+    lower.includes('failed to validate json')
   );
 }
 
@@ -285,73 +322,31 @@ export async function generateGroqWordFamily(
   }
 
   const modelCandidates = await getGroqModelCandidates(apiKey, process.env.GROQ_AI_MODEL);
-  const url = 'https://api.groq.com/openai/v1/chat/completions';
   const promptText = buildWordFamilyUserPrompt(word, meaning);
+  const messages = [
+    {
+      role: 'system',
+      content: WORD_FAMILY_SYSTEM_INSTRUCTION,
+    },
+    {
+      role: 'user',
+      content: promptText,
+    },
+  ];
 
   let lastError: Error | null = null;
 
   for (const model of modelCandidates) {
     try {
       const generatorAiDetails = formatGroqModelDetails(model);
-      const payload = {
-        model,
-        messages: [
-          {
-            role: 'system',
-            content: WORD_FAMILY_SYSTEM_INSTRUCTION,
-          },
-          {
-            role: 'user',
-            content: promptText,
-          },
-        ],
-        response_format: {
-          type: 'json_object',
-        },
-        temperature: 0.2,
-      };
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        if (isModelUnavailableError(response.status, errorText)) {
-          console.warn(
-            `Groq model "${model}" unavailable (${response.status}), trying next candidate:`,
-            errorText
-          );
-          if (cachedWorkingModel === model) {
-            cachedWorkingModel = null;
-          }
-          lastError = new Error(`Groq AI HTTP error: ${response.status} - ${errorText}`);
-          continue;
-        }
-        console.warn('Groq AI HTTP error:', response.status, errorText);
-        throw new Error(`Groq AI HTTP error: ${response.status} - ${errorText}`);
-      }
-
-      const data = await response.json();
+      const data = await fetchGroqChatCompletion(apiKey, model, messages, 0.2);
       const rawContent = data.choices?.[0]?.message?.content;
 
       if (!rawContent || typeof rawContent !== 'string') {
         throw new Error('Groq AI response did not contain message content');
       }
 
-      let parsed: any;
-      try {
-        parsed = parseJsonFromContent(rawContent);
-      } catch (err: any) {
-        console.warn('Failed to parse Groq AI response as JSON:', rawContent);
-        throw new Error(`Groq AI response was not valid JSON: ${err.message}`);
-      }
-
+      const parsed = parseJsonFromContent(rawContent);
       const result = extractWordFamilyGenerationResponse(parsed, word, generatorAiDetails);
       if (!result.members || result.members.length === 0) {
         throw new Error('Groq AI returned empty word family members');
@@ -360,14 +355,18 @@ export async function generateGroqWordFamily(
       cachedWorkingModel = model;
       return result;
     } catch (err: any) {
+      console.warn(
+        `Groq model "${model}" failed, trying next candidate if available:`,
+        err?.message || err
+      );
+      if (cachedWorkingModel === model) {
+        cachedWorkingModel = null;
+      }
       lastError = err;
       if (modelCandidates.indexOf(model) === modelCandidates.length - 1) {
         throw err;
       }
-      if (isModelUnavailableError(404, err.message || '')) {
-        continue;
-      }
-      throw err;
+      continue;
     }
   }
 
@@ -382,8 +381,6 @@ export async function generateGroqExamples(params: GenerateExamplesParams): Prom
   }
 
   const modelCandidates = await getGroqModelCandidates(apiKey, process.env.GROQ_AI_MODEL);
-  const url = 'https://api.groq.com/openai/v1/chat/completions';
-
   const partOfSpeechBlock = partOfSpeech ? `\nSelected part of speech: ${partOfSpeech}.` : '';
   const referenceBlock =
     referenceExamples.length > 0
@@ -400,71 +397,31 @@ export async function generateGroqExamples(params: GenerateExamplesParams): Prom
       partOfSpeechBlock
     } Prefer ${targetCount} examples if possible, but return fewer if that is more natural or accurate.${
       referenceBlock
-    }`;
+    }\nReturn JSON ONLY.`;
+
+  const messages = [
+    {
+      role: 'system',
+      content: systemInstruction,
+    },
+    {
+      role: 'user',
+      content: promptText,
+    },
+  ];
 
   let lastError: Error | null = null;
 
   for (const model of modelCandidates) {
     try {
-      const payload = {
-        model,
-        messages: [
-          {
-            role: 'system',
-            content: systemInstruction,
-          },
-          {
-            role: 'user',
-            content: promptText,
-          },
-        ],
-        response_format: {
-          type: 'json_object',
-        },
-        temperature: 0.3,
-      };
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        if (isModelUnavailableError(response.status, errorText)) {
-          console.warn(
-            `Groq model "${model}" unavailable (${response.status}), trying next candidate:`,
-            errorText
-          );
-          if (cachedWorkingModel === model) {
-            cachedWorkingModel = null;
-          }
-          lastError = new Error(`Groq AI HTTP error: ${response.status} - ${errorText}`);
-          continue;
-        }
-        console.warn('Groq AI HTTP error:', response.status, errorText);
-        throw new Error(`Groq AI HTTP error: ${response.status} - ${errorText}`);
-      }
-
-      const data = await response.json();
+      const data = await fetchGroqChatCompletion(apiKey, model, messages, 0.3);
       const rawContent = data.choices?.[0]?.message?.content;
 
       if (!rawContent || typeof rawContent !== 'string') {
         throw new Error('Groq AI response did not contain message content');
       }
 
-      let parsed: any;
-      try {
-        parsed = parseJsonFromContent(rawContent);
-      } catch (err: any) {
-        console.warn('Failed to parse Groq AI response as JSON:', rawContent);
-        throw new Error(`Groq AI response was not valid JSON: ${err.message}`);
-      }
-
+      const parsed = parseJsonFromContent(rawContent);
       const examples = normalizeAiExamples(parsed?.examples, targetCount);
       if (!examples || examples.length === 0) {
         throw new Error('Groq AI returned empty examples');
@@ -473,14 +430,18 @@ export async function generateGroqExamples(params: GenerateExamplesParams): Prom
       cachedWorkingModel = model;
       return examples;
     } catch (err: any) {
+      console.warn(
+        `Groq model "${model}" failed, trying next candidate if available:`,
+        err?.message || err
+      );
+      if (cachedWorkingModel === model) {
+        cachedWorkingModel = null;
+      }
       lastError = err;
       if (modelCandidates.indexOf(model) === modelCandidates.length - 1) {
         throw err;
       }
-      if (isModelUnavailableError(404, err.message || '')) {
-        continue;
-      }
-      throw err;
+      continue;
     }
   }
 
@@ -501,85 +462,47 @@ export async function generateGroqStory(
   }
 
   const modelCandidates = await getGroqModelCandidates(apiKey, process.env.GROQ_AI_MODEL);
-  const url = 'https://api.groq.com/openai/v1/chat/completions';
   const promptText = buildStoryUserPrompt(params);
+  const messages = [
+    {
+      role: 'system',
+      content: STORY_SYSTEM_INSTRUCTION,
+    },
+    {
+      role: 'user',
+      content: promptText,
+    },
+  ];
 
   let lastError: Error | null = null;
 
   for (const model of modelCandidates) {
     const generatorAiDetails = formatGroqModelDetails(model);
     try {
-      const payload = {
-        model,
-        messages: [
-          {
-            role: 'system',
-            content: STORY_SYSTEM_INSTRUCTION,
-          },
-          {
-            role: 'user',
-            content: promptText,
-          },
-        ],
-        response_format: {
-          type: 'json_object',
-        },
-        temperature: 0.7,
-      };
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        if (isModelUnavailableError(response.status, errorText)) {
-          console.warn(
-            `Groq model "${model}" unavailable (${response.status}) for story, trying next candidate:`,
-            errorText
-          );
-          if (cachedWorkingModel === model) {
-            cachedWorkingModel = null;
-          }
-          lastError = new Error(`Groq AI HTTP error: ${response.status} - ${errorText}`);
-          continue;
-        }
-        console.warn('Groq AI HTTP error for story:', response.status, errorText);
-        throw new Error(`Groq AI HTTP error: ${response.status} - ${errorText}`);
-      }
-
-      const data = await response.json();
+      const data = await fetchGroqChatCompletion(apiKey, model, messages, 0.7);
       const rawContent = data.choices?.[0]?.message?.content;
 
       if (!rawContent || typeof rawContent !== 'string') {
         throw new Error('Groq AI response did not contain message content');
       }
 
-      let parsed: any;
-      try {
-        parsed = parseJsonFromContent(rawContent);
-      } catch (err: any) {
-        console.warn('Failed to parse Groq AI story response as JSON:', rawContent);
-        throw new Error(`Groq AI story response was not valid JSON: ${err.message}`);
-      }
-
+      const parsed = parseJsonFromContent(rawContent);
       const result = parseStoryGenerationResponse(parsed, generatorAiDetails);
       cachedWorkingModel = model;
       return result;
     } catch (err: any) {
+      console.warn(
+        `Groq model "${model}" failed for story, trying next candidate if available:`,
+        err?.message || err
+      );
+      if (cachedWorkingModel === model) {
+        cachedWorkingModel = null;
+      }
       lastError = err;
       if (modelCandidates.indexOf(model) === modelCandidates.length - 1) {
         throw err;
       }
-      if (isModelUnavailableError(404, err.message || '')) {
-        continue;
-      }
-      throw err;
+      continue;
     }
   }
 

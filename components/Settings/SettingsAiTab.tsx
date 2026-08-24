@@ -53,21 +53,13 @@ const PROVIDERS: Array<{
   {
     key: 'groq',
     label: 'Groq Cloud AI',
-    desc: 'LPU inference engine with sub-second generation (Qwen 3.6 27B, GPT-OSS 120B)',
+    desc: 'LPU inference engine with sub-second generation (Qwen 3.6 27B, GPT-OSS 120B, groq/compound)',
     badge: 'High Speed',
     color: 'indigo',
   },
 ];
 
-const POPULAR_GROQ_MODELS = [
-  'qwen/qwen3.6-27b',
-  'openai/gpt-oss-120b',
-  'llama-3.3-70b-versatile',
-  'llama-3.1-8b-instant',
-  'deepseek-r1-distill-llama-70b',
-  'openai/gpt-oss-20b',
-  'gemma2-9b-it',
-];
+const POPULAR_GROQ_MODELS = ['qwen/qwen3.6-27b', 'openai/gpt-oss-120b', 'groq/compound'];
 
 export function SettingsAiTab({ settings, onChange }: SettingsAiTabProps) {
   const [isTesting, setIsTesting] = useState(false);
@@ -240,7 +232,7 @@ export function SettingsAiTab({ settings, onChange }: SettingsAiTabProps) {
               </Text>
               <Select
                 value={settings.groqModel}
-                onChange={(val) => onChange({ groqModel: val || 'llama-3.3-70b-versatile' })}
+                onChange={(val) => onChange({ groqModel: val || 'qwen/qwen3.6-27b' })}
                 data={POPULAR_GROQ_MODELS.map((m) => ({
                   value: m,
                   label: formatGroqModelDetails(m),
