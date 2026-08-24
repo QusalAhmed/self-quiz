@@ -158,7 +158,9 @@ h6 {
   -webkit-backdrop-filter: none !important;
   contain: layout style;
   transform: translateZ(0);
-  transition: border-color 0.18s ease, box-shadow 0.18s ease !important;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease !important;
 }
 
 .virtual-word-card:hover {

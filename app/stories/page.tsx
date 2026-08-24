@@ -1,10 +1,21 @@
 'use client';
 
-import { Badge, Button, Card, Container, Group, Loader, Stack, Text, Title } from '@mantine/core';
+import {
+  Badge,
+  Box,
+  Button,
+  Card,
+  Container,
+  Group,
+  Loader,
+  Stack,
+  Text,
+  Title,
+} from '@mantine/core';
 import { IconPlus, IconSparkles } from '@tabler/icons-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { StoryGeneratorModal, StoryLibraryList, StoryReader } from '@/components/Stories';
 import {
   type FsrsRecord,
@@ -16,7 +27,7 @@ import {
 } from '@/lib/db';
 import { setupSupabaseReplication } from '@/lib/replication';
 
-export default function StoriesPage() {
+function StoriesPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [words, setWords] = useState<WordRecord[]>([]);
@@ -260,5 +271,31 @@ export default function StoriesPage() {
         />
       </Stack>
     </Container>
+  );
+}
+
+export default function StoriesPage() {
+  return (
+    <Suspense
+      fallback={
+        <Box
+          style={{
+            display: 'flex',
+            minHeight: '80vh',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Stack align="center" gap="sm">
+            <Loader color="indigo" size="md" />
+            <Text size="sm" c="dimmed">
+              Loading Stories...
+            </Text>
+          </Stack>
+        </Box>
+      }
+    >
+      <StoriesPageContent />
+    </Suspense>
   );
 }

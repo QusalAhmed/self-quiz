@@ -2,6 +2,7 @@
 
 import {
   Anchor,
+  Box,
   Breadcrumbs,
   Button,
   Card,
@@ -15,7 +16,7 @@ import {
 import { IconArrowLeft, IconBook, IconHome, IconSparkles } from '@tabler/icons-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import { StoryCreator } from '@/components/Stories/StoryCreator';
 import {
   type FsrsRecord,
@@ -27,7 +28,7 @@ import {
 } from '@/lib/db';
 import { setupSupabaseReplication } from '@/lib/replication';
 
-export default function CreateStoryPage() {
+function CreateStoryContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -207,5 +208,31 @@ export default function CreateStoryPage() {
         )}
       </Stack>
     </Container>
+  );
+}
+
+export default function CreateStoryPage() {
+  return (
+    <Suspense
+      fallback={
+        <Box
+          style={{
+            display: 'flex',
+            minHeight: '80vh',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Stack align="center" gap="sm">
+            <Loader color="indigo" size="md" />
+            <Text size="sm" c="dimmed">
+              Loading Story Creator...
+            </Text>
+          </Stack>
+        </Box>
+      }
+    >
+      <CreateStoryContent />
+    </Suspense>
   );
 }

@@ -476,9 +476,9 @@ export default function WordsPage() {
             const wordDoc = await database.words.findOne(wordId).exec();
             if (wordDoc) {
               await wordDoc.patch({
-                 ...(rootUsageFrequency ? { usageFrequency: rootUsageFrequency } : {}),
-                 ...(generatorAiDetails ? { generatorAiDetails } : {}),
-                 updatedAt: new Date().toISOString(),
+                ...(rootUsageFrequency ? { usageFrequency: rootUsageFrequency } : {}),
+                ...(generatorAiDetails ? { generatorAiDetails } : {}),
+                updatedAt: new Date().toISOString(),
               });
             }
           } catch (err) {
@@ -579,7 +579,12 @@ export default function WordsPage() {
         'spelling',
       ];
       for (const qMode of fsrsQuizModes) {
-        const fsrsRecord = createInitialFsrsRecord(record.id, qMode, record.word, normalizedMeaning);
+        const fsrsRecord = createInitialFsrsRecord(
+          record.id,
+          qMode,
+          record.word,
+          normalizedMeaning
+        );
         await database.fsrsRecords.upsert(fsrsRecord);
       }
       void notifyFsrsWordAdded({
@@ -727,7 +732,8 @@ export default function WordsPage() {
         aiExampleCount: normalizedAiExampleCount,
         customGroups: normalizedGroups,
         notes: notes !== undefined ? notes : current.notes || '',
-        usageFrequency: usageFrequency !== undefined ? usageFrequency : current.usageFrequency || '',
+        usageFrequency:
+          usageFrequency !== undefined ? usageFrequency : current.usageFrequency || '',
         generatorAiDetails:
           generatorAiDetails !== undefined ? generatorAiDetails : current.generatorAiDetails || '',
         updatedAt: timestamp,
