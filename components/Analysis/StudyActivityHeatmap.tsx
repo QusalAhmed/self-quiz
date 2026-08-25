@@ -6,6 +6,7 @@ import {
   Card,
   Group,
   Paper,
+  RollingNumber,
   SimpleGrid,
   Stack,
   Text,
@@ -116,7 +117,7 @@ export function StudyActivityHeatmap({ activity, statusInfo }: StudyActivityHeat
               size="md"
               leftSection={<IconFlame size={14} />}
             >
-              {currentStreak} Day Streak
+              <RollingNumber value={currentStreak} /> Day Streak
             </Badge>
           </Group>
         </Group>
@@ -132,9 +133,9 @@ export function StudyActivityHeatmap({ activity, statusInfo }: StudyActivityHeat
               ACTIVE DAYS
             </Text>
             <Text size="md" fw={800} style={{ fontFamily: 'var(--font-title)' }}>
-              {daysStudied}{' '}
+              <RollingNumber value={daysStudied} />{' '}
               <Text component="span" size="xs" c="dimmed">
-                / {totalCalendarDays}d
+                / <RollingNumber value={totalCalendarDays} suffix="d" />
               </Text>
             </Text>
           </Paper>
@@ -148,7 +149,7 @@ export function StudyActivityHeatmap({ activity, statusInfo }: StudyActivityHeat
               LONGEST STREAK
             </Text>
             <Text size="md" fw={800} c="orange.6" style={{ fontFamily: 'var(--font-title)' }}>
-              {longestStreak} days
+              <RollingNumber value={longestStreak} suffix=" days" />
             </Text>
           </Paper>
 
@@ -174,7 +175,7 @@ export function StudyActivityHeatmap({ activity, statusInfo }: StudyActivityHeat
               AVG REVIEWS / DAY
             </Text>
             <Text size="md" fw={800} style={{ fontFamily: 'var(--font-title)' }}>
-              {avgReviewsOnActiveDays}
+              <RollingNumber value={avgReviewsOnActiveDays} decimalScale={1} />
             </Text>
           </Paper>
         </SimpleGrid>
@@ -277,11 +278,11 @@ export function StudyActivityHeatmap({ activity, statusInfo }: StudyActivityHeat
                 <Text size="xs" c="dimmed" style={{ fontSize: '0.72rem' }}>
                   Weekday:{' '}
                   <Text component="span" fw={700}>
-                    {weekdayReviews}
+                    <RollingNumber value={weekdayReviews} />
                   </Text>{' '}
                   reviews • Weekend:{' '}
                   <Text component="span" fw={700}>
-                    {weekendReviews}
+                    <RollingNumber value={weekendReviews} />
                   </Text>{' '}
                   reviews
                 </Text>

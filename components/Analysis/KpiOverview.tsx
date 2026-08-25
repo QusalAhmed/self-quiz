@@ -1,6 +1,16 @@
 'use client';
 
-import { Badge, Box, Card, Group, SimpleGrid, Stack, Text, Tooltip } from '@mantine/core';
+import {
+  Badge,
+  Box,
+  Card,
+  Group,
+  RollingNumber,
+  SimpleGrid,
+  Stack,
+  Text,
+  Tooltip,
+} from '@mantine/core';
 import {
   IconArrowDownRight,
   IconArrowUpRight,
@@ -29,6 +39,65 @@ type KpiCardConfig = {
   iconColor: string;
   borderColor: string;
 };
+
+function KpiValueDisplay({ card }: { card: KpiCardConfig }) {
+  const { title, metric } = card;
+
+  if (title === 'WORDS MASTERED' || title === 'IN PROGRESS' || title === 'REVIEWS COMPLETED') {
+    return <RollingNumber value={metric.value} thousandSeparator />;
+  }
+
+  if (title === 'REVIEW RETENTION') {
+    return <RollingNumber value={metric.value} decimalScale={1} suffix="%" />;
+  }
+
+  if (title === 'AVG DAILY REVIEWS') {
+    return <RollingNumber value={metric.value} decimalScale={1} />;
+  }
+
+  if (title === 'CURRENT STREAK') {
+    return (
+      <RollingNumber
+        value={metric.value}
+        suffix={metric.value === 1 ? ' day' : ' days'}
+        thousandSeparator
+      />
+    );
+  }
+
+  if (title === 'TOTAL STUDY TIME') {
+    const totalSeconds = metric.value;
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    return (
+      <Group gap={6} align="baseline" wrap="nowrap" style={{ display: 'inline-flex' }}>
+        {hours > 0 && <RollingNumber value={hours} suffix="h" />}
+        {minutes > 0 && <RollingNumber value={minutes} suffix="m" />}
+        {(seconds > 0 || (hours === 0 && minutes === 0)) && (
+          <RollingNumber value={seconds} suffix="s" />
+        )}
+      </Group>
+    );
+  }
+
+  if (title === 'STUDY DAYS') {
+    const match = metric.formattedValue.match(/^(\d+)\s*\/\s*(\d+)(.*)$/);
+    if (match) {
+      return (
+        <Group gap={4} align="baseline" wrap="nowrap" style={{ display: 'inline-flex' }}>
+          <RollingNumber value={Number(match[1])} />
+          <span>/</span>
+          <RollingNumber value={Number(match[2])} suffix={match[3] || 'd'} />
+        </Group>
+      );
+    }
+    return <RollingNumber value={metric.value} suffix=" days" />;
+  }
+
+  return <span>{metric.formattedValue}</span>;
+}
 
 export function KpiOverview({ kpis }: KpiOverviewProps) {
   const cards: KpiCardConfig[] = [
@@ -152,7 +221,7 @@ export function KpiOverview({ kpis }: KpiOverviewProps) {
                     lineHeight: 1.1,
                   }}
                 >
-                  {card.metric.formattedValue}
+                  <KpiValueDisplay card={card} />
                 </Text>
               </div>
 
@@ -186,7 +255,12 @@ export function KpiOverview({ kpis }: KpiOverviewProps) {
                       }
                       style={{ textTransform: 'none', fontWeight: 700 }}
                     >
-                      {change > 0 ? `+${change}%` : `${change}%`}
+                      <RollingNumber
+                        value={Math.abs(change)}
+                        decimalScale={1}
+                        prefix={change > 0 ? '+' : change < 0 ? '-' : ''}
+                        suffix="%"
+                      />
                     </Badge>
                   </Tooltip>
                 )}

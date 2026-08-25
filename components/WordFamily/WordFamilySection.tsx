@@ -6,6 +6,7 @@ import {
   Group,
   Modal,
   Paper,
+  RollingNumber,
   Stack,
   Text,
   ThemeIcon,
@@ -188,8 +189,15 @@ export const WordFamilySection = React.memo(function WordFamilySection({
             <ThemeIcon size="xs" variant="light" color="indigo" radius="xl">
               <IconHierarchy size={12} />
             </ThemeIcon>
-            <Text size="xs" fw={700} c="indigo">
-              Word Family {validMembers.length > 0 ? `(${validMembers.length})` : ''}
+            <Text component="span" size="xs" fw={700} c="indigo">
+              Word Family{' '}
+              {validMembers.length > 0 ? (
+                <>
+                  (<RollingNumber value={validMembers.length} />)
+                </>
+              ) : (
+                ''
+              )}
             </Text>
             {isLoading && validMembers.length === 0 && (
               <Badge size="xs" variant="light" color="indigo">

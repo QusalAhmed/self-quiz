@@ -8,6 +8,7 @@ import {
   Card,
   Group,
   Pagination,
+  RollingNumber,
   Select,
   Stack,
   Table,
@@ -274,10 +275,14 @@ export function ReviewLogTable({ logs, onInspectLog, onSelectWord }: ReviewLogTa
                     <Table.Td style={{ whiteSpace: 'nowrap' }}>
                       <Group gap="xs">
                         <Text size="xs" fw={700} c="indigo">
-                          {log.scheduledDays > 0 ? `${log.scheduledDays}d` : '<1d'}
+                          {log.scheduledDays > 0 ? (
+                            <RollingNumber value={log.scheduledDays} suffix="d" />
+                          ) : (
+                            '<1d'
+                          )}
                         </Text>
                         <Text size="xs" c="dimmed">
-                          (S: {log.stability.toFixed(1)}d)
+                          (S: <RollingNumber value={log.stability} decimalScale={1} suffix="d" />)
                         </Text>
                       </Group>
                     </Table.Td>
@@ -285,7 +290,15 @@ export function ReviewLogTable({ logs, onInspectLog, onSelectWord }: ReviewLogTa
                     {/* Response Duration */}
                     <Table.Td style={{ whiteSpace: 'nowrap' }}>
                       <Text size="xs" c={log.durationMs > 5000 ? 'orange.6' : 'dimmed'}>
-                        {log.durationMs > 0 ? `${(log.durationMs / 1000).toFixed(1)}s` : '<0.1s'}
+                        {log.durationMs > 0 ? (
+                          <RollingNumber
+                            value={Number((log.durationMs / 1000).toFixed(1))}
+                            decimalScale={1}
+                            suffix="s"
+                          />
+                        ) : (
+                          '<0.1s'
+                        )}
                       </Text>
                     </Table.Td>
 
@@ -337,8 +350,9 @@ export function ReviewLogTable({ logs, onInspectLog, onSelectWord }: ReviewLogTa
                 data={['10', '20', '50', '100']}
               />
               <Text size="xs" c="dimmed">
-                Showing {Math.min((page - 1) * pageSize + 1, logs.length)}–
-                {Math.min(page * pageSize, logs.length)} of {logs.length}
+                Showing <RollingNumber value={Math.min((page - 1) * pageSize + 1, logs.length)} />–
+                <RollingNumber value={Math.min(page * pageSize, logs.length)} /> of{' '}
+                <RollingNumber value={logs.length} />
               </Text>
             </Group>
 

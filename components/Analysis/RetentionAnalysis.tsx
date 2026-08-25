@@ -8,6 +8,7 @@ import {
   Paper,
   Progress,
   RingProgress,
+  RollingNumber,
   SimpleGrid,
   Stack,
   Text,
@@ -120,7 +121,7 @@ export function RetentionAnalysis({ distribution, statusInfo }: RetentionAnalysi
               successfulRecallRate >= 88 ? 'teal' : successfulRecallRate >= 75 ? 'indigo' : 'red'
             }
           >
-            {totalRatings} total ratings
+            <RollingNumber value={totalRatings} /> total ratings
           </Badge>
         </Group>
 
@@ -157,7 +158,7 @@ export function RetentionAnalysis({ distribution, statusInfo }: RetentionAnalysi
                         lineHeight: 1,
                       }}
                     >
-                      {successfulRecallRate}%
+                      <RollingNumber value={successfulRecallRate} suffix="%" />
                     </Text>
                     <Text size="xs" c="dimmed" fw={600} style={{ fontSize: '0.68rem' }}>
                       RECALL RATE
@@ -177,7 +178,8 @@ export function RetentionAnalysis({ distribution, statusInfo }: RetentionAnalysi
                         : 'Awaiting Reviews'}
                 </Text>
                 <Text size="xs" c="dimmed" mt={2}>
-                  {goodCount + easyCount} of {totalRatings} reviews successfully retrieved
+                  <RollingNumber value={goodCount + easyCount} /> of{' '}
+                  <RollingNumber value={totalRatings} /> reviews successfully retrieved
                 </Text>
               </div>
             </Stack>
@@ -192,7 +194,13 @@ export function RetentionAnalysis({ distribution, statusInfo }: RetentionAnalysi
                   RATING DISTRIBUTION
                 </Text>
                 <Text size="xs" c="dimmed">
-                  {totalRatings > 0 ? `${totalRatings} responses` : 'No reviews in period'}
+                  {totalRatings > 0 ? (
+                    <>
+                      <RollingNumber value={totalRatings} /> responses
+                    </>
+                  ) : (
+                    'No reviews in period'
+                  )}
                 </Text>
               </Group>
               <Progress.Root size="xl" radius="xl">
@@ -235,10 +243,10 @@ export function RetentionAnalysis({ distribution, statusInfo }: RetentionAnalysi
                       </Group>
                       <Group gap={4} align="baseline">
                         <Text size="sm" fw={800} style={{ color: item.color }}>
-                          {item.rate}%
+                          <RollingNumber value={item.rate} decimalScale={1} suffix="%" />
                         </Text>
                         <Text size="xs" c="dimmed">
-                          ({item.count})
+                          (<RollingNumber value={item.count} />)
                         </Text>
                       </Group>
                     </Group>

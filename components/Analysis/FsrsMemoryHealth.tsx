@@ -7,6 +7,7 @@ import {
   Group,
   Paper,
   Progress,
+  RollingNumber,
   SimpleGrid,
   Stack,
   Text,
@@ -105,7 +106,7 @@ export function FsrsMemoryHealth({ memoryHealth, statusInfo }: FsrsMemoryHealthP
                   mt={4}
                   style={{ fontFamily: 'var(--font-title)', fontSize: '1.6rem' }}
                 >
-                  {avgStabilityDays}{' '}
+                  <RollingNumber value={avgStabilityDays} decimalScale={1} />{' '}
                   <Text component="span" size="sm" c="dimmed" fw={500}>
                     days
                   </Text>
@@ -151,7 +152,7 @@ export function FsrsMemoryHealth({ memoryHealth, statusInfo }: FsrsMemoryHealthP
                   mt={4}
                   style={{ fontFamily: 'var(--font-title)', fontSize: '1.6rem' }}
                 >
-                  {avgDifficulty}{' '}
+                  <RollingNumber value={avgDifficulty} decimalScale={1} />{' '}
                   <Text component="span" size="sm" c="dimmed" fw={500}>
                     / 10
                   </Text>
@@ -198,7 +199,7 @@ export function FsrsMemoryHealth({ memoryHealth, statusInfo }: FsrsMemoryHealthP
                   c="teal.6"
                   style={{ fontFamily: 'var(--font-title)', fontSize: '1.6rem' }}
                 >
-                  {avgRetrievability}%
+                  <RollingNumber value={avgRetrievability} decimalScale={1} suffix="%" />
                 </Text>
                 <Text size="xs" c="dimmed" mt={2}>
                   Target optimal retention: 90%
@@ -225,7 +226,7 @@ export function FsrsMemoryHealth({ memoryHealth, statusInfo }: FsrsMemoryHealthP
                   STABILITY DISTRIBUTION
                 </Text>
                 <Text size="xs" c="dimmed">
-                  {totalTrackedCards} cards
+                  <RollingNumber value={totalTrackedCards} /> cards
                 </Text>
               </Group>
 
@@ -257,7 +258,7 @@ export function FsrsMemoryHealth({ memoryHealth, statusInfo }: FsrsMemoryHealthP
                     </Text>
                   </Group>
                   <Text size="xs" fw={700}>
-                    {stabilityBuckets.fragile}
+                    <RollingNumber value={stabilityBuckets.fragile} />
                   </Text>
                 </Group>
                 <Group justify="space-between">
@@ -268,7 +269,7 @@ export function FsrsMemoryHealth({ memoryHealth, statusInfo }: FsrsMemoryHealthP
                     </Text>
                   </Group>
                   <Text size="xs" fw={700}>
-                    {stabilityBuckets.moderate}
+                    <RollingNumber value={stabilityBuckets.moderate} />
                   </Text>
                 </Group>
                 <Group justify="space-between">
@@ -279,7 +280,7 @@ export function FsrsMemoryHealth({ memoryHealth, statusInfo }: FsrsMemoryHealthP
                     </Text>
                   </Group>
                   <Text size="xs" fw={700}>
-                    {stabilityBuckets.strong}
+                    <RollingNumber value={stabilityBuckets.strong} />
                   </Text>
                 </Group>
                 <Group justify="space-between">
@@ -290,7 +291,7 @@ export function FsrsMemoryHealth({ memoryHealth, statusInfo }: FsrsMemoryHealthP
                     </Text>
                   </Group>
                   <Text size="xs" fw={700}>
-                    {stabilityBuckets.mature}
+                    <RollingNumber value={stabilityBuckets.mature} />
                   </Text>
                 </Group>
               </SimpleGrid>
@@ -341,7 +342,7 @@ export function FsrsMemoryHealth({ memoryHealth, statusInfo }: FsrsMemoryHealthP
                     </Text>
                   </Group>
                   <Text size="xs" fw={700}>
-                    {difficultyBuckets.easy}
+                    <RollingNumber value={difficultyBuckets.easy} />
                   </Text>
                 </Group>
                 <Group justify="space-between">
@@ -352,7 +353,7 @@ export function FsrsMemoryHealth({ memoryHealth, statusInfo }: FsrsMemoryHealthP
                     </Text>
                   </Group>
                   <Text size="xs" fw={700}>
-                    {difficultyBuckets.medium}
+                    <RollingNumber value={difficultyBuckets.medium} />
                   </Text>
                 </Group>
                 <Group justify="space-between">
@@ -363,7 +364,7 @@ export function FsrsMemoryHealth({ memoryHealth, statusInfo }: FsrsMemoryHealthP
                     </Text>
                   </Group>
                   <Text size="xs" fw={700}>
-                    {difficultyBuckets.hard}
+                    <RollingNumber value={difficultyBuckets.hard} />
                   </Text>
                 </Group>
                 <Group justify="space-between">
@@ -374,7 +375,7 @@ export function FsrsMemoryHealth({ memoryHealth, statusInfo }: FsrsMemoryHealthP
                     </Text>
                   </Group>
                   <Text size="xs" fw={700}>
-                    {difficultyBuckets.veryHard}
+                    <RollingNumber value={difficultyBuckets.veryHard} />
                   </Text>
                 </Group>
               </SimpleGrid>
@@ -399,7 +400,7 @@ export function FsrsMemoryHealth({ memoryHealth, statusInfo }: FsrsMemoryHealthP
                   FRAGILE CARDS (R &lt; 70%)
                 </Text>
                 <Text size="lg" fw={800} c={fragileCardsCount > 0 ? 'red.6' : 'teal.6'}>
-                  {fragileCardsCount} cards
+                  <RollingNumber value={fragileCardsCount} suffix=" cards" />
                 </Text>
                 <Text size="xs" c="dimmed" mt={2}>
                   Require urgent reinforcement
@@ -423,7 +424,7 @@ export function FsrsMemoryHealth({ memoryHealth, statusInfo }: FsrsMemoryHealthP
                   APPROACHING FORGETTING
                 </Text>
                 <Text size="lg" fw={800} c={approachingForgettingCount > 0 ? 'yellow.6' : 'teal.6'}>
-                  {approachingForgettingCount} cards
+                  <RollingNumber value={approachingForgettingCount} suffix=" cards" />
                 </Text>
                 <Text size="xs" c="dimmed" mt={2}>
                   Due in next 24h with low retention
@@ -447,7 +448,7 @@ export function FsrsMemoryHealth({ memoryHealth, statusInfo }: FsrsMemoryHealthP
                   HIGHLY STABLE (S ≥ 30d)
                 </Text>
                 <Text size="lg" fw={800} c="teal.6">
-                  {highlyStableCardsCount} cards
+                  <RollingNumber value={highlyStableCardsCount} suffix=" cards" />
                 </Text>
                 <Text size="xs" c="dimmed" mt={2}>
                   Durable long-term retention

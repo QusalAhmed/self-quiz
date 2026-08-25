@@ -1,4 +1,4 @@
-import { Button, Card, Group, Stack, Text, Title } from '@mantine/core';
+import { Button, Card, Group, RollingNumber, Stack, Text, Title } from '@mantine/core';
 import {
   IconArrowBackUp,
   IconArrowLeft,
@@ -25,47 +25,51 @@ export function FsrsCompletionState({
 }: FsrsCompletionStateProps) {
   return (
     <Card
-      className="glass-panel animate-float"
-      radius="xl"
+      radius="24px"
       padding="xl"
+      className="glass-panel"
       style={{
-        textAlign: 'center',
-        background:
-          'linear-gradient(135deg, rgba(168, 85, 247, 0.12) 0%, rgba(59, 130, 246, 0.12) 100%)',
-        border: '1px solid rgba(168, 85, 247, 0.3)',
-        boxShadow: '0 16px 40px rgba(168, 85, 247, 0.15)',
+        border: '1px solid rgba(255, 255, 255, 0.12)',
         maxWidth: 580,
         margin: '0 auto',
+        textAlign: 'center',
       }}
     >
-      <Stack align="center" gap="md" py="xl">
-        {/* Glowing Hero Trophy Halo */}
+      <Stack align="center" gap="lg" py="xl">
+        {/* Celebration Icon Container */}
         <div
           style={{
             width: 84,
             height: 84,
             borderRadius: '50%',
-            background: 'linear-gradient(135deg, #a855f7 0%, #3b82f6 100%)',
+            background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(236, 72, 153, 0.2))',
+            border: '2px solid rgba(236, 72, 153, 0.4)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 12px 32px rgba(168, 85, 247, 0.4)',
+            boxShadow: '0 0 30px rgba(236, 72, 153, 0.3)',
           }}
         >
-          <IconConfetti size={46} color="#ffffff" />
+          <IconConfetti size={44} color="#ec4899" />
         </div>
 
-        <Title
-          order={2}
-          style={{
-            fontFamily: 'var(--font-title)',
-            fontSize: '2rem',
-            fontWeight: 800,
-            letterSpacing: '-0.02em',
-          }}
-        >
-          Review Session Complete! 🎉
-        </Title>
+        {/* Title & Subtitle */}
+        <div>
+          <Title
+            order={2}
+            style={{
+              fontFamily: 'var(--font-title)',
+              fontSize: '1.75rem',
+              fontWeight: 900,
+              letterSpacing: '-0.02em',
+              background: 'linear-gradient(135deg, #a855f7, #ec4899)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+            }}
+          >
+            Review Session Complete!
+          </Title>
+        </div>
 
         <Text size="sm" c="dimmed" style={{ maxWidth: 420, lineHeight: 1.6, fontWeight: 500 }}>
           You have mastered all due FSRS review cards for now. High five! New reviews will pop up as
@@ -85,7 +89,7 @@ export function FsrsCompletionState({
           >
             <Stack gap={2} align="center">
               <Text size="2rem" fw={900} c="grape.4" style={{ fontFamily: 'var(--font-title)' }}>
-                {reviewedCount}
+                <RollingNumber value={reviewedCount} />
               </Text>
               <Text size="xs" c="dimmed" fw={700}>
                 Cards Reviewed
@@ -106,7 +110,7 @@ export function FsrsCompletionState({
               <Group gap={4} align="center">
                 <IconCheck size={20} color="#10b981" />
                 <Text size="2rem" fw={900} c="teal.4" style={{ fontFamily: 'var(--font-title)' }}>
-                  0
+                  <RollingNumber value={0} />
                 </Text>
               </Group>
               <Text size="xs" c="dimmed" fw={700}>

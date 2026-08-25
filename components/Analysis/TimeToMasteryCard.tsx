@@ -1,6 +1,17 @@
 'use client';
 
-import { Badge, Card, Group, Paper, SimpleGrid, Stack, Text, Title, Tooltip } from '@mantine/core';
+import {
+  Badge,
+  Card,
+  Group,
+  Paper,
+  RollingNumber,
+  SimpleGrid,
+  Stack,
+  Text,
+  Title,
+  Tooltip,
+} from '@mantine/core';
 import {
   IconBolt,
   IconClock,
@@ -70,7 +81,7 @@ export function TimeToMasteryCard({
               leftSection={<IconInfoCircle size={14} />}
               style={{ cursor: 'pointer' }}
             >
-              {masteredWordsCount} Mastered Words
+              <RollingNumber value={masteredWordsCount} /> Mastered Words
             </Badge>
           </Tooltip>
         </Group>
@@ -85,7 +96,7 @@ export function TimeToMasteryCard({
               </Text>
             </Group>
             <Text size="md" fw={800} c="teal" style={{ fontFamily: 'var(--font-title)' }}>
-              {avgDaysToMastery}{' '}
+              <RollingNumber value={avgDaysToMastery} decimalScale={1} />{' '}
               <Text component="span" size="xs" c="dimmed">
                 days
               </Text>
@@ -103,7 +114,7 @@ export function TimeToMasteryCard({
               </Text>
             </Group>
             <Text size="md" fw={800} c="indigo" style={{ fontFamily: 'var(--font-title)' }}>
-              {medianDaysToMastery}{' '}
+              <RollingNumber value={medianDaysToMastery} decimalScale={1} />{' '}
               <Text component="span" size="xs" c="dimmed">
                 days
               </Text>
@@ -121,7 +132,7 @@ export function TimeToMasteryCard({
               </Text>
             </Group>
             <Text size="md" fw={800} c="violet" style={{ fontFamily: 'var(--font-title)' }}>
-              {avgReviewsBeforeMastery}{' '}
+              <RollingNumber value={avgReviewsBeforeMastery} decimalScale={1} />{' '}
               <Text component="span" size="xs" c="dimmed">
                 reviews
               </Text>
@@ -180,7 +191,7 @@ export function TimeToMasteryCard({
                     >
                       <Group gap="xs">
                         <Badge size="xs" variant="light" color="teal">
-                          #{idx + 1}
+                          #<RollingNumber value={idx + 1} />
                         </Badge>
                         <div>
                           <Group gap={4} align="center" wrap="nowrap">
@@ -196,10 +207,10 @@ export function TimeToMasteryCard({
                       </Group>
                       <Group gap="xs">
                         <Badge size="xs" variant="outline" color="teal">
-                          {item.days} days
+                          <RollingNumber value={item.days} suffix=" days" />
                         </Badge>
                         <Text size="10px" c="dimmed">
-                          {item.reviews} revs
+                          <RollingNumber value={item.reviews} suffix=" revs" />
                         </Text>
                       </Group>
                     </Group>
@@ -238,7 +249,7 @@ export function TimeToMasteryCard({
                     >
                       <Group gap="xs">
                         <Badge size="xs" variant="light" color="yellow">
-                          #{idx + 1}
+                          #<RollingNumber value={idx + 1} />
                         </Badge>
                         <div>
                           <Group gap={4} align="center" wrap="nowrap">
@@ -254,10 +265,10 @@ export function TimeToMasteryCard({
                       </Group>
                       <Group gap="xs">
                         <Badge size="xs" variant="outline" color="yellow">
-                          {item.days} days
+                          <RollingNumber value={item.days} suffix=" days" />
                         </Badge>
                         <Text size="10px" c="dimmed">
-                          {item.reviews} revs
+                          <RollingNumber value={item.reviews} suffix=" revs" />
                         </Text>
                       </Group>
                     </Group>

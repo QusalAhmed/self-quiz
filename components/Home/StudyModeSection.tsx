@@ -7,6 +7,7 @@ import {
   Group,
   Menu,
   Pagination,
+  RollingNumber,
   Select,
   Stack,
   Text,
@@ -170,7 +171,7 @@ export function StudyModeSection({
                   leftSection={<IconHierarchy size={14} />}
                   onClick={onOpenBatchWordFamilyModal}
                 >
-                  Generate Word Families ({missingWordFamilyCount})
+                  Generate Word Families (<RollingNumber value={missingWordFamilyCount} />)
                 </Button>
               )}
               <Button
@@ -200,7 +201,8 @@ export function StudyModeSection({
                 radius="md"
                 style={{ fontWeight: 700 }}
               >
-                {filteredWordsCount} word{filteredWordsCount !== 1 ? 's' : ''}
+                <RollingNumber value={filteredWordsCount} /> word
+                {filteredWordsCount !== 1 ? 's' : ''}
               </Badge>
             </Group>
           </Group>
@@ -344,7 +346,7 @@ export function StudyModeSection({
                 Prev
               </Button>
               <Text size="xs" fw={700} c="dimmed" style={{ minWidth: 60, textAlign: 'center' }}>
-                {page} / {totalPages}
+                <RollingNumber value={page} /> / <RollingNumber value={totalPages} />
               </Text>
               <Button
                 variant="subtle"

@@ -28,7 +28,7 @@ describe('CloudSyncCard component', () => {
 
     expect(screen.getByText('CLOUD SYNC')).toBeInTheDocument();
     expect(screen.getByText('Fully Synced')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /details/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /open cloud sync details/i })).toBeInTheDocument();
   });
 
   it('renders offline mode when onlineStatus is false', () => {
@@ -41,7 +41,7 @@ describe('CloudSyncCard component', () => {
   it('renders pending count badge and status when unsyncedCount > 0', () => {
     render(<CloudSyncCard {...defaultProps} unsyncedCount={4} />);
 
-    expect(screen.getByText('4 Pending')).toBeInTheDocument();
+    expect(screen.getByText(/4 Pending/i)).toBeInTheDocument();
   });
 
   it('renders session traffic badges when data has been transferred', () => {
@@ -61,15 +61,15 @@ describe('CloudSyncCard component', () => {
 
     render(<CloudSyncCard {...defaultProps} syncState={syncState} />);
 
-    expect(screen.getByText(/↑ 12/)).toBeInTheDocument();
-    expect(screen.getByText(/↓ 34/)).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: '↑ 12' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: '↓ 34' })).toBeInTheDocument();
   });
 
   it('triggers onSyncNow when sync button is clicked', () => {
     const onSyncNow = jest.fn();
     render(<CloudSyncCard {...defaultProps} onSyncNow={onSyncNow} />);
 
-    const syncButton = screen.getByRole('button', { name: /sync now/i });
+    const syncButton = screen.getByRole('button', { name: /sync database with cloud/i });
     fireEvent.click(syncButton);
 
     expect(onSyncNow).toHaveBeenCalledTimes(1);
@@ -78,10 +78,10 @@ describe('CloudSyncCard component', () => {
   it('opens RxDB Cloud Sync Hub modal on Details click and displays tabs', () => {
     render(<CloudSyncCard {...defaultProps} />);
 
-    const detailsButton = screen.getByRole('button', { name: /details/i });
+    const detailsButton = screen.getByRole('button', { name: /open cloud sync details/i });
     fireEvent.click(detailsButton);
 
-    expect(screen.getByText('RxDB Cloud Sync Hub')).toBeInTheDocument();
+    expect(screen.getByText(/Cloud Sync Diagnostics & Settings/i)).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /collections/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /activity/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /replication info/i })).toBeInTheDocument();

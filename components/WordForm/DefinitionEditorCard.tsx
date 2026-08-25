@@ -4,6 +4,7 @@ import {
   Card,
   Divider,
   Group,
+  RollingNumber,
   Select,
   Stack,
   Text,
@@ -18,9 +19,9 @@ import type { DefinitionFormValue } from './types';
 type DefinitionEditorCardProps = {
   definition: DefinitionFormValue;
   index: number;
-  inputSize: 'sm' | 'md';
+  inputSize: 'xs' | 'sm' | 'md';
   disabled?: boolean;
-  isSaving: boolean;
+  isSaving?: boolean;
   definitionCount: number;
   onUpdateDefinition: (
     index: number,
@@ -54,7 +55,7 @@ export function DefinitionEditorCard({
       <Stack gap={8}>
         <Group justify="space-between" align="center" gap="xs" wrap="nowrap">
           <Text size="sm" fw={700} c="indigo" style={{ lineHeight: 1.4 }}>
-            Definition {index + 1}
+            Definition <RollingNumber value={index + 1} />
           </Text>
           <Tooltip label="Remove definition" withArrow>
             <ActionIcon

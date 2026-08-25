@@ -1,4 +1,4 @@
-import { Card, Group, SimpleGrid, Text } from '@mantine/core';
+import { Card, Group, RollingNumber, SimpleGrid, Text } from '@mantine/core';
 import { IconBook, IconBrain, IconHistory } from '@tabler/icons-react';
 import React from 'react';
 
@@ -36,7 +36,7 @@ export function StatsDashboard({
               TOTAL WORDS
             </Text>
             <Text size="xl" fw={800} style={{ fontFamily: 'var(--font-title)', marginTop: '4px' }}>
-              {totalWords}
+              <RollingNumber value={totalWords} thousandSeparator />
             </Text>
           </div>
           <IconBook size={28} style={{ opacity: 0.35, color: '#6366f1' }} />
@@ -56,7 +56,7 @@ export function StatsDashboard({
               ADDED TODAY
             </Text>
             <Text size="xl" fw={800} style={{ fontFamily: 'var(--font-title)', marginTop: '4px' }}>
-              {todayCount}
+              <RollingNumber value={todayCount} thousandSeparator />
             </Text>
           </div>
           <IconHistory size={28} style={{ opacity: 0.35, color: '#a855f7' }} />
@@ -85,7 +85,7 @@ export function StatsDashboard({
                   marginTop: '4px',
                 }}
               >
-                {fsrsDueTodayCount}
+                <RollingNumber value={fsrsDueTodayCount} thousandSeparator />
               </Text>
               {fsrsNextDueText && (
                 <Text

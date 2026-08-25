@@ -1,4 +1,4 @@
-import { Button, Group, Modal, Stack, Text } from '@mantine/core';
+import { Button, Group, Modal, RollingNumber, Stack, Text } from '@mantine/core';
 import { IconBookmarkOff } from '@tabler/icons-react';
 
 type ClearMissedWordsModalProps = {
@@ -34,7 +34,7 @@ export function ClearMissedWordsModal({
         <Text size="sm" c="dimmed" style={{ lineHeight: 1.6 }}>
           This will permanently remove{' '}
           <Text component="span" fw={700} c="red">
-            {count} missed word{count !== 1 ? 's' : ''}
+            <RollingNumber value={count} /> missed word{count !== 1 ? 's' : ''}
           </Text>{' '}
           from the <strong>{quizDirectionLabel}</strong> mode list. This action cannot be undone.
         </Text>

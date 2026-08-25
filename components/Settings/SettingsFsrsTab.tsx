@@ -8,6 +8,7 @@ import {
   Group,
   NumberInput,
   Paper,
+  RollingNumber,
   SimpleGrid,
   Slider,
   Stack,
@@ -55,8 +56,8 @@ export function SettingsFsrsTab({ settings, onChange, onResetFsrs }: SettingsFsr
               <IconTarget size={20} />
             </ThemeIcon>
             <div>
-              <Text fw={700} size="md">
-                Target Retention Rate ({retentionPercent}%)
+              <Text component="div" fw={700} size="md">
+                Target Retention Rate (<RollingNumber value={retentionPercent} suffix="%" />)
               </Text>
               <Text size="xs" c="dimmed">
                 The probability of recalling a card when it is scheduled for review
@@ -69,7 +70,7 @@ export function SettingsFsrsTab({ settings, onChange, onResetFsrs }: SettingsFsr
             variant="filled"
             color={retentionPercent >= 92 ? 'violet' : retentionPercent >= 88 ? 'teal' : 'orange'}
           >
-            {retentionPercent}% Desired Retention
+            <RollingNumber value={retentionPercent} suffix="%" /> Desired Retention
           </Badge>
         </Group>
 

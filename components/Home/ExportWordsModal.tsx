@@ -9,6 +9,7 @@ import {
   Group,
   Modal,
   Paper,
+  RollingNumber,
   ScrollArea,
   SegmentedControl,
   SimpleGrid,
@@ -168,7 +169,8 @@ export function ExportWordsModal({
             </Text>
           </Group>
           <Badge size="sm" variant="filled" color="indigo" radius="sm" style={{ flexShrink: 0 }}>
-            {normalizedItems.length} word{normalizedItems.length === 1 ? '' : 's'}
+            <RollingNumber value={normalizedItems.length} /> word
+            {normalizedItems.length === 1 ? '' : 's'}
           </Badge>
         </Group>
       }
@@ -396,8 +398,9 @@ export function ExportWordsModal({
             <Text size="xs" fw={700} c="dimmed" style={{ letterSpacing: '0.04em' }}>
               PREVIEW
             </Text>
-            <Text size="xs" c="dimmed">
-              {normalizedItems.length} word{normalizedItems.length === 1 ? '' : 's'} ready
+            <Text component="span" size="xs" c="dimmed">
+              <RollingNumber value={normalizedItems.length} /> word
+              {normalizedItems.length === 1 ? '' : 's'} ready
             </Text>
           </Group>
 

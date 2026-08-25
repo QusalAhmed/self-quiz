@@ -1,6 +1,6 @@
 'use client';
 
-import { Badge, Card, Group, Text, Tooltip } from '@mantine/core';
+import { Badge, Card, Group, RollingNumber, Text, Tooltip } from '@mantine/core';
 import { IconClock } from '@tabler/icons-react';
 import { useEffect, useRef, useState } from 'react';
 import { getDatabase, type DailyUsageRecord } from '@/lib/db';
@@ -44,6 +44,25 @@ export const formatDuration = (totalSeconds: number) => {
 
   return parts.join(' ');
 };
+
+export function DurationDisplay({ totalSeconds }: { totalSeconds: number }) {
+  if (totalSeconds <= 0) {
+    return <RollingNumber value={0} suffix="s" />;
+  }
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  return (
+    <Group gap={6} align="baseline" wrap="nowrap" style={{ display: 'inline-flex' }}>
+      {hours > 0 && <RollingNumber value={hours} suffix="h" />}
+      {minutes > 0 && <RollingNumber value={minutes} suffix="m" />}
+      {(seconds > 0 || (hours === 0 && minutes === 0)) && (
+        <RollingNumber value={seconds} suffix="s" />
+      )}
+    </Group>
+  );
+}
 
 // How often (in seconds) we persist local usage to RxDB (which triggers remote sync)
 const SAVE_INTERVAL_SECS = 30;
@@ -373,6 +392,7 @@ export function DailyUsageTimer() {
               DAILY STUDY TIME
             </Text>
             <Text
+              component="div"
               size="lg"
               fw={800}
               style={{
@@ -381,7 +401,7 @@ export function DailyUsageTimer() {
                 transition: 'color 0.3s ease',
               }}
             >
-              {formatDuration(secondsToday)}
+              <DurationDisplay totalSeconds={secondsToday} />
             </Text>
           </div>
         </Group>

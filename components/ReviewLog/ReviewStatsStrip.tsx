@@ -1,6 +1,6 @@
 'use client';
 
-import { Badge, Group, Paper, SimpleGrid, Text, ThemeIcon } from '@mantine/core';
+import { Badge, Group, Paper, RollingNumber, SimpleGrid, Text, ThemeIcon } from '@mantine/core';
 import { IconCheck, IconClock, IconHistory, IconPercentage } from '@tabler/icons-react';
 import React from 'react';
 import type { ReviewLogRecord } from '@/lib/db';
@@ -34,7 +34,7 @@ export function ReviewStatsStrip({ reviewLogs }: ReviewStatsStripProps) {
   const recallRate =
     totalReviews > 0 ? Math.round(((goodCount + easyCount) / totalReviews) * 100) : 0;
   const avgDurationSec =
-    totalReviews > 0 ? (totalDurationMs / totalReviews / 1000).toFixed(1) : '0.0';
+    totalReviews > 0 ? Number((totalDurationMs / totalReviews / 1000).toFixed(1)) : 0;
 
   return (
     <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="sm">
@@ -57,7 +57,7 @@ export function ReviewStatsStrip({ reviewLogs }: ReviewStatsStripProps) {
               fw={800}
               style={{ fontFamily: 'var(--font-title)', fontSize: '1.6rem', lineHeight: 1.2 }}
             >
-              {totalReviews.toLocaleString()}
+              <RollingNumber value={totalReviews} thousandSeparator />
             </Text>
             <Text size="xs" c="dimmed" mt={4}>
               Immutable review events
@@ -89,7 +89,7 @@ export function ReviewStatsStrip({ reviewLogs }: ReviewStatsStripProps) {
               c={recallRate >= 90 ? 'teal' : recallRate >= 80 ? 'indigo' : 'yellow'}
               style={{ fontFamily: 'var(--font-title)', fontSize: '1.6rem', lineHeight: 1.2 }}
             >
-              {recallRate}%
+              <RollingNumber value={recallRate} suffix="%" />
             </Text>
             <Text size="xs" c="dimmed" mt={4}>
               Good + Easy response share
@@ -122,20 +122,20 @@ export function ReviewStatsStrip({ reviewLogs }: ReviewStatsStripProps) {
             </Text>
             <Group gap={4} mt={4}>
               <Badge size="xs" color="teal" variant="light">
-                {easyCount} Easy
+                <RollingNumber value={easyCount} /> Easy
               </Badge>
               <Badge size="xs" color="indigo" variant="light">
-                {goodCount} Good
+                <RollingNumber value={goodCount} /> Good
               </Badge>
               <Badge size="xs" color="yellow" variant="light">
-                {hardCount} Hard
+                <RollingNumber value={hardCount} /> Hard
               </Badge>
               <Badge size="xs" color="red" variant="light">
-                {againCount} Again
+                <RollingNumber value={againCount} /> Again
               </Badge>
             </Group>
             <Text size="xs" c="dimmed" mt={4}>
-              {againCount} lapses recorded
+              <RollingNumber value={againCount} /> lapses recorded
             </Text>
           </div>
           <ThemeIcon size="lg" radius="md" variant="light" color="teal">
@@ -163,7 +163,7 @@ export function ReviewStatsStrip({ reviewLogs }: ReviewStatsStripProps) {
               fw={800}
               style={{ fontFamily: 'var(--font-title)', fontSize: '1.6rem', lineHeight: 1.2 }}
             >
-              {avgDurationSec}s
+              <RollingNumber value={avgDurationSec} decimalScale={1} suffix="s" />
             </Text>
             <Text size="xs" c="dimmed" mt={4}>
               Per flashcard review

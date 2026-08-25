@@ -5,6 +5,7 @@ import {
   Card,
   Group,
   Paper,
+  RollingNumber,
   SimpleGrid,
   Stack,
   Text,
@@ -89,7 +90,7 @@ export function DailyWordsAddedChart({ data, statusInfo }: DailyWordsAddedChartP
                   c="indigo.6"
                   style={{ fontFamily: 'var(--font-title)', lineHeight: 1.2, marginTop: 4 }}
                 >
-                  {totalAdded}{' '}
+                  <RollingNumber value={totalAdded} thousandSeparator />{' '}
                   <Text component="span" size="xs" c="dimmed" fw={500}>
                     {totalAdded === 1 ? 'word' : 'words'}
                   </Text>
@@ -131,13 +132,14 @@ export function DailyWordsAddedChart({ data, statusInfo }: DailyWordsAddedChartP
                   c="teal.6"
                   style={{ fontFamily: 'var(--font-title)', lineHeight: 1.2, marginTop: 4 }}
                 >
-                  {dailyAverage}{' '}
+                  <RollingNumber value={dailyAverage} decimalScale={1} />{' '}
                   <Text component="span" size="xs" c="dimmed" fw={500}>
                     / day
                   </Text>
                 </Text>
                 <Text size="xs" c="dimmed" mt={2}>
-                  Across {timeSeries.length} calendar {timeSeries.length === 1 ? 'day' : 'days'}
+                  Across <RollingNumber value={timeSeries.length} /> calendar{' '}
+                  {timeSeries.length === 1 ? 'day' : 'days'}
                 </Text>
               </div>
               <ThemeIcon size="lg" radius="md" color="teal" variant="light">
@@ -169,9 +171,13 @@ export function DailyWordsAddedChart({ data, statusInfo }: DailyWordsAddedChartP
                   {mostProductiveDay ? mostProductiveDay.label : 'None'}
                 </Text>
                 <Text size="xs" c="dimmed" mt={2}>
-                  {mostProductiveDay
-                    ? `${mostProductiveDay.count} words added`
-                    : 'No additions recorded'}
+                  {mostProductiveDay ? (
+                    <>
+                      <RollingNumber value={mostProductiveDay.count} /> words added
+                    </>
+                  ) : (
+                    'No additions recorded'
+                  )}
                 </Text>
               </div>
               <ThemeIcon size="lg" radius="md" color="orange" variant="light">

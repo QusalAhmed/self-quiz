@@ -5,6 +5,7 @@ import {
   Card,
   Group,
   Paper,
+  RollingNumber,
   SegmentedControl,
   SimpleGrid,
   Stack,
@@ -141,7 +142,21 @@ export function StudyTimeAnalytics({
               </Text>
             </Group>
             <Text size="md" fw={800} style={{ fontFamily: 'var(--font-title)' }}>
-              {totalStudyTimeMetric.formattedValue}
+              {(() => {
+                const totalSeconds = totalStudyTimeMetric.value;
+                const hours = Math.floor(totalSeconds / 3600);
+                const minutes = Math.floor((totalSeconds % 3600) / 60);
+                const seconds = totalSeconds % 60;
+                return (
+                  <Group gap={4} align="baseline" wrap="nowrap" style={{ display: 'inline-flex' }}>
+                    {hours > 0 && <RollingNumber value={hours} suffix="h" />}
+                    {minutes > 0 && <RollingNumber value={minutes} suffix="m" />}
+                    {(seconds > 0 || (hours === 0 && minutes === 0)) && (
+                      <RollingNumber value={seconds} suffix="s" />
+                    )}
+                  </Group>
+                );
+              })()}
             </Text>
             <Text size="xs" c="dimmed">
               {totalStudyTimeMetric.subtitle}
@@ -156,13 +171,13 @@ export function StudyTimeAnalytics({
               </Text>
             </Group>
             <Text size="md" fw={800} c="yellow" style={{ fontFamily: 'var(--font-title)' }}>
-              {avgDailyMinutes}{' '}
+              <RollingNumber value={avgDailyMinutes} decimalScale={1} />{' '}
               <Text component="span" size="xs" c="dimmed">
                 min/day
               </Text>
             </Text>
             <Text size="xs" c="dimmed">
-              Across {activeStudyDays} study days
+              Across <RollingNumber value={activeStudyDays} /> study days
             </Text>
           </Paper>
 
@@ -174,7 +189,7 @@ export function StudyTimeAnalytics({
               </Text>
             </Group>
             <Text size="md" fw={800} c="teal" style={{ fontFamily: 'var(--font-title)' }}>
-              {efficiency.avgReviewDurationSec || 0}{' '}
+              <RollingNumber value={efficiency.avgReviewDurationSec || 0} decimalScale={1} />{' '}
               <Text component="span" size="xs" c="dimmed">
                 sec
               </Text>
@@ -192,7 +207,7 @@ export function StudyTimeAnalytics({
               </Text>
             </Group>
             <Text size="md" fw={800} c="violet" style={{ fontFamily: 'var(--font-title)' }}>
-              {totalReviews.toLocaleString()}
+              <RollingNumber value={totalReviews} thousandSeparator />
             </Text>
             <Text size="xs" c="dimmed">
               Completed attempts
@@ -207,7 +222,7 @@ export function StudyTimeAnalytics({
               </Text>
             </Group>
             <Text size="md" fw={800} c="pink" style={{ fontFamily: 'var(--font-title)' }}>
-              {efficiency.reviewsPerMinute || 0}{' '}
+              <RollingNumber value={efficiency.reviewsPerMinute || 0} decimalScale={1} />{' '}
               <Text component="span" size="xs" c="dimmed">
                 cards/min
               </Text>

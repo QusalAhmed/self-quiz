@@ -11,6 +11,7 @@ import {
   Divider,
   Group,
   Paper,
+  RollingNumber,
   ScrollArea,
   SimpleGrid,
   Stack,
@@ -317,7 +318,7 @@ export const WordDetailCard = React.memo(function WordDetailCard({
                 leftSection={<IconAlertTriangle size={12} />}
                 style={{ fontWeight: 700, textTransform: 'none' }}
               >
-                Missed ×{totalMissedCount}
+                Missed <RollingNumber value={totalMissedCount} prefix="×" />
               </Badge>
             )}
 
@@ -483,7 +484,7 @@ export const WordDetailCard = React.memo(function WordDetailCard({
                     radius="xl"
                     style={{ flexShrink: 0, fontWeight: 800, marginTop: 2 }}
                   >
-                    {index + 1}
+                    <RollingNumber value={index + 1} />
                   </Badge>
 
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -536,7 +537,13 @@ export const WordDetailCard = React.memo(function WordDetailCard({
                           fontSize: '11px',
                         }}
                       >
-                        {isExpanded ? 'Hide Examples' : `Example Sentences (${totalExamples})`}
+                        {isExpanded ? (
+                          'Hide Examples'
+                        ) : (
+                          <>
+                            Example Sentences (<RollingNumber value={totalExamples} />)
+                          </>
+                        )}
                       </Button>
                     </Group>
 
@@ -707,7 +714,7 @@ export const WordDetailCard = React.memo(function WordDetailCard({
                 color={retentionScore >= 70 ? 'teal' : retentionScore >= 40 ? 'indigo' : 'orange'}
                 radius="sm"
               >
-                {retentionScore}%
+                <RollingNumber value={retentionScore} suffix="%" />
               </Badge>
               {primaryFsrs.dueAt && (
                 <Text size="xs" c="dimmed" style={{ fontSize: '11px' }}>
@@ -748,7 +755,7 @@ export const WordDetailCard = React.memo(function WordDetailCard({
                   Stability
                 </Text>
                 <Text size="xs" fw={700}>
-                  {primaryFsrs.stability.toFixed(1)} days
+                  <RollingNumber value={primaryFsrs.stability} decimalScale={1} suffix=" days" />
                 </Text>
               </Stack>
 
@@ -757,7 +764,7 @@ export const WordDetailCard = React.memo(function WordDetailCard({
                   Difficulty
                 </Text>
                 <Text size="xs" fw={700}>
-                  {primaryFsrs.difficulty.toFixed(1)} / 10
+                  <RollingNumber value={primaryFsrs.difficulty} decimalScale={1} suffix=" / 10" />
                 </Text>
               </Stack>
 
@@ -766,7 +773,8 @@ export const WordDetailCard = React.memo(function WordDetailCard({
                   Reviews / Lapses
                 </Text>
                 <Text size="xs" fw={700}>
-                  {primaryFsrs.reps} reps / {primaryFsrs.lapses} lapses
+                  <RollingNumber value={primaryFsrs.reps} suffix=" reps" /> /{' '}
+                  <RollingNumber value={primaryFsrs.lapses} suffix=" lapses" />
                 </Text>
               </Stack>
             </SimpleGrid>

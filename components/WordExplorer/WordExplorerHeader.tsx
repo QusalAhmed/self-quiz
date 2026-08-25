@@ -9,6 +9,7 @@ import {
   Group,
   Menu,
   Paper,
+  RollingNumber,
   ScrollArea,
   SegmentedControl,
   Select,
@@ -233,7 +234,8 @@ export const WordExplorerHeader = React.memo(function WordExplorerHeader({
                 radius="md"
                 style={{ fontWeight: 700 }}
               >
-                Showing {filteredCount} of {totalCount}
+                Showing <RollingNumber value={filteredCount} /> of{' '}
+                <RollingNumber value={totalCount} />
               </Badge>
 
               <Button
@@ -256,7 +258,7 @@ export const WordExplorerHeader = React.memo(function WordExplorerHeader({
                   leftSection={<IconHierarchy size={16} />}
                   onClick={onOpenBatchWordFamilyModal}
                 >
-                  Generate Missing Families ({missingWordFamilyCount})
+                  Generate Missing Families (<RollingNumber value={missingWordFamilyCount} />)
                 </Button>
               )}
 
@@ -298,11 +300,11 @@ export const WordExplorerHeader = React.memo(function WordExplorerHeader({
                   TOTAL WORDS
                 </Text>
                 <Badge size="xs" color="indigo" variant="light">
-                  {totalCount}
+                  <RollingNumber value={totalCount} thousandSeparator />
                 </Badge>
               </Group>
               <Text size="lg" fw={800} mt={2}>
-                {totalCount}
+                <RollingNumber value={totalCount} thousandSeparator />
               </Text>
             </Paper>
 
@@ -319,11 +321,11 @@ export const WordExplorerHeader = React.memo(function WordExplorerHeader({
                   MASTERED
                 </Text>
                 <Badge size="xs" color="teal" variant="light">
-                  {masteredCount}
+                  <RollingNumber value={masteredCount} thousandSeparator />
                 </Badge>
               </Group>
               <Text size="lg" fw={800} c="teal" mt={2}>
-                {masteredCount}
+                <RollingNumber value={masteredCount} thousandSeparator />
               </Text>
             </Paper>
 
@@ -340,11 +342,11 @@ export const WordExplorerHeader = React.memo(function WordExplorerHeader({
                   IN LEARNING
                 </Text>
                 <Badge size="xs" color="orange" variant="light">
-                  {learningCount}
+                  <RollingNumber value={learningCount} thousandSeparator />
                 </Badge>
               </Group>
               <Text size="lg" fw={800} c="orange" mt={2}>
-                {learningCount}
+                <RollingNumber value={learningCount} thousandSeparator />
               </Text>
             </Paper>
 
@@ -361,11 +363,11 @@ export const WordExplorerHeader = React.memo(function WordExplorerHeader({
                   DUE TODAY
                 </Text>
                 <Badge size="xs" color="violet" variant="light">
-                  {dueTodayCount}
+                  <RollingNumber value={dueTodayCount} thousandSeparator />
                 </Badge>
               </Group>
               <Text size="lg" fw={800} c="violet" mt={2}>
-                {dueTodayCount}
+                <RollingNumber value={dueTodayCount} thousandSeparator />
               </Text>
             </Paper>
 
@@ -382,11 +384,11 @@ export const WordExplorerHeader = React.memo(function WordExplorerHeader({
                   WITH NOTES
                 </Text>
                 <Badge size="xs" color="pink" variant="light">
-                  {withNotesCount}
+                  <RollingNumber value={withNotesCount} thousandSeparator />
                 </Badge>
               </Group>
               <Text size="lg" fw={800} c="pink" mt={2}>
-                {withNotesCount}
+                <RollingNumber value={withNotesCount} thousandSeparator />
               </Text>
             </Paper>
           </SimpleGrid>

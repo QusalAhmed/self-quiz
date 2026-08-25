@@ -47,7 +47,8 @@ describe('ExportWordsModal component', () => {
     );
 
     expect(screen.getByText('Export Quiz Words')).toBeInTheDocument();
-    expect(screen.getByText('2 words')).toBeInTheDocument();
+    expect(screen.getAllByRole('img', { name: '2' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/words/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/serendipity/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /download csv/i })).toBeInTheDocument();
   });

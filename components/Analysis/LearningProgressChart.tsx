@@ -5,6 +5,7 @@ import {
   Card,
   Group,
   Paper,
+  RollingNumber,
   SegmentedControl,
   SimpleGrid,
   Stack,
@@ -139,7 +140,7 @@ export function LearningProgressChart({
               CURRENT VOCABULARY
             </Text>
             <Text size="md" fw={800} style={{ fontFamily: 'var(--font-title)' }}>
-              {totalWords.toLocaleString()}{' '}
+              <RollingNumber value={totalWords} thousandSeparator />{' '}
               <Text component="span" size="xs" c="dimmed">
                 words
               </Text>
@@ -151,9 +152,14 @@ export function LearningProgressChart({
               TOTAL MASTERED
             </Text>
             <Text size="md" fw={800} c="teal" style={{ fontFamily: 'var(--font-title)' }}>
-              {masteredWords.toLocaleString()}{' '}
+              <RollingNumber value={masteredWords} thousandSeparator />{' '}
               <Text component="span" size="xs" c="dimmed">
-                ({totalWords > 0 ? Math.round((masteredWords / totalWords) * 100) : 0}%)
+                (
+                <RollingNumber
+                  value={totalWords > 0 ? Math.round((masteredWords / totalWords) * 100) : 0}
+                  suffix="%"
+                />
+                )
               </Text>
             </Text>
           </Paper>
@@ -163,7 +169,10 @@ export function LearningProgressChart({
               AVG MASTERED / WEEK
             </Text>
             <Text size="md" fw={800} c="indigo" style={{ fontFamily: 'var(--font-title)' }}>
-              {vocabularyGrowth?.wordsMasteredPerWeekAvg || 0}{' '}
+              <RollingNumber
+                value={vocabularyGrowth?.wordsMasteredPerWeekAvg || 0}
+                decimalScale={1}
+              />{' '}
               <Text component="span" size="xs" c="dimmed">
                 / wk
               </Text>
@@ -175,7 +184,12 @@ export function LearningProgressChart({
               GROWTH VELOCITY
             </Text>
             <Text size="md" fw={800} c="violet" style={{ fontFamily: 'var(--font-title)' }}>
-              +{vocabularyGrowth?.growthRatePercent || 0}%{' '}
+              <RollingNumber
+                value={vocabularyGrowth?.growthRatePercent || 0}
+                prefix="+"
+                decimalScale={1}
+                suffix="%"
+              />{' '}
               <Text component="span" size="xs" c="dimmed">
                 rate
               </Text>

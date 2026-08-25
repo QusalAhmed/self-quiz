@@ -10,6 +10,7 @@ import {
   Group,
   Menu,
   Paper,
+  RollingNumber,
   SegmentedControl,
   Select,
   Stack,
@@ -146,7 +147,7 @@ export function AnalysisHeader({
                     VOCABULARY
                   </Text>
                   <Text size="sm" fw={800} style={{ fontFamily: 'var(--font-title)' }}>
-                    {totalWords}{' '}
+                    <RollingNumber value={totalWords} thousandSeparator />{' '}
                     <Text component="span" size="xs" c="dimmed" fw={500}>
                       words
                     </Text>
@@ -158,9 +159,14 @@ export function AnalysisHeader({
                     MASTERED
                   </Text>
                   <Text size="sm" fw={800} c="teal.6" style={{ fontFamily: 'var(--font-title)' }}>
-                    {totalMastered}{' '}
+                    <RollingNumber value={totalMastered} thousandSeparator />{' '}
                     <Text component="span" size="xs" c="dimmed" fw={500}>
-                      ({totalWords > 0 ? Math.round((totalMastered / totalWords) * 100) : 0}%)
+                      (
+                      <RollingNumber
+                        value={totalWords > 0 ? Math.round((totalMastered / totalWords) * 100) : 0}
+                        suffix="%"
+                      />
+                      )
                     </Text>
                   </Text>
                 </div>
@@ -255,7 +261,7 @@ export function AnalysisHeader({
               rightSection={
                 activeFiltersCount > 0 ? (
                   <Badge size="xs" color="indigo.3" variant="filled" circle>
-                    {activeFiltersCount}
+                    <RollingNumber value={activeFiltersCount} />
                   </Badge>
                 ) : null
               }

@@ -1,6 +1,6 @@
 'use client';
 
-import { Box, Button, Card, Group, Stack, Text, Title } from '@mantine/core';
+import { Box, Button, Card, Group, RollingNumber, Stack, Text, Title } from '@mantine/core';
 import { IconDownload, IconHistory } from '@tabler/icons-react';
 import React, { useMemo, useState } from 'react';
 import { ExportWordsModal } from '@/components/Home/ExportWordsModal';
@@ -195,7 +195,7 @@ export function ReviewLogSection({
             onClick={() => setExportOpen(true)}
             disabled={filteredLogs.length === 0}
           >
-            Export Logs ({filteredLogs.length})
+            Export Logs (<RollingNumber value={filteredLogs.length} />)
           </Button>
         </Group>
 

@@ -14,6 +14,7 @@ import {
   Paper,
   Pill,
   PillsInput,
+  RollingNumber,
   Select,
   Stack,
   Switch,
@@ -566,7 +567,7 @@ export function StoryCreator({
                     variant={selectedWords.length > 0 ? 'filled' : 'light'}
                     color={selectedWords.length > 0 ? 'indigo' : 'gray'}
                   >
-                    {selectedWords.length} / 15
+                    <RollingNumber value={selectedWords.length} /> / 15
                   </Badge>
                 </Group>
                 {selectedWords.length > 0 && (
@@ -709,9 +710,13 @@ export function StoryCreator({
                 disabled={isGenerating || selectedWords.length === 0}
                 fullWidth
               >
-                {isGenerating
-                  ? 'Writing AI Story...'
-                  : `Generate Story (${selectedWords.length} words)`}
+                {isGenerating ? (
+                  'Writing AI Story...'
+                ) : (
+                  <>
+                    Generate Story (<RollingNumber value={selectedWords.length} /> words)
+                  </>
+                )}
               </Button>
             </Stack>
           </Paper>

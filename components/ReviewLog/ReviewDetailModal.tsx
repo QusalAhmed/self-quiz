@@ -9,6 +9,7 @@ import {
   Group,
   Modal,
   Paper,
+  RollingNumber,
   SimpleGrid,
   Stack,
   Text,
@@ -184,7 +185,15 @@ export function ReviewDetailModal({
               RESPONSE TIME
             </Text>
             <Text size="sm" fw={700} mt={2}>
-              {durationMs > 0 ? `${(durationMs / 1000).toFixed(1)}s` : 'Instant (<0.1s)'}
+              {durationMs > 0 ? (
+                <RollingNumber
+                  value={Number((durationMs / 1000).toFixed(1))}
+                  decimalScale={1}
+                  suffix="s"
+                />
+              ) : (
+                'Instant (<0.1s)'
+              )}
             </Text>
           </Paper>
 
@@ -225,7 +234,7 @@ export function ReviewDetailModal({
                 </Tooltip>
               </Group>
               <Text size="lg" fw={800} c="indigo">
-                {stability.toFixed(1)}{' '}
+                <RollingNumber value={stability} decimalScale={1} />{' '}
                 <Text component="span" size="xs" c="dimmed">
                   days
                 </Text>
@@ -249,7 +258,7 @@ export function ReviewDetailModal({
                 fw={800}
                 c={difficulty >= 7 ? 'red' : difficulty >= 5 ? 'yellow' : 'teal'}
               >
-                {difficulty.toFixed(1)}{' '}
+                <RollingNumber value={difficulty} decimalScale={1} />{' '}
                 <Text component="span" size="xs" c="dimmed">
                   / 10
                 </Text>
@@ -269,7 +278,7 @@ export function ReviewDetailModal({
                 </Tooltip>
               </Group>
               <Text size="lg" fw={800} c="teal">
-                {((retrievability ?? 1) * 100).toFixed(0)}%
+                <RollingNumber value={Math.round((retrievability ?? 1) * 100)} suffix="%" />
               </Text>
             </div>
 
@@ -283,7 +292,7 @@ export function ReviewDetailModal({
                 </Tooltip>
               </Group>
               <Text size="lg" fw={800}>
-                {scheduledDays > 0 ? `${scheduledDays}d` : '<1d'}
+                {scheduledDays > 0 ? <RollingNumber value={scheduledDays} suffix="d" /> : '<1d'}
               </Text>
             </div>
           </SimpleGrid>
@@ -296,7 +305,7 @@ export function ReviewDetailModal({
                 Total Reps
               </Text>
               <Text size="sm" fw={600}>
-                {reps} completed
+                <RollingNumber value={reps} /> completed
               </Text>
             </div>
 
@@ -305,7 +314,7 @@ export function ReviewDetailModal({
                 Memory Lapses
               </Text>
               <Text size="sm" fw={600} c={lapses > 0 ? 'red' : 'dimmed'}>
-                {lapses} {lapses === 1 ? 'lapse' : 'lapses'}
+                <RollingNumber value={lapses} /> {lapses === 1 ? 'lapse' : 'lapses'}
               </Text>
             </div>
 
@@ -314,7 +323,7 @@ export function ReviewDetailModal({
                 Elapsed Days
               </Text>
               <Text size="sm" fw={600}>
-                {elapsedDays} days since last review
+                <RollingNumber value={elapsedDays} /> days since last review
               </Text>
             </div>
           </SimpleGrid>

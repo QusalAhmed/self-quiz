@@ -1,22 +1,23 @@
 import {
+  Badge,
   Button,
   Card,
+  Collapse,
+  Divider,
   Group,
   Kbd,
+  Modal,
+  Paper,
   Progress,
+  RingProgress,
+  RollingNumber,
+  ScrollArea,
+  SimpleGrid,
   Stack,
   Text,
-  Title,
-  RingProgress,
-  Tooltip,
-  ScrollArea,
   TextInput,
-  Divider,
-  Badge,
-  Modal,
-  SimpleGrid,
-  Paper,
-  Collapse,
+  Title,
+  Tooltip,
 } from '@mantine/core';
 import {
   IconArrowBackUp,
@@ -346,9 +347,14 @@ export function QuizPanel({
               Quiz Completed!
             </Title>
             <Text c="dimmed" size="sm" max-width="360px" mx="auto" style={{ lineHeight: 1.6 }}>
-              {totalCount > 0
-                ? `Fantastic effort! You've mastered all ${totalCount} words selected for this session. Repetition is key to long-term memory.`
-                : 'No vocabulary cards are available for this session.'}
+              {totalCount > 0 ? (
+                <>
+                  Fantastic effort! You&apos;ve mastered all <RollingNumber value={totalCount} />{' '}
+                  words selected for this session. Repetition is key to long-term memory.
+                </>
+              ) : (
+                'No vocabulary cards are available for this session.'
+              )}
             </Text>
           </Stack>
 
@@ -588,7 +594,7 @@ export function QuizPanel({
                 : '🧠 Review'}
           </Badge>
           <Badge variant="outline" color="violet" size="sm" radius="md">
-            Reps: {fsrsRecord.reps ?? 0}
+            Reps: <RollingNumber value={fsrsRecord.reps ?? 0} />
           </Badge>
           <Badge
             variant="outline"
@@ -596,21 +602,23 @@ export function QuizPanel({
             size="sm"
             radius="md"
           >
-            Lapses: {fsrsRecord.lapses ?? 0}
+            Lapses: <RollingNumber value={fsrsRecord.lapses ?? 0} />
           </Badge>
 
           {typeof fsrsRecord.stability === 'number' && fsrsRecord.stability > 0 && (
             <Badge variant="outline" color="teal" size="sm" radius="md">
               Stab:{' '}
-              {fsrsRecord.stability < 1
-                ? `${Math.round(fsrsRecord.stability * 24)}h`
-                : `${fsrsRecord.stability.toFixed(1)}d`}
+              {fsrsRecord.stability < 1 ? (
+                <RollingNumber value={Math.round(fsrsRecord.stability * 24)} suffix="h" />
+              ) : (
+                <RollingNumber value={fsrsRecord.stability} decimalScale={1} suffix="d" />
+              )}
             </Badge>
           )}
 
           {typeof fsrsRecord.difficulty === 'number' && fsrsRecord.difficulty > 0 && (
             <Badge variant="outline" color="orange" size="sm" radius="md">
-              Diff: {fsrsRecord.difficulty.toFixed(1)}/10
+              Diff: <RollingNumber value={fsrsRecord.difficulty} decimalScale={1} suffix="/10" />
             </Badge>
           )}
         </>
@@ -845,7 +853,8 @@ export function QuizPanel({
                 SESSION PROGRESS
               </Text>
               <Text size="xs" fw={700} c="dimmed">
-                {Math.min(currentIndex + 1, totalCount)} of {totalCount} Words
+                <RollingNumber value={Math.min(currentIndex + 1, totalCount)} /> of{' '}
+                <RollingNumber value={totalCount} /> Words
               </Text>
             </Group>
             <Progress

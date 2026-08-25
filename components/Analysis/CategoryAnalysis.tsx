@@ -1,6 +1,17 @@
 'use client';
 
-import { Badge, Box, Card, Group, Progress, Stack, Table, Text, Title } from '@mantine/core';
+import {
+  Badge,
+  Box,
+  Card,
+  Group,
+  Progress,
+  RollingNumber,
+  Stack,
+  Table,
+  Text,
+  Title,
+} from '@mantine/core';
 import { IconCategory, IconFolder } from '@tabler/icons-react';
 import React from 'react';
 import {
@@ -55,7 +66,7 @@ export function CategoryAnalysis({ categories, statusInfo }: CategoryAnalysisPro
           </div>
 
           <Badge variant="light" color="indigo" leftSection={<IconCategory size={14} />}>
-            {categories.length} Categories Tracked
+            <RollingNumber value={categories.length} /> Categories Tracked
           </Badge>
         </Group>
 
@@ -135,12 +146,12 @@ export function CategoryAnalysis({ categories, statusInfo }: CategoryAnalysisPro
                   </Table.Td>
                   <Table.Td style={{ textAlign: 'right' }}>
                     <Text size="xs" fw={700}>
-                      {c.totalWords}
+                      <RollingNumber value={c.totalWords} />
                     </Text>
                   </Table.Td>
                   <Table.Td style={{ textAlign: 'right' }}>
                     <Text size="xs" fw={700} c="teal">
-                      {c.masteredWords}
+                      <RollingNumber value={c.masteredWords} />
                     </Text>
                   </Table.Td>
                   <Table.Td>
@@ -153,7 +164,7 @@ export function CategoryAnalysis({ categories, statusInfo }: CategoryAnalysisPro
                         style={{ flex: 1 }}
                       />
                       <Text size="11px" fw={700} style={{ minWidth: 32 }}>
-                        {c.masteryRate}%
+                        <RollingNumber value={c.masteryRate} decimalScale={1} suffix="%" />
                       </Text>
                     </Group>
                   </Table.Td>
@@ -163,7 +174,7 @@ export function CategoryAnalysis({ categories, statusInfo }: CategoryAnalysisPro
                       variant="light"
                       color={c.retentionRate >= 85 ? 'teal' : 'yellow'}
                     >
-                      {c.retentionRate}%
+                      <RollingNumber value={c.retentionRate} decimalScale={1} suffix="%" />
                     </Badge>
                   </Table.Td>
                   <Table.Td style={{ textAlign: 'right' }}>
@@ -172,11 +183,13 @@ export function CategoryAnalysis({ categories, statusInfo }: CategoryAnalysisPro
                       variant="outline"
                       color={c.avgDifficulty >= 7 ? 'red' : 'gray'}
                     >
-                      {c.avgDifficulty}/10
+                      <RollingNumber value={c.avgDifficulty} decimalScale={1} suffix="/10" />
                     </Badge>
                   </Table.Td>
                   <Table.Td style={{ textAlign: 'right' }}>
-                    <Text size="xs">{c.reviewsCount}</Text>
+                    <Text size="xs">
+                      <RollingNumber value={c.reviewsCount} />
+                    </Text>
                   </Table.Td>
                   <Table.Td style={{ textAlign: 'right' }}>
                     <Text size="xs" fw={600} c="indigo">
@@ -185,7 +198,7 @@ export function CategoryAnalysis({ categories, statusInfo }: CategoryAnalysisPro
                   </Table.Td>
                   <Table.Td style={{ textAlign: 'right' }}>
                     <Text size="xs" c={c.lapses > 0 ? 'red' : 'dimmed'}>
-                      {c.lapses}
+                      <RollingNumber value={c.lapses} />
                     </Text>
                   </Table.Td>
                 </Table.Tr>

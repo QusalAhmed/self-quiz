@@ -6,6 +6,7 @@ import {
   Group,
   Paper,
   Progress,
+  RollingNumber,
   SimpleGrid,
   Stack,
   Text,
@@ -65,8 +66,8 @@ export function LearningStateDistribution({
               <SectionStatusBadge statusInfo={statusInfo} />
             </Group>
             <Text size="xs" c="dimmed">
-              Current breakdown of your {totalWords.toLocaleString()} vocabulary words across FSRS
-              spaced repetition states.
+              Current breakdown of your <RollingNumber value={totalWords} thousandSeparator />{' '}
+              vocabulary words across FSRS spaced repetition states.
             </Text>
           </div>
 
@@ -157,12 +158,12 @@ export function LearningStateDistribution({
                                 : 'gray'
                       }
                     >
-                      {s.percent}%
+                      <RollingNumber value={s.percent} suffix="%" />
                     </Badge>
                   </Group>
 
                   <Text size="xl" fw={800} style={{ fontFamily: 'var(--font-title)' }}>
-                    {s.count.toLocaleString()}
+                    <RollingNumber value={s.count} thousandSeparator />
                   </Text>
 
                   <Text size="xs" c="dimmed" style={{ minHeight: 32, lineHeight: 1.3 }}>

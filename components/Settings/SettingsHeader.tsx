@@ -7,6 +7,7 @@ import {
   Button,
   Group,
   Paper,
+  RollingNumber,
   Stack,
   Text,
   ThemeIcon,
@@ -163,7 +164,8 @@ export function SettingsHeader({ settings, onResetAll }: SettingsHeaderProps) {
             Theme: {settings.appearance.colorScheme.toUpperCase()}
           </Badge>
           <Badge size="xs" variant="dot" color="violet">
-            Retention: {(settings.fsrs.requestRetention * 100).toFixed(0)}%
+            Retention:{' '}
+            <RollingNumber value={Math.round(settings.fsrs.requestRetention * 100)} suffix="%" />
           </Badge>
           <Badge size="xs" variant="dot" color="teal">
             AI Provider: {settings.ai.preferredProvider.toUpperCase()}

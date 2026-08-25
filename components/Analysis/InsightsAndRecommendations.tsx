@@ -1,6 +1,16 @@
 'use client';
 
-import { Badge, Card, Group, Paper, SimpleGrid, Stack, Text, Title } from '@mantine/core';
+import {
+  Badge,
+  Card,
+  Group,
+  Paper,
+  RollingNumber,
+  SimpleGrid,
+  Stack,
+  Text,
+  Title,
+} from '@mantine/core';
 import { IconAlertTriangle, IconBulb, IconInfoCircle, IconSparkles } from '@tabler/icons-react';
 import React from 'react';
 import type {
@@ -59,7 +69,7 @@ export function InsightsAndRecommendations({
               </Title>
               <SectionStatusBadge statusInfo={statusInfo} />
               <Badge variant="light" color="indigo" size="sm">
-                {insights.length} detected
+                <RollingNumber value={insights.length} /> detected
               </Badge>
             </Group>
           </Group>

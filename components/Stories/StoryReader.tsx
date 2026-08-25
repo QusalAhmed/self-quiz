@@ -10,6 +10,7 @@ import {
   Modal,
   Paper,
   RingProgress,
+  RollingNumber,
   SegmentedControl,
   Stack,
   Switch,
@@ -526,7 +527,8 @@ export function StoryReader({
 
               {isClozeMode && !hasEvaluated && (
                 <Text size="xs" fw={600} c="dimmed">
-                  {filledCount} of {targetTokens.length} blanks filled
+                  <RollingNumber value={filledCount} /> of{' '}
+                  <RollingNumber value={targetTokens.length} /> blanks filled
                 </Text>
               )}
             </Group>
@@ -565,8 +567,9 @@ export function StoryReader({
                   />
                   <Stack gap={0}>
                     <Text size="sm" fw={700}>
-                      {clozeResults.correctCount} / {targetTokens.length} Words Correct (
-                      {clozeResults.percent}%)
+                      <RollingNumber value={clozeResults.correctCount} /> /{' '}
+                      <RollingNumber value={targetTokens.length} /> Words Correct (
+                      <RollingNumber value={clozeResults.percent} suffix="%" />)
                     </Text>
                     <Text size="xs" c="dimmed">
                       {clozeResults.isCompleted
@@ -885,7 +888,8 @@ export function StoryReader({
                     Ready to check your answers?
                   </Text>
                   <Text size="xs" c="dimmed">
-                    You have completed {filledCount} of {targetTokens.length} blanks.
+                    You have completed <RollingNumber value={filledCount} /> of{' '}
+                    <RollingNumber value={targetTokens.length} /> blanks.
                   </Text>
                 </Stack>
 
@@ -1034,7 +1038,8 @@ export function StoryReader({
 
             <div>
               <Text size="xs" fw={700} c="dimmed" tt="uppercase" mb="xs">
-                Definitions ({activeWordForModal.definitions?.length || 1}):
+                Definitions (<RollingNumber value={activeWordForModal.definitions?.length || 1} />
+                ):
               </Text>
               <DefinitionsDisplay
                 definitions={activeWordForModal.definitions}

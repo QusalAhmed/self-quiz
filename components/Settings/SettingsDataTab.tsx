@@ -11,6 +11,7 @@ import {
   Paper,
   Progress,
   Radio,
+  RollingNumber,
   SimpleGrid,
   Stack,
   Text,
@@ -341,7 +342,8 @@ export function SettingsDataTab({
           </Group>
 
           <Badge size="md" variant="light" color="indigo">
-            {storageEstimate.usageMb} MB Used / {storageEstimate.quotaMb} MB Quota
+            <RollingNumber value={Number(storageEstimate.usageMb)} decimalScale={1} /> MB Used /{' '}
+            <RollingNumber value={Number(storageEstimate.quotaMb)} decimalScale={1} /> MB Quota
           </Badge>
         </Group>
 
@@ -358,8 +360,8 @@ export function SettingsDataTab({
             <Text size="xs" c="dimmed">
               Words
             </Text>
-            <Text size="md" fw={700} c="indigo">
-              {words.length}
+            <Text component="div" size="md" fw={700} c="indigo">
+              <RollingNumber value={words.length} thousandSeparator />
             </Text>
           </Paper>
 
@@ -367,8 +369,8 @@ export function SettingsDataTab({
             <Text size="xs" c="dimmed">
               Groups
             </Text>
-            <Text size="md" fw={700} c="violet">
-              {groups.length}
+            <Text component="div" size="md" fw={700} c="violet">
+              <RollingNumber value={groups.length} thousandSeparator />
             </Text>
           </Paper>
 
@@ -376,8 +378,8 @@ export function SettingsDataTab({
             <Text size="xs" c="dimmed">
               Missed Words
             </Text>
-            <Text size="md" fw={700} c="orange">
-              {missedWords.length}
+            <Text component="div" size="md" fw={700} c="orange">
+              <RollingNumber value={missedWords.length} thousandSeparator />
             </Text>
           </Paper>
 
@@ -385,8 +387,8 @@ export function SettingsDataTab({
             <Text size="xs" c="dimmed">
               FSRS Cards
             </Text>
-            <Text size="md" fw={700} c="teal">
-              {fsrsCount}
+            <Text component="div" size="md" fw={700} c="teal">
+              <RollingNumber value={fsrsCount} thousandSeparator />
             </Text>
           </Paper>
 
@@ -394,8 +396,11 @@ export function SettingsDataTab({
             <Text size="xs" c="dimmed">
               Word Families
             </Text>
-            <Text size="md" fw={700} c="cyan">
-              {Object.values(wordFamilies).reduce((acc, l) => acc + l.length, 0)}
+            <Text component="div" size="md" fw={700} c="cyan">
+              <RollingNumber
+                value={Object.values(wordFamilies).reduce((acc, l) => acc + l.length, 0)}
+                thousandSeparator
+              />
             </Text>
           </Paper>
 
@@ -403,8 +408,8 @@ export function SettingsDataTab({
             <Text size="xs" c="dimmed">
               Review Logs
             </Text>
-            <Text size="md" fw={700} c="blue">
-              {reviewLogsCount}
+            <Text component="div" size="md" fw={700} c="blue">
+              <RollingNumber value={reviewLogsCount} thousandSeparator />
             </Text>
           </Paper>
         </SimpleGrid>
@@ -618,9 +623,9 @@ export function SettingsDataTab({
             <Text size="xs" fw={700}>
               Clear Historical Review Logs
             </Text>
-            <Text size="xs" c="dimmed" mt={2} mb="xs">
-              Deletes past quiz timeline entries to free space ({reviewLogsCount} logs). Active
-              cards remain intact.
+            <Text component="div" size="xs" c="dimmed" mt={2} mb="xs">
+              Deletes past quiz timeline entries to free space (
+              <RollingNumber value={reviewLogsCount} /> logs). Active cards remain intact.
             </Text>
             <Button
               variant="light"
@@ -638,9 +643,9 @@ export function SettingsDataTab({
             <Text size="xs" fw={700}>
               Clear Missed Words Pool
             </Text>
-            <Text size="xs" c="dimmed" mt={2} mb="xs">
-              Removes all {missedWords.length} words currently queued in the Missed Words review
-              pool.
+            <Text component="div" size="xs" c="dimmed" mt={2} mb="xs">
+              Removes all <RollingNumber value={missedWords.length} /> words currently queued in the
+              Missed Words review pool.
             </Text>
             <Button
               variant="light"
@@ -658,8 +663,9 @@ export function SettingsDataTab({
             <Text size="xs" fw={700}>
               Reset FSRS Memory Progress
             </Text>
-            <Text size="xs" c="dimmed" mt={2} mb="xs">
-              Resets stability and difficulty vectors for all {fsrsCount} cards back to 'New'.
+            <Text component="div" size="xs" c="dimmed" mt={2} mb="xs">
+              Resets stability and difficulty vectors for all <RollingNumber value={fsrsCount} />{' '}
+              cards back to &apos;New&apos;.
             </Text>
             <Button
               variant="light"

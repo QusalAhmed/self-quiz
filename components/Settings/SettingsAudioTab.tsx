@@ -7,6 +7,7 @@ import {
   Divider,
   Group,
   Paper,
+  RollingNumber,
   Select,
   SimpleGrid,
   Slider,
@@ -279,8 +280,8 @@ export function SettingsAudioTab({ settings, onChange }: SettingsAudioTabProps) 
             {/* Speed Rate */}
             <Paper withBorder p="sm" radius="md">
               <Group justify="space-between" align="center" mb={6}>
-                <Text size="xs" fw={600}>
-                  Speed Rate: {settings.ttsRate.toFixed(1)}x
+                <Text component="div" size="xs" fw={600}>
+                  Speed Rate: <RollingNumber value={settings.ttsRate} decimalScale={1} suffix="x" />
                 </Text>
                 <Badge size="xs" variant="light" color="teal">
                   {settings.ttsRate === 1.0 ? 'Normal' : settings.ttsRate < 1.0 ? 'Slow' : 'Fast'}
@@ -306,8 +307,8 @@ export function SettingsAudioTab({ settings, onChange }: SettingsAudioTabProps) 
             {/* Pitch */}
             <Paper withBorder p="sm" radius="md">
               <Group justify="space-between" align="center" mb={6}>
-                <Text size="xs" fw={600}>
-                  Pitch: {settings.ttsPitch.toFixed(1)}
+                <Text component="div" size="xs" fw={600}>
+                  Pitch: <RollingNumber value={settings.ttsPitch} decimalScale={1} />
                 </Text>
                 <Badge size="xs" variant="light" color="indigo">
                   {settings.ttsPitch === 1.0

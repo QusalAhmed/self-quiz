@@ -1,6 +1,17 @@
 'use client';
 
-import { Box, Card, Group, Paper, SimpleGrid, Stack, Text, Title, Tooltip } from '@mantine/core';
+import {
+  Box,
+  Card,
+  Group,
+  Paper,
+  RollingNumber,
+  SimpleGrid,
+  Stack,
+  Text,
+  Title,
+  Tooltip,
+} from '@mantine/core';
 import {
   IconBolt,
   IconCheck,
@@ -76,7 +87,7 @@ export function StudyEfficiency({ efficiency, statusInfo }: StudyEfficiencyProps
                 fw={800}
                 style={{ fontFamily: 'var(--font-title)', color: '#6366f1' }}
               >
-                {reviewsPerMinute}{' '}
+                <RollingNumber value={reviewsPerMinute} decimalScale={1} />{' '}
                 <Text component="span" size="xs" c="dimmed">
                   cards/min
                 </Text>
@@ -105,7 +116,7 @@ export function StudyEfficiency({ efficiency, statusInfo }: StudyEfficiencyProps
                 fw={800}
                 style={{ fontFamily: 'var(--font-title)', color: '#06b6d4' }}
               >
-                {avgReviewDurationSec}{' '}
+                <RollingNumber value={avgReviewDurationSec} decimalScale={1} />{' '}
                 <Text component="span" size="xs" c="dimmed">
                   sec
                 </Text>
@@ -134,7 +145,7 @@ export function StudyEfficiency({ efficiency, statusInfo }: StudyEfficiencyProps
                 fw={800}
                 style={{ fontFamily: 'var(--font-title)', color: '#10b981' }}
               >
-                {successfulReviewsPerMinute}{' '}
+                <RollingNumber value={successfulReviewsPerMinute} decimalScale={1} />{' '}
                 <Text component="span" size="xs" c="dimmed">
                   good/min
                 </Text>
@@ -163,7 +174,11 @@ export function StudyEfficiency({ efficiency, statusInfo }: StudyEfficiencyProps
                 fw={800}
                 style={{ fontFamily: 'var(--font-title)', color: '#10b981' }}
               >
-                {wordsMasteredPerHour > 0 ? wordsMasteredPerHour : '--'}{' '}
+                {wordsMasteredPerHour > 0 ? (
+                  <RollingNumber value={wordsMasteredPerHour} decimalScale={1} />
+                ) : (
+                  '--'
+                )}{' '}
                 <Text component="span" size="xs" c="dimmed">
                   words/hr
                 </Text>
@@ -192,7 +207,11 @@ export function StudyEfficiency({ efficiency, statusInfo }: StudyEfficiencyProps
                 fw={800}
                 style={{ fontFamily: 'var(--font-title)', color: '#f59e0b' }}
               >
-                {reviewsPerMasteredWord > 0 ? reviewsPerMasteredWord : '--'}{' '}
+                {reviewsPerMasteredWord > 0 ? (
+                  <RollingNumber value={reviewsPerMasteredWord} decimalScale={1} />
+                ) : (
+                  '--'
+                )}{' '}
                 <Text component="span" size="xs" c="dimmed">
                   revs
                 </Text>
@@ -221,7 +240,11 @@ export function StudyEfficiency({ efficiency, statusInfo }: StudyEfficiencyProps
                 fw={800}
                 style={{ fontFamily: 'var(--font-title)', color: '#ec4899' }}
               >
-                {studyMinutesPerMasteredWord > 0 ? `${studyMinutesPerMasteredWord}m` : '--'}
+                {studyMinutesPerMasteredWord > 0 ? (
+                  <RollingNumber value={studyMinutesPerMasteredWord} decimalScale={1} suffix="m" />
+                ) : (
+                  '--'
+                )}
               </Text>
               <Text size="xs" c="dimmed">
                 Minutes per mastered word

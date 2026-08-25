@@ -1,6 +1,17 @@
 'use client';
 
-import { Badge, Button, Card, Group, Progress, Stack, Text, Title, Tooltip } from '@mantine/core';
+import {
+  Badge,
+  Button,
+  Card,
+  Group,
+  Progress,
+  RollingNumber,
+  Stack,
+  Text,
+  Title,
+  Tooltip,
+} from '@mantine/core';
 import { IconArrowBackUp, IconEye, IconVolume } from '@tabler/icons-react';
 import { motion } from 'framer-motion';
 import React from 'react';
@@ -161,7 +172,7 @@ export function FsrsCardViewer({
                     {stateBadgeProps.label}
                   </Badge>
                   <Badge variant="outline" color="violet" size="sm" radius="md">
-                    Reps: {card.reps ?? 0}
+                    Reps: <RollingNumber value={card.reps ?? 0} />
                   </Badge>
                   <Badge
                     variant="outline"
@@ -169,21 +180,23 @@ export function FsrsCardViewer({
                     size="sm"
                     radius="md"
                   >
-                    Lapses: {card.lapses ?? 0}
+                    Lapses: <RollingNumber value={card.lapses ?? 0} />
                   </Badge>
 
                   {typeof card.stability === 'number' && card.stability > 0 && (
                     <Badge variant="outline" color="teal" size="sm" radius="md">
                       Stab:{' '}
-                      {card.stability < 1
-                        ? `${Math.round(card.stability * 24)}h`
-                        : `${card.stability.toFixed(1)}d`}
+                      {card.stability < 1 ? (
+                        <RollingNumber value={Math.round(card.stability * 24)} suffix="h" />
+                      ) : (
+                        <RollingNumber value={card.stability} decimalScale={1} suffix="d" />
+                      )}
                     </Badge>
                   )}
 
                   {typeof card.difficulty === 'number' && card.difficulty > 0 && (
                     <Badge variant="outline" color="orange" size="sm" radius="md">
-                      Diff: {card.difficulty.toFixed(1)}/10
+                      Diff: <RollingNumber value={card.difficulty} decimalScale={1} suffix="/10" />
                     </Badge>
                   )}
 

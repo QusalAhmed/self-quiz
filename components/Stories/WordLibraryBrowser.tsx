@@ -7,6 +7,7 @@ import {
   Checkbox,
   Group,
   Paper,
+  RollingNumber,
   ScrollArea,
   Select,
   Stack,
@@ -202,9 +203,13 @@ export function WordLibraryBrowser({
               disabled={disabled || (selectedWords.length >= maxWords && !allVisibleSelected)}
               label={
                 <Text size="xs" fw={600}>
-                  {allVisibleSelected
-                    ? 'Deselect All Visible'
-                    : `Select Visible (${filteredWords.length})`}
+                  {allVisibleSelected ? (
+                    'Deselect All Visible'
+                  ) : (
+                    <>
+                      Select Visible (<RollingNumber value={filteredWords.length} />)
+                    </>
+                  )}
                 </Text>
               }
             />
@@ -212,7 +217,8 @@ export function WordLibraryBrowser({
 
           <Group gap="xs">
             <Text size="xs" c="dimmed">
-              Showing {filteredWords.length} of {words.filter((w) => !w.isDeleted).length} words
+              Showing <RollingNumber value={filteredWords.length} /> of{' '}
+              <RollingNumber value={words.filter((w) => !w.isDeleted).length} /> words
             </Text>
           </Group>
         </Group>

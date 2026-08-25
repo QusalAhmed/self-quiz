@@ -1,4 +1,4 @@
-import { Badge, Button, Group, Text } from '@mantine/core';
+import { Badge, Button, Group, RollingNumber, Text } from '@mantine/core';
 import { IconBookmarkOff, IconEye, IconRotateClockwise, IconVolume } from '@tabler/icons-react';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -206,7 +206,7 @@ export function MissedWordVirtualList({
                           radius="sm"
                           style={{ fontWeight: 700, fontSize: '10px' }}
                         >
-                          ×{count} missed
+                          <RollingNumber value={count} prefix="×" /> missed
                         </Badge>
                       )}
                       {word.dueAt && (

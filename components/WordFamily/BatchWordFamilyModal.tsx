@@ -10,6 +10,7 @@ import {
   Paper,
   Progress,
   Radio,
+  RollingNumber,
   ScrollArea,
   Stack,
   Text,
@@ -205,7 +206,7 @@ export function BatchWordFamilyModal({
                       <Group gap="xs">
                         <Text size="sm">Currently Filtered Words</Text>
                         <Badge size="xs" color="indigo" variant="light">
-                          {filteredMissingWords.length} words
+                          <RollingNumber value={filteredMissingWords.length} /> words
                         </Badge>
                       </Group>
                     }
@@ -217,7 +218,7 @@ export function BatchWordFamilyModal({
                   <Group gap="xs">
                     <Text size="sm">All Words Missing Word Families</Text>
                     <Badge size="xs" color="purple" variant="light">
-                      {allMissingWords.length} words
+                      <RollingNumber value={allMissingWords.length} /> words
                     </Badge>
                   </Group>
                 }
@@ -242,7 +243,9 @@ export function BatchWordFamilyModal({
                   {isRunning ? 'Generation in Progress...' : 'Batch Generation Finished'}
                 </Text>
                 <Text size="xs" fw={700} c="indigo">
-                  {progressIndex} / {totalTargetCount} ({percentage}%)
+                  <RollingNumber value={progressIndex} /> /{' '}
+                  <RollingNumber value={totalTargetCount} /> (
+                  <RollingNumber value={percentage} suffix="%" />)
                 </Text>
               </Group>
 
@@ -268,7 +271,7 @@ export function BatchWordFamilyModal({
 
               <Group gap="xs" mt={4}>
                 <Badge size="sm" color="teal" variant="light" leftSection={<IconCheck size={12} />}>
-                  {successCount} Generated
+                  <RollingNumber value={successCount} /> Generated
                 </Badge>
                 {failureCount > 0 && (
                   <Badge
@@ -277,7 +280,7 @@ export function BatchWordFamilyModal({
                     variant="light"
                     leftSection={<IconAlertCircle size={12} />}
                   >
-                    {failureCount} Failed
+                    <RollingNumber value={failureCount} /> Failed
                   </Badge>
                 )}
               </Group>
@@ -322,7 +325,7 @@ export function BatchWordFamilyModal({
                 leftSection={<IconPlayerPlay size={16} />}
                 onClick={handleStart}
               >
-                Start Generation ({totalTargetCount})
+                Start Generation (<RollingNumber value={totalTargetCount} />)
               </Button>
             </>
           )}

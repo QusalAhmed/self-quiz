@@ -12,6 +12,7 @@ import {
   Modal,
   Pill,
   PillsInput,
+  RollingNumber,
   Select,
   Stack,
   Switch,
@@ -380,7 +381,7 @@ export function StoryGeneratorModal({
         <Stack gap="xs">
           <Group justify="space-between" align="center">
             <Text size="xs" fw={700} c="dimmed" tt="uppercase" lts={0.5}>
-              Target Words ({selectedWords.length})
+              Target Words (<RollingNumber value={selectedWords.length} />)
             </Text>
             {selectedWords.length > 0 && (
               <Button

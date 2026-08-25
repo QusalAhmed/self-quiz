@@ -1,6 +1,6 @@
 'use client';
 
-import { Badge, Group, Text } from '@mantine/core';
+import { Badge, Group, RollingNumber, Text } from '@mantine/core';
 import React from 'react';
 
 export type FsrsCounterBadgeProps = {
@@ -38,7 +38,7 @@ export function FsrsCounterBadge({ newCount, learningCount, reviewCount }: FsrsC
         }
       >
         <Text span size="xs" fw={800} c="blue.4">
-          {newCount}
+          <RollingNumber value={newCount} />
         </Text>{' '}
         <Text span size="xs" style={{ opacity: 0.75 }}>
           New
@@ -71,7 +71,7 @@ export function FsrsCounterBadge({ newCount, learningCount, reviewCount }: FsrsC
         }
       >
         <Text span size="xs" fw={800} c="orange.4">
-          {learningCount}
+          <RollingNumber value={learningCount} />
         </Text>{' '}
         <Text span size="xs" style={{ opacity: 0.75 }}>
           Learn
@@ -104,7 +104,7 @@ export function FsrsCounterBadge({ newCount, learningCount, reviewCount }: FsrsC
         }
       >
         <Text span size="xs" fw={800} c="teal.4">
-          {reviewCount}
+          <RollingNumber value={reviewCount} />
         </Text>{' '}
         <Text span size="xs" style={{ opacity: 0.75 }}>
           Review

@@ -8,6 +8,7 @@ import {
   Group,
   Modal,
   Paper,
+  RollingNumber,
   ScrollArea,
   SimpleGrid,
   Stack,
@@ -354,12 +355,12 @@ export function CloudSyncCard({
                   <Group gap={4} wrap="wrap">
                     {totalSent > 0 && (
                       <Badge size="xs" variant="light" color="blue">
-                        ↑ {totalSent}
+                        <RollingNumber value={totalSent} prefix="↑ " />
                       </Badge>
                     )}
                     {totalReceived > 0 && (
                       <Badge size="xs" variant="light" color="teal">
-                        ↓ {totalReceived}
+                        <RollingNumber value={totalReceived} prefix="↓ " />
                       </Badge>
                     )}
                   </Group>
@@ -372,131 +373,80 @@ export function CloudSyncCard({
             </div>
           </Group>
 
-          {/* Action Buttons */}
-          <Group gap={4} wrap="nowrap" style={{ flexShrink: 0, marginLeft: 'auto' }}>
-            {/* Sync Now Button */}
-            {onlineStatus && (
-              <Tooltip
-                label={
-                  isActuallySyncing
-                    ? 'Syncing all 6 collections…'
-                    : 'Sync now (RxDB pull + push all collections)'
-                }
-                withArrow
-              >
-                <ActionIcon
-                  size="md"
-                  variant="light"
-                  color={isActuallySyncing ? 'blue' : 'teal'}
-                  disabled={isActuallySyncing}
-                  onClick={() => void onSyncNow()}
-                  aria-label="Sync now"
-                  radius="md"
-                >
-                  <IconRotateClockwise
-                    size={18}
-                    className={isActuallySyncing ? 'sync-spin-icon' : undefined}
-                  />
-                </ActionIcon>
-              </Tooltip>
-            )}
-
-            {/* Pause / Resume Live Sync Button */}
-            {onlineStatus && onTogglePause && (
-              <Tooltip
-                label={isPaused ? 'Resume live background sync' : 'Pause live background sync'}
-                withArrow
-              >
-                <ActionIcon
-                  size="md"
-                  variant="subtle"
-                  color={isPaused ? 'green' : 'gray'}
-                  onClick={() => void onTogglePause()}
-                  aria-label={isPaused ? 'Resume sync' : 'Pause sync'}
-                  radius="md"
-                >
-                  {isPaused ? <IconPlayerPlay size={18} /> : <IconPlayerPause size={18} />}
-                </ActionIcon>
-              </Tooltip>
-            )}
-
-            {/* Detailed Diagnostics Hub Trigger */}
-            <Tooltip label="Open RxDB Sync Diagnostics Hub" withArrow>
-              <Button
-                size="xs"
+          <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
+            {/* Quick Refresh Icon */}
+            <Tooltip label={isActuallySyncing ? 'Syncing...' : 'Sync Now'} withArrow>
+              <ActionIcon
+                size="md"
                 variant="subtle"
                 color="indigo"
                 radius="md"
-                onClick={() => setDetailsOpen(true)}
-                leftSection={<IconActivity size={14} />}
-                style={{ padding: '0 8px' }}
+                disabled={isActuallySyncing || !onlineStatus}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void onSyncNow();
+                }}
+                aria-label="Sync database with cloud"
               >
-                Details
-              </Button>
+                <IconRotateClockwise
+                  size={18}
+                  className={isActuallySyncing ? 'sync-spin-icon' : undefined}
+                />
+              </ActionIcon>
+            </Tooltip>
+
+            {/* Diagnostic Details Icon */}
+            <Tooltip label="Sync Diagnostics & Settings" withArrow>
+              <ActionIcon
+                size="md"
+                variant="light"
+                color="indigo"
+                radius="md"
+                onClick={() => setDetailsOpen(true)}
+                aria-label="Open cloud sync details"
+              >
+                <IconAdjustmentsHorizontal size={18} />
+              </ActionIcon>
             </Tooltip>
           </Group>
         </Group>
       </Card>
 
-      {/* Sync Diagnostics & Controls Modal */}
+      {/* Deep Diagnostics & Detailed Manager Modal */}
       <Modal
         opened={detailsOpen}
         onClose={() => setDetailsOpen(false)}
         title={
-          <Group gap="xs" wrap="wrap">
-            <ThemeIcon color="indigo" variant="light" size="md" radius="md">
+          <Group gap="xs" align="center">
+            <ThemeIcon size="md" radius="md" color="indigo" variant="light">
               <IconCloudCheck size={18} />
             </ThemeIcon>
             <Text fw={700} size="md" style={{ fontFamily: 'var(--font-title)' }}>
-              RxDB Cloud Sync Hub
+              Cloud Sync Diagnostics & Settings
             </Text>
-            <Badge color={statusColor} variant="light" size="xs">
-              {statusLabel}
-            </Badge>
           </Group>
         }
-        size="lg"
-        radius="lg"
         centered
-        padding="md"
-        styles={{
-          header: {
-            borderBottom: '1px solid var(--card-border)',
-            paddingBottom: '12px',
-          },
-          body: {
-            paddingTop: '16px',
-          },
-        }}
+        radius="lg"
+        size="lg"
+        overlayProps={{ backgroundOpacity: 0.5, blur: 4 }}
       >
         <Stack gap="md">
-          {/* Quick Overview Strip */}
-          <Paper p={{ base: 'xs', sm: 'sm' }} radius="md" withBorder className="glass-panel">
-            <SimpleGrid cols={{ base: 2, sm: 4 }} spacing={{ base: 'xs', sm: 'sm' }}>
+          {/* Quick Metrics Bar */}
+          <Paper p="xs" radius="md" withBorder className="glass-panel">
+            <SimpleGrid cols={{ base: 2, xs: 4 }} spacing="xs">
               <div>
                 <Text size="xs" c="dimmed">
                   Connection
                 </Text>
-                <Group gap={4} mt={2} wrap="nowrap">
-                  <span
-                    style={{
-                      display: 'inline-block',
-                      width: '8px',
-                      height: '8px',
-                      borderRadius: '50%',
-                      backgroundColor: onlineStatus ? '#10b981' : '#9ca3af',
-                      flexShrink: 0,
-                    }}
-                  />
-                  <Text size="xs" fw={600} truncate="end">
-                    {onlineStatus ? 'Connected' : 'Offline'}
-                  </Text>
-                </Group>
+                <Text size="xs" fw={600} c={onlineStatus ? 'teal' : 'red'} truncate="end">
+                  {onlineStatus ? 'Online' : 'Offline'}
+                </Text>
               </div>
 
               <div>
                 <Text size="xs" c="dimmed">
-                  Live Streaming
+                  Status
                 </Text>
                 <Text size="xs" fw={600} c={isPaused ? 'yellow' : 'teal'} truncate="end">
                   {isPaused ? 'Paused' : 'Active (Live)'}
@@ -507,8 +457,9 @@ export function CloudSyncCard({
                 <Text size="xs" c="dimmed">
                   Items Synced
                 </Text>
-                <Text size="xs" fw={600} truncate="end">
-                  ↑ {totalSent} / ↓ {totalReceived}
+                <Text component="div" size="xs" fw={600} truncate="end">
+                  <RollingNumber value={totalSent} prefix="↑ " /> /{' '}
+                  <RollingNumber value={totalReceived} prefix="↓ " />
                 </Text>
               </div>
 
@@ -593,7 +544,7 @@ export function CloudSyncCard({
                 px={{ base: 8, sm: 'md' }}
                 style={{ fontSize: '0.8rem', whiteSpace: 'nowrap', flexShrink: 0 }}
               >
-                Collections ({collectionsList.length})
+                Collections (<RollingNumber value={collectionsList.length} />)
               </Tabs.Tab>
               <Tabs.Tab
                 value="activities"
@@ -603,7 +554,7 @@ export function CloudSyncCard({
                 rightSection={
                   (syncState?.activities?.length ?? 0) > 0 ? (
                     <Badge size="xs" variant="filled" color="gray" circle>
-                      {syncState?.activities?.length}
+                      <RollingNumber value={syncState?.activities?.length ?? 0} />
                     </Badge>
                   ) : undefined
                 }
@@ -662,19 +613,29 @@ export function CloudSyncCard({
                                 {colStatusText}
                               </Badge>
                             </Group>
-                            <Text size="11px" c="dimmed" style={{ wordBreak: 'break-word' }}>
+                            <Text
+                              component="div"
+                              size="11px"
+                              c="dimmed"
+                              style={{ wordBreak: 'break-word' }}
+                            >
                               Table: <code>{col.tableName}</code>
-                              {localCount !== undefined && ` • ${localCount} docs stored`}
+                              {localCount !== undefined && (
+                                <>
+                                  {' • '}
+                                  <RollingNumber value={localCount} /> docs stored
+                                </>
+                              )}
                             </Text>
                           </div>
                         </Group>
 
                         <Group gap="xs" wrap="nowrap" style={{ flexShrink: 0, marginLeft: 'auto' }}>
                           <Badge size="xs" variant="light" color="blue">
-                            ↑ {col.sentCount}
+                            <RollingNumber value={col.sentCount} prefix="↑ " />
                           </Badge>
                           <Badge size="xs" variant="light" color="teal">
-                            ↓ {col.receivedCount}
+                            <RollingNumber value={col.receivedCount} prefix="↓ " />
                           </Badge>
 
                           {onSyncCollection && (

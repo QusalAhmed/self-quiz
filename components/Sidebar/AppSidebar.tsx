@@ -10,6 +10,7 @@ import {
   Group,
   NavLink,
   Paper,
+  RollingNumber,
   ScrollArea,
   Stack,
   Text,
@@ -224,7 +225,7 @@ export function AppSidebar({
               leftSection={<IconBook size={18} />}
               rightSection={
                 <Badge size="xs" variant="filled" color="indigo">
-                  {totalWords}
+                  <RollingNumber value={totalWords} thousandSeparator />
                 </Badge>
               }
               active={isWordsPage}
@@ -315,7 +316,7 @@ export function AppSidebar({
                 rightSection={
                   todayCount > 0 ? (
                     <Badge size="xs" color="teal">
-                      {todayCount}
+                      <RollingNumber value={todayCount} thousandSeparator />
                     </Badge>
                   ) : null
                 }
@@ -335,7 +336,7 @@ export function AppSidebar({
                 rightSection={
                   fsrsDueTodayCount > 0 ? (
                     <Badge size="xs" color="violet">
-                      {fsrsDueTodayCount} due
+                      <RollingNumber value={fsrsDueTodayCount} suffix=" due" thousandSeparator />
                     </Badge>
                   ) : null
                 }

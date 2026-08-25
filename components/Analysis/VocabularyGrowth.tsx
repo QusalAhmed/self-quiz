@@ -7,6 +7,7 @@ import {
   Group,
   Paper,
   Progress,
+  RollingNumber,
   SimpleGrid,
   Stack,
   Text,
@@ -70,7 +71,7 @@ export function VocabularyGrowth({
           </div>
 
           <Badge variant="light" color="indigo" size="md">
-            +{wordsAddedInPeriod} Added
+            <RollingNumber value={wordsAddedInPeriod} prefix="+" suffix=" Added" />
           </Badge>
         </Group>
 
@@ -93,13 +94,15 @@ export function VocabularyGrowth({
                   mt={2}
                   style={{ fontFamily: 'var(--font-title)', fontSize: '1.35rem' }}
                 >
-                  {wordsAddedPerWeekAvg}{' '}
+                  <RollingNumber value={wordsAddedPerWeekAvg} decimalScale={1} />{' '}
                   <Text component="span" size="xs" c="dimmed" fw={500}>
                     words / wk
                   </Text>
                 </Text>
                 <Text size="xs" c="dimmed" mt={2}>
-                  Growth rate: +{growthRatePercent}% this period
+                  Growth rate: +
+                  <RollingNumber value={growthRatePercent} decimalScale={1} suffix="%" /> this
+                  period
                 </Text>
               </div>
               <Box
@@ -137,13 +140,13 @@ export function VocabularyGrowth({
                   c="teal.6"
                   style={{ fontFamily: 'var(--font-title)', fontSize: '1.35rem' }}
                 >
-                  {wordsMasteredPerWeekAvg}{' '}
+                  <RollingNumber value={wordsMasteredPerWeekAvg} decimalScale={1} />{' '}
                   <Text component="span" size="xs" c="dimmed" fw={500}>
                     mastered / wk
                   </Text>
                 </Text>
                 <Text size="xs" c="dimmed" mt={2}>
-                  {wordsMasteredInPeriod} words reached S ≥ 21d
+                  <RollingNumber value={wordsMasteredInPeriod} /> words reached S ≥ 21d
                 </Text>
               </div>
               <Box
@@ -180,7 +183,11 @@ export function VocabularyGrowth({
                   mt={2}
                   style={{ fontFamily: 'var(--font-title)', fontSize: '1.35rem' }}
                 >
-                  {avgDaysNewToMastered > 0 ? `~${avgDaysNewToMastered}` : 'N/A'}{' '}
+                  {avgDaysNewToMastered > 0 ? (
+                    <RollingNumber value={avgDaysNewToMastered} decimalScale={1} prefix="~" />
+                  ) : (
+                    'N/A'
+                  )}{' '}
                   <Text component="span" size="xs" c="dimmed" fw={500}>
                     days
                   </Text>
@@ -224,7 +231,7 @@ export function VocabularyGrowth({
                   c="indigo.6"
                   style={{ fontFamily: 'var(--font-title)', fontSize: '1.35rem' }}
                 >
-                  ~{projectedMasteryNext30Days}{' '}
+                  <RollingNumber value={projectedMasteryNext30Days} prefix="~" />{' '}
                   <Text component="span" size="xs" c="dimmed" fw={500}>
                     mastered
                   </Text>
@@ -265,7 +272,8 @@ export function VocabularyGrowth({
               TOTAL VOCABULARY CONVERTED TO MASTERED
             </Text>
             <Text size="xs" fw={800} c="teal.6">
-              {masteredWords} / {totalWords} ({masteryRatio}%)
+              <RollingNumber value={masteredWords} /> / <RollingNumber value={totalWords} /> (
+              <RollingNumber value={masteryRatio} decimalScale={1} suffix="%" />)
             </Text>
           </Group>
           <Progress size="md" radius="xl" value={masteryRatio} color="teal" animated />

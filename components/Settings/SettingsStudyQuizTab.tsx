@@ -6,6 +6,7 @@ import {
   Group,
   Paper,
   Radio,
+  RollingNumber,
   Select,
   SimpleGrid,
   Slider,
@@ -219,10 +220,14 @@ export function SettingsStudyQuizTab({ settings, onChange }: SettingsStudyQuizTa
             >
               <Group justify="space-between" align="center" mb={6}>
                 <Text size="xs" fw={600}>
-                  Auto-Advance Delay: {settings.autoAdvanceDelayMs} ms
+                  Auto-Advance Delay: <RollingNumber value={settings.autoAdvanceDelayMs} /> ms
                 </Text>
                 <Text size="xs" c="dimmed">
-                  {(settings.autoAdvanceDelayMs / 1000).toFixed(1)}s
+                  <RollingNumber
+                    value={settings.autoAdvanceDelayMs / 1000}
+                    decimalScale={1}
+                    suffix="s"
+                  />
                 </Text>
               </Group>
               <Slider

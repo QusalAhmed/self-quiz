@@ -9,6 +9,7 @@ import {
   Group,
   Modal,
   Pagination,
+  RollingNumber,
   Select,
   SimpleGrid,
   Stack,
@@ -299,7 +300,7 @@ export function StoryLibraryList({
                       ))}
                       {extraWordsCount > 0 && (
                         <Badge size="xs" variant="subtle" color="gray">
-                          +{extraWordsCount} more
+                          +<RollingNumber value={extraWordsCount} /> more
                         </Badge>
                       )}
                     </Group>

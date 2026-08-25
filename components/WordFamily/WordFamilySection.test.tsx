@@ -75,7 +75,8 @@ describe('WordFamilySection component', () => {
 
   it('renders word family count, AI model badge, and chips', () => {
     render(<WordFamilySection wordId="w1" word="decide" members={mockMembers} />);
-    expect(screen.getByText('Word Family (2)')).toBeInTheDocument();
+    expect(screen.getByText(/Word Family/i)).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: '2' })).toBeInTheDocument();
     expect(screen.getAllByText('Gemini 2.5 Flash').length).toBeGreaterThan(0);
     expect(screen.getAllByText('decision').length).toBeGreaterThan(0);
     expect(screen.getAllByText('decisive').length).toBeGreaterThan(0);

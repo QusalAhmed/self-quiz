@@ -7,6 +7,7 @@ import {
   Group,
   Pagination,
   Paper,
+  RollingNumber,
   SegmentedControl,
   Stack,
   Table,
@@ -212,7 +213,8 @@ export function WordTimeAnalysis({
           />
 
           <Text size="xs" c="dimmed">
-            Showing {pagedWords.length} of {filteredWords.length} words
+            Showing <RollingNumber value={pagedWords.length} /> of{' '}
+            <RollingNumber value={filteredWords.length} /> words
           </Text>
         </Group>
 
@@ -364,7 +366,7 @@ export function WordTimeAnalysis({
                     </Table.Td>
                     <Table.Td style={{ textAlign: 'right' }}>
                       <Text size="xs" fw={700}>
-                        {item.reviewsCount}
+                        <RollingNumber value={item.reviewsCount} />
                       </Text>
                     </Table.Td>
                     <Table.Td style={{ textAlign: 'right' }}>
@@ -374,7 +376,7 @@ export function WordTimeAnalysis({
                     </Table.Td>
                     <Table.Td style={{ textAlign: 'right' }}>
                       <Text size="xs" c="dimmed">
-                        {item.avgDurationSec}s
+                        <RollingNumber value={item.avgDurationSec} decimalScale={1} suffix="s" />
                       </Text>
                     </Table.Td>
                     <Table.Td style={{ textAlign: 'right' }}>
@@ -383,7 +385,7 @@ export function WordTimeAnalysis({
                         c={item.lapses > 0 ? 'red' : 'dimmed'}
                         fw={item.lapses > 0 ? 700 : 400}
                       >
-                        {item.lapses}
+                        <RollingNumber value={item.lapses} />
                       </Text>
                     </Table.Td>
                     <Table.Td style={{ textAlign: 'right' }}>
@@ -394,12 +396,12 @@ export function WordTimeAnalysis({
                           item.difficulty >= 7 ? 'red' : item.difficulty >= 4 ? 'yellow' : 'teal'
                         }
                       >
-                        {item.difficulty}
+                        <RollingNumber value={item.difficulty} decimalScale={1} />
                       </Badge>
                     </Table.Td>
                     <Table.Td style={{ textAlign: 'right' }}>
                       <Text size="xs" fw={600}>
-                        {item.stability}d
+                        <RollingNumber value={item.stability} decimalScale={1} suffix="d" />
                       </Text>
                     </Table.Td>
                     <Table.Td style={{ textAlign: 'center' }}>

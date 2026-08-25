@@ -8,6 +8,7 @@ import {
   Group,
   Pagination,
   Progress,
+  RollingNumber,
   Select,
   Stack,
   Table,
@@ -110,7 +111,7 @@ export function StrongestWordsTable({ words, onSelectWord }: StrongestWordsTable
                 Strongest Memorized Words
               </Title>
               <Badge color="teal" variant="light" size="sm">
-                {words.length} words
+                <RollingNumber value={words.length} /> words
               </Badge>
             </Group>
             <Text size="xs" c="dimmed">
@@ -259,7 +260,7 @@ export function StrongestWordsTable({ words, onSelectWord }: StrongestWordsTable
                   </Table.Td>
                   <Table.Td style={{ textAlign: 'right' }}>
                     <Badge size="xs" variant="light" color="teal">
-                      {item.stability}d
+                      <RollingNumber value={item.stability} decimalScale={1} suffix="d" />
                     </Badge>
                   </Table.Td>
                   <Table.Td>
@@ -272,13 +273,13 @@ export function StrongestWordsTable({ words, onSelectWord }: StrongestWordsTable
                         style={{ flex: 1 }}
                       />
                       <Text size="11px" fw={700} style={{ minWidth: 32 }}>
-                        {item.retrievability}%
+                        <RollingNumber value={item.retrievability} decimalScale={1} suffix="%" />
                       </Text>
                     </Group>
                   </Table.Td>
                   <Table.Td style={{ textAlign: 'right' }}>
                     <Text size="xs" fw={600}>
-                      {item.reps} revs
+                      <RollingNumber value={item.reps} suffix=" revs" />
                     </Text>
                   </Table.Td>
                   <Table.Td style={{ textAlign: 'right' }}>

@@ -7,6 +7,7 @@ import {
   Divider,
   Grid,
   Group,
+  RollingNumber,
   Select,
   Stack,
   Text,
@@ -392,7 +393,8 @@ export function QuizModeSection({
 
               <Group justify="space-between" align="center" mt="xs" gap="sm" wrap="wrap">
                 <Text size="xs" c="dimmed">
-                  {quizCandidatesCount} word{quizCandidatesCount !== 1 ? 's' : ''} in this selection
+                  <RollingNumber value={quizCandidatesCount} /> word
+                  {quizCandidatesCount !== 1 ? 's' : ''} in this selection
                 </Text>
                 <Group gap="xs" wrap="wrap" justify="flex-end">
                   <Tooltip
@@ -421,7 +423,7 @@ export function QuizModeSection({
                       disabled={quizCandidatesCount === 0}
                       style={{ fontWeight: 600 }}
                     >
-                      Export ({quizCandidatesCount})
+                      Export (<RollingNumber value={quizCandidatesCount} />)
                     </Button>
                   </Tooltip>
 
@@ -573,7 +575,7 @@ export function QuizModeSection({
               radius="md"
               style={{ fontWeight: 800 }}
             >
-              {displayedMissedItems.length}
+              <RollingNumber value={displayedMissedItems.length} />
             </Badge>
           </Group>
 
@@ -620,7 +622,7 @@ export function QuizModeSection({
                 }
                 disabled={displayedMissedItems.length === 0}
               >
-                Export ({displayedMissedItems.length})
+                Export (<RollingNumber value={displayedMissedItems.length} />)
               </Button>
             </Tooltip>
 

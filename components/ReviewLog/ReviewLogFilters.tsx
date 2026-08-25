@@ -6,6 +6,7 @@ import {
   Button,
   Card,
   Group,
+  RollingNumber,
   Select,
   SimpleGrid,
   Stack,
@@ -298,9 +299,9 @@ export function ReviewLogFilters({
               <Text size="xs" c="dimmed">
                 Showing{' '}
                 <Text component="span" fw={700} c="indigo">
-                  {filteredLogsCount}
+                  <RollingNumber value={filteredLogsCount} />
                 </Text>{' '}
-                of {totalLogsCount} total reviews
+                of <RollingNumber value={totalLogsCount} /> total reviews
               </Text>
 
               {isFiltered && (

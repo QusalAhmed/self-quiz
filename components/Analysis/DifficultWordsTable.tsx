@@ -8,6 +8,7 @@ import {
   Group,
   Pagination,
   Progress,
+  RollingNumber,
   Select,
   Stack,
   Table,
@@ -118,7 +119,7 @@ export function DifficultWordsTable({ words, onSelectWord }: DifficultWordsTable
                 Difficult Vocabulary & Problematic Words
               </Title>
               <Badge color="red" variant="light" size="sm">
-                {words.length} words
+                <RollingNumber value={words.length} /> words
               </Badge>
             </Group>
             <Text size="xs" c="dimmed">
@@ -291,12 +292,12 @@ export function DifficultWordsTable({ words, onSelectWord }: DifficultWordsTable
                         item.difficulty >= 8 ? 'red' : item.difficulty >= 6 ? 'orange' : 'yellow'
                       }
                     >
-                      {item.difficulty}/10
+                      <RollingNumber value={item.difficulty} decimalScale={1} suffix="/10" />
                     </Badge>
                   </Table.Td>
                   <Table.Td style={{ textAlign: 'right' }}>
                     <Text size="xs" fw={600}>
-                      {item.stability}d
+                      <RollingNumber value={item.stability} decimalScale={1} suffix="d" />
                     </Text>
                   </Table.Td>
                   <Table.Td>
@@ -315,13 +316,13 @@ export function DifficultWordsTable({ words, onSelectWord }: DifficultWordsTable
                         style={{ flex: 1 }}
                       />
                       <Text size="11px" fw={700} style={{ minWidth: 32 }}>
-                        {item.retrievability}%
+                        <RollingNumber value={item.retrievability} decimalScale={1} suffix="%" />
                       </Text>
                     </Group>
                   </Table.Td>
                   <Table.Td style={{ textAlign: 'right' }}>
                     <Badge size="xs" variant="filled" color={item.lapses >= 3 ? 'red' : 'orange'}>
-                      {item.lapses} lapses
+                      <RollingNumber value={item.lapses} /> lapses
                     </Badge>
                   </Table.Td>
                   <Table.Td style={{ textAlign: 'right' }}>
