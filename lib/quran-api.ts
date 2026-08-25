@@ -1468,6 +1468,206 @@ export function parseVerseInput(
   return results;
 }
 
+export interface ParsedVerseBatchItem {
+  chapter: number;
+  verse: number;
+  key: string;
+  surahName: string;
+  translatedName: string;
+  nameArabic: string;
+  totalVersesInSurah: number;
+}
+
+export interface ParsedVerseBatchInvalidItem {
+  token: string;
+  reason: string;
+}
+
+export interface ParsedVerseBatchReport {
+  validVerses: ParsedVerseBatchItem[];
+  invalidTokens: ParsedVerseBatchInvalidItem[];
+  totalTokensCount: number;
+}
+
+/**
+ * Parses batch input text (comma/newline separated chapter:verse or chapter:start-end)
+ * and returns detailed reporting of valid verses and any invalid tokens with reasons.
+ */
+export function parseVerseBatchDetailed(rawInput: string): ParsedVerseBatchReport {
+  if (!rawInput || typeof rawInput !== 'string') {
+    return { validVerses: [], invalidTokens: [], totalTokensCount: 0 };
+  }
+
+  const validVerses: ParsedVerseBatchItem[] = [];
+  const invalidTokens: ParsedVerseBatchInvalidItem[] = [];
+  const seen = new Set<string>();
+
+  // Split by comma, semicolon, or newline
+  const tokens = rawInput
+    .split(/[,;\n\r]+/)
+    .map((t) => t.trim())
+    .filter(Boolean);
+
+  for (const token of tokens) {
+    let matched = false;
+
+    // Pattern 1: Chapter:Verse-EndVerse (Range) e.g. "94:1-8" or "2:255-256"
+    const rangeMatch = token.match(/^(\d{1,3})\s*[:.]\s*(\d{1,3})\s*-\s*(\d{1,3})$/);
+    if (rangeMatch) {
+      matched = true;
+      const chapter = parseInt(rangeMatch[1], 10);
+      const startVerse = parseInt(rangeMatch[2], 10);
+      const endVerse = parseInt(rangeMatch[3], 10);
+      const meta = getChapterMetadata(chapter);
+
+      if (!meta || chapter < 1 || chapter > 114) {
+        invalidTokens.push({
+          token,
+          reason: `Invalid Surah number (${chapter}). Surah number must be between 1 and 114.`,
+        });
+        continue;
+      }
+
+      if (
+        startVerse < 1 ||
+        startVerse > meta.versesCount ||
+        endVerse < 1 ||
+        endVerse > meta.versesCount
+      ) {
+        invalidTokens.push({
+          token,
+          reason: `Invalid Ayah range for Surah ${meta.nameSimple} (1-${meta.versesCount}).`,
+        });
+        continue;
+      }
+
+      const start = Math.min(startVerse, endVerse);
+      const end = Math.max(startVerse, endVerse);
+      for (let v = start; v <= end; v++) {
+        const key = `${chapter}:${v}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          validVerses.push({
+            chapter,
+            verse: v,
+            key,
+            surahName: meta.nameSimple,
+            translatedName: meta.translatedName,
+            nameArabic: meta.nameArabic,
+            totalVersesInSurah: meta.versesCount,
+          });
+        }
+      }
+      continue;
+    }
+
+    // Pattern 2: Chapter:Verse e.g. "2:255", "2.255"
+    const singleColonMatch = token.match(/^(\d{1,3})\s*[:.]\s*(\d{1,3})$/);
+    if (singleColonMatch) {
+      matched = true;
+      const chapter = parseInt(singleColonMatch[1], 10);
+      const verse = parseInt(singleColonMatch[2], 10);
+      const meta = getChapterMetadata(chapter);
+
+      if (!meta || chapter < 1 || chapter > 114) {
+        invalidTokens.push({
+          token,
+          reason: `Invalid Surah number (${chapter}). Surah number must be between 1 and 114.`,
+        });
+        continue;
+      }
+
+      if (verse < 1 || verse > meta.versesCount) {
+        invalidTokens.push({
+          token,
+          reason: `Surah ${meta.nameSimple} only contains ${meta.versesCount} Ayahs (requested verse: ${verse}).`,
+        });
+        continue;
+      }
+
+      const key = `${chapter}:${verse}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        validVerses.push({
+          chapter,
+          verse,
+          key,
+          surahName: meta.nameSimple,
+          translatedName: meta.translatedName,
+          nameArabic: meta.nameArabic,
+          totalVersesInSurah: meta.versesCount,
+        });
+      }
+      continue;
+    }
+
+    // Pattern 3: "Surah [Name or Number] [Verse or Verse Range]"
+    const surahTextMatch = token.match(
+      /(?:surah|surat)?\s*([a-zA-Z\s'-]+|\d{1,3})\s+(?:ayah|verse|ayat)?\s*(\d{1,3})(?:\s*-\s*(\d{1,3}))?/i
+    );
+    if (surahTextMatch) {
+      const chapterQuery = surahTextMatch[1].trim();
+      const startVerse = parseInt(surahTextMatch[2], 10);
+      const endVerse = surahTextMatch[3] ? parseInt(surahTextMatch[3], 10) : startVerse;
+
+      let meta: ChapterMetadata | undefined;
+      if (/^\d+$/.test(chapterQuery)) {
+        meta = getChapterMetadata(parseInt(chapterQuery, 10));
+      } else {
+        meta = findChapterByName(chapterQuery);
+      }
+
+      if (meta) {
+        matched = true;
+        if (
+          startVerse < 1 ||
+          startVerse > meta.versesCount ||
+          endVerse < 1 ||
+          endVerse > meta.versesCount
+        ) {
+          invalidTokens.push({
+            token,
+            reason: `Surah ${meta.nameSimple} only has ${meta.versesCount} Ayahs (requested: ${startVerse}-${endVerse}).`,
+          });
+          continue;
+        }
+
+        const start = Math.min(startVerse, endVerse);
+        const end = Math.max(startVerse, endVerse);
+        for (let v = start; v <= end; v++) {
+          const key = `${meta.id}:${v}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            validVerses.push({
+              chapter: meta.id,
+              verse: v,
+              key,
+              surahName: meta.nameSimple,
+              translatedName: meta.translatedName,
+              nameArabic: meta.nameArabic,
+              totalVersesInSurah: meta.versesCount,
+            });
+          }
+        }
+        continue;
+      }
+    }
+
+    if (!matched) {
+      invalidTokens.push({
+        token,
+        reason: 'Unrecognized format. Expected chapter:verse (e.g. 2:255 or 94:1-8).',
+      });
+    }
+  }
+
+  return {
+    validVerses,
+    invalidTokens,
+    totalTokensCount: tokens.length,
+  };
+}
+
 // In-Memory verse cache to reduce API calls
 const verseMemoryCache = new Map<string, FetchedVersePayload>();
 

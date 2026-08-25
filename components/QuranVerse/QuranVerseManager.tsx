@@ -23,6 +23,7 @@ import {
   IconBook,
   IconCircleCheck,
   IconEye,
+  IconFileImport,
   IconFilter,
   IconPlayerPlay,
   IconPlus,
@@ -31,6 +32,7 @@ import {
   IconSparkles,
   IconTrash,
 } from '@tabler/icons-react';
+import Link from 'next/link';
 import React, { useMemo, useState } from 'react';
 import { type QuranVerseRecord } from '@/lib/db';
 import { appNotifications } from '@/lib/notifications';
@@ -210,6 +212,17 @@ export function QuranVerseManager({
             </Stack>
 
             <Group gap="xs">
+              <Button
+                component={Link}
+                href="/quran/add"
+                variant="light"
+                color="indigo"
+                size="sm"
+                leftSection={<IconFileImport size={16} />}
+              >
+                Batch Import Studio
+              </Button>
+
               {onShowRandomNow && (
                 <Button
                   variant="light"
@@ -218,7 +231,7 @@ export function QuranVerseManager({
                   leftSection={<IconPlayerPlay size={16} />}
                   onClick={onShowRandomNow}
                 >
-                  Show Random Verse Now
+                  Show Random
                 </Button>
               )}
 
@@ -229,7 +242,7 @@ export function QuranVerseManager({
                 leftSection={<IconPlus size={16} />}
                 onClick={() => setAddModalOpen(true)}
               >
-                Add Verses
+                Quick Add
               </Button>
             </Group>
           </Group>

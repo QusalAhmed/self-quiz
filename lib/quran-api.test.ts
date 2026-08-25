@@ -2,6 +2,7 @@ import {
   cleanQuranText,
   findChapterByName,
   getChapterMetadata,
+  parseVerseBatchDetailed,
   parseVerseInput,
   QURAN_CHAPTERS,
 } from './quran-api';
@@ -81,6 +82,31 @@ describe('Quran API & Metadata Utilities', () => {
       // Surah 112 (Al-Ikhlas) has only 4 verses
       const result = parseVerseInput('112:10');
       expect(result.length).toBe(0);
+    });
+  });
+
+  describe('parseVerseBatchDetailed', () => {
+    it('returns structured report for valid, invalid, and range tokens', () => {
+      const input = '2:255, 94:1-3\n65:2-3\n112:10\ninvalid_token';
+      const report = parseVerseBatchDetailed(input);
+
+      expect(report.totalTokensCount).toBe(5);
+      expect(report.validVerses.length).toBe(6); // 2:255 (1) + 94:1-3 (3) + 65:2-3 (2)
+      expect(report.invalidTokens.length).toBe(2); // 112:10 (out of bounds) + invalid_token
+
+      const validKeys = report.validVerses.map((v) => v.key);
+      expect(validKeys).toEqual(['2:255', '94:1', '94:2', '94:3', '65:2', '65:3']);
+
+      expect(report.invalidTokens[0].token).toBe('112:10');
+      expect(report.invalidTokens[0].reason).toContain('Surah Al-Ikhlas only contains 4 Ayahs');
+      expect(report.invalidTokens[1].token).toBe('invalid_token');
+    });
+
+    it('handles empty and whitespace input gracefully', () => {
+      const report = parseVerseBatchDetailed('   \n  ,  ');
+      expect(report.validVerses.length).toBe(0);
+      expect(report.invalidTokens.length).toBe(0);
+      expect(report.totalTokensCount).toBe(0);
     });
   });
 });

@@ -76,6 +76,17 @@ function QuranPageContent() {
             <Group gap="xs">
               <Button
                 component={Link}
+                href="/quran/add"
+                variant="filled"
+                color="indigo"
+                size="sm"
+                leftSection={<IconBook size={16} />}
+              >
+                + Add / Batch Import
+              </Button>
+
+              <Button
+                component={Link}
                 href="/settings?tab=quran"
                 variant="default"
                 size="sm"
@@ -85,13 +96,13 @@ function QuranPageContent() {
               </Button>
 
               <Button
-                variant="filled"
-                color="indigo"
+                variant="light"
+                color="teal"
                 size="sm"
                 leftSection={<IconPlayerPlay size={16} />}
                 onClick={() => void showNextVerseNow({ force: true })}
               >
-                Show Random Verse Now
+                Show Random Now
               </Button>
             </Group>
           </Group>

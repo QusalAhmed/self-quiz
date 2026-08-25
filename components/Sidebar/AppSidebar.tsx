@@ -160,7 +160,7 @@ export function AppSidebar({
   const isWordsPage = pathname === '/words';
   const isStoriesPage = pathname === '/stories';
   const isAnalysisPage = pathname === '/analysis';
-  const isQuranPage = pathname === '/quran';
+  const isQuranPage = pathname === '/quran' || pathname.startsWith('/quran');
   const isSettingsPage = pathname === '/settings';
 
   const handleLinkClick = (action: () => void) => {
