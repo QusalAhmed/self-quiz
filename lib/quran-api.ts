@@ -35,9 +35,10 @@ export interface QuranReciterResource {
 }
 
 export interface FetchedVersePayload {
-  key: string; // e.g. "2:255"
+  key: string; // e.g. "2:255" or "94:5-6"
   chapter: number;
   verse: number;
+  verseEnd?: number;
   chapterInfo: ChapterMetadata;
   arabicText: string;
   englishTranslation: {
@@ -66,15 +67,18 @@ export interface FetchedVersePayload {
     reciterId: number;
     reciterName: string;
     audioUrl: string;
+    audioUrls?: string[];
+    verseAudios?: { verseNumber: number; audioUrl: string }[];
     durationMs?: number;
   };
   fetchedAt: string;
 }
 
 export interface CuratedMotivationalPreset {
-  key: string;
+  key: string; // e.g. "2:255" or "94:5-6"
   chapter: number;
   verse: number;
+  verseEnd?: number;
   theme: string;
   title: string;
   description: string;
@@ -1198,7 +1202,7 @@ export const AVAILABLE_RECITERS: QuranReciterResource[] = [
 ];
 
 /**
- * Curated list of famous inspirational & motivational verses
+ * Curated list of famous inspirational & motivational verses (including single verses & ranges)
  */
 export const CURATED_INSPIRATIONAL_VERSES: CuratedMotivationalPreset[] = [
   {
@@ -1228,37 +1232,23 @@ export const CURATED_INSPIRATIONAL_VERSES: CuratedMotivationalPreset[] = [
       'So do not weaken and do not grieve, and you will be superior if you are [true] believers.',
   },
   {
-    key: '94:5',
+    key: '94:5-6',
     chapter: 94,
     verse: 5,
+    verseEnd: 6,
     theme: 'Hardship & Ease',
-    title: 'With Hardship Comes Ease (Part 1)',
-    description: 'For indeed, with hardship [will be] ease.',
+    title: 'With Hardship Comes Ease (Ayat 5-6)',
+    description: 'For indeed, with hardship [will be] ease. Indeed, with hardship [will be] ease.',
   },
   {
-    key: '94:6',
-    chapter: 94,
-    verse: 6,
-    theme: 'Hardship & Ease',
-    title: 'With Hardship Comes Ease (Part 2)',
-    description: 'Indeed, with hardship [will be] ease.',
-  },
-  {
-    key: '65:2',
+    key: '65:2-3',
     chapter: 65,
     verse: 2,
-    theme: 'Trust & Way Out',
-    title: 'A Way Out for the Mindful',
-    description: 'And whoever fears Allah - He will make for him a way out.',
-  },
-  {
-    key: '65:3',
-    chapter: 65,
-    verse: 3,
-    theme: 'Unseen Provision',
-    title: 'Provision Beyond Imagination',
+    verseEnd: 3,
+    theme: 'Trust & Provision',
+    title: 'A Way Out & Unseen Provision',
     description:
-      'And will provide for him from where he does not expect. And whoever relies upon Allah - then He is sufficient for him.',
+      'And whoever fears Allah - He will make for him a way out and will provide for him from where he does not expect.',
   },
   {
     key: '39:53',
@@ -1295,20 +1285,14 @@ export const CURATED_INSPIRATIONAL_VERSES: CuratedMotivationalPreset[] = [
     description: 'Unquestionably, by the remembrance of Allah hearts are assured.',
   },
   {
-    key: '93:3',
+    key: '93:3-5',
     chapter: 93,
     verse: 3,
-    theme: 'Comfort & Care',
+    verseEnd: 5,
+    theme: 'Comfort & Contentment',
     title: 'Your Lord Has Not Forsaken You',
-    description: 'Your Lord has not taken leave of you, [O Muhammad], nor has He detested [you].',
-  },
-  {
-    key: '93:5',
-    chapter: 93,
-    verse: 5,
-    theme: 'Promise of Contentment',
-    title: 'You Will Be Satisfied',
-    description: 'And your Lord is going to give you, and you will be satisfied.',
+    description:
+      'Your Lord has not taken leave of you, nor has He detested [you]... and your Lord is going to give you, and you will be satisfied.',
   },
   {
     key: '21:87',
@@ -1335,7 +1319,32 @@ export const CURATED_INSPIRATIONAL_VERSES: CuratedMotivationalPreset[] = [
     title: 'Favors of Your Lord',
     description: 'So which of the favors of your Lord would you deny?',
   },
+  {
+    key: '112:1-4',
+    chapter: 112,
+    verse: 1,
+    verseEnd: 4,
+    theme: 'Purity of Faith',
+    title: 'Surah Al-Ikhlas (Complete)',
+    description: 'Say: He is Allah, [who is] One. Allah, the Eternal Refuge...',
+  },
 ];
+
+/**
+ * Converts Western digits to Bengali numeral glyphs
+ */
+export function toBanglaNumber(num: number | string): string {
+  const banglaDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+  return String(num).replace(/\d/g, (d) => banglaDigits[parseInt(d, 10)] || d);
+}
+
+/**
+ * Converts Western digits to Eastern Arabic numeral glyphs
+ */
+export function toArabicNumber(num: number | string): string {
+  const arabicDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+  return String(num).replace(/\d/g, (d) => arabicDigits[parseInt(d, 10)] || d);
+}
 
 /**
  * Strips HTML footnotes and formatting tags from Quran.com text
@@ -1374,19 +1383,19 @@ export function findChapterByName(name: string): ChapterMetadata | undefined {
 /**
  * Parses single or batch verse inputs from user UI.
  * Examples:
- * - "2:255" -> [{ chapter: 2, verse: 255 }]
- * - "94:1-8" -> [{ chapter: 94, verse: 1 }, ..., { chapter: 94, verse: 8 }]
- * - "2:255, 3:139, 94:5" -> [{ 2, 255 }, { 3, 139 }, { 94, 5 }]
- * - "Surah Baqarah 255" -> [{ chapter: 2, verse: 255 }]
+ * - "2:255" -> [{ chapter: 2, verse: 255, key: "2:255" }]
+ * - "94:1-8" -> [{ chapter: 94, verse: 1, verseEnd: 8, key: "94:1-8" }]
+ * - "2:255, 94:5-6" -> [{ chapter: 2, verse: 255, key: "2:255" }, { chapter: 94, verse: 5, verseEnd: 6, key: "94:5-6" }]
+ * - "Surah Baqarah 255" -> [{ chapter: 2, verse: 255, key: "2:255" }]
  */
 export function parseVerseInput(
   rawInput: string
-): { chapter: number; verse: number; key: string }[] {
+): { chapter: number; verse: number; verseEnd?: number; key: string }[] {
   if (!rawInput || typeof rawInput !== 'string') {
     return [];
   }
 
-  const results: { chapter: number; verse: number; key: string }[] = [];
+  const results: { chapter: number; verse: number; verseEnd?: number; key: string }[] = [];
   const seen = new Set<string>();
 
   // Split by comma, semicolon, or newline
@@ -1407,11 +1416,17 @@ export function parseVerseInput(
       if (meta && chapter >= 1 && chapter <= 114) {
         const start = Math.max(1, Math.min(startVerse, endVerse));
         const end = Math.min(meta.versesCount, Math.max(startVerse, endVerse));
-        for (let v = start; v <= end; v++) {
-          const key = `${chapter}:${v}`;
+        if (start === end) {
+          const key = `${chapter}:${start}`;
           if (!seen.has(key)) {
             seen.add(key);
-            results.push({ chapter, verse: v, key });
+            results.push({ chapter, verse: start, key });
+          }
+        } else {
+          const key = `${chapter}:${start}-${end}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            results.push({ chapter, verse: start, verseEnd: end, key });
           }
         }
       }
@@ -1454,11 +1469,17 @@ export function parseVerseInput(
       if (meta) {
         const start = Math.max(1, Math.min(startVerse, endVerse));
         const end = Math.min(meta.versesCount, Math.max(startVerse, endVerse));
-        for (let v = start; v <= end; v++) {
-          const key = `${meta.id}:${v}`;
+        if (start === end) {
+          const key = `${meta.id}:${start}`;
           if (!seen.has(key)) {
             seen.add(key);
-            results.push({ chapter: meta.id, verse: v, key });
+            results.push({ chapter: meta.id, verse: start, key });
+          }
+        } else {
+          const key = `${meta.id}:${start}-${end}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            results.push({ chapter: meta.id, verse: start, verseEnd: end, key });
           }
         }
       }
@@ -1471,6 +1492,7 @@ export function parseVerseInput(
 export interface ParsedVerseBatchItem {
   chapter: number;
   verse: number;
+  verseEnd?: number;
   key: string;
   surahName: string;
   translatedName: string;
@@ -1492,6 +1514,7 @@ export interface ParsedVerseBatchReport {
 /**
  * Parses batch input text (comma/newline separated chapter:verse or chapter:start-end)
  * and returns detailed reporting of valid verses and any invalid tokens with reasons.
+ * Ranges (e.g. 94:1-8 or 94:5-6) are preserved and stored as range records.
  */
 export function parseVerseBatchDetailed(rawInput: string): ParsedVerseBatchReport {
   if (!rawInput || typeof rawInput !== 'string') {
@@ -1543,13 +1566,28 @@ export function parseVerseBatchDetailed(rawInput: string): ParsedVerseBatchRepor
 
       const start = Math.min(startVerse, endVerse);
       const end = Math.max(startVerse, endVerse);
-      for (let v = start; v <= end; v++) {
-        const key = `${chapter}:${v}`;
+      if (start === end) {
+        const key = `${chapter}:${start}`;
         if (!seen.has(key)) {
           seen.add(key);
           validVerses.push({
             chapter,
-            verse: v,
+            verse: start,
+            key,
+            surahName: meta.nameSimple,
+            translatedName: meta.translatedName,
+            nameArabic: meta.nameArabic,
+            totalVersesInSurah: meta.versesCount,
+          });
+        }
+      } else {
+        const key = `${chapter}:${start}-${end}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          validVerses.push({
+            chapter,
+            verse: start,
+            verseEnd: end,
             key,
             surahName: meta.nameSimple,
             translatedName: meta.translatedName,
@@ -1634,13 +1672,28 @@ export function parseVerseBatchDetailed(rawInput: string): ParsedVerseBatchRepor
 
         const start = Math.min(startVerse, endVerse);
         const end = Math.max(startVerse, endVerse);
-        for (let v = start; v <= end; v++) {
-          const key = `${meta.id}:${v}`;
+        if (start === end) {
+          const key = `${meta.id}:${start}`;
           if (!seen.has(key)) {
             seen.add(key);
             validVerses.push({
               chapter: meta.id,
-              verse: v,
+              verse: start,
+              key,
+              surahName: meta.nameSimple,
+              translatedName: meta.translatedName,
+              nameArabic: meta.nameArabic,
+              totalVersesInSurah: meta.versesCount,
+            });
+          }
+        } else {
+          const key = `${meta.id}:${start}-${end}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            validVerses.push({
+              chapter: meta.id,
+              verse: start,
+              verseEnd: end,
               key,
               surahName: meta.nameSimple,
               translatedName: meta.translatedName,
@@ -1672,6 +1725,7 @@ export function parseVerseBatchDetailed(rawInput: string): ParsedVerseBatchRepor
 const verseMemoryCache = new Map<string, FetchedVersePayload>();
 
 export interface FetchVerseOptions {
+  verseEnd?: number; // Optional end verse for range fetching (e.g. 6 in 94:5-6)
   englishTranslationId?: number; // default 20 (Saheeh Int)
   banglaTranslationId?: number; // default 163 (Mujibur Rahman)
   englishTafsirId?: number; // default 169 (Ibn Kathir)
@@ -1681,7 +1735,7 @@ export interface FetchVerseOptions {
 }
 
 /**
- * Fetches verse data from Quran.com API v4
+ * Fetches verse or verse-range data from Quran.com API v4
  */
 export async function fetchVerseFromQuranApi(
   chapter: number,
@@ -1689,6 +1743,7 @@ export async function fetchVerseFromQuranApi(
   options: FetchVerseOptions = {}
 ): Promise<FetchedVersePayload> {
   const {
+    verseEnd,
     englishTranslationId = 20,
     banglaTranslationId = 163,
     englishTafsirId = 169,
@@ -1697,7 +1752,8 @@ export async function fetchVerseFromQuranApi(
     forceRefresh = false,
   } = options;
 
-  const key = `${chapter}:${verse}`;
+  const isRange = typeof verseEnd === 'number' && verseEnd > verse;
+  const key = isRange ? `${chapter}:${verse}-${verseEnd}` : `${chapter}:${verse}`;
   const cacheKey = `${key}_en${englishTranslationId}_bn${banglaTranslationId}_rec${reciterId}_taf${englishTafsirId}_${banglaTafsirId}`;
 
   if (!forceRefresh && verseMemoryCache.has(cacheKey)) {
@@ -1715,130 +1771,304 @@ export async function fetchVerseFromQuranApi(
     );
   }
 
+  if (isRange && (verseEnd < 1 || verseEnd > chapterMeta.versesCount || verseEnd < verse)) {
+    throw new Error(
+      `Invalid verse range: ${verse}-${verseEnd} for Surah ${chapterMeta.nameSimple}. Must be between 1 and ${chapterMeta.versesCount}.`
+    );
+  }
+
   const translationIds = `${englishTranslationId},${banglaTranslationId}`;
-  const verseUrl = `https://api.quran.com/api/v4/verses/by_key/${key}?language=en&words=false&translations=${translationIds}&audio=${reciterId}&fields=text_uthmani,chapter_id,verse_number`;
+  const enMeta = AVAILABLE_TRANSLATIONS.find((t) => t.id === englishTranslationId);
+  const bnMeta = AVAILABLE_TRANSLATIONS.find((t) => t.id === banglaTranslationId);
+  const reciterMeta = AVAILABLE_RECITERS.find((r) => r.id === reciterId);
+  const enTafsirMeta = AVAILABLE_TAFSIRS.find((t) => t.id === englishTafsirId);
+  const bnTafsirMeta = AVAILABLE_TAFSIRS.find((t) => t.id === banglaTafsirId);
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 12000);
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
 
   try {
-    const res = await fetch(verseUrl, { signal: controller.signal });
+    if (!isRange) {
+      // ---------------------------------------------------------------------
+      // Single Verse Fetch Mode
+      // ---------------------------------------------------------------------
+      const verseUrl = `https://api.quran.com/api/v4/verses/by_key/${key}?language=en&words=false&translations=${translationIds}&audio=${reciterId}&fields=text_uthmani,chapter_id,verse_number`;
+      const res = await fetch(verseUrl, { signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      if (!res.ok) {
+        throw new Error(`Quran.com API error: HTTP ${res.status} (${res.statusText})`);
+      }
+
+      const json = await res.json();
+      const verseData = json?.verse;
+      if (!verseData) {
+        throw new Error(`No verse data found for ${key}`);
+      }
+
+      const arabicText = verseData.text_uthmani || '';
+      let englishText = '';
+      let banglaText = '';
+      const translationsList = Array.isArray(verseData.translations) ? verseData.translations : [];
+
+      for (const t of translationsList) {
+        if (t.resource_id === englishTranslationId) {
+          englishText = cleanQuranText(t.text || '');
+        } else if (t.resource_id === banglaTranslationId) {
+          banglaText = cleanQuranText(t.text || '');
+        }
+      }
+
+      if (!englishText && translationsList.length > 0) {
+        englishText = cleanQuranText(translationsList[0].text || '');
+      }
+      if (!banglaText && translationsList.length > 1) {
+        banglaText = cleanQuranText(translationsList[1].text || '');
+      }
+
+      let audioUrl = '';
+      if (verseData.audio?.url) {
+        const rawUrl = verseData.audio.url;
+        audioUrl = rawUrl.startsWith('http') ? rawUrl : `https://verses.quran.com/${rawUrl}`;
+      }
+
+      let englishTafsirText = '';
+      let banglaTafsirText = '';
+      try {
+        const [enTafsirRes, bnTafsirRes] = await Promise.allSettled([
+          fetch(`https://api.quran.com/api/v4/tafsirs/${englishTafsirId}/by_ayah/${key}`),
+          fetch(`https://api.quran.com/api/v4/tafsirs/${banglaTafsirId}/by_ayah/${key}`),
+        ]);
+
+        if (enTafsirRes.status === 'fulfilled' && enTafsirRes.value.ok) {
+          const enTafsirJson = await enTafsirRes.value.json();
+          if (enTafsirJson?.tafsir?.text) {
+            englishTafsirText = enTafsirJson.tafsir.text;
+          }
+        }
+
+        if (bnTafsirRes.status === 'fulfilled' && bnTafsirRes.value.ok) {
+          const bnTafsirJson = await bnTafsirRes.value.json();
+          if (bnTafsirJson?.tafsir?.text) {
+            banglaTafsirText = bnTafsirJson.tafsir.text;
+          }
+        }
+      } catch {
+        // Non-critical tafsir fetch error
+      }
+
+      const payload: FetchedVersePayload = {
+        key,
+        chapter,
+        verse,
+        chapterInfo: chapterMeta,
+        arabicText,
+        englishTranslation: {
+          resourceId: englishTranslationId,
+          translatorName: enMeta?.name || 'English Translation',
+          text: englishText,
+        },
+        banglaTranslation: {
+          resourceId: banglaTranslationId,
+          translatorName: bnMeta?.name || 'বাংলা অনুবাদ',
+          text: banglaText,
+        },
+        tafsir: {
+          english: englishTafsirText
+            ? {
+                resourceId: englishTafsirId,
+                name: enTafsirMeta?.name || 'Ibn Kathir',
+                text: englishTafsirText,
+              }
+            : undefined,
+          bangla: banglaTafsirText
+            ? {
+                resourceId: banglaTafsirId,
+                name: bnTafsirMeta?.name || 'তাফসীর আবু বকর জাকারিয়া',
+                text: banglaTafsirText,
+              }
+            : undefined,
+        },
+        audio: audioUrl
+          ? {
+              reciterId,
+              reciterName: reciterMeta?.reciterName || 'Mishary Rashid Alafasy',
+              audioUrl,
+              audioUrls: [audioUrl],
+              verseAudios: [{ verseNumber: verse, audioUrl }],
+            }
+          : undefined,
+        fetchedAt: new Date().toISOString(),
+      };
+
+      verseMemoryCache.set(cacheKey, payload);
+      return payload;
+    }
+
+    // ---------------------------------------------------------------------
+    // Verse Range Fetch Mode (e.g. 94:5-6)
+    // ---------------------------------------------------------------------
+    const verseNumbers: number[] = [];
+    for (let v = verse; v <= verseEnd; v++) {
+      verseNumbers.push(v);
+    }
+
+    // Fetch all verses in range concurrently
+    const verseResults = await Promise.all(
+      verseNumbers.map(async (v) => {
+        const singleKey = `${chapter}:${v}`;
+        const vUrl = `https://api.quran.com/api/v4/verses/by_key/${singleKey}?language=en&words=false&translations=${translationIds}&audio=${reciterId}&fields=text_uthmani,chapter_id,verse_number`;
+        const res = await fetch(vUrl, { signal: controller.signal });
+        if (!res.ok) {
+          throw new Error(`Quran.com API error for Ayah ${singleKey}: HTTP ${res.status}`);
+        }
+        const json = await res.json();
+        const vData = json?.verse;
+        if (!vData) {
+          throw new Error(`No verse data found for Ayah ${singleKey}`);
+        }
+
+        const rawArabic = vData.text_uthmani || '';
+        let en = '';
+        let bn = '';
+        const trList = Array.isArray(vData.translations) ? vData.translations : [];
+        for (const t of trList) {
+          if (t.resource_id === englishTranslationId) {
+            en = cleanQuranText(t.text || '');
+          } else if (t.resource_id === banglaTranslationId) {
+            bn = cleanQuranText(t.text || '');
+          }
+        }
+        if (!en && trList.length > 0) {
+          en = cleanQuranText(trList[0].text || '');
+        }
+        if (!bn && trList.length > 1) {
+          bn = cleanQuranText(trList[1].text || '');
+        }
+
+        let audio = '';
+        if (vData.audio?.url) {
+          const rawUrl = vData.audio.url;
+          audio = rawUrl.startsWith('http') ? rawUrl : `https://verses.quran.com/${rawUrl}`;
+        }
+
+        return {
+          verseNumber: v,
+          arabic: rawArabic,
+          english: en,
+          bangla: bn,
+          audioUrl: audio,
+        };
+      })
+    );
+
     clearTimeout(timeoutId);
 
-    if (!res.ok) {
-      throw new Error(`Quran.com API error: HTTP ${res.status} (${res.statusText})`);
-    }
+    // Concurrently fetch Tafsir for all verses in range
+    const tafsirResults = await Promise.allSettled(
+      verseNumbers.map(async (v) => {
+        const singleKey = `${chapter}:${v}`;
+        let enTaf = '';
+        let bnTaf = '';
+        try {
+          const [enRes, bnRes] = await Promise.allSettled([
+            fetch(`https://api.quran.com/api/v4/tafsirs/${englishTafsirId}/by_ayah/${singleKey}`),
+            fetch(`https://api.quran.com/api/v4/tafsirs/${banglaTafsirId}/by_ayah/${singleKey}`),
+          ]);
 
-    const json = await res.json();
-    const verseData = json?.verse;
-    if (!verseData) {
-      throw new Error(`No verse data found for ${key}`);
-    }
-
-    // Extract Arabic text
-    const arabicText = verseData.text_uthmani || '';
-
-    // Extract English & Bangla translations
-    let englishText = '';
-    let banglaText = '';
-    const translationsList = Array.isArray(verseData.translations) ? verseData.translations : [];
-
-    for (const t of translationsList) {
-      if (t.resource_id === englishTranslationId) {
-        englishText = cleanQuranText(t.text || '');
-      } else if (t.resource_id === banglaTranslationId) {
-        banglaText = cleanQuranText(t.text || '');
-      }
-    }
-
-    // Fallbacks if not found by exact ID
-    if (!englishText && translationsList.length > 0) {
-      englishText = cleanQuranText(translationsList[0].text || '');
-    }
-    if (!banglaText && translationsList.length > 1) {
-      banglaText = cleanQuranText(translationsList[1].text || '');
-    }
-
-    const enMeta = AVAILABLE_TRANSLATIONS.find((t) => t.id === englishTranslationId);
-    const bnMeta = AVAILABLE_TRANSLATIONS.find((t) => t.id === banglaTranslationId);
-    const reciterMeta = AVAILABLE_RECITERS.find((r) => r.id === reciterId);
-
-    // Audio URL
-    let audioUrl = '';
-    if (verseData.audio?.url) {
-      const rawUrl = verseData.audio.url;
-      audioUrl = rawUrl.startsWith('http') ? rawUrl : `https://verses.quran.com/${rawUrl}`;
-    }
-
-    // Fetch Tafsir concurrently (best effort, don't fail verse fetch if tafsir fails)
-    let englishTafsirText = '';
-    let banglaTafsirText = '';
-
-    try {
-      const [enTafsirRes, bnTafsirRes] = await Promise.allSettled([
-        fetch(`https://api.quran.com/api/v4/tafsirs/${englishTafsirId}/by_ayah/${key}`),
-        fetch(`https://api.quran.com/api/v4/tafsirs/${banglaTafsirId}/by_ayah/${key}`),
-      ]);
-
-      if (enTafsirRes.status === 'fulfilled' && enTafsirRes.value.ok) {
-        const enTafsirJson = await enTafsirRes.value.json();
-        if (enTafsirJson?.tafsir?.text) {
-          englishTafsirText = enTafsirJson.tafsir.text;
+          if (enRes.status === 'fulfilled' && enRes.value.ok) {
+            const enJson = await enRes.value.json();
+            enTaf = enJson?.tafsir?.text || '';
+          }
+          if (bnRes.status === 'fulfilled' && bnRes.value.ok) {
+            const bnJson = await bnRes.value.json();
+            bnTaf = bnJson?.tafsir?.text || '';
+          }
+        } catch {
+          // best effort
         }
-      }
+        return { verseNumber: v, englishTafsir: enTaf, banglaTafsir: bnTaf };
+      })
+    );
 
-      if (bnTafsirRes.status === 'fulfilled' && bnTafsirRes.value.ok) {
-        const bnTafsirJson = await bnTafsirRes.value.json();
-        if (bnTafsirJson?.tafsir?.text) {
-          banglaTafsirText = bnTafsirJson.tafsir.text;
-        }
-      }
-    } catch {
-      // Non-critical: tafsir fetching failed or timed out
-    }
+    // Combine Arabic texts with Ayah end glyphs/numbers
+    const combinedArabicText = verseResults
+      .map((vr) => `${vr.arabic} ﴿${toArabicNumber(vr.verseNumber)}﴾`)
+      .join(' ');
 
-    const enTafsirMeta = AVAILABLE_TAFSIRS.find((t) => t.id === englishTafsirId);
-    const bnTafsirMeta = AVAILABLE_TAFSIRS.find((t) => t.id === banglaTafsirId);
+    // Combine English translations with verse indices
+    const combinedEnglishText = verseResults
+      .map((vr) => `(${vr.verseNumber}) ${vr.english}`)
+      .join(' ');
+
+    // Combine Bangla translations with Bengali numeral indices
+    const combinedBanglaText = verseResults
+      .map((vr) => `(${toBanglaNumber(vr.verseNumber)}) ${vr.bangla}`)
+      .join(' ');
+
+    // Combine Tafsirs
+    const tafsirList = tafsirResults
+      .map((r) => (r.status === 'fulfilled' ? r.value : null))
+      .filter(Boolean) as { verseNumber: number; englishTafsir: string; banglaTafsir: string }[];
+
+    const combinedEnglishTafsir = tafsirList
+      .filter((t) => Boolean(t.englishTafsir))
+      .map((t) => `**Ayah ${t.verseNumber}:**\n${t.englishTafsir}`)
+      .join('\n\n');
+
+    const combinedBanglaTafsir = tafsirList
+      .filter((t) => Boolean(t.banglaTafsir))
+      .map((t) => `**আয়াত ${toBanglaNumber(t.verseNumber)}:**\n${t.banglaTafsir}`)
+      .join('\n\n');
+
+    const allAudioUrls = verseResults.map((vr) => vr.audioUrl).filter(Boolean);
+    const verseAudios = verseResults
+      .filter((vr) => Boolean(vr.audioUrl))
+      .map((vr) => ({ verseNumber: vr.verseNumber, audioUrl: vr.audioUrl }));
 
     const payload: FetchedVersePayload = {
       key,
       chapter,
       verse,
+      verseEnd,
       chapterInfo: chapterMeta,
-      arabicText,
+      arabicText: combinedArabicText,
       englishTranslation: {
         resourceId: englishTranslationId,
         translatorName: enMeta?.name || 'English Translation',
-        text: englishText,
+        text: combinedEnglishText,
       },
       banglaTranslation: {
         resourceId: banglaTranslationId,
         translatorName: bnMeta?.name || 'বাংলা অনুবাদ',
-        text: banglaText,
+        text: combinedBanglaText,
       },
       tafsir: {
-        english: englishTafsirText
+        english: combinedEnglishTafsir
           ? {
               resourceId: englishTafsirId,
               name: enTafsirMeta?.name || 'Ibn Kathir',
-              text: englishTafsirText,
+              text: combinedEnglishTafsir,
             }
           : undefined,
-        bangla: banglaTafsirText
+        bangla: combinedBanglaTafsir
           ? {
               resourceId: banglaTafsirId,
               name: bnTafsirMeta?.name || 'তাফসীর আবু বকর জাকারিয়া',
-              text: banglaTafsirText,
+              text: combinedBanglaTafsir,
             }
           : undefined,
       },
-      audio: audioUrl
-        ? {
-            reciterId,
-            reciterName: reciterMeta?.reciterName || 'Mishary Rashid Alafasy',
-            audioUrl,
-          }
-        : undefined,
+      audio:
+        allAudioUrls.length > 0
+          ? {
+              reciterId,
+              reciterName: reciterMeta?.reciterName || 'Mishary Rashid Alafasy',
+              audioUrl: allAudioUrls[0],
+              audioUrls: allAudioUrls,
+              verseAudios,
+            }
+          : undefined,
       fetchedAt: new Date().toISOString(),
     };
 

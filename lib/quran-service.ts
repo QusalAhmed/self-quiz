@@ -41,6 +41,7 @@ export async function ensureDefaultQuranVersesSeeded(): Promise<QuranVerseRecord
             id: row.id,
             chapter: row.chapter,
             verse: row.verse,
+            verseEnd: row.verse_end || undefined,
             category: row.category || 'Inspirational',
             notes: row.notes || '',
             status: (row.status as any) || 'active',
@@ -69,6 +70,7 @@ export async function ensureDefaultQuranVersesSeeded(): Promise<QuranVerseRecord
       id: preset.key,
       chapter: preset.chapter,
       verse: preset.verse,
+      verseEnd: preset.verseEnd,
       category: preset.theme,
       notes: `${preset.title}: ${preset.description}`,
       status: 'active',
@@ -90,6 +92,7 @@ export async function ensureDefaultQuranVersesSeeded(): Promise<QuranVerseRecord
           id: s.id,
           chapter: s.chapter,
           verse: s.verse,
+          verse_end: s.verseEnd || null,
           category: s.category,
           notes: s.notes,
           status: s.status,
@@ -127,15 +130,16 @@ export async function getAllQuranVerses(): Promise<QuranVerseRecord[]> {
 }
 
 /**
- * Adds a new Quran verse record
+ * Adds a new Quran verse record (single verse or verse range)
  */
 export async function addQuranVerseRecord(params: {
   chapter: number;
   verse: number;
+  verseEnd?: number;
   category?: string;
   notes?: string;
 }): Promise<QuranVerseRecord> {
-  const { chapter, verse, category = 'Inspirational', notes = '' } = params;
+  const { chapter, verse, verseEnd, category = 'Inspirational', notes = '' } = params;
   const meta = getChapterMetadata(chapter);
   if (!meta) {
     throw new Error(`Invalid Surah number: ${chapter}`);
@@ -145,13 +149,20 @@ export async function addQuranVerseRecord(params: {
       `Invalid Ayah number ${verse} for Surah ${meta.nameSimple} (max ${meta.versesCount})`
     );
   }
+  if (verseEnd && (verseEnd < 1 || verseEnd > meta.versesCount || verseEnd < verse)) {
+    throw new Error(
+      `Invalid Ayah range ${verse}-${verseEnd} for Surah ${meta.nameSimple} (max ${meta.versesCount})`
+    );
+  }
 
-  const id = `${chapter}:${verse}`;
+  const isRange = typeof verseEnd === 'number' && verseEnd > verse;
+  const id = isRange ? `${chapter}:${verse}-${verseEnd}` : `${chapter}:${verse}`;
   const now = new Date().toISOString();
   const record: QuranVerseRecord = {
     id,
     chapter,
     verse,
+    ...(isRange ? { verseEnd } : {}),
     category,
     notes,
     status: 'active',
@@ -171,6 +182,7 @@ export async function addQuranVerseRecord(params: {
       id: record.id,
       chapter: record.chapter,
       verse: record.verse,
+      verse_end: record.verseEnd || null,
       category: record.category,
       notes: record.notes,
       status: record.status,
@@ -185,10 +197,16 @@ export async function addQuranVerseRecord(params: {
 }
 
 /**
- * Adds multiple Quran verses at once (batch mode)
+ * Adds multiple Quran verses at once (batch mode, supports ranges)
  */
 export async function addBatchQuranVerses(
-  items: { chapter: number; verse: number; category?: string; notes?: string }[]
+  items: {
+    chapter: number;
+    verse: number;
+    verseEnd?: number;
+    category?: string;
+    notes?: string;
+  }[]
 ): Promise<QuranVerseRecord[]> {
   const results: QuranVerseRecord[] = [];
   const now = new Date().toISOString();
@@ -200,12 +218,23 @@ export async function addBatchQuranVerses(
     if (!meta || item.verse < 1 || item.verse > meta.versesCount) {
       continue;
     }
+    if (
+      item.verseEnd &&
+      (item.verseEnd < 1 || item.verseEnd > meta.versesCount || item.verseEnd < item.verse)
+    ) {
+      continue;
+    }
 
-    const id = `${item.chapter}:${item.verse}`;
+    const isRange = typeof item.verseEnd === 'number' && item.verseEnd > item.verse;
+    const id = isRange
+      ? `${item.chapter}:${item.verse}-${item.verseEnd}`
+      : `${item.chapter}:${item.verse}`;
+
     const record: QuranVerseRecord = {
       id,
       chapter: item.chapter,
       verse: item.verse,
+      ...(isRange ? { verseEnd: item.verseEnd } : {}),
       category: item.category || 'Inspirational',
       notes: item.notes || '',
       status: 'active',
@@ -223,6 +252,7 @@ export async function addBatchQuranVerses(
       id: record.id,
       chapter: record.chapter,
       verse: record.verse,
+      verse_end: record.verseEnd || null,
       category: record.category,
       notes: record.notes,
       status: record.status,

@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS public.quran_verses (
   id TEXT PRIMARY KEY,
   chapter INTEGER NOT NULL,
   verse INTEGER NOT NULL,
+  verse_end INTEGER,
   category TEXT DEFAULT 'Inspirational',
   notes TEXT DEFAULT '',
   status TEXT NOT NULL DEFAULT 'active',
@@ -18,6 +19,9 @@ CREATE TABLE IF NOT EXISTS public.quran_verses (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   deleted BOOLEAN DEFAULT FALSE
 );
+
+-- Ensure verse_end column exists for existing installations
+ALTER TABLE public.quran_verses ADD COLUMN IF NOT EXISTS verse_end INTEGER;
 
 -- Create indexes for fast lookup and random selection
 CREATE INDEX IF NOT EXISTS idx_quran_verses_chapter_verse ON public.quran_verses(chapter, verse);

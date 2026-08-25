@@ -80,7 +80,7 @@ describe('lib/quran-service.ts', () => {
     const seeded = await ensureDefaultQuranVersesSeeded();
     expect(seeded.length).toBe(CURATED_INSPIRATIONAL_VERSES.length);
     expect(seeded.some((v) => v.id === '2:255')).toBe(true);
-    expect(seeded.some((v) => v.id === '94:5')).toBe(true);
+    expect(seeded.some((v) => v.id === '94:5-6')).toBe(true);
   });
 
   it('adds a single valid Quran verse record', async () => {
@@ -102,7 +102,26 @@ describe('lib/quran-service.ts', () => {
     expect(all.some((v) => v.id === '3:139')).toBe(true);
   });
 
-  it('rejects invalid chapter or verse numbers', async () => {
+  it('adds a verse range record with verseEnd', async () => {
+    const record = await addQuranVerseRecord({
+      chapter: 94,
+      verse: 5,
+      verseEnd: 6,
+      category: 'Ease & Relief',
+      notes: 'Hardship and ease',
+    });
+
+    expect(record.id).toBe('94:5-6');
+    expect(record.chapter).toBe(94);
+    expect(record.verse).toBe(5);
+    expect(record.verseEnd).toBe(6);
+    expect(record.category).toBe('Ease & Relief');
+
+    const all = await getAllQuranVerses();
+    expect(all.some((v) => v.id === '94:5-6')).toBe(true);
+  });
+
+  it('rejects invalid chapter or verse numbers or range boundaries', async () => {
     await expect(
       addQuranVerseRecord({
         chapter: 999, // Invalid chapter
@@ -116,18 +135,26 @@ describe('lib/quran-service.ts', () => {
         verse: 25, // Invalid verse
       })
     ).rejects.toThrow('Invalid Ayah number');
+
+    await expect(
+      addQuranVerseRecord({
+        chapter: 94,
+        verse: 5,
+        verseEnd: 3, // verseEnd < verse
+      })
+    ).rejects.toThrow('Invalid Ayah range');
   });
 
-  it('adds batch Quran verses', async () => {
+  it('adds batch Quran verses including ranges', async () => {
     const items = [
       { chapter: 94, verse: 1 },
       { chapter: 94, verse: 2 },
-      { chapter: 94, verse: 3 },
+      { chapter: 94, verse: 5, verseEnd: 6 },
     ];
 
     const added = await addBatchQuranVerses(items);
     expect(added.length).toBe(3);
-    expect(added.map((v) => v.id)).toEqual(['94:1', '94:2', '94:3']);
+    expect(added.map((v) => v.id)).toEqual(['94:1', '94:2', '94:5-6']);
   });
 
   it('toggles verse active and paused status', async () => {
@@ -167,10 +194,10 @@ describe('lib/quran-service.ts', () => {
 
   it('selects a random active verse from the pool', async () => {
     await addQuranVerseRecord({ chapter: 2, verse: 255 });
-    await addQuranVerseRecord({ chapter: 94, verse: 5 });
+    await addQuranVerseRecord({ chapter: 94, verse: 5, verseEnd: 6 });
 
     const random = await getRandomActiveVerse();
     expect(random).toBeDefined();
-    expect(['2:255', '94:5']).toContain(random?.id);
+    expect(['2:255', '94:5-6']).toContain(random?.id);
   });
 });

@@ -174,9 +174,10 @@ export type StoryRecord = {
 };
 
 export type QuranVerseRecord = {
-  id: string; // "chapter:verse" e.g. "2:255"
+  id: string; // "chapter:verse" or "chapter:start-end" e.g. "2:255" or "94:5-6"
   chapter: number;
   verse: number;
+  verseEnd?: number; // End verse for ranges (e.g. 6 in 94:5-6)
   category?: string;
   notes?: string;
   status: 'active' | 'paused' | 'error' | 'success';
@@ -678,6 +679,7 @@ const quranVerseSchema: RxJsonSchema<QuranVerseRecord> = {
     id: { type: 'string', maxLength: 32 },
     chapter: { type: 'number', minimum: 1, maximum: 114 },
     verse: { type: 'number', minimum: 1, maximum: 286 },
+    verseEnd: { type: 'number', minimum: 1, maximum: 286 },
     category: { type: 'string', default: 'Inspirational' },
     notes: { type: 'string', default: '' },
     status: { type: 'string', maxLength: 32, default: 'active' },

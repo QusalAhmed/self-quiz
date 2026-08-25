@@ -12,7 +12,7 @@ jest.mock('next/navigation', () => ({
   }),
 }));
 
-// Mock QuranVerse Context
+// Mock QuranVerse Context with existing verse 2:255
 jest.mock('@/components/QuranVerse', () => {
   const actual = jest.requireActual('@/components/QuranVerse');
   return {
@@ -40,7 +40,7 @@ jest.mock('@/components/QuranVerse', () => {
 
 // Mock Quran Service
 jest.mock('@/lib/quran-service', () => ({
-  addBatchQuranVerses: jest.fn().mockResolvedValue([{ id: '94:5' }, { id: '94:6' }]),
+  addBatchQuranVerses: jest.fn().mockResolvedValue([{ id: '94:5-6' }]),
   addQuranVerseRecord: jest.fn().mockResolvedValue({ id: '2:255' }),
 }));
 
@@ -66,6 +66,15 @@ describe('AddVersePage (app/quran/add/page.tsx)', () => {
     expect(screen.getByText(/4. Curated Presets/i)).toBeInTheDocument();
   });
 
+  it('correctly calculates and displays Already in Library count for duplicate verses', async () => {
+    renderComponent();
+    // Default text contains 2:255 (which is in existing verses) plus 94:5-6, 65:2-3, 39:53, 13:28
+    await waitFor(() => {
+      expect(screen.getByText('Already in Library')).toBeInTheDocument();
+      expect(screen.getByText(/1 verse already in DB/i)).toBeInTheDocument();
+    });
+  });
+
   it('updates parsed verses dynamically when user types comma/newline separated text', async () => {
     renderComponent();
     const textarea = screen.getByLabelText(/Enter Chapter & Verse References/i);
@@ -74,17 +83,17 @@ describe('AddVersePage (app/quran/add/page.tsx)', () => {
     fireEvent.change(textarea, { target: { value: '112:1-4\n113:1-2' } });
 
     await waitFor(() => {
-      expect(screen.getByText(/6 Total Valid Ayahs Detected/i)).toBeInTheDocument();
+      expect(screen.getByText(/2 Total Valid Ayahs Detected/i)).toBeInTheDocument();
     });
   });
 
-  it('invokes addBatchQuranVerses on import button click', async () => {
+  it('invokes addBatchQuranVerses on import button click with range preserved', async () => {
     renderComponent();
     const textarea = screen.getByLabelText(/Enter Chapter & Verse References/i);
     fireEvent.change(textarea, { target: { value: '94:5-6' } });
 
     const importButton = screen.getByRole('button', {
-      name: /Import 2 Verses into Database/i,
+      name: /Import 1 Verse into Database/i,
     });
     expect(importButton).toBeInTheDocument();
 
@@ -92,10 +101,7 @@ describe('AddVersePage (app/quran/add/page.tsx)', () => {
 
     await waitFor(() => {
       expect(addBatchQuranVerses).toHaveBeenCalledWith(
-        expect.arrayContaining([
-          expect.objectContaining({ chapter: 94, verse: 5 }),
-          expect.objectContaining({ chapter: 94, verse: 6 }),
-        ])
+        expect.arrayContaining([expect.objectContaining({ chapter: 94, verse: 5, verseEnd: 6 })])
       );
     });
   });

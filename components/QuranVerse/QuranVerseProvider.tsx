@@ -18,7 +18,12 @@ export interface QuranVerseContextType {
   isLoadingVerses: boolean;
   refreshVerses: () => Promise<void>;
   showNextVerseNow: (options?: { force?: boolean }) => Promise<void>;
-  previewVerse: (chapter: number, verse: number, record?: QuranVerseRecord) => Promise<void>;
+  previewVerse: (
+    chapter: number,
+    verse: number,
+    record?: QuranVerseRecord,
+    verseEnd?: number
+  ) => Promise<void>;
   isModalOpen: boolean;
   closeModal: () => void;
   currentVerseData: FetchedVersePayload | null;
@@ -69,15 +74,18 @@ export function QuranVerseProvider({ children }: { children: React.ReactNode }) 
     void loadVerses();
   }, [loadVerses]);
 
-  // Fetches and displays a specific verse in the modal
+  // Fetches and displays a specific verse or verse range in the modal
   const previewVerse = useCallback(
-    async (chapter: number, verse: number, record?: QuranVerseRecord) => {
+    async (chapter: number, verse: number, record?: QuranVerseRecord, verseEndParam?: number) => {
       setIsLoadingModalVerse(true);
       setIsModalOpen(true);
       setCurrentVerseRecord(record || null);
 
+      const effectiveEnd = verseEndParam || record?.verseEnd;
+
       try {
         const payload = await fetchVerseFromQuranApi(chapter, verse, {
+          verseEnd: effectiveEnd,
           englishTranslationId: quranSettings.preferredEnglishTranslationId,
           banglaTranslationId: quranSettings.preferredBanglaTranslationId,
           englishTafsirId: quranSettings.preferredTafsirId,
@@ -87,12 +95,20 @@ export function QuranVerseProvider({ children }: { children: React.ReactNode }) 
         setCurrentVerseData(payload);
 
         // Update database record status
-        const id = `${chapter}:${verse}`;
+        const id =
+          record?.id ||
+          (effectiveEnd && effectiveEnd > verse
+            ? `${chapter}:${verse}-${effectiveEnd}`
+            : `${chapter}:${verse}`);
         await recordVerseFetchSuccess(id);
         void loadVerses();
       } catch (err: any) {
         console.error(`Failed to fetch verse ${chapter}:${verse}:`, err);
-        const id = `${chapter}:${verse}`;
+        const id =
+          record?.id ||
+          (effectiveEnd && effectiveEnd > verse
+            ? `${chapter}:${verse}-${effectiveEnd}`
+            : `${chapter}:${verse}`);
         await recordVerseFetchError(id, err?.message || 'API fetch error');
         void loadVerses();
       } finally {
@@ -132,6 +148,7 @@ export function QuranVerseProvider({ children }: { children: React.ReactNode }) 
         setCurrentVerseRecord(randomRecord);
 
         const payload = await fetchVerseFromQuranApi(randomRecord.chapter, randomRecord.verse, {
+          verseEnd: randomRecord.verseEnd,
           englishTranslationId: quranSettings.preferredEnglishTranslationId,
           banglaTranslationId: quranSettings.preferredBanglaTranslationId,
           englishTafsirId: quranSettings.preferredTafsirId,

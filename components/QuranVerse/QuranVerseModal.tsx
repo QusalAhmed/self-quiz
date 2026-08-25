@@ -35,7 +35,7 @@ import {
   IconVolumeOff,
   IconX,
 } from '@tabler/icons-react';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { type QuranVerseRecord } from '@/lib/db';
 import { appNotifications } from '@/lib/notifications';
 import { type FetchedVersePayload } from '@/lib/quran-api';
@@ -67,14 +67,25 @@ export function QuranVerseModal({
   // Audio Playback State
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [activeAudioIndex, setActiveAudioIndex] = useState(0);
   const [audioCurrentTime, setAudioCurrentTime] = useState(0);
   const [audioDuration, setAudioDuration] = useState(0);
   const [audioVolume, setAudioVolume] = useState(0.8);
   const [isMuted, setIsMuted] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
 
+  const audioList = useMemo(() => {
+    if (verseData?.audio?.audioUrls && verseData.audio.audioUrls.length > 0) {
+      return verseData.audio.audioUrls;
+    }
+    return verseData?.audio?.audioUrl ? [verseData.audio.audioUrl] : [];
+  }, [verseData?.audio]);
+
+  const currentAudioUrl = audioList[activeAudioIndex] || verseData?.audio?.audioUrl || '';
+
   // Reset audio when verse changes
   useEffect(() => {
+    setActiveAudioIndex(0);
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
@@ -95,7 +106,7 @@ export function QuranVerseModal({
 
   // Audio Event Handlers
   const handleTogglePlay = () => {
-    if (!audioRef.current || !verseData?.audio?.audioUrl) {
+    if (!audioRef.current || !currentAudioUrl) {
       return;
     }
     if (isPlaying) {
@@ -120,8 +131,20 @@ export function QuranVerseModal({
   };
 
   const handleAudioEnded = () => {
-    setIsPlaying(false);
-    setAudioCurrentTime(0);
+    if (activeAudioIndex < audioList.length - 1) {
+      const nextIdx = activeAudioIndex + 1;
+      setActiveAudioIndex(nextIdx);
+      setAudioCurrentTime(0);
+      setTimeout(() => {
+        if (audioRef.current) {
+          audioRef.current.play().catch((err) => console.warn('Next audio play error:', err));
+        }
+      }, 150);
+    } else {
+      setIsPlaying(false);
+      setAudioCurrentTime(0);
+      setActiveAudioIndex(0);
+    }
   };
 
   const handleSeek = (value: number) => {
@@ -198,6 +221,7 @@ export function QuranVerseModal({
 
   const category = verseRecord?.category || 'Inspirational';
   const notes = verseRecord?.notes || '';
+  const isRange = Boolean(verseData?.verseEnd && verseData.verseEnd > verseData.verse);
 
   return (
     <Modal
@@ -225,17 +249,17 @@ export function QuranVerseModal({
       }}
     >
       {/* Hidden Audio Element */}
-      {verseData?.audio?.audioUrl && (
+      {currentAudioUrl && (
         <audio
           ref={audioRef}
-          src={verseData.audio.audioUrl}
+          src={currentAudioUrl}
           onPlay={() => setIsPlaying(true)}
           onPause={() => setIsPlaying(false)}
           onTimeUpdate={handleTimeUpdate}
           onLoadedMetadata={handleLoadedMetadata}
           onEnded={handleAudioEnded}
           preload="auto"
-          aria-label={`Recitation of Surah ${verseData.chapterInfo.nameSimple} ayah ${verseData.key}`}
+          aria-label={`Recitation of Surah ${verseData?.chapterInfo.nameSimple} ayah ${verseData?.key}`}
         >
           <track kind="captions" />
         </audio>
@@ -267,7 +291,7 @@ export function QuranVerseModal({
                 </Title>
                 {verseData && (
                   <Badge variant="filled" color="indigo" size="sm">
-                    Ayah {verseData.key}
+                    {isRange ? `Ayahs ${verseData.key}` : `Ayah ${verseData.key}`}
                   </Badge>
                 )}
                 {category && (
@@ -278,7 +302,13 @@ export function QuranVerseModal({
               </Group>
               <Text size="xs" c="dimmed">
                 {verseData
-                  ? `${verseData.chapterInfo.translatedName} • ${verseData.chapterInfo.revelationPlace === 'makkah' ? 'Meccan' : 'Medinan'} • Ayah ${verseData.verse} of ${verseData.chapterInfo.versesCount}`
+                  ? `${verseData.chapterInfo.translatedName} • ${
+                      verseData.chapterInfo.revelationPlace === 'makkah' ? 'Meccan' : 'Medinan'
+                    } • ${
+                      isRange
+                        ? `Ayahs ${verseData.verse}-${verseData.verseEnd}`
+                        : `Ayah ${verseData.verse}`
+                    } of ${verseData.chapterInfo.versesCount}`
                   : 'Motivational Reflection'}
               </Text>
             </Stack>
@@ -402,6 +432,11 @@ export function QuranVerseModal({
                       <Group justify="space-between" align="center" gap="xs">
                         <Text size="xs" fw={600} truncate>
                           🎙️ {verseData.audio.reciterName}
+                          {audioList.length > 1 && (
+                            <Text component="span" size="xs" c="indigo" ml={6} fw={700}>
+                              (Playing Ayah {verseData.verse + activeAudioIndex})
+                            </Text>
+                          )}
                         </Text>
                         <Text size="xs" c="dimmed" style={{ fontVariantNumeric: 'tabular-nums' }}>
                           {formatSeconds(audioCurrentTime)} / {formatSeconds(audioDuration)}

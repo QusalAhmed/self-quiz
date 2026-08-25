@@ -373,7 +373,10 @@ export function QuranVerseManager({
                             </Text>
                           </Text>
                           <Text size="xs" c="dimmed">
-                            {meta?.translatedName} • Ayah {verse.verse}
+                            {meta?.translatedName} •{' '}
+                            {verse.verseEnd && verse.verseEnd > verse.verse
+                              ? `Ayahs ${verse.verse}-${verse.verseEnd}`
+                              : `Ayah ${verse.verse}`}
                           </Text>
                         </Stack>
                       </Table.Td>

@@ -44,7 +44,7 @@ import {
   IconTrash,
 } from '@tabler/icons-react';
 import Link from 'next/link';
-import React, { Suspense, useMemo, useState } from 'react';
+import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import { useQuranVerse } from '@/components/QuranVerse';
 import { appNotifications } from '@/lib/notifications';
 import {
@@ -94,9 +94,25 @@ function AddVersePageContent() {
 
   const [activeTab, setActiveTab] = useState<string>('batch');
 
-  // Existing verse IDs in DB for duplicate checking
+  // Trigger refresh on mount to ensure existing verses from RxDB / Supabase are loaded
+  useEffect(() => {
+    void refreshVerses();
+  }, [refreshVerses]);
+
+  // Existing verse IDs in DB for duplicate checking (handles both 'chapter:verse' string and number types)
   const existingVerseIdsSet = useMemo(() => {
-    return new Set(verses.filter((v) => !v.isDeleted).map((v) => v.id));
+    const set = new Set<string>();
+    for (const v of verses) {
+      if (!v.isDeleted) {
+        if (v.id) {
+          set.add(String(v.id).trim());
+        }
+        if (typeof v.chapter === 'number' && typeof v.verse === 'number') {
+          set.add(`${v.chapter}:${v.verse}`);
+        }
+      }
+    }
+    return set;
   }, [verses]);
 
   // =========================================================================
@@ -162,6 +178,7 @@ function AddVersePageContent() {
       const itemsToSave = targetVersesForImport.map((v) => ({
         chapter: v.chapter,
         verse: v.verse,
+        verseEnd: v.verseEnd,
         category: batchCategory || 'Inspirational',
         notes: batchNotes || `Surah ${v.surahName} (${v.key})`,
       }));
@@ -235,7 +252,7 @@ function AddVersePageContent() {
       });
 
       appNotifications.success({
-        title: 'Verse Saved',
+        title: 'Verse Added',
         message: `Surah ${singleChapterMeta.nameSimple} (${ch}:${singleVerse}) added to database.`,
       });
 
@@ -243,8 +260,8 @@ function AddVersePageContent() {
       setSingleNotes('');
     } catch (err: any) {
       appNotifications.error({
-        title: 'Could Not Add Verse',
-        message: err?.message || 'Failed to save verse.',
+        title: 'Failed to Add Verse',
+        message: err?.message || 'Could not add verse to database.',
       });
     } finally {
       setIsAddingSingle(false);
@@ -274,23 +291,31 @@ function AddVersePageContent() {
     const start = Math.max(1, Math.min(rangeFrom, rangeTo));
     const end = Math.min(meta.versesCount, Math.max(rangeFrom, rangeTo));
 
-    const items = [];
-    for (let v = start; v <= end; v++) {
-      items.push({
-        chapter: ch,
-        verse: v,
-        category: rangeCategory || 'Inspirational',
-        notes: `Surah ${meta.nameSimple} ${ch}:${v}`,
-      });
-    }
+    const item =
+      start === end
+        ? {
+            chapter: ch,
+            verse: start,
+            category: rangeCategory || 'Inspirational',
+            notes: `Surah ${meta.nameSimple} ${ch}:${start}`,
+          }
+        : {
+            chapter: ch,
+            verse: start,
+            verseEnd: end,
+            category: rangeCategory || 'Inspirational',
+            notes: `Surah ${meta.nameSimple} ${ch}:${start}-${end}`,
+          };
 
     setIsAddingRange(true);
     try {
-      const inserted = await addBatchQuranVerses(items);
+      await addBatchQuranVerses([item]);
 
       appNotifications.success({
         title: 'Range Imported',
-        message: `Added ${inserted.length} verses from Surah ${meta.nameSimple} (${ch}:${start}-${end}).`,
+        message: `Added Surah ${meta.nameSimple} (${
+          start === end ? `${ch}:${start}` : `${ch}:${start}-${end}`
+        }) as range record into database.`,
       });
 
       await refreshVerses();
@@ -314,6 +339,7 @@ function AddVersePageContent() {
       await addQuranVerseRecord({
         chapter: preset.chapter,
         verse: preset.verse,
+        verseEnd: preset.verseEnd,
         category: preset.theme,
         notes: `${preset.title}: ${preset.description}`,
       });
@@ -338,6 +364,7 @@ function AddVersePageContent() {
       const items = CURATED_INSPIRATIONAL_VERSES.map((p) => ({
         chapter: p.chapter,
         verse: p.verse,
+        verseEnd: p.verseEnd,
         category: p.theme,
         notes: `${p.title}: ${p.description}`,
       }));
@@ -601,20 +628,23 @@ function AddVersePageContent() {
                     p="sm"
                     radius="md"
                     withBorder
-                    style={{ background: 'rgba(16, 185, 129, 0.05)' }}
+                    style={{
+                      background: 'rgba(16, 185, 129, 0.08)',
+                      borderColor: 'rgba(16, 185, 129, 0.25)',
+                    }}
                   >
                     <Group justify="space-between">
                       <Text size="xs" fw={700} c="teal">
                         Ready to Import
                       </Text>
-                      <Badge color="teal" size="sm">
+                      <Badge color="teal" variant="filled" size="sm">
                         {targetVersesForImport.length}
                       </Badge>
                     </Group>
                     <Text size="xs" c="dimmed" mt={4}>
                       {skipDuplicates
-                        ? `${newVersesToImport.length} new verses`
-                        : `${batchReport.validVerses.length} verses`}
+                        ? `${newVersesToImport.length} new verses to add`
+                        : `${batchReport.validVerses.length} verses to add / update`}
                     </Text>
                   </Paper>
 
@@ -622,18 +652,24 @@ function AddVersePageContent() {
                     p="sm"
                     radius="md"
                     withBorder
-                    style={{ background: 'rgba(245, 158, 11, 0.05)' }}
+                    style={{
+                      background: 'rgba(245, 158, 11, 0.08)',
+                      borderColor: 'rgba(245, 158, 11, 0.25)',
+                    }}
                   >
                     <Group justify="space-between">
                       <Text size="xs" fw={700} c="amber">
                         Already in Library
                       </Text>
-                      <Badge color="amber" size="sm">
+                      <Badge color="amber" variant="filled" size="sm">
                         {existingDuplicates.length}
                       </Badge>
                     </Group>
                     <Text size="xs" c="dimmed" mt={4}>
-                      {skipDuplicates ? 'Will be skipped' : 'Will be updated'}
+                      {existingDuplicates.length === 1
+                        ? '1 verse already in DB'
+                        : `${existingDuplicates.length} verses already in DB`}
+                      {skipDuplicates ? ' (will skip)' : ' (will update)'}
                     </Text>
                   </Paper>
 
@@ -641,13 +677,16 @@ function AddVersePageContent() {
                     p="sm"
                     radius="md"
                     withBorder
-                    style={{ background: 'rgba(239, 68, 68, 0.05)' }}
+                    style={{
+                      background: 'rgba(239, 68, 68, 0.08)',
+                      borderColor: 'rgba(239, 68, 68, 0.25)',
+                    }}
                   >
                     <Group justify="space-between">
                       <Text size="xs" fw={700} c="red">
                         Invalid Tokens
                       </Text>
-                      <Badge color="red" size="sm">
+                      <Badge color="red" variant="filled" size="sm">
                         {batchReport.invalidTokens.length}
                       </Badge>
                     </Group>
@@ -666,7 +705,7 @@ function AddVersePageContent() {
                     radius="md"
                     withBorder
                     style={{
-                      background: 'rgba(239, 68, 68, 0.06)',
+                      background: 'rgba(239, 68, 68, 0.08)',
                       borderColor: 'rgba(239, 68, 68, 0.3)',
                     }}
                   >
@@ -686,16 +725,29 @@ function AddVersePageContent() {
                   </Paper>
                 )}
 
-                {/* Parsed Verses Preview Scroll Area */}
+                {/* Parsed Verses Preview Scroll Area with Synchronized Color Palette */}
                 {batchReport.validVerses.length > 0 && (
                   <Paper p="md" radius="md" withBorder style={{ background: 'var(--card-bg)' }}>
-                    <Group justify="space-between" mb="xs">
+                    <Group justify="space-between" mb="sm" wrap="wrap" gap="xs">
                       <Text size="xs" fw={700} c="indigo">
                         Parsed Ayahs Preview ({batchReport.validVerses.length} total):
                       </Text>
+                      <Group gap={6}>
+                        <Badge color="teal" variant="light" size="xs">
+                          {newVersesToImport.length} Ready to Import
+                        </Badge>
+                        <Badge color="amber" variant="light" size="xs">
+                          {existingDuplicates.length} Already in Library
+                        </Badge>
+                        {batchReport.invalidTokens.length > 0 && (
+                          <Badge color="red" variant="light" size="xs">
+                            {batchReport.invalidTokens.length} Invalid Tokens
+                          </Badge>
+                        )}
+                      </Group>
                     </Group>
 
-                    <ScrollArea.Autosize mah={220} type="auto">
+                    <ScrollArea.Autosize mah={260} type="auto">
                       <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="xs">
                         {batchReport.validVerses.map((item) => {
                           const isDup = existingVerseIdsSet.has(item.key);
@@ -707,21 +759,31 @@ function AddVersePageContent() {
                               withBorder
                               style={{
                                 background: isDup
-                                  ? 'rgba(245, 158, 11, 0.05)'
-                                  : 'rgba(99, 102, 241, 0.04)',
-                                borderLeft: `3px solid ${isDup ? 'var(--mantine-color-amber-6)' : 'var(--mantine-color-indigo-6)'}`,
+                                  ? 'rgba(245, 158, 11, 0.08)'
+                                  : 'rgba(16, 185, 129, 0.08)',
+                                borderColor: isDup
+                                  ? 'rgba(245, 158, 11, 0.25)'
+                                  : 'rgba(16, 185, 129, 0.25)',
+                                borderLeft: `4px solid ${
+                                  isDup
+                                    ? 'var(--mantine-color-amber-6)'
+                                    : 'var(--mantine-color-teal-6)'
+                                }`,
                               }}
                             >
-                              <Group justify="space-between" wrap="nowrap">
+                              <Group justify="space-between" wrap="nowrap" align="center">
                                 <Stack gap={1} style={{ minWidth: 0 }}>
-                                  <Text size="xs" fw={700} truncate>
+                                  <Text size="xs" fw={700} c={isDup ? 'amber' : 'teal'} truncate>
                                     Surah {item.surahName} ({item.nameArabic})
                                   </Text>
                                   <Text size="xs" c="dimmed">
-                                    Ayah {item.verse} of {item.totalVersesInSurah}
+                                    {item.verseEnd && item.verseEnd > item.verse
+                                      ? `Ayahs ${item.verse}-${item.verseEnd}`
+                                      : `Ayah ${item.verse}`}{' '}
+                                    of {item.totalVersesInSurah} • {isDup ? 'In Library' : 'Ready'}
                                   </Text>
                                 </Stack>
-                                <Badge size="sm" color={isDup ? 'amber' : 'indigo'} variant="light">
+                                <Badge size="sm" color={isDup ? 'amber' : 'teal'} variant="filled">
                                   {item.key}
                                 </Badge>
                               </Group>
@@ -788,7 +850,8 @@ function AddVersePageContent() {
                   loading={isImportingBatch}
                   onClick={handleExecuteBatchImport}
                 >
-                  Import {targetVersesForImport.length} Verses into Database
+                  Import {targetVersesForImport.length} Verse
+                  {targetVersesForImport.length === 1 ? '' : 's'} into Database
                 </Button>
               </Stack>
             </Tabs.Panel>

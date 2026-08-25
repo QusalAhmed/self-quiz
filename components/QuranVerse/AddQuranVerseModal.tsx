@@ -158,6 +158,7 @@ export function AddQuranVerseModal({
       const items = parsedFromText.map((p) => ({
         chapter: p.chapter,
         verse: p.verse,
+        verseEnd: p.verseEnd,
         category: textCategory || 'Inspirational',
         notes: textNotes,
       }));
@@ -181,7 +182,7 @@ export function AddQuranVerseModal({
     }
   };
 
-  // Handle Option 3: Add from Range
+  // Handle Option 3: Add from Range (stored and displayed as range)
   const handleAddRange = async () => {
     const ch = parseInt(batchChapter, 10);
     const meta = getChapterMetadata(ch);
@@ -192,23 +193,29 @@ export function AddQuranVerseModal({
     const start = Math.max(1, Math.min(fromVerse, toVerse));
     const end = Math.min(meta.versesCount, Math.max(fromVerse, toVerse));
 
-    const items = [];
-    for (let v = start; v <= end; v++) {
-      items.push({
-        chapter: ch,
-        verse: v,
-        category: batchCategory || 'Inspirational',
-        notes: `Surah ${meta.nameSimple} ${ch}:${v}`,
-      });
-    }
+    const item =
+      start === end
+        ? {
+            chapter: ch,
+            verse: start,
+            category: batchCategory || 'Inspirational',
+            notes: `Surah ${meta.nameSimple} ${ch}:${start}`,
+          }
+        : {
+            chapter: ch,
+            verse: start,
+            verseEnd: end,
+            category: batchCategory || 'Inspirational',
+            notes: `Surah ${meta.nameSimple} ${ch}:${start}-${end}`,
+          };
 
     setIsSubmitting(true);
     try {
-      await addBatchQuranVerses(items);
+      await addBatchQuranVerses([item]);
 
       appNotifications.success({
         title: 'Range Added',
-        message: `Added ${items.length} verses from Surah ${meta.nameSimple} (${ch}:${start}-${end}).`,
+        message: `Added Surah ${meta.nameSimple} (${start === end ? `${ch}:${start}` : `${ch}:${start}-${end}`}) as range.`,
       });
 
       onVersesAdded?.();
@@ -230,6 +237,7 @@ export function AddQuranVerseModal({
       await addQuranVerseRecord({
         chapter: preset.chapter,
         verse: preset.verse,
+        verseEnd: preset.verseEnd,
         category: preset.theme,
         notes: `${preset.title}: ${preset.description}`,
       });
