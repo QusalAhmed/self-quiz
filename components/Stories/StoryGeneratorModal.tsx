@@ -380,7 +380,7 @@ export function StoryGeneratorModal({
         {/* Selected Words Section */}
         <Stack gap="xs">
           <Group justify="space-between" align="center">
-            <Text size="xs" fw={700} c="dimmed" tt="uppercase" lts={0.5}>
+            <Text component="div" size="xs" fw={700} c="dimmed" tt="uppercase" lts={0.5}>
               Target Words (<RollingNumber value={selectedWords.length} />)
             </Text>
             {selectedWords.length > 0 && (

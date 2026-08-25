@@ -1,10 +1,12 @@
 import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
+import '@mantine/nprogress/styles.css';
 import './global.css';
 import { ColorSchemeScript, mantineHtmlProps, MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import React from 'react';
 import { AppShellLayout } from '@/components/Layout/AppShellLayout';
+import { NavigationProgressBar } from '@/components/Navigation';
 import { ReduxProvider } from '@/lib/redux/provider';
 import { theme } from '@/theme';
 
@@ -15,9 +17,9 @@ export const metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" {...mantineHtmlProps}>
+    <html lang="en" {...mantineHtmlProps} suppressHydrationWarning>
       <head>
-        <ColorSchemeScript />
+        <ColorSchemeScript suppressHydrationWarning />
         <link rel="shortcut icon" href="/favicon.svg" />
         <link rel="manifest" href="/manifest.webmanifest" />
         <meta name="theme-color" content="#111827" />
@@ -30,6 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <ReduxProvider>
           <MantineProvider theme={theme}>
+            <NavigationProgressBar />
             <Notifications position="top-right" zIndex={2000} autoClose={4000} />
             <AppShellLayout>{children}</AppShellLayout>
           </MantineProvider>

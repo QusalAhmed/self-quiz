@@ -141,7 +141,7 @@ export function StudyTimeAnalytics({
                 TOTAL STUDY TIME
               </Text>
             </Group>
-            <Text size="md" fw={800} style={{ fontFamily: 'var(--font-title)' }}>
+            <Text component="div" size="md" fw={800} style={{ fontFamily: 'var(--font-title)' }}>
               {(() => {
                 const totalSeconds = totalStudyTimeMetric.value;
                 const hours = Math.floor(totalSeconds / 3600);
@@ -170,13 +170,19 @@ export function StudyTimeAnalytics({
                 AVG / ACTIVE DAY
               </Text>
             </Group>
-            <Text size="md" fw={800} c="yellow" style={{ fontFamily: 'var(--font-title)' }}>
+            <Text
+              component="div"
+              size="md"
+              fw={800}
+              c="yellow"
+              style={{ fontFamily: 'var(--font-title)' }}
+            >
               <RollingNumber value={avgDailyMinutes} decimalScale={1} />{' '}
               <Text component="span" size="xs" c="dimmed">
                 min/day
               </Text>
             </Text>
-            <Text size="xs" c="dimmed">
+            <Text component="div" size="xs" c="dimmed">
               Across <RollingNumber value={activeStudyDays} /> study days
             </Text>
           </Paper>
@@ -188,7 +194,13 @@ export function StudyTimeAnalytics({
                 AVG TIME / REVIEW
               </Text>
             </Group>
-            <Text size="md" fw={800} c="teal" style={{ fontFamily: 'var(--font-title)' }}>
+            <Text
+              component="div"
+              size="md"
+              fw={800}
+              c="teal"
+              style={{ fontFamily: 'var(--font-title)' }}
+            >
               <RollingNumber value={efficiency.avgReviewDurationSec || 0} decimalScale={1} />{' '}
               <Text component="span" size="xs" c="dimmed">
                 sec
@@ -206,7 +218,13 @@ export function StudyTimeAnalytics({
                 TOTAL REVIEWS
               </Text>
             </Group>
-            <Text size="md" fw={800} c="violet" style={{ fontFamily: 'var(--font-title)' }}>
+            <Text
+              component="div"
+              size="md"
+              fw={800}
+              c="violet"
+              style={{ fontFamily: 'var(--font-title)' }}
+            >
               <RollingNumber value={totalReviews} thousandSeparator />
             </Text>
             <Text size="xs" c="dimmed">
@@ -221,7 +239,13 @@ export function StudyTimeAnalytics({
                 REVIEWS / MINUTE
               </Text>
             </Group>
-            <Text size="md" fw={800} c="pink" style={{ fontFamily: 'var(--font-title)' }}>
+            <Text
+              component="div"
+              size="md"
+              fw={800}
+              c="pink"
+              style={{ fontFamily: 'var(--font-title)' }}
+            >
               <RollingNumber value={efficiency.reviewsPerMinute || 0} decimalScale={1} />{' '}
               <Text component="span" size="xs" c="dimmed">
                 cards/min

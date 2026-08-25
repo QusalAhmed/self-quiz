@@ -754,7 +754,7 @@ export const WordDetailCard = React.memo(function WordDetailCard({
                 <Text size="xs" c="dimmed" style={{ fontSize: '10px' }}>
                   Stability
                 </Text>
-                <Text size="xs" fw={700}>
+                <Text component="div" size="xs" fw={700}>
                   <RollingNumber value={primaryFsrs.stability} decimalScale={1} suffix=" days" />
                 </Text>
               </Stack>
@@ -763,7 +763,7 @@ export const WordDetailCard = React.memo(function WordDetailCard({
                 <Text size="xs" c="dimmed" style={{ fontSize: '10px' }}>
                   Difficulty
                 </Text>
-                <Text size="xs" fw={700}>
+                <Text component="div" size="xs" fw={700}>
                   <RollingNumber value={primaryFsrs.difficulty} decimalScale={1} suffix=" / 10" />
                 </Text>
               </Stack>
@@ -772,7 +772,7 @@ export const WordDetailCard = React.memo(function WordDetailCard({
                 <Text size="xs" c="dimmed" style={{ fontSize: '10px' }}>
                   Reviews / Lapses
                 </Text>
-                <Text size="xs" fw={700}>
+                <Text component="div" size="xs" fw={700}>
                   <RollingNumber value={primaryFsrs.reps} suffix=" reps" /> /{' '}
                   <RollingNumber value={primaryFsrs.lapses} suffix=" lapses" />
                 </Text>

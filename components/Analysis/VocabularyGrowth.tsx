@@ -89,6 +89,7 @@ export function VocabularyGrowth({
                   ACQUISITION VELOCITY
                 </Text>
                 <Text
+                  component="div"
                   size="lg"
                   fw={800}
                   mt={2}
@@ -99,7 +100,7 @@ export function VocabularyGrowth({
                     words / wk
                   </Text>
                 </Text>
-                <Text size="xs" c="dimmed" mt={2}>
+                <Text component="div" size="xs" c="dimmed" mt={2}>
                   Growth rate: +
                   <RollingNumber value={growthRatePercent} decimalScale={1} suffix="%" /> this
                   period
@@ -134,6 +135,7 @@ export function VocabularyGrowth({
                   MASTERY VELOCITY
                 </Text>
                 <Text
+                  component="div"
                   size="lg"
                   fw={800}
                   mt={2}
@@ -145,7 +147,7 @@ export function VocabularyGrowth({
                     mastered / wk
                   </Text>
                 </Text>
-                <Text size="xs" c="dimmed" mt={2}>
+                <Text component="div" size="xs" c="dimmed" mt={2}>
                   <RollingNumber value={wordsMasteredInPeriod} /> words reached S ≥ 21d
                 </Text>
               </div>
@@ -178,6 +180,7 @@ export function VocabularyGrowth({
                   AVG TIME TO MASTERY
                 </Text>
                 <Text
+                  component="div"
                   size="lg"
                   fw={800}
                   mt={2}
@@ -225,6 +228,7 @@ export function VocabularyGrowth({
                   30-DAY MASTERY FORECAST
                 </Text>
                 <Text
+                  component="div"
                   size="lg"
                   fw={800}
                   mt={2}
@@ -271,7 +275,7 @@ export function VocabularyGrowth({
             <Text size="xs" fw={700} c="dimmed">
               TOTAL VOCABULARY CONVERTED TO MASTERED
             </Text>
-            <Text size="xs" fw={800} c="teal.6">
+            <Text component="div" size="xs" fw={800} c="teal.6">
               <RollingNumber value={masteredWords} /> / <RollingNumber value={totalWords} /> (
               <RollingNumber value={masteryRatio} decimalScale={1} suffix="%" />)
             </Text>

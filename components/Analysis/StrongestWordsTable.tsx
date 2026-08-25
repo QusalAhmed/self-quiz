@@ -272,13 +272,13 @@ export function StrongestWordsTable({ words, onSelectWord }: StrongestWordsTable
                         radius="xl"
                         style={{ flex: 1 }}
                       />
-                      <Text size="11px" fw={700} style={{ minWidth: 32 }}>
+                      <Text component="div" size="11px" fw={700} style={{ minWidth: 32 }}>
                         <RollingNumber value={item.retrievability} decimalScale={1} suffix="%" />
                       </Text>
                     </Group>
                   </Table.Td>
                   <Table.Td style={{ textAlign: 'right' }}>
-                    <Text size="xs" fw={600}>
+                    <Text component="div" size="xs" fw={600}>
                       <RollingNumber value={item.reps} suffix=" revs" />
                     </Text>
                   </Table.Td>

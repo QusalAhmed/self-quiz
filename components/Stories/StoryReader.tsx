@@ -526,7 +526,7 @@ export function StoryReader({
               </Group>
 
               {isClozeMode && !hasEvaluated && (
-                <Text size="xs" fw={600} c="dimmed">
+                <Text component="div" size="xs" fw={600} c="dimmed">
                   <RollingNumber value={filledCount} /> of{' '}
                   <RollingNumber value={targetTokens.length} /> blanks filled
                 </Text>
@@ -566,7 +566,7 @@ export function StoryReader({
                     ]}
                   />
                   <Stack gap={0}>
-                    <Text size="sm" fw={700}>
+                    <Text component="div" size="sm" fw={700}>
                       <RollingNumber value={clozeResults.correctCount} /> /{' '}
                       <RollingNumber value={targetTokens.length} /> Words Correct (
                       <RollingNumber value={clozeResults.percent} suffix="%" />)
@@ -887,7 +887,7 @@ export function StoryReader({
                   <Text size="sm" fw={700} c="indigo">
                     Ready to check your answers?
                   </Text>
-                  <Text size="xs" c="dimmed">
+                  <Text component="div" size="xs" c="dimmed">
                     You have completed <RollingNumber value={filledCount} /> of{' '}
                     <RollingNumber value={targetTokens.length} /> blanks.
                   </Text>
@@ -1037,7 +1037,7 @@ export function StoryReader({
             )}
 
             <div>
-              <Text size="xs" fw={700} c="dimmed" tt="uppercase" mb="xs">
+              <Text component="div" size="xs" fw={700} c="dimmed" tt="uppercase" mb="xs">
                 Definitions (<RollingNumber value={activeWordForModal.definitions?.length || 1} />
                 ):
               </Text>

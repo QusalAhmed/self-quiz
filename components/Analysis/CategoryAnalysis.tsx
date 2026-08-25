@@ -145,12 +145,12 @@ export function CategoryAnalysis({ categories, statusInfo }: CategoryAnalysisPro
                     </Group>
                   </Table.Td>
                   <Table.Td style={{ textAlign: 'right' }}>
-                    <Text size="xs" fw={700}>
+                    <Text component="div" size="xs" fw={700}>
                       <RollingNumber value={c.totalWords} />
                     </Text>
                   </Table.Td>
                   <Table.Td style={{ textAlign: 'right' }}>
-                    <Text size="xs" fw={700} c="teal">
+                    <Text component="div" size="xs" fw={700} c="teal">
                       <RollingNumber value={c.masteredWords} />
                     </Text>
                   </Table.Td>
@@ -163,7 +163,7 @@ export function CategoryAnalysis({ categories, statusInfo }: CategoryAnalysisPro
                         radius="xl"
                         style={{ flex: 1 }}
                       />
-                      <Text size="11px" fw={700} style={{ minWidth: 32 }}>
+                      <Text component="div" size="11px" fw={700} style={{ minWidth: 32 }}>
                         <RollingNumber value={c.masteryRate} decimalScale={1} suffix="%" />
                       </Text>
                     </Group>
@@ -187,7 +187,7 @@ export function CategoryAnalysis({ categories, statusInfo }: CategoryAnalysisPro
                     </Badge>
                   </Table.Td>
                   <Table.Td style={{ textAlign: 'right' }}>
-                    <Text size="xs">
+                    <Text component="div" size="xs">
                       <RollingNumber value={c.reviewsCount} />
                     </Text>
                   </Table.Td>
@@ -197,7 +197,7 @@ export function CategoryAnalysis({ categories, statusInfo }: CategoryAnalysisPro
                     </Text>
                   </Table.Td>
                   <Table.Td style={{ textAlign: 'right' }}>
-                    <Text size="xs" c={c.lapses > 0 ? 'red' : 'dimmed'}>
+                    <Text component="div" size="xs" c={c.lapses > 0 ? 'red' : 'dimmed'}>
                       <RollingNumber value={c.lapses} />
                     </Text>
                   </Table.Td>

@@ -345,7 +345,13 @@ export function StudyModeSection({
               >
                 Prev
               </Button>
-              <Text size="xs" fw={700} c="dimmed" style={{ minWidth: 60, textAlign: 'center' }}>
+              <Text
+                component="div"
+                size="xs"
+                fw={700}
+                c="dimmed"
+                style={{ minWidth: 60, textAlign: 'center' }}
+              >
                 <RollingNumber value={page} /> / <RollingNumber value={totalPages} />
               </Text>
               <Button

@@ -53,6 +53,7 @@ export function ReviewStatsStrip({ reviewLogs }: ReviewStatsStripProps) {
               TOTAL REVIEWS
             </Text>
             <Text
+              component="div"
               size="xl"
               fw={800}
               style={{ fontFamily: 'var(--font-title)', fontSize: '1.6rem', lineHeight: 1.2 }}
@@ -84,6 +85,7 @@ export function ReviewStatsStrip({ reviewLogs }: ReviewStatsStripProps) {
               RECALL ACCURACY
             </Text>
             <Text
+              component="div"
               size="xl"
               fw={800}
               c={recallRate >= 90 ? 'teal' : recallRate >= 80 ? 'indigo' : 'yellow'}
@@ -134,7 +136,7 @@ export function ReviewStatsStrip({ reviewLogs }: ReviewStatsStripProps) {
                 <RollingNumber value={againCount} /> Again
               </Badge>
             </Group>
-            <Text size="xs" c="dimmed" mt={4}>
+            <Text component="div" size="xs" c="dimmed" mt={4}>
               <RollingNumber value={againCount} /> lapses recorded
             </Text>
           </div>
@@ -159,6 +161,7 @@ export function ReviewStatsStrip({ reviewLogs }: ReviewStatsStripProps) {
               AVG SPEED
             </Text>
             <Text
+              component="div"
               size="xl"
               fw={800}
               style={{ fontFamily: 'var(--font-title)', fontSize: '1.6rem', lineHeight: 1.2 }}

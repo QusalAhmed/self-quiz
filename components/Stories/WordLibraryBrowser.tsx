@@ -202,7 +202,7 @@ export function WordLibraryBrowser({
               onChange={allVisibleSelected ? handleDeselectAllVisible : handleSelectAllVisible}
               disabled={disabled || (selectedWords.length >= maxWords && !allVisibleSelected)}
               label={
-                <Text size="xs" fw={600}>
+                <Text component="div" size="xs" fw={600}>
                   {allVisibleSelected ? (
                     'Deselect All Visible'
                   ) : (
@@ -216,7 +216,7 @@ export function WordLibraryBrowser({
           </Group>
 
           <Group gap="xs">
-            <Text size="xs" c="dimmed">
+            <Text component="div" size="xs" c="dimmed">
               Showing <RollingNumber value={filteredWords.length} /> of{' '}
               <RollingNumber value={words.filter((w) => !w.isDeleted).length} /> words
             </Text>

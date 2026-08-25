@@ -85,15 +85,22 @@ export function DailyWordsAddedChart({ data, statusInfo }: DailyWordsAddedChartP
                   TOTAL ADDED
                 </Text>
                 <Text
+                  component="div"
                   size="xl"
                   fw={800}
                   c="indigo.6"
                   style={{ fontFamily: 'var(--font-title)', lineHeight: 1.2, marginTop: 4 }}
                 >
                   <RollingNumber value={totalAdded} thousandSeparator />{' '}
-                  <Text component="span" size="xs" c="dimmed" fw={500}>
+                  <span
+                    style={{
+                      fontSize: 'var(--mantine-font-size-xs)',
+                      color: 'var(--mantine-color-dimmed)',
+                      fontWeight: 500,
+                    }}
+                  >
                     {totalAdded === 1 ? 'word' : 'words'}
-                  </Text>
+                  </span>
                 </Text>
                 <Text size="xs" c="dimmed" mt={2}>
                   In selected date range
@@ -127,17 +134,24 @@ export function DailyWordsAddedChart({ data, statusInfo }: DailyWordsAddedChartP
                   </Tooltip>
                 </Group>
                 <Text
+                  component="div"
                   size="xl"
                   fw={800}
                   c="teal.6"
                   style={{ fontFamily: 'var(--font-title)', lineHeight: 1.2, marginTop: 4 }}
                 >
                   <RollingNumber value={dailyAverage} decimalScale={1} />{' '}
-                  <Text component="span" size="xs" c="dimmed" fw={500}>
+                  <span
+                    style={{
+                      fontSize: 'var(--mantine-font-size-xs)',
+                      color: 'var(--mantine-color-dimmed)',
+                      fontWeight: 500,
+                    }}
+                  >
                     / day
-                  </Text>
+                  </span>
                 </Text>
-                <Text size="xs" c="dimmed" mt={2}>
+                <Text component="div" size="xs" c="dimmed" mt={2}>
                   Across <RollingNumber value={timeSeries.length} /> calendar{' '}
                   {timeSeries.length === 1 ? 'day' : 'days'}
                 </Text>
@@ -170,7 +184,7 @@ export function DailyWordsAddedChart({ data, statusInfo }: DailyWordsAddedChartP
                 >
                   {mostProductiveDay ? mostProductiveDay.label : 'None'}
                 </Text>
-                <Text size="xs" c="dimmed" mt={2}>
+                <Text component="div" size="xs" c="dimmed" mt={2}>
                   {mostProductiveDay ? (
                     <>
                       <RollingNumber value={mostProductiveDay.count} /> words added

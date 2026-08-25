@@ -189,7 +189,13 @@ export const WordFamilySection = React.memo(function WordFamilySection({
             <ThemeIcon size="xs" variant="light" color="indigo" radius="xl">
               <IconHierarchy size={12} />
             </ThemeIcon>
-            <Text component="span" size="xs" fw={700} c="indigo">
+            <Text
+              component="div"
+              size="xs"
+              fw={700}
+              c="indigo"
+              style={{ display: 'inline-flex', alignItems: 'center' }}
+            >
               Word Family{' '}
               {validMembers.length > 0 ? (
                 <>

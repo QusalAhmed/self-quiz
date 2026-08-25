@@ -139,11 +139,16 @@ export function LearningProgressChart({
             <Text size="xs" c="dimmed" fw={600}>
               CURRENT VOCABULARY
             </Text>
-            <Text size="md" fw={800} style={{ fontFamily: 'var(--font-title)' }}>
+            <Text component="div" size="md" fw={800} style={{ fontFamily: 'var(--font-title)' }}>
               <RollingNumber value={totalWords} thousandSeparator />{' '}
-              <Text component="span" size="xs" c="dimmed">
+              <span
+                style={{
+                  fontSize: 'var(--mantine-font-size-xs)',
+                  color: 'var(--mantine-color-dimmed)',
+                }}
+              >
                 words
-              </Text>
+              </span>
             </Text>
           </Paper>
 
@@ -151,16 +156,27 @@ export function LearningProgressChart({
             <Text size="xs" c="dimmed" fw={600}>
               TOTAL MASTERED
             </Text>
-            <Text size="md" fw={800} c="teal" style={{ fontFamily: 'var(--font-title)' }}>
+            <Text
+              component="div"
+              size="md"
+              fw={800}
+              c="teal"
+              style={{ fontFamily: 'var(--font-title)' }}
+            >
               <RollingNumber value={masteredWords} thousandSeparator />{' '}
-              <Text component="span" size="xs" c="dimmed">
+              <span
+                style={{
+                  fontSize: 'var(--mantine-font-size-xs)',
+                  color: 'var(--mantine-color-dimmed)',
+                }}
+              >
                 (
                 <RollingNumber
                   value={totalWords > 0 ? Math.round((masteredWords / totalWords) * 100) : 0}
                   suffix="%"
                 />
                 )
-              </Text>
+              </span>
             </Text>
           </Paper>
 
@@ -168,14 +184,25 @@ export function LearningProgressChart({
             <Text size="xs" c="dimmed" fw={600}>
               AVG MASTERED / WEEK
             </Text>
-            <Text size="md" fw={800} c="indigo" style={{ fontFamily: 'var(--font-title)' }}>
+            <Text
+              component="div"
+              size="md"
+              fw={800}
+              c="indigo"
+              style={{ fontFamily: 'var(--font-title)' }}
+            >
               <RollingNumber
                 value={vocabularyGrowth?.wordsMasteredPerWeekAvg || 0}
                 decimalScale={1}
               />{' '}
-              <Text component="span" size="xs" c="dimmed">
+              <span
+                style={{
+                  fontSize: 'var(--mantine-font-size-xs)',
+                  color: 'var(--mantine-color-dimmed)',
+                }}
+              >
                 / wk
-              </Text>
+              </span>
             </Text>
           </Paper>
 
@@ -183,16 +210,27 @@ export function LearningProgressChart({
             <Text size="xs" c="dimmed" fw={600}>
               GROWTH VELOCITY
             </Text>
-            <Text size="md" fw={800} c="violet" style={{ fontFamily: 'var(--font-title)' }}>
+            <Text
+              component="div"
+              size="md"
+              fw={800}
+              c="violet"
+              style={{ fontFamily: 'var(--font-title)' }}
+            >
               <RollingNumber
                 value={vocabularyGrowth?.growthRatePercent || 0}
                 prefix="+"
                 decimalScale={1}
                 suffix="%"
               />{' '}
-              <Text component="span" size="xs" c="dimmed">
+              <span
+                style={{
+                  fontSize: 'var(--mantine-font-size-xs)',
+                  color: 'var(--mantine-color-dimmed)',
+                }}
+              >
                 rate
-              </Text>
+              </span>
             </Text>
           </Paper>
         </SimpleGrid>

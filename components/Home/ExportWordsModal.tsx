@@ -398,7 +398,7 @@ export function ExportWordsModal({
             <Text size="xs" fw={700} c="dimmed" style={{ letterSpacing: '0.04em' }}>
               PREVIEW
             </Text>
-            <Text component="span" size="xs" c="dimmed">
+            <Text component="div" size="xs" c="dimmed">
               <RollingNumber value={normalizedItems.length} /> word
               {normalizedItems.length === 1 ? '' : 's'} ready
             </Text>

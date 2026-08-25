@@ -146,11 +146,22 @@ export function AnalysisHeader({
                   <Text size="xs" c="dimmed" fw={600}>
                     VOCABULARY
                   </Text>
-                  <Text size="sm" fw={800} style={{ fontFamily: 'var(--font-title)' }}>
+                  <Text
+                    component="div"
+                    size="sm"
+                    fw={800}
+                    style={{ fontFamily: 'var(--font-title)' }}
+                  >
                     <RollingNumber value={totalWords} thousandSeparator />{' '}
-                    <Text component="span" size="xs" c="dimmed" fw={500}>
+                    <span
+                      style={{
+                        fontSize: 'var(--mantine-font-size-xs)',
+                        color: 'var(--mantine-color-dimmed)',
+                        fontWeight: 500,
+                      }}
+                    >
                       words
-                    </Text>
+                    </span>
                   </Text>
                 </div>
                 <div style={{ width: 1, height: 24, background: 'var(--card-border)' }} />
@@ -158,16 +169,28 @@ export function AnalysisHeader({
                   <Text size="xs" c="dimmed" fw={600}>
                     MASTERED
                   </Text>
-                  <Text size="sm" fw={800} c="teal.6" style={{ fontFamily: 'var(--font-title)' }}>
+                  <Text
+                    component="div"
+                    size="sm"
+                    fw={800}
+                    c="teal.6"
+                    style={{ fontFamily: 'var(--font-title)' }}
+                  >
                     <RollingNumber value={totalMastered} thousandSeparator />{' '}
-                    <Text component="span" size="xs" c="dimmed" fw={500}>
+                    <span
+                      style={{
+                        fontSize: 'var(--mantine-font-size-xs)',
+                        color: 'var(--mantine-color-dimmed)',
+                        fontWeight: 500,
+                      }}
+                    >
                       (
                       <RollingNumber
                         value={totalWords > 0 ? Math.round((totalMastered / totalWords) * 100) : 0}
                         suffix="%"
                       />
                       )
-                    </Text>
+                    </span>
                   </Text>
                 </div>
               </Group>

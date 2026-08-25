@@ -132,11 +132,16 @@ export function StudyActivityHeatmap({ activity, statusInfo }: StudyActivityHeat
             <Text size="xs" c="dimmed" fw={600}>
               ACTIVE DAYS
             </Text>
-            <Text size="md" fw={800} style={{ fontFamily: 'var(--font-title)' }}>
+            <Text component="div" size="md" fw={800} style={{ fontFamily: 'var(--font-title)' }}>
               <RollingNumber value={daysStudied} />{' '}
-              <Text component="span" size="xs" c="dimmed">
+              <span
+                style={{
+                  fontSize: 'var(--mantine-font-size-xs)',
+                  color: 'var(--mantine-color-dimmed)',
+                }}
+              >
                 / <RollingNumber value={totalCalendarDays} suffix="d" />
-              </Text>
+              </span>
             </Text>
           </Paper>
 
@@ -148,7 +153,13 @@ export function StudyActivityHeatmap({ activity, statusInfo }: StudyActivityHeat
             <Text size="xs" c="dimmed" fw={600}>
               LONGEST STREAK
             </Text>
-            <Text size="md" fw={800} c="orange.6" style={{ fontFamily: 'var(--font-title)' }}>
+            <Text
+              component="div"
+              size="md"
+              fw={800}
+              c="orange.6"
+              style={{ fontFamily: 'var(--font-title)' }}
+            >
               <RollingNumber value={longestStreak} suffix=" days" />
             </Text>
           </Paper>
@@ -174,7 +185,7 @@ export function StudyActivityHeatmap({ activity, statusInfo }: StudyActivityHeat
             <Text size="xs" c="dimmed" fw={600}>
               AVG REVIEWS / DAY
             </Text>
-            <Text size="md" fw={800} style={{ fontFamily: 'var(--font-title)' }}>
+            <Text component="div" size="md" fw={800} style={{ fontFamily: 'var(--font-title)' }}>
               <RollingNumber value={avgReviewsOnActiveDays} decimalScale={1} />
             </Text>
           </Paper>
@@ -275,15 +286,15 @@ export function StudyActivityHeatmap({ activity, statusInfo }: StudyActivityHeat
             {/* Heatmap Legend */}
             <Group justify="space-between" align="center" mt="md">
               <Group gap="xs">
-                <Text size="xs" c="dimmed" style={{ fontSize: '0.72rem' }}>
+                <Text component="div" size="xs" c="dimmed" style={{ fontSize: '0.72rem' }}>
                   Weekday:{' '}
-                  <Text component="span" fw={700}>
+                  <strong style={{ color: 'var(--mantine-color-text)', fontWeight: 700 }}>
                     <RollingNumber value={weekdayReviews} />
-                  </Text>{' '}
+                  </strong>{' '}
                   reviews • Weekend:{' '}
-                  <Text component="span" fw={700}>
+                  <strong style={{ color: 'var(--mantine-color-text)', fontWeight: 700 }}>
                     <RollingNumber value={weekendReviews} />
-                  </Text>{' '}
+                  </strong>{' '}
                   reviews
                 </Text>
               </Group>

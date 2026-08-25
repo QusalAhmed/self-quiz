@@ -35,7 +35,12 @@ export function StatsDashboard({
             <Text size="xs" fw={700} c="dimmed" style={{ letterSpacing: '0.05em' }}>
               TOTAL WORDS
             </Text>
-            <Text size="xl" fw={800} style={{ fontFamily: 'var(--font-title)', marginTop: '4px' }}>
+            <Text
+              component="div"
+              size="xl"
+              fw={800}
+              style={{ fontFamily: 'var(--font-title)', marginTop: '4px' }}
+            >
               <RollingNumber value={totalWords} thousandSeparator />
             </Text>
           </div>
@@ -55,7 +60,12 @@ export function StatsDashboard({
             <Text size="xs" fw={700} c="dimmed" style={{ letterSpacing: '0.05em' }}>
               ADDED TODAY
             </Text>
-            <Text size="xl" fw={800} style={{ fontFamily: 'var(--font-title)', marginTop: '4px' }}>
+            <Text
+              component="div"
+              size="xl"
+              fw={800}
+              style={{ fontFamily: 'var(--font-title)', marginTop: '4px' }}
+            >
               <RollingNumber value={todayCount} thousandSeparator />
             </Text>
           </div>
@@ -77,6 +87,7 @@ export function StatsDashboard({
             </Text>
             <Group gap="xs" align="baseline">
               <Text
+                component="div"
                 size="xl"
                 fw={800}
                 c={fsrsDueTodayCount > 0 ? 'pink.6' : undefined}

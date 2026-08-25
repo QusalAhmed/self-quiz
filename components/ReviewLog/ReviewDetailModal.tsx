@@ -184,7 +184,7 @@ export function ReviewDetailModal({
             <Text size="xs" c="dimmed" fw={600}>
               RESPONSE TIME
             </Text>
-            <Text size="sm" fw={700} mt={2}>
+            <Text component="div" size="sm" fw={700} mt={2}>
               {durationMs > 0 ? (
                 <RollingNumber
                   value={Number((durationMs / 1000).toFixed(1))}
@@ -233,7 +233,7 @@ export function ReviewDetailModal({
                   <IconHelpCircle size={12} style={{ opacity: 0.6 }} />
                 </Tooltip>
               </Group>
-              <Text size="lg" fw={800} c="indigo">
+              <Text component="div" size="lg" fw={800} c="indigo">
                 <RollingNumber value={stability} decimalScale={1} />{' '}
                 <Text component="span" size="xs" c="dimmed">
                   days
@@ -254,6 +254,7 @@ export function ReviewDetailModal({
                 </Tooltip>
               </Group>
               <Text
+                component="div"
                 size="lg"
                 fw={800}
                 c={difficulty >= 7 ? 'red' : difficulty >= 5 ? 'yellow' : 'teal'}
@@ -277,7 +278,7 @@ export function ReviewDetailModal({
                   <IconHelpCircle size={12} style={{ opacity: 0.6 }} />
                 </Tooltip>
               </Group>
-              <Text size="lg" fw={800} c="teal">
+              <Text component="div" size="lg" fw={800} c="teal">
                 <RollingNumber value={Math.round((retrievability ?? 1) * 100)} suffix="%" />
               </Text>
             </div>
@@ -291,7 +292,7 @@ export function ReviewDetailModal({
                   <IconHelpCircle size={12} style={{ opacity: 0.6 }} />
                 </Tooltip>
               </Group>
-              <Text size="lg" fw={800}>
+              <Text component="div" size="lg" fw={800}>
                 {scheduledDays > 0 ? <RollingNumber value={scheduledDays} suffix="d" /> : '<1d'}
               </Text>
             </div>
@@ -304,7 +305,7 @@ export function ReviewDetailModal({
               <Text size="xs" c="dimmed">
                 Total Reps
               </Text>
-              <Text size="sm" fw={600}>
+              <Text component="div" size="sm" fw={600}>
                 <RollingNumber value={reps} /> completed
               </Text>
             </div>
@@ -313,7 +314,7 @@ export function ReviewDetailModal({
               <Text size="xs" c="dimmed">
                 Memory Lapses
               </Text>
-              <Text size="sm" fw={600} c={lapses > 0 ? 'red' : 'dimmed'}>
+              <Text component="div" size="sm" fw={600} c={lapses > 0 ? 'red' : 'dimmed'}>
                 <RollingNumber value={lapses} /> {lapses === 1 ? 'lapse' : 'lapses'}
               </Text>
             </div>
@@ -322,7 +323,7 @@ export function ReviewDetailModal({
               <Text size="xs" c="dimmed">
                 Elapsed Days
               </Text>
-              <Text size="sm" fw={600}>
+              <Text component="div" size="sm" fw={600}>
                 <RollingNumber value={elapsedDays} /> days since last review
               </Text>
             </div>

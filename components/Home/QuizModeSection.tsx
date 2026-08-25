@@ -392,7 +392,7 @@ export function QuizModeSection({
               )}
 
               <Group justify="space-between" align="center" mt="xs" gap="sm" wrap="wrap">
-                <Text size="xs" c="dimmed">
+                <Text component="div" size="xs" c="dimmed">
                   <RollingNumber value={quizCandidatesCount} /> word
                   {quizCandidatesCount !== 1 ? 's' : ''} in this selection
                 </Text>

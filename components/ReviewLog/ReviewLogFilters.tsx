@@ -296,11 +296,11 @@ export function ReviewLogFilters({
               pt="xs"
               style={{ borderTop: '1px solid var(--card-border)' }}
             >
-              <Text size="xs" c="dimmed">
+              <Text component="div" size="xs" c="dimmed">
                 Showing{' '}
-                <Text component="span" fw={700} c="indigo">
+                <strong style={{ color: 'var(--mantine-color-indigo-6)' }}>
                   <RollingNumber value={filteredLogsCount} />
-                </Text>{' '}
+                </strong>{' '}
                 of <RollingNumber value={totalLogsCount} /> total reviews
               </Text>
 

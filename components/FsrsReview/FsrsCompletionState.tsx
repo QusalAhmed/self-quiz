@@ -88,7 +88,13 @@ export function FsrsCompletionState({
             }}
           >
             <Stack gap={2} align="center">
-              <Text size="2rem" fw={900} c="grape.4" style={{ fontFamily: 'var(--font-title)' }}>
+              <Text
+                component="div"
+                size="2rem"
+                fw={900}
+                c="grape.4"
+                style={{ fontFamily: 'var(--font-title)' }}
+              >
                 <RollingNumber value={reviewedCount} />
               </Text>
               <Text size="xs" c="dimmed" fw={700}>
@@ -109,7 +115,13 @@ export function FsrsCompletionState({
             <Stack gap={2} align="center">
               <Group gap={4} align="center">
                 <IconCheck size={20} color="#10b981" />
-                <Text size="2rem" fw={900} c="teal.4" style={{ fontFamily: 'var(--font-title)' }}>
+                <Text
+                  component="div"
+                  size="2rem"
+                  fw={900}
+                  c="teal.4"
+                  style={{ fontFamily: 'var(--font-title)' }}
+                >
                   <RollingNumber value={0} />
                 </Text>
               </Group>

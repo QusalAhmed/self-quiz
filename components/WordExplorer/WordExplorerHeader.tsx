@@ -303,7 +303,7 @@ export const WordExplorerHeader = React.memo(function WordExplorerHeader({
                   <RollingNumber value={totalCount} thousandSeparator />
                 </Badge>
               </Group>
-              <Text size="lg" fw={800} mt={2}>
+              <Text component="div" size="lg" fw={800} mt={2}>
                 <RollingNumber value={totalCount} thousandSeparator />
               </Text>
             </Paper>
@@ -324,7 +324,7 @@ export const WordExplorerHeader = React.memo(function WordExplorerHeader({
                   <RollingNumber value={masteredCount} thousandSeparator />
                 </Badge>
               </Group>
-              <Text size="lg" fw={800} c="teal" mt={2}>
+              <Text component="div" size="lg" fw={800} c="teal" mt={2}>
                 <RollingNumber value={masteredCount} thousandSeparator />
               </Text>
             </Paper>
@@ -345,7 +345,7 @@ export const WordExplorerHeader = React.memo(function WordExplorerHeader({
                   <RollingNumber value={learningCount} thousandSeparator />
                 </Badge>
               </Group>
-              <Text size="lg" fw={800} c="orange" mt={2}>
+              <Text component="div" size="lg" fw={800} c="orange" mt={2}>
                 <RollingNumber value={learningCount} thousandSeparator />
               </Text>
             </Paper>
@@ -366,7 +366,7 @@ export const WordExplorerHeader = React.memo(function WordExplorerHeader({
                   <RollingNumber value={dueTodayCount} thousandSeparator />
                 </Badge>
               </Group>
-              <Text size="lg" fw={800} c="violet" mt={2}>
+              <Text component="div" size="lg" fw={800} c="violet" mt={2}>
                 <RollingNumber value={dueTodayCount} thousandSeparator />
               </Text>
             </Paper>
@@ -387,7 +387,7 @@ export const WordExplorerHeader = React.memo(function WordExplorerHeader({
                   <RollingNumber value={withNotesCount} thousandSeparator />
                 </Badge>
               </Group>
-              <Text size="lg" fw={800} c="pink" mt={2}>
+              <Text component="div" size="lg" fw={800} c="pink" mt={2}>
                 <RollingNumber value={withNotesCount} thousandSeparator />
               </Text>
             </Paper>

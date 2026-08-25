@@ -386,22 +386,22 @@ export function RootStatsSection(props: RootStatsSectionProps) {
   // Quiz navigation triggers
   const handleOpenAllWordsQuiz = useCallback(() => {
     dispatch(openAllWordsQuiz());
-    if (pathname !== '/') {
-      router.push('/');
+    if (pathname !== '/quiz') {
+      router.push('/quiz');
     }
   }, [dispatch, pathname, router]);
 
   const handleOpenTodayQuiz = useCallback(() => {
     dispatch(openTodayQuiz());
-    if (pathname !== '/') {
-      router.push('/');
+    if (pathname !== '/quiz') {
+      router.push('/quiz');
     }
   }, [dispatch, pathname, router]);
 
   const handleOpenFsrsQuiz = useCallback(() => {
     dispatch(openFsrsQuiz());
-    if (pathname !== '/') {
-      router.push('/');
+    if (pathname !== '/quiz') {
+      router.push('/quiz');
     }
   }, [dispatch, pathname, router]);
 

@@ -37,12 +37,14 @@ export function FsrsCounterBadge({ newCount, learningCount, reviewCount }: FsrsC
           />
         }
       >
-        <Text span size="xs" fw={800} c="blue.4">
-          <RollingNumber value={newCount} />
-        </Text>{' '}
-        <Text span size="xs" style={{ opacity: 0.75 }}>
-          New
-        </Text>
+        <Group gap={4} wrap="nowrap" style={{ display: 'inline-flex' }}>
+          <Text component="div" size="xs" fw={800} c="blue.4">
+            <RollingNumber value={newCount} />
+          </Text>
+          <Text component="div" size="xs" style={{ opacity: 0.75 }}>
+            New
+          </Text>
+        </Group>
       </Badge>
 
       {/* Anki Orange Pill for Learning Step Cards */}
@@ -70,12 +72,14 @@ export function FsrsCounterBadge({ newCount, learningCount, reviewCount }: FsrsC
           />
         }
       >
-        <Text span size="xs" fw={800} c="orange.4">
-          <RollingNumber value={learningCount} />
-        </Text>{' '}
-        <Text span size="xs" style={{ opacity: 0.75 }}>
-          Learn
-        </Text>
+        <Group gap={4} wrap="nowrap" style={{ display: 'inline-flex' }}>
+          <Text component="div" size="xs" fw={800} c="orange.4">
+            <RollingNumber value={learningCount} />
+          </Text>
+          <Text component="div" size="xs" style={{ opacity: 0.75 }}>
+            Learn
+          </Text>
+        </Group>
       </Badge>
 
       {/* Anki Green Pill for Review Cards */}
@@ -103,12 +107,14 @@ export function FsrsCounterBadge({ newCount, learningCount, reviewCount }: FsrsC
           />
         }
       >
-        <Text span size="xs" fw={800} c="teal.4">
-          <RollingNumber value={reviewCount} />
-        </Text>{' '}
-        <Text span size="xs" style={{ opacity: 0.75 }}>
-          Review
-        </Text>
+        <Group gap={4} wrap="nowrap" style={{ display: 'inline-flex' }}>
+          <Text component="div" size="xs" fw={800} c="teal.4">
+            <RollingNumber value={reviewCount} />
+          </Text>
+          <Text component="div" size="xs" style={{ opacity: 0.75 }}>
+            Review
+          </Text>
+        </Group>
       </Badge>
     </Group>
   );

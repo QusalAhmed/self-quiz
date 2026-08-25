@@ -212,7 +212,7 @@ export function WordTimeAnalysis({
             style={{ width: 260 }}
           />
 
-          <Text size="xs" c="dimmed">
+          <Text component="div" size="xs" c="dimmed">
             Showing <RollingNumber value={pagedWords.length} /> of{' '}
             <RollingNumber value={filteredWords.length} /> words
           </Text>
@@ -365,7 +365,7 @@ export function WordTimeAnalysis({
                       </Text>
                     </Table.Td>
                     <Table.Td style={{ textAlign: 'right' }}>
-                      <Text size="xs" fw={700}>
+                      <Text component="div" size="xs" fw={700}>
                         <RollingNumber value={item.reviewsCount} />
                       </Text>
                     </Table.Td>
@@ -375,12 +375,13 @@ export function WordTimeAnalysis({
                       </Text>
                     </Table.Td>
                     <Table.Td style={{ textAlign: 'right' }}>
-                      <Text size="xs" c="dimmed">
+                      <Text component="div" size="xs" c="dimmed">
                         <RollingNumber value={item.avgDurationSec} decimalScale={1} suffix="s" />
                       </Text>
                     </Table.Td>
                     <Table.Td style={{ textAlign: 'right' }}>
                       <Text
+                        component="div"
                         size="xs"
                         c={item.lapses > 0 ? 'red' : 'dimmed'}
                         fw={item.lapses > 0 ? 700 : 400}
@@ -400,7 +401,7 @@ export function WordTimeAnalysis({
                       </Badge>
                     </Table.Td>
                     <Table.Td style={{ textAlign: 'right' }}>
-                      <Text size="xs" fw={600}>
+                      <Text component="div" size="xs" fw={600}>
                         <RollingNumber value={item.stability} decimalScale={1} suffix="d" />
                       </Text>
                     </Table.Td>

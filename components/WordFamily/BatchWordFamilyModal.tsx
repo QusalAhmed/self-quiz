@@ -242,7 +242,7 @@ export function BatchWordFamilyModal({
                 <Text size="sm" fw={700}>
                   {isRunning ? 'Generation in Progress...' : 'Batch Generation Finished'}
                 </Text>
-                <Text size="xs" fw={700} c="indigo">
+                <Text component="div" size="xs" fw={700} c="indigo">
                   <RollingNumber value={progressIndex} /> /{' '}
                   <RollingNumber value={totalTargetCount} /> (
                   <RollingNumber value={percentage} suffix="%" />)

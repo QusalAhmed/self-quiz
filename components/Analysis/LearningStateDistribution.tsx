@@ -65,7 +65,7 @@ export function LearningStateDistribution({
               </Title>
               <SectionStatusBadge statusInfo={statusInfo} />
             </Group>
-            <Text size="xs" c="dimmed">
+            <Text component="div" size="xs" c="dimmed">
               Current breakdown of your <RollingNumber value={totalWords} thousandSeparator />{' '}
               vocabulary words across FSRS spaced repetition states.
             </Text>
@@ -162,7 +162,12 @@ export function LearningStateDistribution({
                     </Badge>
                   </Group>
 
-                  <Text size="xl" fw={800} style={{ fontFamily: 'var(--font-title)' }}>
+                  <Text
+                    component="div"
+                    size="xl"
+                    fw={800}
+                    style={{ fontFamily: 'var(--font-title)' }}
+                  >
                     <RollingNumber value={s.count} thousandSeparator />
                   </Text>
 

@@ -23,7 +23,6 @@ import {
   IconCards,
   IconChartBar,
   IconCloudUpload,
-  IconHistory,
   IconMenu2,
   IconMoon,
   IconPlus,
@@ -35,6 +34,7 @@ import {
   IconVolume,
   IconVolumeOff,
 } from '@tabler/icons-react';
+import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { NotificationBellButton } from '@/components/NotificationSettings';
@@ -57,7 +57,7 @@ export type AppSidebarProps = {
 };
 
 export function AppSidebar({
-  mode,
+  mode: _mode,
   onSetMode,
   onOpenAllWordsQuiz,
   onOpenTodayQuiz,
@@ -156,6 +156,8 @@ export function AppSidebar({
   }, []);
   const router = useRouter();
   const pathname = usePathname();
+  const isHomePage = pathname === '/';
+  const isQuizPage = pathname === '/quiz' || pathname.startsWith('/quiz');
   const isWordsPage = pathname === '/words';
   const isStoriesPage = pathname === '/stories';
   const isAnalysisPage = pathname === '/analysis';
@@ -168,7 +170,14 @@ export function AppSidebar({
   };
 
   const scrollToSection = (id: string) => {
-    if (isWordsPage || isStoriesPage || isAnalysisPage || isReviewLogPage || isSettingsPage) {
+    if (
+      isQuizPage ||
+      isWordsPage ||
+      isStoriesPage ||
+      isAnalysisPage ||
+      isReviewLogPage ||
+      isSettingsPage
+    ) {
       router.push(`/#${id}`);
       return;
     }
@@ -183,36 +192,37 @@ export function AppSidebar({
       <Stack justify="space-between" style={{ minHeight: '100%', padding: '16px 12px 36px 12px' }}>
         {/* Top Branding Section */}
         <Stack gap="sm">
-          <Group
-            justify="flex-start"
-            align="center"
-            style={{ cursor: 'pointer' }}
-            onClick={() => handleLinkClick(() => router.push('/'))}
+          <Link
+            href="/"
+            style={{ cursor: 'pointer', textDecoration: 'none', color: 'inherit' }}
+            onClick={() => setMobileOpened(false)}
           >
-            <Box
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 10,
-                background: 'var(--accent-gradient)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#fff',
-                boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)',
-              }}
-            >
-              <IconBrain size={22} />
-            </Box>
-            <Stack gap={0}>
-              <Title order={4} style={{ fontSize: '1.02rem', lineHeight: 1.2 }}>
-                <span className="text-gradient">Word Memorizer</span>
-              </Title>
-              <Text size="xs" c="dimmed" style={{ fontSize: '0.7rem' }}>
-                Vocabulary Companion
-              </Text>
-            </Stack>
-          </Group>
+            <Group justify="flex-start" align="center">
+              <Box
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  background: 'var(--accent-gradient)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#fff',
+                  boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)',
+                }}
+              >
+                <IconBrain size={22} />
+              </Box>
+              <Stack gap={0}>
+                <Title order={4} style={{ fontSize: '1.02rem', lineHeight: 1.2 }}>
+                  <span className="text-gradient">Word Memorizer</span>
+                </Title>
+                <Text size="xs" c="dimmed" style={{ fontSize: '0.7rem' }}>
+                  Vocabulary Companion
+                </Text>
+              </Stack>
+            </Group>
+          </Link>
 
           <Divider my="xs" style={{ borderColor: 'var(--card-border)' }} />
 
@@ -223,6 +233,8 @@ export function AppSidebar({
             </Text>
 
             <NavLink
+              component={Link}
+              href="/words"
               label="Dictionary Explorer"
               description="Virtual list & full details"
               leftSection={<IconBook size={18} />}
@@ -232,83 +244,72 @@ export function AppSidebar({
                 </Badge>
               }
               active={isWordsPage}
-              onClick={() => handleLinkClick(() => router.push('/words'))}
+              onClick={() => setMobileOpened(false)}
               style={{ borderRadius: 8 }}
             />
 
             <NavLink
+              component={Link}
+              href="/stories"
               label="AI Story Mode"
               description="Contextual reader & Cloze"
               leftSection={<IconSparkles size={18} />}
               active={isStoriesPage}
-              onClick={() => handleLinkClick(() => router.push('/stories'))}
+              onClick={() => setMobileOpened(false)}
               style={{ borderRadius: 8 }}
             />
 
             <NavLink
+              component={Link}
+              href="/analysis"
               label="Learning Analysis"
               description="FSRS retention & memory health"
               leftSection={<IconChartBar size={18} />}
               active={isAnalysisPage}
-              onClick={() => handleLinkClick(() => router.push('/analysis'))}
+              onClick={() => setMobileOpened(false)}
               style={{ borderRadius: 8 }}
             />
 
             <NavLink
-              label="Review Log"
-              description="Historical audit & inspect"
-              leftSection={<IconHistory size={18} />}
-              active={isReviewLogPage}
-              onClick={() =>
-                handleLinkClick(() => {
-                  if (isAnalysisPage) {
-                    const el = document.getElementById('review-log');
-                    if (el) {
-                      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }
-                  } else {
-                    router.push('/analysis#review-log');
-                  }
-                })
-              }
-              style={{ borderRadius: 8 }}
-            />
-
-            <NavLink
+              component={Link}
+              href="/"
               label="Study & Practice"
               description="Manage & add words"
               leftSection={<IconCards size={18} />}
-              active={!isWordsPage && !isStoriesPage && !isAnalysisPage && mode === 'study'}
+              active={isHomePage}
               onClick={() =>
                 handleLinkClick(() => {
-                  if (isWordsPage || isStoriesPage || isAnalysisPage) {
-                    router.push('/');
-                  } else {
-                    onSetMode('study');
-                  }
+                  onSetMode('study');
                 })
               }
               style={{ borderRadius: 8 }}
             />
 
             <NavLink
+              component={Link}
+              href="/quiz"
               label="Quiz & Flashcards"
               description="Interactive review session"
               leftSection={<IconBrain size={18} />}
-              active={!isWordsPage && !isStoriesPage && !isAnalysisPage && mode === 'quiz'}
+              active={isQuizPage}
               childrenOffset={24}
               defaultOpened
               style={{ borderRadius: 8 }}
+              onClick={() =>
+                handleLinkClick(() => {
+                  onSetMode('quiz');
+                })
+              }
             >
               <NavLink
                 label="All Words Quiz"
                 leftSection={<IconCards size={16} />}
                 onClick={() =>
                   handleLinkClick(() => {
-                    if (isWordsPage || isStoriesPage || isAnalysisPage) {
-                      router.push('/');
-                    }
                     onOpenAllWordsQuiz();
+                    if (pathname !== '/quiz') {
+                      router.push('/quiz');
+                    }
                   })
                 }
                 style={{ borderRadius: 6 }}
@@ -325,10 +326,10 @@ export function AppSidebar({
                 }
                 onClick={() =>
                   handleLinkClick(() => {
-                    if (isWordsPage || isAnalysisPage) {
-                      router.push('/');
-                    }
                     onOpenTodayQuiz();
+                    if (pathname !== '/quiz') {
+                      router.push('/quiz');
+                    }
                   })
                 }
                 style={{ borderRadius: 6 }}
@@ -345,10 +346,10 @@ export function AppSidebar({
                 }
                 onClick={() =>
                   handleLinkClick(() => {
-                    if (isWordsPage || isAnalysisPage) {
-                      router.push('/');
-                    }
                     onOpenFsrsQuiz();
+                    if (pathname !== '/quiz') {
+                      router.push('/quiz');
+                    }
                   })
                 }
                 style={{ borderRadius: 6 }}
@@ -367,11 +368,13 @@ export function AppSidebar({
             </Text>
 
             <NavLink
+              component={Link}
+              href="/settings"
               label="Settings & Config"
               description="AI, audio, FSRS & data"
               leftSection={<IconSettings size={18} />}
               active={isSettingsPage}
-              onClick={() => handleLinkClick(() => router.push('/settings'))}
+              onClick={() => setMobileOpened(false)}
               style={{ borderRadius: 8 }}
             />
 
@@ -379,20 +382,6 @@ export function AppSidebar({
               label="Group Manager"
               leftSection={<IconTags size={18} />}
               onClick={() => handleLinkClick(onOpenGroupManager)}
-              style={{ borderRadius: 8 }}
-            />
-
-            <NavLink
-              label="Dashboard & Stats"
-              leftSection={<IconChartBar size={18} />}
-              onClick={() => handleLinkClick(() => router.push('/analysis'))}
-              style={{ borderRadius: 8 }}
-            />
-
-            <NavLink
-              label="Cloud Sync"
-              leftSection={<IconCloudUpload size={18} />}
-              onClick={() => handleLinkClick(() => scrollToSection('cloud-sync-card'))}
               style={{ borderRadius: 8 }}
             />
           </Stack>
@@ -410,19 +399,21 @@ export function AppSidebar({
             }}
           >
             <Group justify="space-between" align="center">
-              <Stack
-                gap={0}
-                style={{ cursor: 'pointer' }}
-                onClick={() => handleLinkClick(() => router.push('/settings'))}
+              <Link
+                href="/settings"
+                style={{ cursor: 'pointer', textDecoration: 'none', color: 'inherit' }}
+                onClick={() => setMobileOpened(false)}
               >
-                <Text size="xs" fw={700}>
-                  Settings
-                </Text>
-                <Text size="xs" c="dimmed" style={{ fontSize: '0.7rem' }}>
-                  {colorScheme === 'dark' ? 'Dark' : 'Light'} •{' '}
-                  {soundEnabled ? 'Sound ON' : 'Muted'}
-                </Text>
-              </Stack>
+                <Stack gap={0}>
+                  <Text size="xs" fw={700}>
+                    Settings
+                  </Text>
+                  <Text size="xs" c="dimmed" style={{ fontSize: '0.7rem' }}>
+                    {colorScheme === 'dark' ? 'Dark' : 'Light'} •{' '}
+                    {soundEnabled ? 'Sound ON' : 'Muted'}
+                  </Text>
+                </Stack>
+              </Link>
 
               <Group gap={6} align="center">
                 <NotificationBellButton size="md" variant="subtle" />

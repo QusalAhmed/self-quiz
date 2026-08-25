@@ -83,6 +83,7 @@ export function StudyEfficiency({ efficiency, statusInfo }: StudyEfficiencyProps
                 <IconBolt size={18} style={{ color: '#6366f1', opacity: 0.6 }} />
               </Group>
               <Text
+                component="div"
                 size="xl"
                 fw={800}
                 style={{ fontFamily: 'var(--font-title)', color: '#6366f1' }}
@@ -112,6 +113,7 @@ export function StudyEfficiency({ efficiency, statusInfo }: StudyEfficiencyProps
                 <IconClock size={18} style={{ color: '#06b6d4', opacity: 0.6 }} />
               </Group>
               <Text
+                component="div"
                 size="xl"
                 fw={800}
                 style={{ fontFamily: 'var(--font-title)', color: '#06b6d4' }}
@@ -141,6 +143,7 @@ export function StudyEfficiency({ efficiency, statusInfo }: StudyEfficiencyProps
                 <IconCheck size={18} style={{ color: '#10b981', opacity: 0.6 }} />
               </Group>
               <Text
+                component="div"
                 size="xl"
                 fw={800}
                 style={{ fontFamily: 'var(--font-title)', color: '#10b981' }}
@@ -170,6 +173,7 @@ export function StudyEfficiency({ efficiency, statusInfo }: StudyEfficiencyProps
                 <IconTrophy size={18} style={{ color: '#10b981', opacity: 0.6 }} />
               </Group>
               <Text
+                component="div"
                 size="xl"
                 fw={800}
                 style={{ fontFamily: 'var(--font-title)', color: '#10b981' }}
@@ -203,6 +207,7 @@ export function StudyEfficiency({ efficiency, statusInfo }: StudyEfficiencyProps
                 <IconClock size={18} style={{ color: '#f59e0b', opacity: 0.6 }} />
               </Group>
               <Text
+                component="div"
                 size="xl"
                 fw={800}
                 style={{ fontFamily: 'var(--font-title)', color: '#f59e0b' }}
@@ -236,6 +241,7 @@ export function StudyEfficiency({ efficiency, statusInfo }: StudyEfficiencyProps
                 <IconSparkles size={18} style={{ color: '#ec4899', opacity: 0.6 }} />
               </Group>
               <Text
+                component="div"
                 size="xl"
                 fw={800}
                 style={{ fontFamily: 'var(--font-title)', color: '#ec4899' }}

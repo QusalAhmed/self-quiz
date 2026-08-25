@@ -54,7 +54,13 @@ export function DefinitionEditorCard({
     <Card withBorder radius="md" padding="sm" style={{ background: 'rgba(99, 102, 241, 0.03)' }}>
       <Stack gap={8}>
         <Group justify="space-between" align="center" gap="xs" wrap="nowrap">
-          <Text size="sm" fw={700} c="indigo" style={{ lineHeight: 1.4 }}>
+          <Text
+            component="div"
+            size="sm"
+            fw={700}
+            c="indigo"
+            style={{ lineHeight: 1.4, display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+          >
             Definition <RollingNumber value={index + 1} />
           </Text>
           <Tooltip label="Remove definition" withArrow>

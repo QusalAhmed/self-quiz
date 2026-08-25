@@ -31,11 +31,11 @@ export function ClearMissedWordsModal({
       overlayProps={{ backgroundOpacity: 0.45, blur: 4 }}
     >
       <Stack gap="lg">
-        <Text size="sm" c="dimmed" style={{ lineHeight: 1.6 }}>
+        <Text component="div" size="sm" c="dimmed" style={{ lineHeight: 1.6 }}>
           This will permanently remove{' '}
-          <Text component="span" fw={700} c="red">
+          <strong style={{ color: 'var(--mantine-color-red-6)' }}>
             <RollingNumber value={count} /> missed word{count !== 1 ? 's' : ''}
-          </Text>{' '}
+          </strong>{' '}
           from the <strong>{quizDirectionLabel}</strong> mode list. This action cannot be undone.
         </Text>
         <Group justify="flex-end" gap="sm">

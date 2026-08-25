@@ -274,14 +274,14 @@ export function ReviewLogTable({ logs, onInspectLog, onSelectWord }: ReviewLogTa
                     {/* Interval & Stability */}
                     <Table.Td style={{ whiteSpace: 'nowrap' }}>
                       <Group gap="xs">
-                        <Text size="xs" fw={700} c="indigo">
+                        <Text component="div" size="xs" fw={700} c="indigo">
                           {log.scheduledDays > 0 ? (
                             <RollingNumber value={log.scheduledDays} suffix="d" />
                           ) : (
                             '<1d'
                           )}
                         </Text>
-                        <Text size="xs" c="dimmed">
+                        <Text component="div" size="xs" c="dimmed">
                           (S: <RollingNumber value={log.stability} decimalScale={1} suffix="d" />)
                         </Text>
                       </Group>
@@ -289,7 +289,11 @@ export function ReviewLogTable({ logs, onInspectLog, onSelectWord }: ReviewLogTa
 
                     {/* Response Duration */}
                     <Table.Td style={{ whiteSpace: 'nowrap' }}>
-                      <Text size="xs" c={log.durationMs > 5000 ? 'orange.6' : 'dimmed'}>
+                      <Text
+                        component="div"
+                        size="xs"
+                        c={log.durationMs > 5000 ? 'orange.6' : 'dimmed'}
+                      >
                         {log.durationMs > 0 ? (
                           <RollingNumber
                             value={Number((log.durationMs / 1000).toFixed(1))}
@@ -349,7 +353,7 @@ export function ReviewLogTable({ logs, onInspectLog, onSelectWord }: ReviewLogTa
                 }}
                 data={['10', '20', '50', '100']}
               />
-              <Text size="xs" c="dimmed">
+              <Text component="div" size="xs" c="dimmed">
                 Showing <RollingNumber value={Math.min((page - 1) * pageSize + 1, logs.length)} />–
                 <RollingNumber value={Math.min(page * pageSize, logs.length)} /> of{' '}
                 <RollingNumber value={logs.length} />

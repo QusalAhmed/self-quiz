@@ -346,7 +346,12 @@ export function QuizPanel({
             <Title order={2} className="text-gradient" style={{ fontFamily: 'var(--font-title)' }}>
               Quiz Completed!
             </Title>
-            <Text c="dimmed" size="sm" max-width="360px" mx="auto" style={{ lineHeight: 1.6 }}>
+            <Text
+              component="div"
+              c="dimmed"
+              size="sm"
+              style={{ maxWidth: '360px', margin: '0 auto', lineHeight: 1.6 }}
+            >
               {totalCount > 0 ? (
                 <>
                   Fantastic effort! You&apos;ve mastered all <RollingNumber value={totalCount} />{' '}
@@ -852,7 +857,7 @@ export function QuizPanel({
               <Text size="xs" fw={700} c="indigo">
                 SESSION PROGRESS
               </Text>
-              <Text size="xs" fw={700} c="dimmed">
+              <Text component="div" size="xs" fw={700} c="dimmed">
                 <RollingNumber value={Math.min(currentIndex + 1, totalCount)} /> of{' '}
                 <RollingNumber value={totalCount} /> Words
               </Text>

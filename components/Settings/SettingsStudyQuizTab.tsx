@@ -219,10 +219,10 @@ export function SettingsStudyQuizTab({ settings, onChange }: SettingsStudyQuizTa
               style={{ background: 'var(--mantine-color-default-hover)' }}
             >
               <Group justify="space-between" align="center" mb={6}>
-                <Text size="xs" fw={600}>
+                <Text component="div" size="xs" fw={600}>
                   Auto-Advance Delay: <RollingNumber value={settings.autoAdvanceDelayMs} /> ms
                 </Text>
-                <Text size="xs" c="dimmed">
+                <Text component="div" size="xs" c="dimmed">
                   <RollingNumber
                     value={settings.autoAdvanceDelayMs / 1000}
                     decimalScale={1}

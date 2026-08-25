@@ -213,6 +213,7 @@ export function KpiOverview({ kpis }: KpiOverviewProps) {
               {/* Main Metric Value */}
               <div>
                 <Text
+                  component="div"
                   size="xl"
                   fw={800}
                   style={{

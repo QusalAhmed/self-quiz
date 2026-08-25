@@ -218,7 +218,7 @@ export function BatchPasteWordInput({
             {/* Recognized from library */}
             {parsedRecognized.length > 0 && (
               <Stack gap={4}>
-                <Text size="xs" fw={600} c="teal">
+                <Text component="div" size="xs" fw={600} c="teal">
                   Found in Library (<RollingNumber value={parsedRecognized.length} />
                   ):
                 </Text>
@@ -251,7 +251,7 @@ export function BatchPasteWordInput({
             {/* Unrecognized / new words */}
             {parsedUnrecognized.length > 0 && (
               <Stack gap={6}>
-                <Text size="xs" fw={600} c="orange">
+                <Text component="div" size="xs" fw={600} c="orange">
                   New / Unrecognized Words (<RollingNumber value={parsedUnrecognized.length} />
                   ):
                 </Text>

@@ -150,6 +150,7 @@ export function RetentionAnalysis({ distribution, statusInfo }: RetentionAnalysi
                 label={
                   <Stack gap={0} align="center">
                     <Text
+                      component="div"
                       size="xl"
                       fw={800}
                       style={{
@@ -177,7 +178,7 @@ export function RetentionAnalysis({ distribution, statusInfo }: RetentionAnalysi
                         ? 'Needs Consolidation'
                         : 'Awaiting Reviews'}
                 </Text>
-                <Text size="xs" c="dimmed" mt={2}>
+                <Text component="div" size="xs" c="dimmed" mt={2}>
                   <RollingNumber value={goodCount + easyCount} /> of{' '}
                   <RollingNumber value={totalRatings} /> reviews successfully retrieved
                 </Text>
@@ -193,7 +194,7 @@ export function RetentionAnalysis({ distribution, statusInfo }: RetentionAnalysi
                 <Text size="xs" fw={700} c="dimmed">
                   RATING DISTRIBUTION
                 </Text>
-                <Text size="xs" c="dimmed">
+                <Text component="div" size="xs" c="dimmed">
                   {totalRatings > 0 ? (
                     <>
                       <RollingNumber value={totalRatings} /> responses
@@ -242,10 +243,10 @@ export function RetentionAnalysis({ distribution, statusInfo }: RetentionAnalysi
                         </Text>
                       </Group>
                       <Group gap={4} align="baseline">
-                        <Text size="sm" fw={800} style={{ color: item.color }}>
+                        <Text component="div" size="sm" fw={800} style={{ color: item.color }}>
                           <RollingNumber value={item.rate} decimalScale={1} suffix="%" />
                         </Text>
-                        <Text size="xs" c="dimmed">
+                        <Text component="div" size="xs" c="dimmed">
                           (<RollingNumber value={item.count} />)
                         </Text>
                       </Group>

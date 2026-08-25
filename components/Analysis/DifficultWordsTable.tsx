@@ -296,7 +296,7 @@ export function DifficultWordsTable({ words, onSelectWord }: DifficultWordsTable
                     </Badge>
                   </Table.Td>
                   <Table.Td style={{ textAlign: 'right' }}>
-                    <Text size="xs" fw={600}>
+                    <Text component="div" size="xs" fw={600}>
                       <RollingNumber value={item.stability} decimalScale={1} suffix="d" />
                     </Text>
                   </Table.Td>
@@ -315,7 +315,7 @@ export function DifficultWordsTable({ words, onSelectWord }: DifficultWordsTable
                         radius="xl"
                         style={{ flex: 1 }}
                       />
-                      <Text size="11px" fw={700} style={{ minWidth: 32 }}>
+                      <Text component="div" size="11px" fw={700} style={{ minWidth: 32 }}>
                         <RollingNumber value={item.retrievability} decimalScale={1} suffix="%" />
                       </Text>
                     </Group>

@@ -95,7 +95,13 @@ export function TimeToMasteryCard({
                 AVG DAYS TO MASTERY
               </Text>
             </Group>
-            <Text size="md" fw={800} c="teal" style={{ fontFamily: 'var(--font-title)' }}>
+            <Text
+              component="div"
+              size="md"
+              fw={800}
+              c="teal"
+              style={{ fontFamily: 'var(--font-title)' }}
+            >
               <RollingNumber value={avgDaysToMastery} decimalScale={1} />{' '}
               <Text component="span" size="xs" c="dimmed">
                 days
@@ -113,7 +119,13 @@ export function TimeToMasteryCard({
                 MEDIAN DAYS
               </Text>
             </Group>
-            <Text size="md" fw={800} c="indigo" style={{ fontFamily: 'var(--font-title)' }}>
+            <Text
+              component="div"
+              size="md"
+              fw={800}
+              c="indigo"
+              style={{ fontFamily: 'var(--font-title)' }}
+            >
               <RollingNumber value={medianDaysToMastery} decimalScale={1} />{' '}
               <Text component="span" size="xs" c="dimmed">
                 days
@@ -131,7 +143,13 @@ export function TimeToMasteryCard({
                 REVIEWS TO MASTER
               </Text>
             </Group>
-            <Text size="md" fw={800} c="violet" style={{ fontFamily: 'var(--font-title)' }}>
+            <Text
+              component="div"
+              size="md"
+              fw={800}
+              c="violet"
+              style={{ fontFamily: 'var(--font-title)' }}
+            >
               <RollingNumber value={avgReviewsBeforeMastery} decimalScale={1} />{' '}
               <Text component="span" size="xs" c="dimmed">
                 reviews
@@ -209,7 +227,7 @@ export function TimeToMasteryCard({
                         <Badge size="xs" variant="outline" color="teal">
                           <RollingNumber value={item.days} suffix=" days" />
                         </Badge>
-                        <Text size="10px" c="dimmed">
+                        <Text component="div" size="10px" c="dimmed">
                           <RollingNumber value={item.reviews} suffix=" revs" />
                         </Text>
                       </Group>
@@ -267,7 +285,7 @@ export function TimeToMasteryCard({
                         <Badge size="xs" variant="outline" color="yellow">
                           <RollingNumber value={item.days} suffix=" days" />
                         </Badge>
-                        <Text size="10px" c="dimmed">
+                        <Text component="div" size="10px" c="dimmed">
                           <RollingNumber value={item.reviews} suffix=" revs" />
                         </Text>
                       </Group>

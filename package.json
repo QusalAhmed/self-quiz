@@ -31,6 +31,7 @@
     "@mantine/core": "^9.2.1",
     "@mantine/hooks": "9.2.1",
     "@mantine/notifications": "^9.2.1",
+    "@mantine/nprogress": "^9.2.1",
     "@mantine/tiptap": "^9.2.1",
     "@next/bundle-analyzer": "^16.0.0",
     "@reduxjs/toolkit": "^2.12.0",

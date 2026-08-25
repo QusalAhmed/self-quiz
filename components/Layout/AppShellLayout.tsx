@@ -385,26 +385,27 @@ export function AppShellLayout({ children }: { children: React.ReactNode }) {
         mode={mode}
         onSetMode={(m) => {
           dispatch(setMode(m));
-          if (pathname !== '/') {
-            router.push('/');
+          const targetPath = m === 'quiz' ? '/quiz' : '/';
+          if (pathname !== targetPath) {
+            router.push(targetPath);
           }
         }}
         onOpenAllWordsQuiz={() => {
           dispatch(openAllWordsQuiz());
-          if (pathname !== '/') {
-            router.push('/');
+          if (pathname !== '/quiz') {
+            router.push('/quiz');
           }
         }}
         onOpenTodayQuiz={() => {
           dispatch(openTodayQuiz());
-          if (pathname !== '/') {
-            router.push('/');
+          if (pathname !== '/quiz') {
+            router.push('/quiz');
           }
         }}
         onOpenFsrsQuiz={() => {
           dispatch(openFsrsQuiz());
-          if (pathname !== '/') {
-            router.push('/');
+          if (pathname !== '/quiz') {
+            router.push('/quiz');
           }
         }}
         onOpenGroupManager={() => setGroupManagerOpen(true)}
