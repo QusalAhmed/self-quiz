@@ -26,6 +26,7 @@ import {
   IconCheck,
   IconChevronDown,
   IconChevronUp,
+  IconClock,
   IconCopy,
   IconPlayerPause,
   IconPlayerPlay,
@@ -47,6 +48,7 @@ export interface QuranVerseModalProps {
   verseRecord?: QuranVerseRecord | null;
   isLoading?: boolean;
   onNextRandom?: () => void;
+  onSnooze?: () => void;
   autoPlayAudio?: boolean;
 }
 
@@ -57,6 +59,7 @@ export function QuranVerseModal({
   verseRecord,
   isLoading = false,
   onNextRandom,
+  onSnooze,
   autoPlayAudio = false,
 }: QuranVerseModalProps) {
   const [activeTab, setActiveTab] = useState<string>('english');
@@ -328,6 +331,21 @@ export function QuranVerseModal({
               </ActionIcon>
             </Tooltip>
 
+            {onSnooze && (
+              <Tooltip label="Snooze verse & reset next timer cycle">
+                <ActionIcon
+                  variant="light"
+                  color="amber"
+                  size="lg"
+                  radius="md"
+                  onClick={() => onSnooze()}
+                  aria-label="Snooze verse"
+                >
+                  <IconClock size={18} />
+                </ActionIcon>
+              </Tooltip>
+            )}
+
             {onNextRandom && (
               <Tooltip label="Next Random Verse">
                 <ActionIcon
@@ -335,7 +353,7 @@ export function QuranVerseModal({
                   color="indigo"
                   size="lg"
                   radius="md"
-                  onClick={onNextRandom}
+                  onClick={() => onNextRandom()}
                   loading={isLoading}
                 >
                   <IconRefresh size={18} />
@@ -343,7 +361,13 @@ export function QuranVerseModal({
               </Tooltip>
             )}
 
-            <ActionIcon variant="subtle" color="gray" size="lg" radius="md" onClick={onClose}>
+            <ActionIcon
+              variant="subtle"
+              color="gray"
+              size="lg"
+              radius="md"
+              onClick={() => onClose()}
+            >
               <IconX size={18} />
             </ActionIcon>
           </Group>
@@ -522,10 +546,10 @@ export function QuranVerseModal({
                   >
                     <Group justify="space-between" mb={6}>
                       <Text size="xs" fw={700} c="indigo">
-                        {verseData.englishTranslation?.translatorName || 'English Translation'}
+                        {verseData.englishTranslation?.translatorName || 'Saheeh International'}
                       </Text>
                       <Badge size="xs" variant="light" color="indigo">
-                        Sahih / Clear Meaning
+                        {verseData.englishTranslation?.translatorName || 'Saheeh International'}
                       </Badge>
                     </Group>
                     <Text size="md" style={{ lineHeight: 1.65, fontWeight: 450 }}>
@@ -697,19 +721,33 @@ export function QuranVerseModal({
           </Text>
 
           <Group gap="xs">
+            {onSnooze && (
+              <Tooltip label="Snooze verse & reset next timer cycle">
+                <Button
+                  variant="light"
+                  color="amber"
+                  size="sm"
+                  leftSection={<IconClock size={16} />}
+                  onClick={() => onSnooze()}
+                >
+                  Snooze
+                </Button>
+              </Tooltip>
+            )}
+
             {onNextRandom && (
               <Button
                 variant="light"
                 color="indigo"
                 size="sm"
                 leftSection={<IconRefresh size={16} />}
-                onClick={onNextRandom}
+                onClick={() => onNextRandom()}
                 loading={isLoading}
               >
                 Another Verse
               </Button>
             )}
-            <Button variant="default" size="sm" onClick={onClose}>
+            <Button variant="default" size="sm" onClick={() => onClose()}>
               Close
             </Button>
           </Group>

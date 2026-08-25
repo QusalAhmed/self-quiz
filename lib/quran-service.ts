@@ -396,3 +396,20 @@ export async function getRandomActiveVerse(excludeId?: string): Promise<QuranVer
   const chosen = candidates[Math.floor(Math.random() * candidates.length)];
   return chosen;
 }
+
+/**
+ * Retrieves a single Quran verse record by ID
+ */
+export async function getQuranVerseById(id: string): Promise<QuranVerseRecord | null> {
+  try {
+    const db = await getDatabase();
+    const doc = await db.quranVerses.findOne({ selector: { id, isDeleted: { $ne: true } } }).exec();
+    if (doc) {
+      return doc.toJSON() as QuranVerseRecord;
+    }
+    return null;
+  } catch (err) {
+    console.error('Error fetching Quran verse by ID:', err);
+    return null;
+  }
+}

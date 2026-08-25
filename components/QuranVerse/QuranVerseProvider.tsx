@@ -2,9 +2,11 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { type QuranVerseRecord } from '@/lib/db';
+import { appNotifications } from '@/lib/notifications';
 import { fetchVerseFromQuranApi, type FetchedVersePayload } from '@/lib/quran-api';
 import {
   ensureDefaultQuranVersesSeeded,
+  getQuranVerseById,
   getRandomActiveVerse,
   recordVerseFetchError,
   recordVerseFetchSuccess,
@@ -26,6 +28,7 @@ export interface QuranVerseContextType {
   ) => Promise<void>;
   isModalOpen: boolean;
   closeModal: () => void;
+  snoozeVerse: (customMinutes?: number) => void;
   currentVerseData: FetchedVersePayload | null;
   currentVerseRecord: QuranVerseRecord | null;
   isLoadingModalVerse: boolean;
@@ -34,6 +37,7 @@ export interface QuranVerseContextType {
 const QuranVerseContext = createContext<QuranVerseContextType | null>(null);
 
 export const STORAGE_LAST_SHOWN_KEY = 'self_quiz_quran_popup_last_shown_v1';
+export const STORAGE_SNOOZED_VERSE_ID_KEY = 'self_quiz_quran_popup_snoozed_verse_id_v1';
 
 export function QuranVerseProvider({ children }: { children: React.ReactNode }) {
   const { settings } = useAppSettings();
@@ -138,17 +142,44 @@ export function QuranVerseProvider({ children }: { children: React.ReactNode }) 
       setIsModalOpen(true);
 
       try {
-        const randomRecord = await getRandomActiveVerse(currentVerseRecord?.id);
-        if (!randomRecord) {
+        let targetRecord: QuranVerseRecord | null = null;
+
+        if (options?.force) {
+          // Explicitly forced (e.g. "Another Verse"): clear any pending snoozed verse and pick random
+          try {
+            localStorage.removeItem(STORAGE_SNOOZED_VERSE_ID_KEY);
+          } catch {}
+          targetRecord = await getRandomActiveVerse(currentVerseRecord?.id);
+        } else {
+          // Automatic cycle or popup trigger: check if there is a snoozed verse to show
+          let snoozedId: string | null = null;
+          try {
+            snoozedId = localStorage.getItem(STORAGE_SNOOZED_VERSE_ID_KEY);
+          } catch {}
+
+          if (snoozedId) {
+            targetRecord = await getQuranVerseById(snoozedId);
+            // Clear the snoozed item from storage once loaded for display
+            try {
+              localStorage.removeItem(STORAGE_SNOOZED_VERSE_ID_KEY);
+            } catch {}
+          }
+
+          if (!targetRecord) {
+            targetRecord = await getRandomActiveVerse(currentVerseRecord?.id);
+          }
+        }
+
+        if (!targetRecord) {
           setIsLoadingModalVerse(false);
           isTriggeringRef.current = false;
           return;
         }
 
-        setCurrentVerseRecord(randomRecord);
+        setCurrentVerseRecord(targetRecord);
 
-        const payload = await fetchVerseFromQuranApi(randomRecord.chapter, randomRecord.verse, {
-          verseEnd: randomRecord.verseEnd,
+        const payload = await fetchVerseFromQuranApi(targetRecord.chapter, targetRecord.verse, {
+          verseEnd: targetRecord.verseEnd,
           englishTranslationId: quranSettings.preferredEnglishTranslationId,
           banglaTranslationId: quranSettings.preferredBanglaTranslationId,
           englishTafsirId: quranSettings.preferredTafsirId,
@@ -158,7 +189,7 @@ export function QuranVerseProvider({ children }: { children: React.ReactNode }) 
         setCurrentVerseData(payload);
 
         // Record success in database
-        await recordVerseFetchSuccess(randomRecord.id);
+        await recordVerseFetchSuccess(targetRecord.id);
 
         // Sound notification if enabled
         if (quranSettings.soundNotification && settings.audio.notificationSoundsEnabled) {
@@ -243,6 +274,36 @@ export function QuranVerseProvider({ children }: { children: React.ReactNode }) 
     setIsModalOpen(false);
   }, []);
 
+  const snoozeVerse = useCallback(
+    (customMinutes?: number) => {
+      const now = Date.now();
+      const validCustomMinutes =
+        typeof customMinutes === 'number' && Number.isFinite(customMinutes) && customMinutes > 0
+          ? Math.round(customMinutes)
+          : null;
+      const intervalMinutes =
+        validCustomMinutes ?? Math.max(1, quranSettings.recurringIntervalMinutes || 15);
+
+      if (currentVerseRecord?.id) {
+        try {
+          localStorage.setItem(STORAGE_SNOOZED_VERSE_ID_KEY, currentVerseRecord.id);
+        } catch {}
+      }
+
+      try {
+        localStorage.setItem(STORAGE_LAST_SHOWN_KEY, String(now));
+      } catch {}
+      setIsModalOpen(false);
+      appNotifications.info({
+        title: 'Verse Reflection Snoozed',
+        message: `Next Quran verse will appear in ${intervalMinutes} minute${
+          intervalMinutes === 1 ? '' : 's'
+        }.`,
+      });
+    },
+    [currentVerseRecord?.id, quranSettings.recurringIntervalMinutes]
+  );
+
   const handleNextRandomFromModal = useCallback(() => {
     void showNextVerseNow({ force: true });
   }, [showNextVerseNow]);
@@ -257,6 +318,7 @@ export function QuranVerseProvider({ children }: { children: React.ReactNode }) 
         previewVerse,
         isModalOpen,
         closeModal,
+        snoozeVerse,
         currentVerseData,
         currentVerseRecord,
         isLoadingModalVerse,
@@ -268,6 +330,7 @@ export function QuranVerseProvider({ children }: { children: React.ReactNode }) 
       <QuranVerseModal
         opened={isModalOpen}
         onClose={closeModal}
+        onSnooze={snoozeVerse}
         verseData={currentVerseData}
         verseRecord={currentVerseRecord}
         isLoading={isLoadingModalVerse}

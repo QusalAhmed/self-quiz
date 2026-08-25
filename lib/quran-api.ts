@@ -1865,7 +1865,7 @@ export async function fetchVerseFromQuranApi(
         arabicText,
         englishTranslation: {
           resourceId: englishTranslationId,
-          translatorName: enMeta?.name || 'English Translation',
+          translatorName: enMeta?.name || 'Saheeh International',
           text: englishText,
         },
         banglaTranslation: {
@@ -2035,7 +2035,7 @@ export async function fetchVerseFromQuranApi(
       arabicText: combinedArabicText,
       englishTranslation: {
         resourceId: englishTranslationId,
-        translatorName: enMeta?.name || 'English Translation',
+        translatorName: enMeta?.name || 'Saheeh International',
         text: combinedEnglishText,
       },
       banglaTranslation: {
