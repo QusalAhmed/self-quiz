@@ -6,6 +6,7 @@ import {
   Box,
   Divider,
   Drawer,
+  FloatingWindow,
   Group,
   NavLink,
   Paper,
@@ -34,9 +35,11 @@ import {
   IconVolumeOff,
 } from '@tabler/icons-react';
 import { usePathname, useRouter } from 'next/navigation';
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { NotificationBellButton } from '@/components/NotificationSettings';
 import { useSoundPreference } from '@/lib/sound';
+
+const DEFAULT_FAB_POSITION = { right: 20, bottom: 24 } as const;
 
 export type AppSidebarProps = {
   mode: 'study' | 'quiz';
@@ -67,6 +70,86 @@ export function AppSidebar({
 }: AppSidebarProps) {
   const { soundEnabled, toggleSound } = useSoundPreference();
   const [mobileOpened, setMobileOpened] = useState(false);
+  const isDraggingRef = useRef(false);
+  const dragStartPosRef = useRef<{ x: number; y: number } | null>(null);
+  const hasMovedRef = useRef(false);
+  const lastMovedDragEndTimeRef = useRef<number>(0);
+  const setPositionRef = useRef<
+    ((pos: { top?: number; left?: number; right?: number; bottom?: number }) => void) | null
+  >(null);
+
+  // Restore saved FAB position from localStorage on client mount / drawer close
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('self_quiz_mobile_fab_position');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed.x === 'number' && typeof parsed.y === 'number') {
+          const clampedX = Math.max(12, Math.min(window.innerWidth - 64, parsed.x));
+          const clampedY = Math.max(12, Math.min(window.innerHeight - 64, parsed.y));
+          setPositionRef.current?.({ left: clampedX, top: clampedY });
+        }
+      }
+    } catch {
+      // Ignore localStorage errors
+    }
+  }, [mobileOpened]);
+
+  const handleDragStart = useCallback(() => {
+    isDraggingRef.current = true;
+    hasMovedRef.current = false;
+    dragStartPosRef.current = null;
+  }, []);
+
+  const handlePositionChange = useCallback((pos: { x: number; y: number }) => {
+    if (!dragStartPosRef.current) {
+      dragStartPosRef.current = pos;
+    } else {
+      const dx = Math.abs(pos.x - dragStartPosRef.current.x);
+      const dy = Math.abs(pos.y - dragStartPosRef.current.y);
+      if (dx > 4 || dy > 4) {
+        hasMovedRef.current = true;
+      }
+    }
+  }, []);
+
+  const handleDragEnd = useCallback(() => {
+    if (hasMovedRef.current) {
+      lastMovedDragEndTimeRef.current = Date.now();
+      try {
+        const el = document.getElementById('mobile-sidebar-toggle-btn');
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          localStorage.setItem(
+            'self_quiz_mobile_fab_position',
+            JSON.stringify({ x: rect.left, y: rect.top })
+          );
+        }
+      } catch {
+        // Ignore localStorage errors
+      }
+    }
+
+    setTimeout(() => {
+      isDraggingRef.current = false;
+      hasMovedRef.current = false;
+      dragStartPosRef.current = null;
+    }, 120);
+  }, []);
+
+  const handleFabClick = useCallback((e: React.MouseEvent) => {
+    // If user dragged the button, ignore click to prevent accidental drawer opening
+    if (
+      hasMovedRef.current ||
+      isDraggingRef.current ||
+      Date.now() - lastMovedDragEndTimeRef.current < 250
+    ) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    setMobileOpened(true);
+  }, []);
   const router = useRouter();
   const pathname = usePathname();
   const isWordsPage = pathname === '/words';
@@ -380,9 +463,24 @@ export function AppSidebar({
         {renderNavContent()}
       </Box>
 
-      {/* Floating Action Button on Mobile (hidden when drawer is open) */}
+      {/* Draggable Floating Action Button on Mobile (hidden when drawer is open) */}
       {!mobileOpened && (
-        <Box className="mobile-fab-container">
+        <FloatingWindow
+          initialPosition={DEFAULT_FAB_POSITION}
+          constrainToViewport
+          constrainOffset={12}
+          zIndex={999}
+          bg="transparent"
+          p={0}
+          shadow="none"
+          withBorder={false}
+          withinPortal={false}
+          className="mobile-fab-window"
+          setPositionRef={setPositionRef}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onPositionChange={handlePositionChange}
+        >
           <Tooltip label="Open Navigation Menu" position="top">
             <ActionIcon
               className="mobile-fab-btn btn-premium"
@@ -390,12 +488,12 @@ export function AppSidebar({
               radius="xl"
               aria-label="Open Navigation"
               id="mobile-sidebar-toggle-btn"
-              onClick={() => setMobileOpened(true)}
+              onClick={handleFabClick}
             >
               <IconMenu2 size={24} />
             </ActionIcon>
           </Tooltip>
-        </Box>
+        </FloatingWindow>
       )}
 
       {/* Mobile Sidebar Drawer */}

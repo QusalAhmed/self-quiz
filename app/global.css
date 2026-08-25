@@ -570,16 +570,13 @@ h6 {
   }
 }
 
-.mobile-fab-container {
-  display: none;
+.mobile-fab-window {
+  display: none !important;
 }
 
 @media (max-width: 48em) {
-  .mobile-fab-container {
+  .mobile-fab-window {
     display: block !important;
-    position: fixed;
-    bottom: max(20px, env(safe-area-inset-bottom, 20px));
-    right: max(20px, env(safe-area-inset-right, 20px));
     z-index: 999;
   }
 }
@@ -593,7 +590,20 @@ h6 {
   align-items: center !important;
   justify-content: center !important;
   padding: 0 !important;
-  touch-action: manipulation;
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.mobile-fab-btn:active,
+.mobile-fab-window[data-dragging='true'] .mobile-fab-btn {
+  cursor: grabbing !important;
+  transform: scale(1.08);
+  box-shadow: 0 12px 30px rgba(99, 102, 241, 0.65) !important;
 }
 
 /* --- RxDB Cloud Sync UI Animations & Styles --- */
