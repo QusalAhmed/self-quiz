@@ -4,6 +4,7 @@ import { Box, Container, Loader, ScrollArea, Stack, Tabs, Text } from '@mantine/
 import {
   IconAdjustments,
   IconBell,
+  IconBook,
   IconBrain,
   IconCpu,
   IconDatabase,
@@ -14,6 +15,7 @@ import {
 } from '@tabler/icons-react';
 import { useSearchParams } from 'next/navigation';
 import React, { Suspense, useCallback, useEffect, useState } from 'react';
+import { useQuranVerse } from '@/components/QuranVerse';
 import {
   SettingsAboutTab,
   SettingsAiTab,
@@ -23,6 +25,7 @@ import {
   SettingsFsrsTab,
   SettingsHeader,
   SettingsNotificationsTab,
+  SettingsQuranVerseTab,
   SettingsStudyQuizTab,
   SettingsSyncTab,
 } from '@/components/Settings';
@@ -42,6 +45,7 @@ function SettingsContent() {
 
   const [activeTab, setActiveTab] = useState<string | null>(initialTab);
   const { settings, updateSection, resetSettings } = useAppSettings();
+  const { showNextVerseNow } = useQuranVerse();
 
   // RxDB Live Records for Data & Sync tabs
   const [words, setWords] = useState<WordRecord[]>([]);
@@ -199,6 +203,15 @@ function SettingsContent() {
               </Tabs.Tab>
 
               <Tabs.Tab
+                value="quran"
+                leftSection={<IconBook size={16} />}
+                px={{ base: 'xs', sm: 'sm' }}
+                style={{ fontWeight: 600, fontSize: '0.85rem' }}
+              >
+                Quran Verses
+              </Tabs.Tab>
+
+              <Tabs.Tab
                 value="ai"
                 leftSection={<IconCpu size={16} />}
                 px={{ base: 'xs', sm: 'sm' }}
@@ -271,6 +284,14 @@ function SettingsContent() {
               <SettingsNotificationsTab
                 settings={settings.notifications}
                 onChange={(vals) => updateSection('notifications', vals)}
+              />
+            </Tabs.Panel>
+
+            <Tabs.Panel value="quran">
+              <SettingsQuranVerseTab
+                settings={settings.quranVerse}
+                onChange={(vals) => updateSection('quranVerse', vals)}
+                onTestPopup={showNextVerseNow}
               />
             </Tabs.Panel>
 

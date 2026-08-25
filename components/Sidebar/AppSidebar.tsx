@@ -22,7 +22,6 @@ import {
   IconBrain,
   IconCards,
   IconChartBar,
-  IconCloudUpload,
   IconMenu2,
   IconMoon,
   IconPlus,
@@ -161,30 +160,12 @@ export function AppSidebar({
   const isWordsPage = pathname === '/words';
   const isStoriesPage = pathname === '/stories';
   const isAnalysisPage = pathname === '/analysis';
-  const isReviewLogPage = pathname === '/review-log';
+  const isQuranPage = pathname === '/quran';
   const isSettingsPage = pathname === '/settings';
 
   const handleLinkClick = (action: () => void) => {
     action();
     setMobileOpened(false);
-  };
-
-  const scrollToSection = (id: string) => {
-    if (
-      isQuizPage ||
-      isWordsPage ||
-      isStoriesPage ||
-      isAnalysisPage ||
-      isReviewLogPage ||
-      isSettingsPage
-    ) {
-      router.push(`/#${id}`);
-      return;
-    }
-    const el = document.getElementById(id);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
   };
 
   const renderNavContent = () => (
@@ -266,6 +247,17 @@ export function AppSidebar({
               description="FSRS retention & memory health"
               leftSection={<IconChartBar size={18} />}
               active={isAnalysisPage}
+              onClick={() => setMobileOpened(false)}
+              style={{ borderRadius: 8 }}
+            />
+
+            <NavLink
+              component={Link}
+              href="/quran"
+              label="Quran Verses"
+              description="Motivational Ayahs & Tafsir"
+              leftSection={<IconBook size={18} />}
+              active={isQuranPage}
               onClick={() => setMobileOpened(false)}
               style={{ borderRadius: 8 }}
             />

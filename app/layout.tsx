@@ -7,6 +7,7 @@ import { Notifications } from '@mantine/notifications';
 import React from 'react';
 import { AppShellLayout } from '@/components/Layout/AppShellLayout';
 import { NavigationProgressBar } from '@/components/Navigation';
+import { QuranVerseProvider } from '@/components/QuranVerse';
 import { ReduxProvider } from '@/lib/redux/provider';
 import { theme } from '@/theme';
 
@@ -32,9 +33,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <ReduxProvider>
           <MantineProvider theme={theme}>
-            <NavigationProgressBar />
-            <Notifications position="top-right" zIndex={2000} autoClose={4000} />
-            <AppShellLayout>{children}</AppShellLayout>
+            <QuranVerseProvider>
+              <NavigationProgressBar />
+              <Notifications position="top-right" zIndex={2000} autoClose={4000} />
+              <AppShellLayout>{children}</AppShellLayout>
+            </QuranVerseProvider>
           </MantineProvider>
         </ReduxProvider>
       </body>

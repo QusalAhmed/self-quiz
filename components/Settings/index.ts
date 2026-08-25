@@ -7,4 +7,5 @@ export * from './SettingsNotificationsTab';
 export * from './SettingsAiTab';
 export * from './SettingsSyncTab';
 export * from './SettingsDataTab';
+export * from './SettingsQuranVerseTab';
 export * from './SettingsAboutTab';

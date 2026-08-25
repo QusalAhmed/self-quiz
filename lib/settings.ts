@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import type { QuizDirectionKey, QuizRangeKey } from '@/app/home/constants';
+import { getDatabase, type AppDatabase, type SettingsRecord } from './db';
 import { isSoundEnabled, setSoundEnabled } from './sound';
+import { supabase } from './supabase';
 import {
   DEFAULT_NOTIFICATION_SETTINGS,
   getNotificationSettings,
@@ -78,6 +80,18 @@ export interface AppDataSettings {
   defaultExportFormat: 'json' | 'csv' | 'txt';
 }
 
+export interface AppQuranVerseSettings {
+  enabled: boolean;
+  recurringIntervalMinutes: number; // minutes, e.g. 5, 10, 15, 30, 60
+  autoPlayAudio: boolean;
+  preferredEnglishTranslationId: number; // 20: Saheeh Int, 85: Abdel Haleem, 149: Bridges
+  preferredBanglaTranslationId: number; // 163: Mujibur Rahman, 161: Taisirul Quran, 213: Abu Bakr Zakaria
+  preferredTafsirId: number; // 169: Ibn Kathir English, 166: Abu Bakr Zakaria Bangla
+  preferredReciterId: number; // 7: Alafasy, 2: AbdulSamad
+  soundNotification: boolean;
+  lastShownAt?: string;
+}
+
 export interface AppSettings {
   appearance: AppAppearanceSettings;
   studyQuiz: AppStudyQuizSettings;
@@ -86,6 +100,7 @@ export interface AppSettings {
   ai: AppAiSettings;
   notifications: NotificationSettings;
   data: AppDataSettings;
+  quranVerse: AppQuranVerseSettings;
 }
 
 export const DEFAULT_APP_SETTINGS: AppSettings = {
@@ -135,6 +150,16 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   data: {
     autoBackupReminderDays: 14,
     defaultExportFormat: 'json',
+  },
+  quranVerse: {
+    enabled: true,
+    recurringIntervalMinutes: 15,
+    autoPlayAudio: false,
+    preferredEnglishTranslationId: 20,
+    preferredBanglaTranslationId: 163,
+    preferredTafsirId: 169,
+    preferredReciterId: 7,
+    soundNotification: true,
   },
 };
 
@@ -259,6 +284,42 @@ export function normalizeAppSettings(raw: Partial<AppSettings> | null | undefine
         : 'json',
   };
 
+  const quranVerse: AppQuranVerseSettings = {
+    enabled:
+      typeof raw.quranVerse?.enabled === 'boolean'
+        ? raw.quranVerse.enabled
+        : DEFAULT_APP_SETTINGS.quranVerse.enabled,
+    recurringIntervalMinutes:
+      typeof raw.quranVerse?.recurringIntervalMinutes === 'number'
+        ? Math.max(1, Math.min(1440, Math.round(raw.quranVerse.recurringIntervalMinutes)))
+        : DEFAULT_APP_SETTINGS.quranVerse.recurringIntervalMinutes,
+    autoPlayAudio:
+      typeof raw.quranVerse?.autoPlayAudio === 'boolean'
+        ? raw.quranVerse.autoPlayAudio
+        : DEFAULT_APP_SETTINGS.quranVerse.autoPlayAudio,
+    preferredEnglishTranslationId:
+      typeof raw.quranVerse?.preferredEnglishTranslationId === 'number'
+        ? raw.quranVerse.preferredEnglishTranslationId
+        : DEFAULT_APP_SETTINGS.quranVerse.preferredEnglishTranslationId,
+    preferredBanglaTranslationId:
+      typeof raw.quranVerse?.preferredBanglaTranslationId === 'number'
+        ? raw.quranVerse.preferredBanglaTranslationId
+        : DEFAULT_APP_SETTINGS.quranVerse.preferredBanglaTranslationId,
+    preferredTafsirId:
+      typeof raw.quranVerse?.preferredTafsirId === 'number'
+        ? raw.quranVerse.preferredTafsirId
+        : DEFAULT_APP_SETTINGS.quranVerse.preferredTafsirId,
+    preferredReciterId:
+      typeof raw.quranVerse?.preferredReciterId === 'number'
+        ? raw.quranVerse.preferredReciterId
+        : DEFAULT_APP_SETTINGS.quranVerse.preferredReciterId,
+    soundNotification:
+      typeof raw.quranVerse?.soundNotification === 'boolean'
+        ? raw.quranVerse.soundNotification
+        : DEFAULT_APP_SETTINGS.quranVerse.soundNotification,
+    lastShownAt: raw.quranVerse?.lastShownAt,
+  };
+
   return {
     appearance,
     studyQuiz,
@@ -267,10 +328,9 @@ export function normalizeAppSettings(raw: Partial<AppSettings> | null | undefine
     ai,
     notifications,
     data,
+    quranVerse,
   };
 }
-
-import { getDatabase, type AppDatabase, type SettingsRecord } from './db';
 
 /**
  * Loads App Settings from LocalStorage
@@ -300,7 +360,76 @@ export function getAppSettings(): AppSettings {
 }
 
 /**
- * Persists app settings to RxDB client-side database
+ * Directly pushes settings to Supabase app_settings table
+ */
+export async function pushSettingsToSupabase(settings: AppSettings): Promise<void> {
+  if (typeof window === 'undefined' || !supabase || !navigator.onLine) {
+    return;
+  }
+  try {
+    const now = new Date().toISOString();
+    const payload = {
+      id: 'default',
+      appearance: settings.appearance,
+      study_quiz: settings.studyQuiz,
+      audio: settings.audio,
+      fsrs: settings.fsrs,
+      ai: settings.ai,
+      notifications: settings.notifications,
+      data: settings.data,
+      quran_verse: settings.quranVerse,
+      updated_at: now,
+      deleted: false,
+    };
+    const { error } = await supabase.from('app_settings').upsert(payload, { onConflict: 'id' });
+    if (error) {
+      console.warn('Could not push settings to Supabase:', error);
+    }
+  } catch (err) {
+    console.warn('Error pushing settings to Supabase:', err);
+  }
+}
+
+/**
+ * Directly fetches settings from Supabase app_settings table
+ */
+export async function fetchSettingsFromSupabase(): Promise<AppSettings | null> {
+  if (typeof window === 'undefined' || !supabase || !navigator.onLine) {
+    return null;
+  }
+  try {
+    const { data, error } = await supabase
+      .from('app_settings')
+      .select('*')
+      .eq('id', 'default')
+      .eq('deleted', false)
+      .maybeSingle();
+
+    if (error || !data) {
+      return null;
+    }
+
+    const normalized = normalizeAppSettings({
+      appearance: data.appearance,
+      studyQuiz: data.study_quiz ?? data.studyQuiz,
+      audio: data.audio,
+      fsrs: data.fsrs,
+      ai: data.ai,
+      notifications: data.notifications,
+      data: data.data,
+      quranVerse: data.quran_verse ?? data.quranVerse,
+    });
+
+    saveAppSettings(normalized, false);
+    return normalized;
+  } catch (err) {
+    console.warn('Error fetching settings from Supabase:', err);
+    return null;
+  }
+}
+
+/**
+ * Persists app settings to RxDB client-side database & Supabase
  */
 export async function persistSettingsToRxDB(settings: AppSettings): Promise<void> {
   if (typeof window === 'undefined') {
@@ -319,19 +448,23 @@ export async function persistSettingsToRxDB(settings: AppSettings): Promise<void
       ai: settings.ai,
       notifications: settings.notifications,
       data: settings.data,
+      quranVerse: settings.quranVerse,
       createdAt: existing?.createdAt || now,
       updatedAt: now,
       isDeleted: false,
       lastSyncedAt: existing?.lastSyncedAt || now,
     };
     await db.settings.upsert(record);
+    void pushSettingsToSupabase(settings);
   } catch (err) {
     console.warn('Could not persist settings to RxDB:', err);
+    void pushSettingsToSupabase(settings);
   }
 }
 
 let rxdbSyncInitialized = false;
 let rxdbSyncSubscription: { unsubscribe: () => void } | null = null;
+let supabaseRealtimeSubscribed = false;
 
 /**
  * Subscribes and synchronizes settings with RxDB & Supabase
@@ -344,10 +477,32 @@ export async function syncSettingsWithRxDB(dbInstance?: AppDatabase): Promise<vo
     const db = dbInstance || (await getDatabase());
     rxdbSyncInitialized = true;
 
-    // Check if doc exists in RxDB
+    // 1. Try pulling fresh settings from Supabase if online
+    const remoteSupabaseSettings = await fetchSettingsFromSupabase();
+
+    // 2. Check RxDB doc
     const existingDoc = await db.settings.findOne('default').exec();
-    if (!existingDoc) {
-      // Seed RxDB with current localStorage/default settings
+
+    if (remoteSupabaseSettings) {
+      // Supabase had settings; update RxDB
+      const now = new Date().toISOString();
+      await db.settings.upsert({
+        id: 'default',
+        appearance: remoteSupabaseSettings.appearance,
+        studyQuiz: remoteSupabaseSettings.studyQuiz,
+        audio: remoteSupabaseSettings.audio,
+        fsrs: remoteSupabaseSettings.fsrs,
+        ai: remoteSupabaseSettings.ai,
+        notifications: remoteSupabaseSettings.notifications,
+        data: remoteSupabaseSettings.data,
+        quranVerse: remoteSupabaseSettings.quranVerse,
+        createdAt: existingDoc?.createdAt || now,
+        updatedAt: now,
+        isDeleted: false,
+        lastSyncedAt: now,
+      });
+    } else if (!existingDoc) {
+      // Seed RxDB and Supabase with current localStorage/default settings
       const current = getAppSettings();
       const now = new Date().toISOString();
       await db.settings.upsert({
@@ -359,13 +514,15 @@ export async function syncSettingsWithRxDB(dbInstance?: AppDatabase): Promise<vo
         ai: current.ai,
         notifications: current.notifications,
         data: current.data,
+        quranVerse: current.quranVerse,
         createdAt: now,
         updatedAt: now,
         isDeleted: false,
         lastSyncedAt: now,
       });
+      void pushSettingsToSupabase(current);
     } else if (!existingDoc.isDeleted) {
-      // Load and apply settings from RxDB to localStorage
+      // Load and apply settings from RxDB to localStorage & push to Supabase
       const remoteSettings: AppSettings = {
         appearance: existingDoc.appearance,
         studyQuiz: existingDoc.studyQuiz,
@@ -374,11 +531,45 @@ export async function syncSettingsWithRxDB(dbInstance?: AppDatabase): Promise<vo
         ai: existingDoc.ai,
         notifications: existingDoc.notifications,
         data: existingDoc.data,
+        quranVerse: existingDoc.quranVerse || DEFAULT_APP_SETTINGS.quranVerse,
       };
       saveAppSettings(remoteSettings, false);
+      void pushSettingsToSupabase(remoteSettings);
     }
 
-    // Subscribe to changes pulled from replication or written in other tabs
+    // 3. Set up Realtime listener on Supabase for live multi-device settings sync
+    if (!supabaseRealtimeSubscribed && supabase && typeof navigator !== 'undefined') {
+      supabaseRealtimeSubscribed = true;
+      try {
+        supabase
+          .channel('app_settings-live-sync')
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'app_settings' },
+            (payload) => {
+              const row = payload.new as any;
+              if (row && !row.deleted && row.id === 'default') {
+                const normalized = normalizeAppSettings({
+                  appearance: row.appearance,
+                  studyQuiz: row.study_quiz ?? row.studyQuiz,
+                  audio: row.audio,
+                  fsrs: row.fsrs,
+                  ai: row.ai,
+                  notifications: row.notifications,
+                  data: row.data,
+                  quranVerse: row.quran_verse ?? row.quranVerse,
+                });
+                saveAppSettings(normalized, false);
+              }
+            }
+          )
+          .subscribe();
+      } catch (e) {
+        console.warn('Could not subscribe to Supabase settings realtime channel:', e);
+      }
+    }
+
+    // 4. Subscribe to changes pulled from RxDB replication or written in other tabs
     if (!rxdbSyncSubscription) {
       rxdbSyncSubscription = db.settings.findOne('default').$.subscribe((doc) => {
         if (doc && !doc.isDeleted) {
@@ -390,6 +581,7 @@ export async function syncSettingsWithRxDB(dbInstance?: AppDatabase): Promise<vo
             ai: doc.ai,
             notifications: doc.notifications,
             data: doc.data,
+            quranVerse: doc.quranVerse || DEFAULT_APP_SETTINGS.quranVerse,
           };
           saveAppSettings(updatedSettings, false);
         }

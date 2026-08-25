@@ -455,6 +455,7 @@ export function pullSettingsModifier(row: any): WithDeleted<SettingsRecord> {
     ai: row.ai,
     notifications: row.notifications,
     data: row.data,
+    quranVerse: row.quran_verse ?? row.quranVerse,
   });
 
   return {
@@ -466,6 +467,7 @@ export function pullSettingsModifier(row: any): WithDeleted<SettingsRecord> {
     ai: normalized.ai,
     notifications: normalized.notifications,
     data: normalized.data,
+    quranVerse: normalized.quranVerse,
     createdAt: row.created_at || row.createdAt || new Date().toISOString(),
     updatedAt: row.updated_at || row.updatedAt || new Date().toISOString(),
     isDeleted,
@@ -484,6 +486,7 @@ export function pushSettingsModifier(doc: SettingsRecord): any {
     ai: doc.ai,
     notifications: doc.notifications,
     data: doc.data,
+    quran_verse: doc.quranVerse,
     created_at: doc.createdAt,
     updated_at: doc.updatedAt,
     deleted: doc.isDeleted,

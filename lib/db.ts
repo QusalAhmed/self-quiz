@@ -32,6 +32,7 @@ export type SettingsRecord = {
   ai: AppAiSettings;
   notifications: NotificationSettings;
   data: AppDataSettings;
+  quranVerse?: import('./settings').AppQuranVerseSettings;
   createdAt: string;
   updatedAt: string;
   isDeleted: boolean;
@@ -172,6 +173,22 @@ export type StoryRecord = {
   lastSyncedAt: string;
 };
 
+export type QuranVerseRecord = {
+  id: string; // "chapter:verse" e.g. "2:255"
+  chapter: number;
+  verse: number;
+  category?: string;
+  notes?: string;
+  status: 'active' | 'paused' | 'error' | 'success';
+  viewCount: number;
+  lastViewedAt?: string;
+  lastError?: string;
+  createdAt: string;
+  updatedAt: string;
+  isDeleted: boolean;
+  lastSyncedAt: string;
+};
+
 export type WordCollection = RxCollection<WordRecord>;
 export type MissedWordCollection = RxCollection<MissedWordRecord>;
 export type GroupCollection = RxCollection<GroupRecord>;
@@ -183,6 +200,7 @@ export type DailyUsageCollection = RxCollection<DailyUsageRecord>;
 export type ReviewLogCollection = RxCollection<ReviewLogRecord>;
 export type SettingsCollection = RxCollection<SettingsRecord>;
 export type StoryCollection = RxCollection<StoryRecord>;
+export type QuranVerseCollection = RxCollection<QuranVerseRecord>;
 export type AppDatabase = RxDatabase<{
   words: WordCollection;
   missedWords: MissedWordCollection;
@@ -195,6 +213,7 @@ export type AppDatabase = RxDatabase<{
   reviewLogs: ReviewLogCollection;
   settings: SettingsCollection;
   stories: StoryCollection;
+  quranVerses: QuranVerseCollection;
 }>;
 
 const wordSchema: RxJsonSchema<WordRecord> = {
@@ -578,6 +597,7 @@ const settingsSchema: RxJsonSchema<SettingsRecord> = {
     ai: { type: 'object' },
     notifications: { type: 'object' },
     data: { type: 'object' },
+    quranVerse: { type: 'object' },
     createdAt: { type: 'string', maxLength: 32 },
     updatedAt: { type: 'string', maxLength: 32 },
     isDeleted: { type: 'boolean', default: false },
@@ -646,6 +666,41 @@ const storySchema: RxJsonSchema<StoryRecord> = {
     'lastSyncedAt',
   ],
   indexes: ['updatedAt', 'isDeleted'],
+};
+
+const quranVerseSchema: RxJsonSchema<QuranVerseRecord> = {
+  title: 'quran verse schema',
+  version: 1,
+  description: 'Quran verses and display tracking for recurring motivational popups',
+  primaryKey: 'id',
+  type: 'object',
+  properties: {
+    id: { type: 'string', maxLength: 32 },
+    chapter: { type: 'number', minimum: 1, maximum: 114 },
+    verse: { type: 'number', minimum: 1, maximum: 286 },
+    category: { type: 'string', default: 'Inspirational' },
+    notes: { type: 'string', default: '' },
+    status: { type: 'string', maxLength: 32, default: 'active' },
+    viewCount: { type: 'number', minimum: 0, default: 0 },
+    lastViewedAt: { type: 'string', default: '' },
+    lastError: { type: 'string', default: '' },
+    createdAt: { type: 'string', maxLength: 32 },
+    updatedAt: { type: 'string', maxLength: 32 },
+    isDeleted: { type: 'boolean', default: false },
+    lastSyncedAt: { type: 'string', default: '' },
+  },
+  required: [
+    'id',
+    'chapter',
+    'verse',
+    'status',
+    'viewCount',
+    'createdAt',
+    'updatedAt',
+    'isDeleted',
+    'lastSyncedAt',
+  ],
+  indexes: ['status', 'updatedAt', 'isDeleted'],
 };
 
 if (process.env.NODE_ENV !== 'production') {
@@ -869,6 +924,12 @@ async function createDatabase(): Promise<AppDatabase> {
     },
     stories: {
       schema: storySchema,
+      migrationStrategies: {
+        1: (oldDoc) => ({ ...oldDoc }),
+      },
+    },
+    quranVerses: {
+      schema: quranVerseSchema,
       migrationStrategies: {
         1: (oldDoc) => ({ ...oldDoc }),
       },

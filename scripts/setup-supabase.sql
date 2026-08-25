@@ -372,10 +372,13 @@ CREATE TABLE IF NOT EXISTS public.app_settings (
   ai JSONB NOT NULL DEFAULT '{}'::jsonb,
   notifications JSONB NOT NULL DEFAULT '{}'::jsonb,
   data JSONB NOT NULL DEFAULT '{}'::jsonb,
+  quran_verse JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   deleted BOOLEAN DEFAULT FALSE
 );
+
+ALTER TABLE public.app_settings ADD COLUMN IF NOT EXISTS quran_verse JSONB NOT NULL DEFAULT '{}'::jsonb;
 
 CREATE INDEX IF NOT EXISTS idx_app_settings_updated_at ON public.app_settings(updated_at);
 CREATE INDEX IF NOT EXISTS idx_app_settings_deleted ON public.app_settings(deleted);
@@ -395,6 +398,47 @@ BEGIN
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'app_settings' AND policyname = 'Allow anonymous delete app_settings') THEN
     CREATE POLICY "Allow anonymous delete app_settings" ON public.app_settings FOR DELETE USING (true);
+  END IF;
+END
+$$;
+
+-- Create the quran_verses table
+CREATE TABLE IF NOT EXISTS public.quran_verses (
+  id TEXT PRIMARY KEY,
+  chapter INTEGER NOT NULL,
+  verse INTEGER NOT NULL,
+  category TEXT DEFAULT 'Inspirational',
+  notes TEXT DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'active',
+  view_count INTEGER NOT NULL DEFAULT 0,
+  last_viewed_at TIMESTAMP WITH TIME ZONE,
+  last_error TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  deleted BOOLEAN DEFAULT FALSE
+);
+
+CREATE INDEX IF NOT EXISTS idx_quran_verses_chapter_verse ON public.quran_verses(chapter, verse);
+CREATE INDEX IF NOT EXISTS idx_quran_verses_status ON public.quran_verses(status);
+CREATE INDEX IF NOT EXISTS idx_quran_verses_deleted ON public.quran_verses(deleted);
+CREATE INDEX IF NOT EXISTS idx_quran_verses_updated_at ON public.quran_verses(updated_at);
+CREATE INDEX IF NOT EXISTS idx_quran_verses_category ON public.quran_verses(category);
+
+ALTER TABLE public.quran_verses ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'quran_verses' AND policyname = 'Allow anonymous select quran_verses') THEN
+    CREATE POLICY "Allow anonymous select quran_verses" ON public.quran_verses FOR SELECT USING (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'quran_verses' AND policyname = 'Allow anonymous insert quran_verses') THEN
+    CREATE POLICY "Allow anonymous insert quran_verses" ON public.quran_verses FOR INSERT WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'quran_verses' AND policyname = 'Allow anonymous update quran_verses') THEN
+    CREATE POLICY "Allow anonymous update quran_verses" ON public.quran_verses FOR UPDATE USING (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'quran_verses' AND policyname = 'Allow anonymous delete quran_verses') THEN
+    CREATE POLICY "Allow anonymous delete quran_verses" ON public.quran_verses FOR DELETE USING (true);
   END IF;
 END
 $$;
