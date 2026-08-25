@@ -71,7 +71,12 @@ export function AppSidebar({
 }: AppSidebarProps) {
   const { soundEnabled, toggleSound } = useSoundPreference();
   const [mobileOpened, setMobileOpened] = useState(false);
-  const isDraggingRef = useRef(false);
+  const [fabPosition, setFabPosition] = useState<{
+    top?: number;
+    left?: number;
+    right?: number;
+    bottom?: number;
+  }>(DEFAULT_FAB_POSITION);
   const dragStartPosRef = useRef<{ x: number; y: number } | null>(null);
   const hasMovedRef = useRef(false);
   const lastMovedDragEndTimeRef = useRef<number>(0);
@@ -88,7 +93,11 @@ export function AppSidebar({
         if (typeof parsed.x === 'number' && typeof parsed.y === 'number') {
           const clampedX = Math.max(12, Math.min(window.innerWidth - 64, parsed.x));
           const clampedY = Math.max(12, Math.min(window.innerHeight - 64, parsed.y));
+          setFabPosition({ left: clampedX, top: clampedY });
           setPositionRef.current?.({ left: clampedX, top: clampedY });
+          requestAnimationFrame(() => {
+            setPositionRef.current?.({ left: clampedX, top: clampedY });
+          });
         }
       }
     } catch {
@@ -97,7 +106,6 @@ export function AppSidebar({
   }, [mobileOpened]);
 
   const handleDragStart = useCallback(() => {
-    isDraggingRef.current = true;
     hasMovedRef.current = false;
     dragStartPosRef.current = null;
   }, []);
@@ -108,7 +116,7 @@ export function AppSidebar({
     } else {
       const dx = Math.abs(pos.x - dragStartPosRef.current.x);
       const dy = Math.abs(pos.y - dragStartPosRef.current.y);
-      if (dx > 4 || dy > 4) {
+      if (dx > 6 || dy > 6) {
         hasMovedRef.current = true;
       }
     }
@@ -132,19 +140,14 @@ export function AppSidebar({
     }
 
     setTimeout(() => {
-      isDraggingRef.current = false;
       hasMovedRef.current = false;
       dragStartPosRef.current = null;
-    }, 120);
+    }, 150);
   }, []);
 
   const handleFabClick = useCallback((e: React.MouseEvent) => {
-    // If user dragged the button, ignore click to prevent accidental drawer opening
-    if (
-      hasMovedRef.current ||
-      isDraggingRef.current ||
-      Date.now() - lastMovedDragEndTimeRef.current < 250
-    ) {
+    // If the user dragged the button (>6px movement), ignore click to prevent accidental drawer opening
+    if (hasMovedRef.current || Date.now() - lastMovedDragEndTimeRef.current < 300) {
       e.preventDefault();
       e.stopPropagation();
       return;
@@ -467,7 +470,7 @@ export function AppSidebar({
       {/* Draggable Floating Action Button on Mobile (hidden when drawer is open) */}
       {!mobileOpened && (
         <FloatingWindow
-          initialPosition={DEFAULT_FAB_POSITION}
+          initialPosition={fabPosition}
           constrainToViewport
           constrainOffset={12}
           zIndex={999}
