@@ -5,7 +5,6 @@ import {
   Badge,
   Button,
   Card,
-  Flex,
   Group,
   Modal,
   Paper,
@@ -269,7 +268,7 @@ export function CloudSyncCard({
       <Card
         className="glass-panel"
         radius="lg"
-        padding="md"
+        p={{ base: 'sm', sm: 'md' }}
         style={{
           border:
             effectiveStatus === 'error'
@@ -280,16 +279,16 @@ export function CloudSyncCard({
           transition: 'all 0.2s ease',
         }}
       >
-        <Group justify="space-between" align="center" wrap="nowrap">
-          <Group gap="sm" wrap="nowrap" style={{ minWidth: 0 }}>
+        <Group justify="space-between" align="center" wrap="wrap" gap="xs">
+          <Group gap="sm" wrap="nowrap" style={{ minWidth: 0, flex: '1 1 auto' }}>
             {/* Status Avatar / Icon */}
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                width: '40px',
-                height: '40px',
+                width: '38px',
+                height: '38px',
                 borderRadius: '12px',
                 background:
                   effectiveStatus === 'error'
@@ -311,7 +310,7 @@ export function CloudSyncCard({
               }}
             >
               <StatusIcon
-                size={22}
+                size={20}
                 className={
                   isActuallySyncing
                     ? 'sync-spin-icon'
@@ -323,8 +322,8 @@ export function CloudSyncCard({
             </div>
 
             {/* Title & Status info */}
-            <div style={{ minWidth: 0 }}>
-              <Group gap={6} align="center" wrap="nowrap">
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <Group gap={6} align="center" wrap="wrap">
                 <Text size="xs" fw={700} c="dimmed" style={{ letterSpacing: '0.05em' }}>
                   CLOUD SYNC
                 </Text>
@@ -335,7 +334,7 @@ export function CloudSyncCard({
                 )}
               </Group>
 
-              <Flex justify="flex-start" align="center" direction="row" gap={8} wrap="nowrap">
+              <Group gap={6} align="center" wrap="wrap">
                 <Text
                   size="md"
                   fw={800}
@@ -352,7 +351,7 @@ export function CloudSyncCard({
 
                 {/* Session Traffic Pills */}
                 {(totalSent > 0 || totalReceived > 0) && (
-                  <Group gap={4} wrap="nowrap">
+                  <Group gap={4} wrap="wrap">
                     {totalSent > 0 && (
                       <Badge size="xs" variant="light" color="blue">
                         ↑ {totalSent}
@@ -365,16 +364,16 @@ export function CloudSyncCard({
                     )}
                   </Group>
                 )}
-              </Flex>
+              </Group>
 
-              <Text size="11px" c="dimmed">
+              <Text size="11px" c="dimmed" style={{ wordBreak: 'break-word' }}>
                 Last synced: {lastSyncedText}
               </Text>
             </div>
           </Group>
 
           {/* Action Buttons */}
-          <Group gap={6} wrap="nowrap">
+          <Group gap={4} wrap="nowrap" style={{ flexShrink: 0, marginLeft: 'auto' }}>
             {/* Sync Now Button */}
             {onlineStatus && (
               <Tooltip
@@ -444,14 +443,14 @@ export function CloudSyncCard({
         opened={detailsOpen}
         onClose={() => setDetailsOpen(false)}
         title={
-          <Group gap="xs">
+          <Group gap="xs" wrap="wrap">
             <ThemeIcon color="indigo" variant="light" size="md" radius="md">
               <IconCloudCheck size={18} />
             </ThemeIcon>
-            <Text fw={700} size="lg" style={{ fontFamily: 'var(--font-title)' }}>
+            <Text fw={700} size="md" style={{ fontFamily: 'var(--font-title)' }}>
               RxDB Cloud Sync Hub
             </Text>
-            <Badge color={statusColor} variant="light" size="sm">
+            <Badge color={statusColor} variant="light" size="xs">
               {statusLabel}
             </Badge>
           </Group>
@@ -459,6 +458,7 @@ export function CloudSyncCard({
         size="lg"
         radius="lg"
         centered
+        padding="md"
         styles={{
           header: {
             borderBottom: '1px solid var(--card-border)',
@@ -471,13 +471,13 @@ export function CloudSyncCard({
       >
         <Stack gap="md">
           {/* Quick Overview Strip */}
-          <Paper p="sm" radius="md" withBorder className="glass-panel">
-            <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="xs">
+          <Paper p={{ base: 'xs', sm: 'sm' }} radius="md" withBorder className="glass-panel">
+            <SimpleGrid cols={{ base: 2, sm: 4 }} spacing={{ base: 'xs', sm: 'sm' }}>
               <div>
                 <Text size="xs" c="dimmed">
                   Connection
                 </Text>
-                <Group gap={4} mt={2}>
+                <Group gap={4} mt={2} wrap="nowrap">
                   <span
                     style={{
                       display: 'inline-block',
@@ -485,9 +485,10 @@ export function CloudSyncCard({
                       height: '8px',
                       borderRadius: '50%',
                       backgroundColor: onlineStatus ? '#10b981' : '#9ca3af',
+                      flexShrink: 0,
                     }}
                   />
-                  <Text size="sm" fw={600}>
+                  <Text size="xs" fw={600} truncate="end">
                     {onlineStatus ? 'Connected' : 'Offline'}
                   </Text>
                 </Group>
@@ -497,7 +498,7 @@ export function CloudSyncCard({
                 <Text size="xs" c="dimmed">
                   Live Streaming
                 </Text>
-                <Text size="sm" fw={600} c={isPaused ? 'yellow' : 'teal'}>
+                <Text size="xs" fw={600} c={isPaused ? 'yellow' : 'teal'} truncate="end">
                   {isPaused ? 'Paused' : 'Active (Live)'}
                 </Text>
               </div>
@@ -506,7 +507,7 @@ export function CloudSyncCard({
                 <Text size="xs" c="dimmed">
                   Items Synced
                 </Text>
-                <Text size="sm" fw={600}>
+                <Text size="xs" fw={600} truncate="end">
                   ↑ {totalSent} / ↓ {totalReceived}
                 </Text>
               </div>
@@ -515,7 +516,7 @@ export function CloudSyncCard({
                 <Text size="xs" c="dimmed">
                   Last Sync
                 </Text>
-                <Text size="sm" fw={600}>
+                <Text size="xs" fw={600} truncate="end">
                   {lastSyncedText}
                 </Text>
               </div>
@@ -523,8 +524,8 @@ export function CloudSyncCard({
           </Paper>
 
           {/* Master Actions Bar */}
-          <Group justify="space-between" align="center" wrap="wrap">
-            <Group gap="xs">
+          <Group justify="space-between" align="center" wrap="wrap" gap="xs">
+            <Group gap="xs" wrap="wrap" style={{ flex: '1 1 auto' }}>
               <Button
                 size="xs"
                 variant="filled"
@@ -569,7 +570,7 @@ export function CloudSyncCard({
 
           {verifyResult && (
             <Paper p="xs" radius="md" bg="rgba(16, 185, 129, 0.08)" withBorder>
-              <Text size="xs" fw={600} c="teal">
+              <Text size="xs" fw={600} c="teal" style={{ wordBreak: 'break-word' }}>
                 {verifyResult}
               </Text>
             </Paper>
@@ -577,13 +578,28 @@ export function CloudSyncCard({
 
           {/* Navigation Tabs */}
           <Tabs value={activeTab} onChange={setActiveTab}>
-            <Tabs.List>
-              <Tabs.Tab value="collections" leftSection={<IconDatabase size={14} />}>
+            <Tabs.List
+              style={{
+                display: 'flex',
+                flexWrap: 'nowrap',
+                overflowX: 'auto',
+                WebkitOverflowScrolling: 'touch',
+                scrollbarWidth: 'none',
+              }}
+            >
+              <Tabs.Tab
+                value="collections"
+                leftSection={<IconDatabase size={14} />}
+                px={{ base: 8, sm: 'md' }}
+                style={{ fontSize: '0.8rem', whiteSpace: 'nowrap', flexShrink: 0 }}
+              >
                 Collections ({collectionsList.length})
               </Tabs.Tab>
               <Tabs.Tab
                 value="activities"
                 leftSection={<IconActivity size={14} />}
+                px={{ base: 8, sm: 'md' }}
+                style={{ fontSize: '0.8rem', whiteSpace: 'nowrap', flexShrink: 0 }}
                 rightSection={
                   (syncState?.activities?.length ?? 0) > 0 ? (
                     <Badge size="xs" variant="filled" color="gray" circle>
@@ -592,9 +608,14 @@ export function CloudSyncCard({
                   ) : undefined
                 }
               >
-                Activity Stream
+                Activity Log
               </Tabs.Tab>
-              <Tabs.Tab value="architecture" leftSection={<IconInfoCircle size={14} />}>
+              <Tabs.Tab
+                value="architecture"
+                leftSection={<IconInfoCircle size={14} />}
+                px={{ base: 8, sm: 'md' }}
+                style={{ fontSize: '0.8rem', whiteSpace: 'nowrap', flexShrink: 0 }}
+              >
                 Replication Info
               </Tabs.Tab>
             </Tabs.List>
@@ -621,13 +642,19 @@ export function CloudSyncCard({
 
                   return (
                     <Card key={col.key} className="sync-collection-card" padding="xs" radius="md">
-                      <Group justify="space-between" align="center" wrap="nowrap">
-                        <Group gap="sm" wrap="nowrap">
-                          <ThemeIcon size="md" radius="md" variant="light" color={colStatusColor}>
+                      <Group justify="space-between" align="center" wrap="wrap" gap="xs">
+                        <Group gap="xs" wrap="nowrap" style={{ minWidth: 0, flex: '1 1 180px' }}>
+                          <ThemeIcon
+                            size="md"
+                            radius="md"
+                            variant="light"
+                            color={colStatusColor}
+                            style={{ flexShrink: 0 }}
+                          >
                             <IconComponent size={18} />
                           </ThemeIcon>
-                          <div>
-                            <Group gap={6} align="center">
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <Group gap={6} align="center" wrap="wrap">
                               <Text size="sm" fw={700}>
                                 {col.label}
                               </Text>
@@ -635,14 +662,14 @@ export function CloudSyncCard({
                                 {colStatusText}
                               </Badge>
                             </Group>
-                            <Text size="11px" c="dimmed">
+                            <Text size="11px" c="dimmed" style={{ wordBreak: 'break-word' }}>
                               Table: <code>{col.tableName}</code>
                               {localCount !== undefined && ` • ${localCount} docs stored`}
                             </Text>
                           </div>
                         </Group>
 
-                        <Group gap="xs" wrap="nowrap">
+                        <Group gap="xs" wrap="nowrap" style={{ flexShrink: 0, marginLeft: 'auto' }}>
                           <Badge size="xs" variant="light" color="blue">
                             ↑ {col.sentCount}
                           </Badge>
@@ -670,7 +697,7 @@ export function CloudSyncCard({
                       </Group>
 
                       {col.error && (
-                        <Text size="xs" c="red" mt={4} fw={500}>
+                        <Text size="xs" c="red" mt={4} fw={500} style={{ wordBreak: 'break-word' }}>
                           Error: {col.error}
                         </Text>
                       )}
@@ -683,7 +710,7 @@ export function CloudSyncCard({
             {/* TAB 2: Live Activity Stream */}
             <Tabs.Panel value="activities" pt="sm">
               <Stack gap="xs">
-                <Group justify="space-between" align="center">
+                <Group justify="space-between" align="center" wrap="wrap" gap="xs">
                   <Text size="xs" fw={700} c="dimmed">
                     RECENT REPLICATION EVENTS
                   </Text>
@@ -739,7 +766,7 @@ export function CloudSyncCard({
                             bullet={<BulletIcon size={12} />}
                             color={bulletColor}
                             title={
-                              <Text size="xs" fw={600}>
+                              <Text size="xs" fw={600} style={{ wordBreak: 'break-word' }}>
                                 {act.message}
                               </Text>
                             }
@@ -763,8 +790,8 @@ export function CloudSyncCard({
                   <Text size="xs" fw={700} c="dimmed" mb={6}>
                     DATABASE & REPLICATION ARCHITECTURE
                   </Text>
-                  <Stack gap={6}>
-                    <Group justify="space-between">
+                  <Stack gap={8}>
+                    <Group justify="space-between" align="center" wrap="wrap" gap={4}>
                       <Text size="xs" c="dimmed">
                         Client Storage Engine:
                       </Text>
@@ -772,7 +799,7 @@ export function CloudSyncCard({
                         RxDB v16 + Dexie (IndexedDB)
                       </Text>
                     </Group>
-                    <Group justify="space-between">
+                    <Group justify="space-between" align="center" wrap="wrap" gap={4}>
                       <Text size="xs" c="dimmed">
                         Remote Backend:
                       </Text>
@@ -780,7 +807,7 @@ export function CloudSyncCard({
                         Supabase (PostgreSQL + Realtime)
                       </Text>
                     </Group>
-                    <Group justify="space-between">
+                    <Group justify="space-between" align="center" wrap="wrap" gap={4}>
                       <Text size="xs" c="dimmed">
                         Replication Protocol:
                       </Text>
@@ -788,7 +815,7 @@ export function CloudSyncCard({
                         Two-Way RxDB Replication with Checkpoints
                       </Text>
                     </Group>
-                    <Group justify="space-between">
+                    <Group justify="space-between" align="center" wrap="wrap" gap={4}>
                       <Text size="xs" c="dimmed">
                         Deleted Record Strategy:
                       </Text>
@@ -796,7 +823,7 @@ export function CloudSyncCard({
                         Soft Deletes (<code>_deleted</code> / <code>deleted</code>)
                       </Text>
                     </Group>
-                    <Group justify="space-between">
+                    <Group justify="space-between" align="center" wrap="wrap" gap={4}>
                       <Text size="xs" c="dimmed">
                         Batch Size:
                       </Text>

@@ -165,12 +165,13 @@ export function SettingsSyncTab({
         }}
       >
         <Group justify="space-between" align="center" wrap="wrap" gap="sm" mb="md">
-          <Group gap="sm">
+          <Group gap="sm" wrap="nowrap" style={{ minWidth: 0, flex: '1 1 auto' }}>
             <ThemeIcon
               size="lg"
               radius="md"
               color={!onlineStatus ? 'red' : isSyncing ? 'violet' : 'teal'}
               variant="light"
+              style={{ flexShrink: 0 }}
             >
               {!onlineStatus ? (
                 <IconCloudOff size={20} />
@@ -180,8 +181,8 @@ export function SettingsSyncTab({
                 <IconCloudCheck size={20} />
               )}
             </ThemeIcon>
-            <div>
-              <Group gap="xs" align="center">
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <Group gap="xs" align="center" wrap="wrap">
                 <Text fw={700} size="md">
                   Supabase Cloud Replication
                 </Text>
@@ -193,7 +194,7 @@ export function SettingsSyncTab({
                   {!onlineStatus ? 'Offline' : isSyncing ? 'Syncing...' : 'Connected & Live'}
                 </Badge>
               </Group>
-              <Text size="xs" c="dimmed">
+              <Text size="xs" c="dimmed" style={{ wordBreak: 'break-word' }}>
                 Bi-directional live replication between local RxDB and remote PostgreSQL
               </Text>
             </div>
@@ -311,12 +312,12 @@ export function SettingsSyncTab({
           boxShadow: 'var(--card-shadow)',
         }}
       >
-        <Group justify="space-between" align="center" mb="md">
-          <Group gap="sm">
-            <ThemeIcon size="lg" radius="md" color="teal" variant="light">
+        <Group justify="space-between" align="center" wrap="wrap" gap="xs" mb="md">
+          <Group gap="sm" wrap="nowrap" style={{ minWidth: 0, flex: '1 1 auto' }}>
+            <ThemeIcon size="lg" radius="md" color="teal" variant="light" style={{ flexShrink: 0 }}>
               <IconDatabase size={20} />
             </ThemeIcon>
-            <div>
+            <div style={{ minWidth: 0, flex: 1 }}>
               <Text fw={700} size="md">
                 Synchronized Collections
               </Text>
@@ -332,6 +333,7 @@ export function SettingsSyncTab({
             size="xs"
             leftSection={<IconTrash size={14} />}
             onClick={handleClearActivities}
+            style={{ flexShrink: 0, marginLeft: 'auto' }}
           >
             Clear Activity Log
           </Button>
