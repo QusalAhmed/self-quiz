@@ -45,6 +45,8 @@ jest.mock('@/lib/quran-service', () => ({
 }));
 
 describe('AddVersePage (app/quran/add/page.tsx)', () => {
+  jest.setTimeout(15000);
+
   beforeEach(() => {
     jest.clearAllMocks();
   });

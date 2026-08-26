@@ -310,6 +310,25 @@ export function AddQuranVerseModal({
         </Group>
       }
       styles={{
+        root: {
+          maxWidth: '100vw',
+          overflow: 'hidden',
+        },
+        inner: {
+          padding: 'clamp(4px, 2vw, 16px)',
+          maxWidth: '100vw',
+          overflow: 'hidden',
+        },
+        content: {
+          maxWidth: '100%',
+          width: '100%',
+          maxHeight: 'calc(100dvh - 16px)',
+          overflow: 'hidden',
+        },
+        body: {
+          maxWidth: '100%',
+          overflowX: 'hidden',
+        },
         header: {
           borderBottom: '1px solid var(--card-border)',
           paddingBottom: 12,
@@ -324,7 +343,7 @@ export function AddQuranVerseModal({
         radius="md"
         mt="sm"
       >
-        <Tabs.List mb="md" grow>
+        <Tabs.List mb="md" style={{ flexWrap: 'wrap', gap: 6 }}>
           <Tabs.Tab value="dropdown" leftSection={<IconListDetails size={16} />}>
             1. Select Surah & Ayah
           </Tabs.Tab>
