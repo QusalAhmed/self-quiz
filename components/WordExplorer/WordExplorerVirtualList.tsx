@@ -13,7 +13,6 @@ export type WordExplorerVirtualListProps = {
   missedRecords?: MissedWordRecord[];
   wordFamilies?: Record<string, WordFamilyMemberRecord[]>;
   density?: WordViewDensity;
-  searchQuery?: string;
   generatingExampleWordIds?: Record<string, boolean>;
   generatingWordFamilyWordIds?: Record<string, boolean>;
   onEdit: (word: WordRecord) => void;
@@ -35,7 +34,6 @@ export const WordExplorerVirtualList = React.memo(function WordExplorerVirtualLi
   missedRecords = [],
   wordFamilies = {},
   density = 'detailed',
-  searchQuery = '',
   generatingExampleWordIds = {},
   generatingWordFamilyWordIds = {},
   onEdit,
@@ -236,7 +234,6 @@ export const WordExplorerVirtualList = React.memo(function WordExplorerVirtualLi
                 missedWordCount={missedInfo?.count ?? 0}
                 wordFamilyMembers={familyMembers}
                 density={density}
-                searchQuery={searchQuery}
                 isGeneratingExamples={isGeneratingExamples}
                 isGeneratingWordFamily={isGeneratingFamily}
                 onEdit={onEdit}

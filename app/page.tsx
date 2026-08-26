@@ -38,6 +38,7 @@ import { setMode } from '@/lib/redux/slices/quizSlice';
 import { setupSupabaseReplication, type ReplicationsHolder } from '@/lib/replication';
 import { notifyFsrsWordAdded, notifyWordSaved } from '@/lib/system-notifications';
 import { buildWordFamilyId, type WordFamilyMember } from '@/lib/word-family';
+import { filterAndSortWords } from '@/lib/word-search';
 
 export default function HomePage() {
   const dispatch = useAppDispatch();
@@ -239,22 +240,14 @@ export default function HomePage() {
         list = list.filter((w) => wordHasGroup(w, groupFilter));
       }
     }
-    const query = searchQuery.trim().toLowerCase();
-    if (!query) {
-      return list;
-    }
-    return list.filter((word) => {
-      if (word.word.toLowerCase().includes(query)) {
-        return true;
-      }
-      if (searchScope === 'wordAndDefinition') {
-        return getWordDefinitions(word).some((definition) =>
-          definition.meaning.toLowerCase().includes(query)
-        );
-      }
-      return false;
+    return filterAndSortWords({
+      words: list,
+      searchQuery,
+      searchScope,
+      sortOption: 'newest',
+      wordFamilies,
     });
-  }, [words, searchQuery, searchScope, groupFilter]);
+  }, [words, searchQuery, searchScope, groupFilter, wordFamilies]);
 
   const totalPages = Math.max(1, Math.ceil(filteredWords.length / pageSize));
 

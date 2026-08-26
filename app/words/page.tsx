@@ -946,11 +946,14 @@ export default function WordsPage() {
   }, [words, wordFamilies]);
 
   const filteredMissingWordFamilyWords = useMemo(() => {
+    if (!batchWordFamilyModalOpen) {
+      return [];
+    }
     return filteredWords.filter((w) => {
       const fam = wordFamilies[w.id];
       return !fam || fam.filter((m) => !m.isDeleted).length === 0;
     });
-  }, [filteredWords, wordFamilies]);
+  }, [batchWordFamilyModalOpen, filteredWords, wordFamilies]);
 
   // Memoized stable event callbacks
   const handleResetFilters = useCallback(() => {
@@ -1047,7 +1050,6 @@ export default function WordsPage() {
           missedRecords={missedWords}
           wordFamilies={wordFamilies}
           density={density}
-          searchQuery={searchQuery}
           generatingExampleWordIds={generatingExampleWordIds}
           generatingWordFamilyWordIds={generatingWordFamilyWordIds}
           onEdit={handleEdit}

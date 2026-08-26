@@ -15,7 +15,7 @@ import {
   TextInput,
 } from '@mantine/core';
 import { IconSearch, IconTags, IconVolume, IconX } from '@tabler/icons-react';
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GroupRecord, StoryWordReference, WordRecord } from '@/lib/db';
 import { normalizeDefinitions } from '@/lib/definitions';
 import { getActiveGroupNames } from '@/lib/groups';
@@ -42,7 +42,35 @@ export function WordLibraryBrowser({
   disabled = false,
 }: WordLibraryBrowserProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [localQuery, setLocalQuery] = useState('');
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<string>('all');
+
+  const handleSearchChange = useCallback((val: string) => {
+    setLocalQuery(val);
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    debounceTimerRef.current = setTimeout(() => {
+      setSearchQuery(val);
+    }, 120);
+  }, []);
+
+  const handleClearSearch = useCallback(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    setLocalQuery('');
+    setSearchQuery('');
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
 
   const customGroupNames = useMemo(() => getActiveGroupNames(groups), [groups]);
 
@@ -162,13 +190,13 @@ export function WordLibraryBrowser({
         <TextInput
           placeholder="Search library words or definitions..."
           leftSection={<IconSearch size={16} />}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.currentTarget.value)}
+          value={localQuery}
+          onChange={(e) => handleSearchChange(e.currentTarget.value)}
           size="sm"
           style={{ flex: 1, minWidth: 200 }}
           rightSection={
-            searchQuery ? (
-              <ActionIcon size="xs" variant="subtle" onClick={() => setSearchQuery('')}>
+            localQuery ? (
+              <ActionIcon size="xs" variant="subtle" onClick={handleClearSearch}>
                 <IconX size={14} />
               </ActionIcon>
             ) : null

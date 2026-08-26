@@ -23,6 +23,7 @@ import {
   IconTags,
 } from '@tabler/icons-react';
 import { useRouter } from 'next/navigation';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { GroupManager } from '@/components/GroupManager/GroupManager';
 import { WordForm } from '@/components/WordForm/WordForm';
 import { WordList } from '@/components/WordList/WordList';
@@ -125,6 +126,43 @@ export function StudyModeSection({
   onSetPage,
 }: StudyModeSectionProps) {
   const router = useRouter();
+  const [localQuery, setLocalQuery] = useState(searchQuery);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setLocalQuery(searchQuery);
+  }, [searchQuery]);
+
+  const handleInputChange = useCallback(
+    (val: string) => {
+      setLocalQuery(val);
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+      debounceTimerRef.current = setTimeout(() => {
+        onSetSearchQuery(val);
+        onSetPage(1);
+      }, 120);
+    },
+    [onSetSearchQuery, onSetPage]
+  );
+
+  const handleClearSearch = useCallback(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    setLocalQuery('');
+    onSetSearchQuery('');
+    onSetPage(1);
+  }, [onSetSearchQuery, onSetPage]);
+
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
 
   return (
     <Stack gap="lg">
@@ -252,23 +290,19 @@ export function StudyModeSection({
                     </Menu>
                   }
                   rightSection={
-                    searchQuery ? (
+                    localQuery ? (
                       <CloseButton
                         size="sm"
                         aria-label="Clear search"
-                        onClick={() => {
-                          onSetSearchQuery('');
-                          onSetPage(1);
-                        }}
+                        onClick={handleClearSearch}
                       />
                     ) : null
                   }
-                  value={searchQuery}
+                  value={localQuery}
                   size="md"
                   radius="md"
                   onChange={(event) => {
-                    onSetSearchQuery(event.currentTarget.value);
-                    onSetPage(1);
+                    handleInputChange(event.currentTarget.value);
                   }}
                 />
               </Stack>

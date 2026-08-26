@@ -59,7 +59,6 @@ export type WordDetailCardProps = {
   missedRecords?: MissedWordRecord[];
   wordFamilyMembers?: WordFamilyMemberRecord[];
   density?: WordViewDensity;
-  searchQuery?: string;
   isGeneratingExamples?: boolean;
   isGeneratingWordFamily?: boolean;
   onEdit: (word: WordRecord) => void;

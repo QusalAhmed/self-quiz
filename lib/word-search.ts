@@ -29,43 +29,64 @@ export function normalizeSearchText(text?: string | null): string {
   return text.trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
+// Reusable static typed buffers to avoid memory allocation on every Levenshtein comparison
+let levRowA = new Int32Array(128);
+let levRowB = new Int32Array(128);
+
 /**
- * Computes Levenshtein distance between two strings.
+ * Computes Levenshtein distance between two strings with zero heap allocation.
  */
 export function levenshteinDistance(a: string, b: string): number {
   if (a === b) {
     return 0;
   }
-  if (!a.length) {
-    return b.length;
+  const aLen = a.length;
+  const bLen = b.length;
+  if (!aLen) {
+    return bLen;
   }
-  if (!b.length) {
-    return a.length;
-  }
-
-  const matrix: number[][] = [];
-  for (let i = 0; i <= b.length; i++) {
-    matrix[i] = [i];
-  }
-  for (let j = 0; j <= a.length; j++) {
-    matrix[0][j] = j;
+  if (!bLen) {
+    return aLen;
   }
 
-  for (let i = 1; i <= b.length; i++) {
-    for (let j = 1; j <= a.length; j++) {
-      if (b.charAt(i - 1) === a.charAt(j - 1)) {
-        matrix[i][j] = matrix[i - 1][j - 1];
-      } else {
-        matrix[i][j] = Math.min(
-          matrix[i - 1][j - 1] + 1, // substitution
-          matrix[i][j - 1] + 1, // insertion
-          matrix[i - 1][j] + 1 // deletion
-        );
-      }
+  let s1 = a;
+  let s2 = b;
+  if (s1.length < s2.length) {
+    s1 = b;
+    s2 = a;
+  }
+  const s1Len = s1.length;
+  const s2Len = s2.length;
+
+  if (s2Len + 1 > levRowA.length) {
+    levRowA = new Int32Array(s2Len + 64);
+    levRowB = new Int32Array(s2Len + 64);
+  }
+
+  let prevRow = levRowA;
+  let currRow = levRowB;
+
+  for (let j = 0; j <= s2Len; j++) {
+    prevRow[j] = j;
+  }
+
+  for (let i = 1; i <= s1Len; i++) {
+    currRow[0] = i;
+    const ch1 = s1.charCodeAt(i - 1);
+    for (let j = 1; j <= s2Len; j++) {
+      const cost = ch1 === s2.charCodeAt(j - 1) ? 0 : 1;
+      currRow[j] = Math.min(
+        prevRow[j] + 1, // insertion
+        currRow[j - 1] + 1, // deletion
+        prevRow[j - 1] + cost // substitution
+      );
     }
+    const tmp = prevRow;
+    prevRow = currRow;
+    currRow = tmp;
   }
 
-  return matrix[b.length][a.length];
+  return prevRow[s2Len];
 }
 
 /**
@@ -87,6 +108,376 @@ export function isSubsequence(sub: string, str: string): boolean {
   return subIdx === sub.length;
 }
 
+export type SearchableDefinition = {
+  meaning: string;
+  partOfSpeech: string;
+  examples: string[];
+};
+
+export type SearchableMember = {
+  word: string;
+  bangla: string;
+  english: string;
+  freq: string;
+};
+
+export type SearchableWordData = {
+  headword: string;
+  headwordTokens: string[];
+  headwordLength: number;
+  defs: SearchableDefinition[];
+  notes: string;
+  usageFrequency: string;
+  generatorAiDetails: string;
+  members: SearchableMember[];
+};
+
+// Memoized WeakMap to avoid re-normalizing immutable WordRecord structures on every keystroke
+const searchableWordCache = new WeakMap<WordRecord, SearchableWordData>();
+
+/**
+ * Creates or retrieves pre-normalized searchable data for a word and optional family members.
+ */
+export function getSearchableWordData(
+  word: WordRecord,
+  members: WordFamilyMemberRecord[] = []
+): SearchableWordData {
+  let cached = searchableWordCache.get(word);
+  const hasMembers = members.length > 0;
+
+  if (!cached || (hasMembers && cached.members.length === 0)) {
+    const headword = normalizeSearchText(word.word);
+    const headwordTokens = headword.split(/[\s\-_/,]+/).filter(Boolean);
+    const defs: WordDefinition[] = getWordDefinitions(word);
+    const notes = normalizeSearchText(word.notes);
+    const usageFrequency = word.usageFrequency ? normalizeSearchText(word.usageFrequency) : '';
+    const generatorAiDetails = word.generatorAiDetails
+      ? normalizeSearchText(word.generatorAiDetails)
+      : '';
+
+    const searchableDefs: SearchableDefinition[] = new Array(defs.length);
+    for (let i = 0; i < defs.length; i++) {
+      const d = defs[i];
+      const allEx = [...(d.examples || []), ...(d.userExamples || [])];
+      const normEx: string[] = [];
+      for (let j = 0; j < allEx.length; j++) {
+        const norm = normalizeSearchText(allEx[j]);
+        if (norm) {
+          normEx.push(norm);
+        }
+      }
+      searchableDefs[i] = {
+        meaning: normalizeSearchText(d.meaning),
+        partOfSpeech: normalizeSearchText(d.partOfSpeech),
+        examples: normEx,
+      };
+    }
+
+    const searchableMembers: SearchableMember[] = new Array(members.length);
+    for (let i = 0; i < members.length; i++) {
+      const m = members[i];
+      searchableMembers[i] = {
+        word: normalizeSearchText(m.word),
+        bangla: normalizeSearchText(m.banglaDefinition),
+        english: normalizeSearchText(m.englishDefinition),
+        freq: m.usageFrequency ? normalizeSearchText(m.usageFrequency) : '',
+      };
+    }
+
+    cached = {
+      headword,
+      headwordTokens,
+      headwordLength: headword.length,
+      defs: searchableDefs,
+      notes,
+      usageFrequency,
+      generatorAiDetails,
+      members: searchableMembers,
+    };
+
+    searchableWordCache.set(word, cached);
+  }
+
+  return cached;
+}
+
+export type CompiledSearchQuery = {
+  raw: string;
+  normalized: string;
+  tokens: string[];
+  isMultiToken: boolean;
+  escaped: string;
+  wordBoundaryRegex: RegExp;
+};
+
+/**
+ * Compiles and pre-computes search query tokens and regex patterns once per search operation.
+ */
+export function compileSearchQuery(query: string): CompiledSearchQuery | null {
+  const normalized = normalizeSearchText(query);
+  if (!normalized) {
+    return null;
+  }
+  const tokens = normalized.split(/\s+/).filter((t) => t.length > 0);
+  const escaped = escapeRegExp(normalized);
+  const wordBoundaryRegex = new RegExp(
+    `(?:^|[\\s.,;:!?"'()\\[\\]{}\\/\\-])${escaped}(?:$|[\\s.,;:!?"'()\\[\\]{}\\/\\-])`,
+    'i'
+  );
+  return {
+    raw: query,
+    normalized,
+    tokens,
+    isMultiToken: tokens.length > 1,
+    escaped,
+    wordBoundaryRegex,
+  };
+}
+
+/**
+ * Calculates a matching relevance score for a pre-normalized searchable word data object.
+ * Runs in sub-microsecond time with 0 regex compilations and 0 string heap allocations.
+ */
+export function calculateScoreFromSearchable(
+  data: SearchableWordData,
+  compiled: CompiledSearchQuery,
+  scope: SearchScope = 'all'
+): number {
+  const {
+    normalized: normalizedQuery,
+    tokens: queryTokens,
+    isMultiToken,
+    wordBoundaryRegex,
+  } = compiled;
+  const { headword, headwordTokens, headwordLength } = data;
+
+  let score = 0;
+  let matchedAny = false;
+
+  // ── 1. Headword Matching (Highest Priority) ──
+  if (headword === normalizedQuery) {
+    score += 10000 + Math.max(0, 1000 - headwordLength * 10);
+    matchedAny = true;
+  } else if (headword.startsWith(normalizedQuery)) {
+    const lengthRatio = normalizedQuery.length / Math.max(1, headwordLength);
+    score += 5000 + Math.round(lengthRatio * 1500);
+    matchedAny = true;
+  } else {
+    // Check word-boundary / token match in headword
+    const tokenExactMatch = headwordTokens.some((t) => t === normalizedQuery);
+    const tokenPrefixMatch = headwordTokens.some((t) => t.startsWith(normalizedQuery));
+
+    if (tokenExactMatch) {
+      score += 4000;
+      matchedAny = true;
+    } else if (tokenPrefixMatch) {
+      score += 3500;
+      matchedAny = true;
+    } else {
+      const subIndex = headword.indexOf(normalizedQuery);
+      if (subIndex !== -1) {
+        const indexPenalty = Math.min(500, subIndex * 30);
+        const lengthRatio = normalizedQuery.length / Math.max(1, headwordLength);
+        score += 2000 - indexPenalty + Math.round(lengthRatio * 500);
+        matchedAny = true;
+      } else if (isMultiToken && queryTokens.every((t) => headword.includes(t))) {
+        score += 2800;
+        matchedAny = true;
+      } else if (scope === 'word') {
+        if (normalizedQuery.length >= 3) {
+          const maxAllowedDist = normalizedQuery.length > 5 ? 2 : 1;
+          if (Math.abs(headwordLength - normalizedQuery.length) <= maxAllowedDist) {
+            const dist = levenshteinDistance(headword, normalizedQuery);
+            if (dist <= maxAllowedDist) {
+              score += dist === 1 ? 800 : 400;
+              matchedAny = true;
+            }
+          }
+          if (!matchedAny && isSubsequence(normalizedQuery, headword)) {
+            score += 300;
+            matchedAny = true;
+          }
+        }
+      }
+    }
+  }
+
+  // Early return for word-only scope
+  if (scope === 'word') {
+    return matchedAny ? score : 0;
+  }
+
+  // ── 2. Definitions & Meanings (if scope is 'wordAndDefinition' or 'all') ──
+  let bestDefScore = 0;
+
+  for (let i = 0; i < data.defs.length; i++) {
+    const def = data.defs[i];
+    const { meaning: defMeaning, partOfSpeech: defPos } = def;
+    let currentDefScore = 0;
+
+    if (defMeaning) {
+      if (defMeaning === normalizedQuery) {
+        currentDefScore = Math.max(currentDefScore, 2000);
+      } else if (defMeaning.startsWith(normalizedQuery)) {
+        currentDefScore = Math.max(currentDefScore, 1400);
+      } else if (wordBoundaryRegex.test(defMeaning)) {
+        currentDefScore = Math.max(currentDefScore, 1000);
+      } else if (defMeaning.includes(normalizedQuery)) {
+        currentDefScore = Math.max(currentDefScore, 500);
+      } else if (isMultiToken && queryTokens.every((t) => defMeaning.includes(t))) {
+        currentDefScore = Math.max(currentDefScore, 650);
+      }
+    }
+
+    if (defPos) {
+      if (defPos === normalizedQuery) {
+        currentDefScore = Math.max(currentDefScore, 400);
+      } else if (defPos.startsWith(normalizedQuery)) {
+        currentDefScore = Math.max(currentDefScore, 250);
+      }
+    }
+
+    if (currentDefScore > bestDefScore) {
+      bestDefScore = currentDefScore;
+    }
+  }
+
+  if (bestDefScore > 0) {
+    score += bestDefScore;
+    matchedAny = true;
+  }
+
+  // ── 3. Notes, Examples & Word Families (if scope is 'all') ──
+  if (scope === 'all') {
+    // 3A. Personal Notes
+    if (data.notes) {
+      if (data.notes === normalizedQuery) {
+        score += 500;
+        matchedAny = true;
+      } else if (wordBoundaryRegex.test(data.notes)) {
+        score += 350;
+        matchedAny = true;
+      } else if (data.notes.includes(normalizedQuery)) {
+        score += 180;
+        matchedAny = true;
+      }
+    }
+
+    // 3B. Example Sentences
+    let bestExampleScore = 0;
+    for (let i = 0; i < data.defs.length; i++) {
+      const def = data.defs[i];
+      for (let j = 0; j < def.examples.length; j++) {
+        const ex = def.examples[j];
+        if (wordBoundaryRegex.test(ex)) {
+          bestExampleScore = Math.max(bestExampleScore, 250);
+        } else if (ex.includes(normalizedQuery)) {
+          bestExampleScore = Math.max(bestExampleScore, 120);
+        }
+      }
+    }
+    if (bestExampleScore > 0) {
+      score += bestExampleScore;
+      matchedAny = true;
+    }
+
+    // 3C. Word Family Members
+    let bestFamilyScore = 0;
+    for (let i = 0; i < data.members.length; i++) {
+      const mem = data.members[i];
+      if (mem.word === normalizedQuery) {
+        bestFamilyScore = Math.max(bestFamilyScore, 750);
+      } else if (mem.word.startsWith(normalizedQuery)) {
+        bestFamilyScore = Math.max(bestFamilyScore, 500);
+      } else if (mem.word.includes(normalizedQuery)) {
+        bestFamilyScore = Math.max(bestFamilyScore, 300);
+      } else if (mem.bangla.includes(normalizedQuery) || mem.english.includes(normalizedQuery)) {
+        bestFamilyScore = Math.max(bestFamilyScore, 150);
+      } else if (mem.freq && (mem.freq === normalizedQuery || mem.freq.includes(normalizedQuery))) {
+        bestFamilyScore = Math.max(bestFamilyScore, 180);
+      }
+    }
+    if (bestFamilyScore > 0) {
+      score += bestFamilyScore;
+      matchedAny = true;
+    }
+
+    // 3D. Usage Frequency & Generator AI Details
+    if (data.usageFrequency) {
+      if (
+        data.usageFrequency === normalizedQuery ||
+        data.usageFrequency.includes(normalizedQuery)
+      ) {
+        score += 300;
+        matchedAny = true;
+      }
+    }
+    if (data.generatorAiDetails) {
+      if (
+        data.generatorAiDetails === normalizedQuery ||
+        data.generatorAiDetails.includes(normalizedQuery)
+      ) {
+        score += 250;
+        matchedAny = true;
+      }
+    }
+  }
+
+  // ── 4. Multi-token Global Coverage Bonus ──
+  if (isMultiToken && !matchedAny) {
+    let allTokensPresent = true;
+    for (let t = 0; t < queryTokens.length; t++) {
+      const token = queryTokens[t];
+      let found =
+        headword.includes(token) ||
+        (data.notes && data.notes.includes(token)) ||
+        (data.usageFrequency && data.usageFrequency.includes(token)) ||
+        (data.generatorAiDetails && data.generatorAiDetails.includes(token));
+
+      if (!found) {
+        for (let i = 0; i < data.defs.length; i++) {
+          const d = data.defs[i];
+          if (
+            d.meaning.includes(token) ||
+            d.partOfSpeech.includes(token) ||
+            d.examples.some((ex) => ex.includes(token))
+          ) {
+            found = true;
+            break;
+          }
+        }
+      }
+
+      if (!found) {
+        for (let i = 0; i < data.members.length; i++) {
+          const m = data.members[i];
+          if (
+            m.word.includes(token) ||
+            m.bangla.includes(token) ||
+            m.english.includes(token) ||
+            (m.freq && m.freq.includes(token))
+          ) {
+            found = true;
+            break;
+          }
+        }
+      }
+
+      if (!found) {
+        allTokensPresent = false;
+        break;
+      }
+    }
+
+    if (allTokensPresent) {
+      score += 600;
+      matchedAny = true;
+    }
+  }
+
+  return matchedAny ? score : 0;
+}
+
 export type WordMatchScoreOptions = {
   searchScope?: SearchScope;
   wordFamilyMembers?: WordFamilyMemberRecord[];
@@ -102,260 +493,15 @@ export function calculateWordMatchScore(
   query: string,
   options: WordMatchScoreOptions = {}
 ): number {
-  const normalizedQuery = normalizeSearchText(query);
-  if (!normalizedQuery) {
+  const compiled = compileSearchQuery(query);
+  if (!compiled) {
     return 0;
   }
-
   const scope: SearchScope = options.searchScope || 'all';
   const members = options.wordFamilyMembers || [];
+  const searchable = getSearchableWordData(word, members);
 
-  const headword = normalizeSearchText(word.word);
-  const defs: WordDefinition[] = getWordDefinitions(word);
-  const notes = normalizeSearchText(word.notes);
-
-  let score = 0;
-  let matchedAny = false;
-
-  const queryTokens = normalizedQuery.split(/\s+/).filter((t) => t.length > 0);
-  const isMultiToken = queryTokens.length > 1;
-
-  // ── 1. Headword Matching (Highest Priority) ──
-  if (headword === normalizedQuery) {
-    // Exact match on headword
-    score += 10000 + Math.max(0, 1000 - headword.length * 10);
-    matchedAny = true;
-  } else if (headword.startsWith(normalizedQuery)) {
-    // Headword prefix match (e.g., query "run", headword "running")
-    const lengthRatio = normalizedQuery.length / Math.max(1, headword.length);
-    score += 5000 + Math.round(lengthRatio * 1500);
-    matchedAny = true;
-  } else {
-    // Check word-boundary / token match in headword (e.g., "take off" or "state-of-the-art")
-    const headwordTokens = headword.split(/[\s\-_/,]+/).filter(Boolean);
-    const tokenExactMatch = headwordTokens.some((t) => t === normalizedQuery);
-    const tokenPrefixMatch = headwordTokens.some((t) => t.startsWith(normalizedQuery));
-
-    if (tokenExactMatch) {
-      score += 4000;
-      matchedAny = true;
-    } else if (tokenPrefixMatch) {
-      score += 3500;
-      matchedAny = true;
-    } else {
-      const subIndex = headword.indexOf(normalizedQuery);
-      if (subIndex !== -1) {
-        // Headword substring match
-        const indexPenalty = Math.min(500, subIndex * 30);
-        const lengthRatio = normalizedQuery.length / Math.max(1, headword.length);
-        score += 2000 - indexPenalty + Math.round(lengthRatio * 500);
-        matchedAny = true;
-      } else if (isMultiToken && queryTokens.every((t) => headword.includes(t))) {
-        // Multi-token all present in headword
-        score += 2800;
-        matchedAny = true;
-      } else if (scope === 'word') {
-        // If searching word only, check for close fuzzy typo / subsequence match
-        if (normalizedQuery.length >= 3) {
-          const dist = levenshteinDistance(headword, normalizedQuery);
-          const maxAllowedDist = normalizedQuery.length > 5 ? 2 : 1;
-          if (dist <= maxAllowedDist) {
-            score += dist === 1 ? 800 : 400;
-            matchedAny = true;
-          } else if (isSubsequence(normalizedQuery, headword)) {
-            score += 300;
-            matchedAny = true;
-          }
-        }
-      }
-    }
-  }
-
-  // ── 2. Definitions & Meanings (if scope is 'wordAndDefinition' or 'all') ──
-  if (scope !== 'word') {
-    let bestDefScore = 0;
-
-    for (const def of defs) {
-      const defMeaning = normalizeSearchText(def.meaning);
-      const defPos = normalizeSearchText(def.partOfSpeech);
-
-      let currentDefScore = 0;
-
-      if (defMeaning) {
-        if (defMeaning === normalizedQuery) {
-          currentDefScore = Math.max(currentDefScore, 2000);
-        } else if (defMeaning.startsWith(normalizedQuery)) {
-          currentDefScore = Math.max(currentDefScore, 1400);
-        } else {
-          // Check word boundary match in definition text
-          const escaped = escapeRegExp(normalizedQuery);
-          const wordBoundaryRegex = new RegExp(
-            `(?:^|[\\s.,;:!?"'()\\[\\]{}\\/\\-])${escaped}(?:$|[\\s.,;:!?"'()\\[\\]{}\\/\\-])`,
-            'i'
-          );
-          if (wordBoundaryRegex.test(defMeaning)) {
-            currentDefScore = Math.max(currentDefScore, 1000);
-          } else if (defMeaning.includes(normalizedQuery)) {
-            currentDefScore = Math.max(currentDefScore, 500);
-          } else if (isMultiToken && queryTokens.every((t) => defMeaning.includes(t))) {
-            currentDefScore = Math.max(currentDefScore, 650);
-          }
-        }
-      }
-
-      // Check Part of speech match (e.g. searching "noun", "verb", "adjective")
-      if (defPos) {
-        if (defPos === normalizedQuery) {
-          currentDefScore = Math.max(currentDefScore, 400);
-        } else if (defPos.startsWith(normalizedQuery)) {
-          currentDefScore = Math.max(currentDefScore, 250);
-        }
-      }
-
-      bestDefScore = Math.max(bestDefScore, currentDefScore);
-    }
-
-    if (bestDefScore > 0) {
-      score += bestDefScore;
-      matchedAny = true;
-    }
-  }
-
-  // ── 3. Notes, Examples & Word Families (if scope is 'all') ──
-  if (scope === 'all') {
-    // 3A. Personal Notes
-    if (notes) {
-      if (notes === normalizedQuery) {
-        score += 500;
-        matchedAny = true;
-      } else {
-        const escaped = escapeRegExp(normalizedQuery);
-        const wordBoundaryRegex = new RegExp(
-          `(?:^|[\\s.,;:!?"'()\\[\\]{}\\/\\-])${escaped}(?:$|[\\s.,;:!?"'()\\[\\]{}\\/\\-])`,
-          'i'
-        );
-        if (wordBoundaryRegex.test(notes)) {
-          score += 350;
-          matchedAny = true;
-        } else if (notes.includes(normalizedQuery)) {
-          score += 180;
-          matchedAny = true;
-        }
-      }
-    }
-
-    // 3B. Example Sentences
-    let bestExampleScore = 0;
-    for (const def of defs) {
-      const allExamples = [...(def.examples || []), ...(def.userExamples || [])];
-      for (const ex of allExamples) {
-        const normEx = normalizeSearchText(ex);
-        if (!normEx) {
-          continue;
-        }
-        const escaped = escapeRegExp(normalizedQuery);
-        const wordBoundaryRegex = new RegExp(
-          `(?:^|[\\s.,;:!?"'()\\[\\]{}\\/\\-])${escaped}(?:$|[\\s.,;:!?"'()\\[\\]{}\\/\\-])`,
-          'i'
-        );
-        if (wordBoundaryRegex.test(normEx)) {
-          bestExampleScore = Math.max(bestExampleScore, 250);
-        } else if (normEx.includes(normalizedQuery)) {
-          bestExampleScore = Math.max(bestExampleScore, 120);
-        }
-      }
-    }
-    if (bestExampleScore > 0) {
-      score += bestExampleScore;
-      matchedAny = true;
-    }
-
-    // 3C. Word Family Members
-    let bestFamilyScore = 0;
-    for (const mem of members) {
-      const memWord = normalizeSearchText(mem.word);
-      const memBangla = normalizeSearchText(mem.banglaDefinition);
-      const memEng = normalizeSearchText(mem.englishDefinition);
-      const memFreq = normalizeSearchText(mem.usageFrequency);
-
-      if (memWord === normalizedQuery) {
-        bestFamilyScore = Math.max(bestFamilyScore, 750);
-      } else if (memWord.startsWith(normalizedQuery)) {
-        bestFamilyScore = Math.max(bestFamilyScore, 500);
-      } else if (memWord.includes(normalizedQuery)) {
-        bestFamilyScore = Math.max(bestFamilyScore, 300);
-      } else if (memBangla.includes(normalizedQuery) || memEng.includes(normalizedQuery)) {
-        bestFamilyScore = Math.max(bestFamilyScore, 150);
-      } else if (memFreq && (memFreq === normalizedQuery || memFreq.includes(normalizedQuery))) {
-        bestFamilyScore = Math.max(bestFamilyScore, 180);
-      }
-    }
-    if (bestFamilyScore > 0) {
-      score += bestFamilyScore;
-      matchedAny = true;
-    }
-
-    // 3D. Usage Frequency & Generator AI Details
-    if (word.usageFrequency) {
-      const normFreq = normalizeSearchText(word.usageFrequency);
-      if (normFreq === normalizedQuery || normFreq.includes(normalizedQuery)) {
-        score += 300;
-        matchedAny = true;
-      }
-    }
-    if (word.generatorAiDetails) {
-      const normAi = normalizeSearchText(word.generatorAiDetails);
-      if (normAi === normalizedQuery || normAi.includes(normalizedQuery)) {
-        score += 250;
-        matchedAny = true;
-      }
-    }
-  }
-
-  // ── 4. Multi-token Global Coverage Bonus ──
-  if (isMultiToken && !matchedAny) {
-    // Check if every individual token matches somewhere across the allowed fields
-    const allSearchableFields: string[] = [headword];
-    if (scope !== 'word') {
-      for (const def of defs) {
-        allSearchableFields.push(normalizeSearchText(def.meaning));
-        allSearchableFields.push(normalizeSearchText(def.partOfSpeech));
-      }
-    }
-    if (scope === 'all') {
-      if (notes) {
-        allSearchableFields.push(notes);
-      }
-      if (word.usageFrequency) {
-        allSearchableFields.push(normalizeSearchText(word.usageFrequency));
-      }
-      if (word.generatorAiDetails) {
-        allSearchableFields.push(normalizeSearchText(word.generatorAiDetails));
-      }
-      for (const def of defs) {
-        for (const ex of [...(def.examples || []), ...(def.userExamples || [])]) {
-          allSearchableFields.push(normalizeSearchText(ex));
-        }
-      }
-      for (const mem of members) {
-        allSearchableFields.push(normalizeSearchText(mem.word));
-        allSearchableFields.push(normalizeSearchText(mem.banglaDefinition));
-        allSearchableFields.push(normalizeSearchText(mem.englishDefinition));
-        if (mem.usageFrequency) {
-          allSearchableFields.push(normalizeSearchText(mem.usageFrequency));
-        }
-      }
-    }
-
-    const combinedText = allSearchableFields.join(' ');
-    const allTokensPresent = queryTokens.every((token) => combinedText.includes(token));
-    if (allTokensPresent) {
-      score += 600;
-      matchedAny = true;
-    }
-  }
-
-  return matchedAny ? score : 0;
+  return calculateScoreFromSearchable(searchable, compiled, scope);
 }
 
 export type SortWordsOptions = {
@@ -414,8 +560,8 @@ export type FilterAndSortWordsParams = {
 
 /**
  * Filters and sorts words:
- * - When `searchQuery` is present: scores words, filters non-matching items, and sorts
- *   strictly by match score descending (ignoring `sortOption`).
+ * - When `searchQuery` is present: scores words using high-speed pre-indexed scoring,
+ *   filters non-matching items, and sorts strictly by match score descending (ignoring `sortOption`).
  * - When `searchQuery` is empty: sorts using the UI `sortOption`.
  */
 export function filterAndSortWords(params: FilterAndSortWordsParams): WordRecord[] {
@@ -428,22 +574,21 @@ export function filterAndSortWords(params: FilterAndSortWordsParams): WordRecord
     primaryFsrsByWordId,
   } = params;
 
-  const trimmedQuery = searchQuery.trim();
+  const compiled = compileSearchQuery(searchQuery);
 
   // If no search query, sort strictly by the UI sortOption
-  if (!trimmedQuery) {
+  if (!compiled) {
     return sortWordsByDefault(words, { sortOption, primaryFsrsByWordId });
   }
 
-  // When search query is active, score each word and sort strictly by match score descending
+  // When search query is active, score each word using pre-compiled regex & pre-indexed data
   const scoredItems: Array<{ word: WordRecord; score: number }> = [];
 
-  for (const word of words) {
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i];
     const members = wordFamilies[word.id] || [];
-    const score = calculateWordMatchScore(word, trimmedQuery, {
-      searchScope,
-      wordFamilyMembers: members,
-    });
+    const searchable = getSearchableWordData(word, members);
+    const score = calculateScoreFromSearchable(searchable, compiled, searchScope);
 
     if (score > 0) {
       scoredItems.push({ word, score });

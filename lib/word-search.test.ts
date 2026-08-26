@@ -1,5 +1,12 @@
 import type { WordDefinition, WordFamilyMemberRecord, WordRecord } from './db';
-import { calculateWordMatchScore, filterAndSortWords, sortWordsByDefault } from './word-search';
+import {
+  calculateWordMatchScore,
+  compileSearchQuery,
+  filterAndSortWords,
+  getSearchableWordData,
+  levenshteinDistance,
+  sortWordsByDefault,
+} from './word-search';
 
 function createMockWord(
   id: string,
@@ -32,6 +39,54 @@ function createMockWord(
 }
 
 describe('lib/word-search', () => {
+  describe('levenshteinDistance', () => {
+    it('handles exact and empty string cases correctly', () => {
+      expect(levenshteinDistance('', '')).toBe(0);
+      expect(levenshteinDistance('apple', '')).toBe(5);
+      expect(levenshteinDistance('', 'banana')).toBe(6);
+      expect(levenshteinDistance('hello', 'hello')).toBe(0);
+    });
+
+    it('calculates accurate distances for single and multi-character edits', () => {
+      expect(levenshteinDistance('cat', 'bat')).toBe(1);
+      expect(levenshteinDistance('kitten', 'sitting')).toBe(3);
+      expect(levenshteinDistance('flaw', 'lawn')).toBe(2);
+    });
+  });
+
+  describe('compileSearchQuery', () => {
+    it('returns null for empty or whitespace query', () => {
+      expect(compileSearchQuery('')).toBeNull();
+      expect(compileSearchQuery('    ')).toBeNull();
+    });
+
+    it('compiles valid single and multi-token queries', () => {
+      const single = compileSearchQuery('apple');
+      expect(single).not.toBeNull();
+      expect(single?.normalized).toBe('apple');
+      expect(single?.isMultiToken).toBe(false);
+      expect(single?.tokens).toEqual(['apple']);
+
+      const multi = compileSearchQuery('run fast daily');
+      expect(multi).not.toBeNull();
+      expect(multi?.isMultiToken).toBe(true);
+      expect(multi?.tokens).toEqual(['run', 'fast', 'daily']);
+    });
+  });
+
+  describe('getSearchableWordData & Caching', () => {
+    it('caches and reuses SearchableWordData for the same WordRecord reference', () => {
+      const w = createMockWord('1', 'resilient', 'able to withstand difficult conditions');
+      const data1 = getSearchableWordData(w);
+      const data2 = getSearchableWordData(w);
+
+      expect(data1).toBe(data2); // Exact reference match via WeakMap cache
+      expect(data1.headword).toBe('resilient');
+      expect(data1.headwordLength).toBe(9);
+      expect(data1.defs[0].meaning).toBe('able to withstand difficult conditions');
+    });
+  });
+
   describe('calculateWordMatchScore', () => {
     it('returns 0 for empty or whitespace query', () => {
       const w = createMockWord('1', 'apple', 'a round fruit');
@@ -147,6 +202,42 @@ describe('lib/word-search', () => {
         sortOption: 'alphaDesc',
       });
       expect(resultsDesc.map((w) => w.word)).toEqual(['zebra', 'mango', 'apple']);
+    });
+
+    it('executes high-speed filtering across 2,000 words efficiently', () => {
+      const largeWordList: WordRecord[] = [];
+      for (let i = 0; i < 2000; i++) {
+        largeWordList.push(
+          createMockWord(
+            `id-${i}`,
+            `vocabulary_${i}`,
+            `meaning for vocabulary item ${i} with additional definition details and contexts`,
+            { notes: `personal study notes for item ${i}` }
+          )
+        );
+      }
+
+      // Warm-up run (indexes the objects in WeakMap)
+      filterAndSortWords({
+        words: largeWordList,
+        searchQuery: 'vocabulary_1',
+        searchScope: 'all',
+        sortOption: 'newest',
+      });
+
+      // Measured run using cached searchable structures
+      const start = performance.now();
+      const results = filterAndSortWords({
+        words: largeWordList,
+        searchQuery: 'vocabulary_150',
+        searchScope: 'all',
+        sortOption: 'newest',
+      });
+      const durationMs = performance.now() - start;
+
+      expect(results.length).toBeGreaterThan(0);
+      expect(results[0].word).toBe('vocabulary_150');
+      expect(durationMs).toBeLessThan(100); // High speed search verification
     });
   });
 

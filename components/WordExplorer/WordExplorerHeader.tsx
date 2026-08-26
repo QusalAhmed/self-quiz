@@ -33,7 +33,7 @@ import {
   IconTags,
 } from '@tabler/icons-react';
 import { useRouter } from 'next/navigation';
-import React from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { WordViewDensity } from './WordDetailCard';
 
 export type SearchScope = 'word' | 'wordAndDefinition' | 'all';
@@ -183,7 +183,44 @@ export const WordExplorerHeader = React.memo(function WordExplorerHeader({
   onOpenGroupManager,
 }: WordExplorerHeaderProps) {
   const router = useRouter();
-  const isSearching = Boolean(searchQuery.trim());
+  const [localQuery, setLocalQuery] = useState(searchQuery);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Synchronize local input state whenever the external searchQuery prop changes
+  useEffect(() => {
+    setLocalQuery(searchQuery);
+  }, [searchQuery]);
+
+  const handleInputChange = useCallback(
+    (value: string) => {
+      setLocalQuery(value);
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+      debounceTimerRef.current = setTimeout(() => {
+        onSearchChange(value);
+      }, 120);
+    },
+    [onSearchChange]
+  );
+
+  const handleClearSearch = useCallback(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    setLocalQuery('');
+    onSearchChange('');
+  }, [onSearchChange]);
+
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
+
+  const isSearching = Boolean(localQuery.trim() || searchQuery.trim());
 
   return (
     <Stack gap="md">
@@ -409,8 +446,8 @@ export const WordExplorerHeader = React.memo(function WordExplorerHeader({
                       ? 'Search words and definitions...'
                       : 'Search words, definitions, examples & notes...'
                 }
-                value={searchQuery}
-                onChange={(e) => onSearchChange(e.currentTarget.value)}
+                value={localQuery}
+                onChange={(e) => handleInputChange(e.currentTarget.value)}
                 size="md"
                 radius="md"
                 leftSection={
@@ -448,7 +485,7 @@ export const WordExplorerHeader = React.memo(function WordExplorerHeader({
                   </Menu>
                 }
                 rightSection={
-                  searchQuery ? <CloseButton size="sm" onClick={() => onSearchChange('')} /> : null
+                  localQuery ? <CloseButton size="sm" onClick={handleClearSearch} /> : null
                 }
               />
             </Grid.Col>

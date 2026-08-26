@@ -1,5 +1,15 @@
 import { NextResponse } from 'next/server';
 
+type CachedMeaningResult = {
+  meaning: string;
+  definitions: { meaning: string; partOfSpeech: string }[];
+};
+
+// In-memory cache for fast sub-millisecond dictionary responses
+const meaningCache = new Map<string, { data: CachedMeaningResult; expiresAt: number }>();
+const MAX_CACHE_SIZE = 1500;
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
 export async function POST(request: Request) {
   let body: { word?: string } | null;
   try {
@@ -14,10 +24,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Word is required' }, { status: 400 });
   }
 
+  // Check cache first
+  const now = Date.now();
+  const cached = meaningCache.get(word);
+  if (cached && cached.expiresAt > now) {
+    return NextResponse.json(cached.data);
+  }
+
   try {
     // Use free Dictionary API (no authentication required)
     const url = `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`;
-    console.log('Fetching definition for word:', word);
 
     const response = await fetch(url, {
       method: 'GET',
@@ -86,8 +102,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: `No definition found for: ${word}` }, { status: 404 });
     }
 
-    console.log('Successfully fetched definition for word:', word, '-', meaning);
-    return NextResponse.json({ meaning, definitions });
+    const result: CachedMeaningResult = { meaning, definitions };
+
+    // Store in cache (with LRU eviction when max size is reached)
+    if (meaningCache.size >= MAX_CACHE_SIZE) {
+      const firstKey = meaningCache.keys().next().value;
+      if (firstKey) {
+        meaningCache.delete(firstKey);
+      }
+    }
+    meaningCache.set(word, { data: result, expiresAt: now + CACHE_TTL_MS });
+
+    return NextResponse.json(result);
   } catch (error) {
     console.error('Error in meaning API:', error);
     return NextResponse.json(
