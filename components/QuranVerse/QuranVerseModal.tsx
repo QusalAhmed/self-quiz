@@ -677,9 +677,6 @@ export function QuranVerseModal({
                       <Text size="xs" fw={700} c="indigo" style={{ wordBreak: 'break-word' }}>
                         {verseData.englishTranslation?.translatorName || 'Saheeh International'}
                       </Text>
-                      <Badge size="xs" variant="light" color="indigo">
-                        {verseData.englishTranslation?.translatorName || 'Saheeh International'}
-                      </Badge>
                     </Group>
                     <Text
                       size="md"

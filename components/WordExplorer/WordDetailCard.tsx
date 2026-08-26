@@ -395,18 +395,6 @@ export const WordDetailCard = React.memo(function WordDetailCard({
             </WordActionIcon>
           )}
 
-          <WordActionIcon
-            label="Regenerate AI example sentences"
-            ariaLabel={`Regenerate examples for ${word.word}`}
-            color="indigo"
-            size="sm"
-            onClick={() => onRefreshExamples(word.id)}
-            disabled={isGeneratingExamples}
-            loading={isGeneratingExamples}
-          >
-            <IconRotateClockwise size={16} />
-          </WordActionIcon>
-
           {onRefreshWordFamily && (
             <WordActionIcon
               label={
@@ -517,34 +505,53 @@ export const WordDetailCard = React.memo(function WordDetailCard({
                 </Group>
 
                 {/* Example Sentences Toggle & Content */}
-                {totalExamples > 0 && (
+                {(totalExamples > 0 || Boolean(onRefreshExamples)) && (
                   <Stack gap={4} pl={{ base: 0, sm: 32 }} mt={4}>
-                    <Group justify="flex-start">
-                      <Button
-                        variant="subtle"
-                        color="indigo"
-                        size="xs"
-                        radius="md"
-                        leftSection={
-                          isExpanded ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />
-                        }
-                        onClick={() => toggleDefinitionExample(index)}
-                        style={{
-                          fontWeight: 600,
-                          height: 24,
-                          paddingLeft: 6,
-                          paddingRight: 8,
-                          fontSize: '11px',
-                        }}
-                      >
-                        {isExpanded ? (
-                          'Hide Examples'
-                        ) : (
-                          <>
-                            Example Sentences (<RollingNumber value={totalExamples} />)
-                          </>
-                        )}
-                      </Button>
+                    <Group justify="flex-start" gap="xs" wrap="wrap">
+                      {totalExamples > 0 && (
+                        <Button
+                          variant="subtle"
+                          color="indigo"
+                          size="xs"
+                          radius="md"
+                          leftSection={
+                            isExpanded ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />
+                          }
+                          onClick={() => toggleDefinitionExample(index)}
+                          style={{
+                            fontWeight: 600,
+                            height: 24,
+                            paddingLeft: 6,
+                            paddingRight: 8,
+                            fontSize: '11px',
+                          }}
+                        >
+                          {isExpanded ? (
+                            'Hide Examples'
+                          ) : (
+                            <>
+                              Example Sentences (<RollingNumber value={totalExamples} />)
+                            </>
+                          )}
+                        </Button>
+                      )}
+
+                      {Boolean(onRefreshExamples) && (
+                        <Tooltip label="Regenerate AI example sentences" withArrow>
+                          <ActionIcon
+                            variant="subtle"
+                            color="indigo"
+                            size="sm"
+                            radius="md"
+                            onClick={() => onRefreshExamples(word.id)}
+                            disabled={isGeneratingExamples}
+                            loading={isGeneratingExamples}
+                            aria-label="Regenerate AI example sentences"
+                          >
+                            <IconRotateClockwise size={14} />
+                          </ActionIcon>
+                        </Tooltip>
+                      )}
                     </Group>
 
                     <Collapse expanded={isExpanded}>

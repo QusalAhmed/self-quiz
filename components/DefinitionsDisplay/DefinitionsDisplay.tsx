@@ -1,5 +1,15 @@
-import { Badge, Button, Collapse, Group, ScrollArea, Stack, Text } from '@mantine/core';
-import { IconChevronDown, IconChevronUp } from '@tabler/icons-react';
+import {
+  ActionIcon,
+  Badge,
+  Button,
+  Collapse,
+  Group,
+  ScrollArea,
+  Stack,
+  Text,
+  Tooltip,
+} from '@mantine/core';
+import { IconChevronDown, IconChevronUp, IconRotateClockwise } from '@tabler/icons-react';
 import { useState } from 'react';
 import type { WordDefinition } from '@/lib/db';
 import { normalizeDefinitions } from '@/lib/definitions';
@@ -15,6 +25,8 @@ export type DefinitionsDisplayProps = {
   meaningSize?: 'sm' | 'md' | 'lg';
   maxWidth?: number | string;
   gap?: number | string;
+  onRefreshExamples?: () => Promise<void> | void;
+  isGeneratingExamples?: boolean;
 };
 
 /**
@@ -31,6 +43,8 @@ export function DefinitionsDisplay({
   meaningSize = 'sm',
   maxWidth,
   gap = 'md',
+  onRefreshExamples,
+  isGeneratingExamples,
 }: DefinitionsDisplayProps) {
   const [expandedIndices, setExpandedIndices] = useState<Record<number, boolean>>({});
   const normalized = normalizeDefinitions(definitions, fallbackMeaning);
@@ -108,22 +122,41 @@ export function DefinitionsDisplay({
               {definition.meaning}
             </Text>
 
-            {showExamples && totalExamples > 0 && (
+            {showExamples && (totalExamples > 0 || onRefreshExamples) && (
               <Stack gap="xs" style={{ width: '100%' }} pl={{ base: 0, sm: 20 }}>
-                <Group justify={isCenter ? 'center' : 'flex-start'}>
-                  <Button
-                    variant="subtle"
-                    color="indigo"
-                    size="xs"
-                    radius="md"
-                    leftSection={
-                      isExpanded ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />
-                    }
-                    onClick={() => toggleExpand(index)}
-                    style={{ fontWeight: 600, height: 26, paddingLeft: 8, paddingRight: 8 }}
-                  >
-                    {isExpanded ? 'Hide Examples' : `Show Examples (${totalExamples})`}
-                  </Button>
+                <Group justify={isCenter ? 'center' : 'flex-start'} gap="xs" wrap="wrap">
+                  {totalExamples > 0 && (
+                    <Button
+                      variant="subtle"
+                      color="indigo"
+                      size="xs"
+                      radius="md"
+                      leftSection={
+                        isExpanded ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />
+                      }
+                      onClick={() => toggleExpand(index)}
+                      style={{ fontWeight: 600, height: 26, paddingLeft: 8, paddingRight: 8 }}
+                    >
+                      {isExpanded ? 'Hide Examples' : `Show Examples (${totalExamples})`}
+                    </Button>
+                  )}
+
+                  {onRefreshExamples && (
+                    <Tooltip label="Regenerate AI examples" withArrow>
+                      <ActionIcon
+                        variant="subtle"
+                        color="indigo"
+                        size="sm"
+                        radius="md"
+                        onClick={onRefreshExamples}
+                        loading={isGeneratingExamples}
+                        disabled={isGeneratingExamples}
+                        aria-label="Regenerate AI examples"
+                      >
+                        <IconRotateClockwise size={15} />
+                      </ActionIcon>
+                    </Tooltip>
+                  )}
                 </Group>
 
                 <Collapse expanded={isExpanded}>

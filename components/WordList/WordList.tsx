@@ -3,7 +3,6 @@ import {
   IconChartBar,
   IconEdit,
   IconHierarchy,
-  IconRotateClockwise,
   IconSparkles,
   IconTrash,
 } from '@tabler/icons-react';
@@ -245,17 +244,6 @@ export function WordList({
                 <Group gap={4} style={{ flexShrink: 0, marginLeft: 8 }}>
                   {!isEditing && (
                     <>
-                      <WordActionIcon
-                        label="Generate new examples"
-                        ariaLabel={`Generate new examples for ${item.word}`}
-                        color="indigo"
-                        size="sm"
-                        onClick={() => onRefreshExamples(item.id)}
-                        disabled={isGeneratingExamples}
-                        loading={isGeneratingExamples}
-                      >
-                        <IconRotateClockwise size={15} />
-                      </WordActionIcon>
                       {onRefreshWordFamily && (
                         <WordActionIcon
                           label={
@@ -311,6 +299,8 @@ export function WordList({
                   <DefinitionsDisplay
                     definitions={definitions}
                     emptyText="Fetching definition..."
+                    onRefreshExamples={() => onRefreshExamples(item.id)}
+                    isGeneratingExamples={isGeneratingExamples}
                   />
                   <WordFamilySection
                     wordId={item.id}
@@ -320,11 +310,6 @@ export function WordList({
                     onRefresh={onRefreshWordFamily}
                     onDeleteMember={onDeleteWordFamilyMember}
                   />
-                  {isGeneratingExamples && (
-                    <Text size="xs" c="dimmed" mt={6}>
-                      Generating examples...
-                    </Text>
-                  )}
                 </div>
               )}
 

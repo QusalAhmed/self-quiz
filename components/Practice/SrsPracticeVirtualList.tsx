@@ -1,12 +1,5 @@
 import { Badge, Button, Group, Text } from '@mantine/core';
-import {
-  IconBookmark,
-  IconBookmarkOff,
-  IconEdit,
-  IconEye,
-  IconRotateClockwise,
-  IconVolume,
-} from '@tabler/icons-react';
+import { IconBookmark, IconBookmarkOff, IconEdit, IconEye, IconVolume } from '@tabler/icons-react';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { DefinitionsDisplay } from '@/components/DefinitionsDisplay/DefinitionsDisplay';
@@ -183,15 +176,6 @@ export function SrsPracticeVirtualList({
 
                     <Group gap={4} style={{ flexShrink: 0 }}>
                       <WordActionIcon
-                        label="Regenerate examples"
-                        color="indigo"
-                        onClick={() => onRefreshExamples(word.wordId)}
-                        disabled={isGeneratingExamples}
-                        loading={isGeneratingExamples}
-                      >
-                        <IconRotateClockwise size={16} />
-                      </WordActionIcon>
-                      <WordActionIcon
                         label="Listen to pronunciation"
                         onClick={() => speakWord(word.word)}
                       >
@@ -216,17 +200,13 @@ export function SrsPracticeVirtualList({
                     Practiced {formatPracticeDate(word.practicedAt)}
                   </Text>
 
-                  {isGeneratingExamples && (
-                    <Text size="xs" c="dimmed" mb={4}>
-                      Generating examples...
-                    </Text>
-                  )}
-
                   {isRevealed ? (
                     <div style={{ marginTop: 4 }}>
                       <DefinitionsDisplay
                         definitions={word.definitions}
                         fallbackMeaning={word.meaning}
+                        onRefreshExamples={() => onRefreshExamples(word.wordId)}
+                        isGeneratingExamples={isGeneratingExamples}
                       />
                       <WordFamilySection
                         wordId={word.wordId}
