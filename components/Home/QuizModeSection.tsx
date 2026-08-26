@@ -685,6 +685,7 @@ export const QuizModeSection = memo(function QuizModeSection({
             }
             onRefreshExamples={onRefreshExamples}
             onUnmarkMissed={onUnmarkMissed}
+            onEditClick={onEditClick}
             generatingExampleWordIds={generatingExampleWordIds}
             wordFamilies={wordFamilies}
             generatingWordFamilyWordIds={generatingWordFamilyWordIds}

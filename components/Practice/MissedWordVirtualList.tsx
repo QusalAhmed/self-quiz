@@ -1,5 +1,12 @@
-import { Badge, Button, Group, RollingNumber, Text } from '@mantine/core';
-import { IconBookmarkOff, IconEye, IconVolume } from '@tabler/icons-react';
+import { Badge, Button, CopyButton, Group, RollingNumber, Text } from '@mantine/core';
+import {
+  IconBookmarkOff,
+  IconCheck,
+  IconCopy,
+  IconEdit,
+  IconEye,
+  IconVolume,
+} from '@tabler/icons-react';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { DefinitionsDisplay } from '@/components/DefinitionsDisplay/DefinitionsDisplay';
@@ -25,6 +32,7 @@ type MissedWordVirtualListProps = {
   onRevealMissedWord: (id: string) => void;
   onRefreshExamples: (id: string) => void;
   onUnmarkMissed: (id: string) => void;
+  onEditClick?: (id: string) => void;
   generatingExampleWordIds?: Record<string, boolean>;
   wordFamilies?: Record<string, WordFamilyMemberRecord[]>;
   generatingWordFamilyWordIds?: Record<string, boolean>;
@@ -39,6 +47,7 @@ export const MissedWordVirtualList = memo(function MissedWordVirtualList({
   onRevealMissedWord,
   onRefreshExamples,
   onUnmarkMissed,
+  onEditClick,
   generatingExampleWordIds = {},
   wordFamilies = {},
   generatingWordFamilyWordIds = {},
@@ -229,6 +238,31 @@ export const MissedWordVirtualList = memo(function MissedWordVirtualList({
                       >
                         <IconVolume size={16} />
                       </WordActionIcon>
+                      <CopyButton value={word.word} timeout={2000}>
+                        {({ copied, copy }) => (
+                          <WordActionIcon
+                            label={copied ? 'Copied word to clipboard!' : 'Copy word'}
+                            color={copied ? 'teal' : 'gray'}
+                            variant={copied ? 'light' : 'subtle'}
+                            onClick={copy}
+                          >
+                            {copied ? <IconCheck size={16} /> : <IconCopy size={16} />}
+                          </WordActionIcon>
+                        )}
+                      </CopyButton>
+                      {onEditClick && (
+                        <WordActionIcon
+                          label="Edit word"
+                          onClick={() => {
+                            const baseId =
+                              word.wordId ||
+                              (word.id.includes(':') ? word.id.split(':')[0] : word.id);
+                            onEditClick(baseId);
+                          }}
+                        >
+                          <IconEdit size={16} />
+                        </WordActionIcon>
+                      )}
                       <WordActionIcon
                         label="Remove from missed list"
                         color="red"

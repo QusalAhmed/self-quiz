@@ -4,6 +4,7 @@ import {
   Badge,
   Button,
   Card,
+  CopyButton,
   Group,
   Progress,
   RollingNumber,
@@ -12,12 +13,21 @@ import {
   Title,
   Tooltip,
 } from '@mantine/core';
-import { IconArrowBackUp, IconEye, IconVolume } from '@tabler/icons-react';
+import {
+  IconArrowBackUp,
+  IconCheck,
+  IconCopy,
+  IconEdit,
+  IconEye,
+  IconVolume,
+} from '@tabler/icons-react';
 import { motion } from 'framer-motion';
-import React from 'react';
+import React, { memo, useCallback, useEffect, useRef } from 'react';
+import { WordActionIcon } from '@/components/WordActions/WordActionIcon';
 import { WordFamilySection } from '@/components/WordFamily/WordFamilySection';
 import type { WordFamilyMemberRecord } from '@/lib/db';
 import type { FsrsRating, FsrsRecord } from '@/lib/fsrs';
+import { playReviewSound } from '@/lib/sound';
 import { FsrsCounterBadge } from './FsrsCounterBadge';
 import { FsrsRatingBar } from './FsrsRatingBar';
 
@@ -35,11 +45,12 @@ export type FsrsCardViewerProps = {
   onRate: (rating: FsrsRating) => void;
   onUndo?: () => void;
   onPronounce?: (text: string) => void;
+  onEditWord?: (wordId: string) => void;
   onRefreshWordFamily?: (wordId: string, word: string) => void;
   onDeleteWordFamilyMember?: (memberId: string) => void;
 };
 
-export function FsrsCardViewer({
+export const FsrsCardViewer = memo(function FsrsCardViewer({
   card,
   isRevealed,
   intervals,
@@ -53,9 +64,11 @@ export function FsrsCardViewer({
   onRate,
   onUndo,
   onPronounce,
+  onEditWord,
   onRefreshWordFamily,
   onDeleteWordFamilyMember,
 }: FsrsCardViewerProps) {
+  const cardRef = useRef<HTMLDivElement>(null);
   const totalCardsInQueue = newCount + learningCount + reviewCount;
   const progressPercent =
     totalCardsInQueue > 0
@@ -64,6 +77,122 @@ export function FsrsCardViewer({
           Math.max(10, (1 - (newCount + learningCount) / (totalCardsInQueue + 1)) * 100)
         )
       : 100;
+
+  /**
+   * Positions the review card:
+   * - Vertically centered if it fits within the viewport.
+   * - At the top of the screen if it is taller than the viewport.
+   */
+  const positionReviewSection = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      const element = cardRef.current;
+      if (!element) {
+        return;
+      }
+
+      const rect = element.getBoundingClientRect();
+      const elementHeight = rect.height;
+      const viewportHeight = window.innerHeight;
+      const currentScrollY = window.pageYOffset || document.documentElement.scrollTop;
+      const elementAbsoluteTop = rect.top + currentScrollY;
+
+      const TOP_PADDING = 20;
+      let targetScrollY: number;
+
+      if (elementHeight + TOP_PADDING * 2 <= viewportHeight) {
+        const verticalCenterMargin = (viewportHeight - elementHeight) / 2;
+        targetScrollY = elementAbsoluteTop - verticalCenterMargin;
+      } else {
+        targetScrollY = elementAbsoluteTop - TOP_PADDING;
+      }
+
+      targetScrollY = Math.max(0, targetScrollY);
+
+      if (Math.abs(currentScrollY - targetScrollY) > 5) {
+        window.scrollTo({ top: targetScrollY, behavior });
+      }
+    });
+  }, []);
+
+  // Position on card change and reveal state change
+  useEffect(() => {
+    positionReviewSection();
+  }, [card.dueAt, card.wordId, positionReviewSection]);
+
+  useEffect(() => {
+    positionReviewSection();
+  }, [isRevealed, positionReviewSection]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const activeTag = document.activeElement?.tagName.toLowerCase();
+      if (
+        activeTag === 'input' ||
+        activeTag === 'textarea' ||
+        document.activeElement?.hasAttribute('contenteditable')
+      ) {
+        return;
+      }
+
+      if (
+        canUndo &&
+        onUndo &&
+        (event.key === 'z' || event.key === 'Z' || event.key === 'u' || event.key === 'U')
+      ) {
+        event.preventDefault();
+        onUndo();
+        positionReviewSection();
+        return;
+      }
+
+      if (event.key === ' ' || event.code === 'Space') {
+        if (!isRevealed) {
+          event.preventDefault();
+          onReveal();
+          positionReviewSection();
+          return;
+        }
+      }
+
+      if (isRevealed) {
+        if (event.key === '1') {
+          event.preventDefault();
+          playReviewSound('again');
+          onRate('again');
+          positionReviewSection();
+          return;
+        }
+        if (event.key === '2') {
+          event.preventDefault();
+          playReviewSound('hard');
+          onRate('hard');
+          positionReviewSection();
+          return;
+        }
+        if (event.key === '3') {
+          event.preventDefault();
+          playReviewSound('good');
+          onRate('good');
+          positionReviewSection();
+          return;
+        }
+        if (event.key === '4') {
+          event.preventDefault();
+          playReviewSound('easy');
+          onRate('easy');
+          positionReviewSection();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [canUndo, onUndo, isRevealed, onReveal, onRate, positionReviewSection]);
 
   // Determine card state color theme
   const stateBadgeProps =
@@ -75,6 +204,7 @@ export function FsrsCardViewer({
 
   return (
     <Card
+      ref={cardRef}
       className="glass-panel hover-lift"
       radius="xl"
       padding="xl"
@@ -252,6 +382,40 @@ export function FsrsCardViewer({
                       </Button>
                     </Tooltip>
                   )}
+
+                  <CopyButton value={card.word} timeout={2000}>
+                    {({ copied, copy }) => (
+                      <WordActionIcon
+                        label={copied ? 'Copied word to clipboard!' : 'Copy word'}
+                        color={copied ? 'teal' : 'violet'}
+                        variant="light"
+                        size="lg"
+                        radius="xl"
+                        onClick={copy}
+                        style={{
+                          boxShadow: '0 4px 12px rgba(168, 85, 247, 0.2)',
+                        }}
+                      >
+                        {copied ? <IconCheck size={18} /> : <IconCopy size={18} />}
+                      </WordActionIcon>
+                    )}
+                  </CopyButton>
+
+                  {onEditWord && (
+                    <WordActionIcon
+                      label="Edit word"
+                      color="violet"
+                      variant="light"
+                      size="lg"
+                      radius="xl"
+                      onClick={() => onEditWord(card.wordId)}
+                      style={{
+                        boxShadow: '0 4px 12px rgba(168, 85, 247, 0.2)',
+                      }}
+                    >
+                      <IconEdit size={18} />
+                    </WordActionIcon>
+                  )}
                 </Group>
 
                 <Text size="xs" c="dimmed" fw={600} style={{ letterSpacing: '0.04em' }}>
@@ -326,6 +490,34 @@ export function FsrsCardViewer({
                         <IconVolume size={16} />
                       </Button>
                     </Tooltip>
+                  )}
+
+                  <CopyButton value={card.word} timeout={2000}>
+                    {({ copied, copy }) => (
+                      <WordActionIcon
+                        label={copied ? 'Copied word to clipboard!' : 'Copy word'}
+                        color={copied ? 'teal' : 'violet'}
+                        variant="subtle"
+                        size="sm"
+                        radius="xl"
+                        onClick={copy}
+                      >
+                        {copied ? <IconCheck size={16} /> : <IconCopy size={16} />}
+                      </WordActionIcon>
+                    )}
+                  </CopyButton>
+
+                  {onEditWord && (
+                    <WordActionIcon
+                      label="Edit word"
+                      color="violet"
+                      variant="subtle"
+                      size="sm"
+                      radius="xl"
+                      onClick={() => onEditWord(card.wordId)}
+                    >
+                      <IconEdit size={16} />
+                    </WordActionIcon>
                   )}
                 </Group>
 
@@ -409,4 +601,4 @@ export function FsrsCardViewer({
       </Stack>
     </Card>
   );
-}
+});

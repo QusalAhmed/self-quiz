@@ -3,6 +3,7 @@ import {
   Button,
   Card,
   Collapse,
+  CopyButton,
   Divider,
   Group,
   Kbd,
@@ -25,6 +26,7 @@ import {
   IconBookmark,
   IconBookmarkOff,
   IconBrain,
+  IconCheck,
   IconChevronDown,
   IconChevronLeft,
   IconChevronRight,
@@ -133,28 +135,6 @@ export const QuizPanel = memo(function QuizPanel({
   const [confirmDeleteFsrsOpened, setConfirmDeleteFsrsOpened] = useState(false);
   const quizPanelRef = useRef<HTMLDivElement>(null);
 
-  // Keyboard shortcut: Z / U to undo last rating action
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const activeTag = document.activeElement?.tagName.toLowerCase();
-      if (activeTag === 'input' || activeTag === 'textarea') {
-        return;
-      }
-
-      if (
-        canUndo &&
-        onUndo &&
-        (event.key === 'z' || event.key === 'Z' || event.key === 'u' || event.key === 'U')
-      ) {
-        event.preventDefault();
-        onUndo();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [canUndo, onUndo]);
-
   const completionNotifiedRef = useRef(false);
   useEffect(() => {
     if (completed && totalCount > 0 && !completionNotifiedRef.current) {
@@ -170,20 +150,156 @@ export const QuizPanel = memo(function QuizPanel({
 
   const lastAutoPronouncedKeyRef = useRef<string | null>(null);
 
-  const scrollToCenter = useCallback(() => {
+  /**
+   * Positions the quiz section:
+   * - Vertically centered in the viewport if it fits on screen.
+   * - At the top of the viewport if it is taller than the screen.
+   */
+  const positionQuizSection = useCallback((behavior: ScrollBehavior = 'smooth') => {
     if (typeof window === 'undefined') {
       return;
     }
-    if (quizPanelRef.current) {
-      const rect = quizPanelRef.current.getBoundingClientRect();
-      // Only scroll if card is out of visible viewport
-      if (rect.top < -40 || rect.bottom > window.innerHeight + 80) {
-        const yOffset = -20;
-        const y = rect.top + window.pageYOffset + yOffset;
-        window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+
+    requestAnimationFrame(() => {
+      const element = quizPanelRef.current;
+      if (!element) {
+        return;
       }
-    }
+
+      const rect = element.getBoundingClientRect();
+      const elementHeight = rect.height;
+      const viewportHeight = window.innerHeight;
+      const currentScrollY = window.pageYOffset || document.documentElement.scrollTop;
+      const elementAbsoluteTop = rect.top + currentScrollY;
+
+      // Top margin buffer for comfort
+      const TOP_PADDING = 20;
+
+      let targetScrollY: number;
+
+      // If the quiz section fits vertically within the screen
+      if (elementHeight + TOP_PADDING * 2 <= viewportHeight) {
+        // Center the quiz section vertically in the viewport
+        const verticalCenterMargin = (viewportHeight - elementHeight) / 2;
+        targetScrollY = elementAbsoluteTop - verticalCenterMargin;
+      } else {
+        // Does not fit on screen -> align to the top of the viewport
+        targetScrollY = elementAbsoluteTop - TOP_PADDING;
+      }
+
+      targetScrollY = Math.max(0, targetScrollY);
+
+      if (Math.abs(currentScrollY - targetScrollY) > 5) {
+        window.scrollTo({ top: targetScrollY, behavior });
+      }
+    });
   }, []);
+
+  // Keyboard shortcut listener across all quiz interactions
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const activeTag = document.activeElement?.tagName.toLowerCase();
+      if (
+        activeTag === 'input' ||
+        activeTag === 'textarea' ||
+        document.activeElement?.hasAttribute('contenteditable')
+      ) {
+        return;
+      }
+
+      // Undo shortcut: Z / U
+      if (
+        canUndo &&
+        onUndo &&
+        (event.key === 'z' || event.key === 'Z' || event.key === 'u' || event.key === 'U')
+      ) {
+        event.preventDefault();
+        onUndo();
+        positionQuizSection();
+        return;
+      }
+
+      if (completed || !item) {
+        return;
+      }
+
+      // Space: Reveal answer if hidden, or Next if revealed in standard mode
+      if (event.key === ' ' || event.code === 'Space') {
+        if (!revealed) {
+          event.preventDefault();
+          onReveal();
+          positionQuizSection();
+          return;
+        } else if (!srsMode) {
+          event.preventDefault();
+          onNext();
+          positionQuizSection();
+          return;
+        }
+      }
+
+      // SRS Rating shortcuts: 1, 2, 3, 4
+      if (srsMode && revealed && onSrsRate) {
+        if (event.key === '1') {
+          event.preventDefault();
+          playReviewSound('again');
+          onSrsRate('again');
+          positionQuizSection();
+          return;
+        }
+        if (event.key === '2') {
+          event.preventDefault();
+          playReviewSound('hard');
+          onSrsRate('hard');
+          positionQuizSection();
+          return;
+        }
+        if (event.key === '3') {
+          event.preventDefault();
+          playReviewSound('good');
+          onSrsRate('good');
+          positionQuizSection();
+          return;
+        }
+        if (event.key === '4') {
+          event.preventDefault();
+          playReviewSound('easy');
+          onSrsRate('easy');
+          positionQuizSection();
+          return;
+        }
+      }
+
+      // Navigation shortcuts
+      if (event.key === 'ArrowRight' && revealed && !srsMode) {
+        event.preventDefault();
+        onNext();
+        positionQuizSection();
+        return;
+      }
+      if (event.key === 'ArrowLeft' && hasPrevious) {
+        event.preventDefault();
+        onPrevious();
+        positionQuizSection();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [
+    canUndo,
+    onUndo,
+    completed,
+    item,
+    revealed,
+    srsMode,
+    onSrsRate,
+    onReveal,
+    onNext,
+    hasPrevious,
+    onPrevious,
+    positionQuizSection,
+  ]);
 
   const handleSpeak = useCallback((text: string) => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
@@ -230,14 +346,18 @@ export const QuizPanel = memo(function QuizPanel({
     return () => clearTimeout(timer);
   }, [autoPronounceWord, completed, handleSpeak, item, quizDirection, revealed]);
 
-  // Reset spelling state and scroll to top of quiz section on new item or direction change
+  // Reset spelling state and position quiz section on new item, direction change, or reveal
   useEffect(() => {
     setSpellingState('idle');
     setTypedWord('');
     setShowUserExamples(false);
     setShowNotes(false);
-    scrollToCenter();
-  }, [item?.id, quizDirection, scrollToCenter]);
+    positionQuizSection();
+  }, [item?.id, quizDirection, positionQuizSection]);
+
+  useEffect(() => {
+    positionQuizSection();
+  }, [revealed, positionQuizSection]);
 
   const handleCheckSpelling = useCallback(() => {
     if (!item) {
@@ -453,13 +573,18 @@ export const QuizPanel = memo(function QuizPanel({
 
   const markMissedAction = (
     <WordActionIcon
-      label={isMarkedMissed ? 'Unmark missed' : 'Mark as missed'}
-      color={isMarkedMissed ? 'teal' : 'red'}
+      label={isMarkedMissed ? 'Marked as missed (click to unmark)' : 'Mark as missed'}
+      color={isMarkedMissed ? 'red' : 'gray'}
+      variant={isMarkedMissed ? 'light' : 'subtle'}
       size="lg"
       onClick={onMarkMissed}
       withArrow={false}
     >
-      {isMarkedMissed ? <IconBookmark size={20} /> : <IconBookmarkOff size={20} />}
+      {isMarkedMissed ? (
+        <IconBookmark size={20} style={{ fill: 'currentColor' }} />
+      ) : (
+        <IconBookmarkOff size={20} />
+      )}
     </WordActionIcon>
   );
 
@@ -509,7 +634,7 @@ export const QuizPanel = memo(function QuizPanel({
                     onClick={() => {
                       playReviewSound(rating);
                       onSrsRate(rating);
-                      scrollToCenter();
+                      positionQuizSection();
                     }}
                     className={className}
                     style={{
@@ -643,7 +768,7 @@ export const QuizPanel = memo(function QuizPanel({
             leftSection={<IconArrowBackUp size={14} />}
             onClick={() => {
               onUndo();
-              scrollToCenter();
+              positionQuizSection();
             }}
             style={{ fontWeight: 800, height: 22, paddingLeft: 8, paddingRight: 8 }}
           >
@@ -681,19 +806,28 @@ export const QuizPanel = memo(function QuizPanel({
           >
             <IconVolume size={20} />
           </WordActionIcon>
-          <WordActionIcon
-            label="Copy word"
-            size="lg"
-            onClick={() => navigator.clipboard.writeText(item.word)}
-            withArrow={false}
-          >
-            <IconCopy size={20} />
-          </WordActionIcon>
+          <CopyButton value={item.word} timeout={2000}>
+            {({ copied, copy }) => (
+              <WordActionIcon
+                label={copied ? 'Copied word to clipboard!' : 'Copy word'}
+                color={copied ? 'teal' : 'gray'}
+                variant={copied ? 'light' : 'subtle'}
+                size="lg"
+                onClick={copy}
+                withArrow={false}
+              >
+                {copied ? <IconCheck size={20} /> : <IconCopy size={20} />}
+              </WordActionIcon>
+            )}
+          </CopyButton>
           {onEditClick && (
             <WordActionIcon
               label="Edit word"
               size="lg"
-              onClick={() => onEditClick(item.id)}
+              onClick={() => {
+                const baseId = item.id.includes(':') ? item.id.split(':')[0] : item.id;
+                onEditClick(baseId);
+              }}
               withArrow={false}
             >
               <IconEdit size={20} />
@@ -799,7 +933,7 @@ export const QuizPanel = memo(function QuizPanel({
       color="indigo"
       onClick={() => {
         onReveal();
-        scrollToCenter();
+        positionQuizSection();
         setShowUserExamples(() => false);
       }}
       size="lg"
@@ -1063,7 +1197,7 @@ export const QuizPanel = memo(function QuizPanel({
                       gradient={{ from: 'indigo', to: 'purple' }}
                       onClick={() => {
                         handleCheckSpelling();
-                        scrollToCenter();
+                        positionQuizSection();
                       }}
                       size="lg"
                       radius="md"
@@ -1207,7 +1341,7 @@ export const QuizPanel = memo(function QuizPanel({
             color="gray"
             onClick={() => {
               onPrevious();
-              scrollToCenter();
+              positionQuizSection();
             }}
             disabled={!hasPrevious}
             radius="md"
@@ -1219,7 +1353,7 @@ export const QuizPanel = memo(function QuizPanel({
           <Button
             onClick={() => {
               onNext();
-              scrollToCenter();
+              positionQuizSection();
             }}
             className="btn-premium"
             radius="md"

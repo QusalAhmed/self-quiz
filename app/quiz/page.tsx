@@ -270,7 +270,8 @@ export default function QuizPage() {
       }
 
       const timestamp = new Date().toISOString();
-      const missedId = buildMissedWordId(wordId, quizMode);
+      const baseWordId = wordId.includes(':') ? wordId.split(':')[0] : wordId;
+      const missedId = buildMissedWordId(baseWordId, quizMode);
       const existing = await database.missedWords.findOne(missedId).exec();
 
       if (existing) {
@@ -290,7 +291,7 @@ export default function QuizPage() {
 
       const record: MissedWordRecord = {
         id: missedId,
-        wordId,
+        wordId: baseWordId,
         quizMode,
         word,
         meaning,
@@ -312,7 +313,8 @@ export default function QuizPage() {
         return;
       }
 
-      const missedId = buildMissedWordId(wordId, quizMode);
+      const baseWordId = wordId.includes(':') ? wordId.split(':')[0] : wordId;
+      const missedId = buildMissedWordId(baseWordId, quizMode);
       const existing = await database.missedWords.findOne(missedId).exec();
       if (!existing) {
         return;
@@ -332,12 +334,13 @@ export default function QuizPage() {
 
   const toggleMissedWordRecord = useCallback(
     async (wordId: string, word: string, meaning: string, quizMode: QuizDirectionKey) => {
-      const missedId = buildMissedWordId(wordId, quizMode);
+      const baseWordId = wordId.includes(':') ? wordId.split(':')[0] : wordId;
+      const missedId = buildMissedWordId(baseWordId, quizMode);
       const existing = await database?.missedWords.findOne(missedId).exec();
       if (existing && !existing.isDeleted) {
-        await removeMissedWordRecord(wordId, quizMode);
+        await removeMissedWordRecord(baseWordId, quizMode);
       } else {
-        await saveMissedWordRecord(wordId, word, meaning, quizMode);
+        await saveMissedWordRecord(baseWordId, word, meaning, quizMode);
       }
     },
     [database, removeMissedWordRecord, saveMissedWordRecord]
@@ -789,8 +792,15 @@ export default function QuizPage() {
       return false;
     }
 
-    const missedId = buildMissedWordId(currentQuizItem.id, quizDirection);
-    return missedWords.some((item) => item.id === missedId && !item.isDeleted);
+    const baseWordId = currentQuizItem.id.includes(':')
+      ? currentQuizItem.id.split(':')[0]
+      : currentQuizItem.id;
+    const missedId = buildMissedWordId(baseWordId, quizDirection);
+    return missedWords.some(
+      (item) =>
+        !item.isDeleted &&
+        (item.id === missedId || (item.wordId === baseWordId && item.quizMode === quizDirection))
+    );
   }, [currentQuizItem, quizDirection, missedWords]);
 
   const ensureMissingAiExamples = useCallback(
@@ -1292,8 +1302,11 @@ export default function QuizPage() {
     if (!currentQuizItem) {
       return;
     }
+    const baseWordId = currentQuizItem.id.includes(':')
+      ? currentQuizItem.id.split(':')[0]
+      : currentQuizItem.id;
     await toggleMissedWordRecord(
-      currentQuizItem.id,
+      baseWordId,
       currentQuizItem.word,
       currentQuizItem.meaning,
       quizDirection
@@ -1483,7 +1496,17 @@ export default function QuizPage() {
         opened={editingQuizWordId !== null}
         onClose={() => setEditingQuizWordId(null)}
         wordRecord={
-          editingQuizWordId ? words.find((w) => w.id === editingQuizWordId) || null : null
+          editingQuizWordId
+            ? wordsById.get(
+                editingQuizWordId.includes(':')
+                  ? editingQuizWordId.split(':')[0]
+                  : editingQuizWordId
+              ) ||
+              words.find(
+                (w) => w.id === editingQuizWordId || w.id === editingQuizWordId.split(':')[0]
+              ) ||
+              null
+            : null
         }
         customGroups={customGroups}
         onSave={async (id, word, meaning, definitions, groups, aiExampleCount, notes) => {
