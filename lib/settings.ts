@@ -360,70 +360,110 @@ export function getAppSettings(): AppSettings {
 }
 
 /**
- * Directly pushes settings to Supabase app_settings table
+ * Directly pushes settings to Supabase app_settings table (and /api/settings fallback)
  */
 export async function pushSettingsToSupabase(settings: AppSettings): Promise<void> {
-  if (typeof window === 'undefined' || !supabase || !navigator.onLine) {
+  if (typeof window === 'undefined' || !navigator.onLine) {
     return;
   }
+  const normalized = normalizeAppSettings(settings);
+  const now = new Date().toISOString();
+  const payload = {
+    id: 'default',
+    appearance: normalized.appearance,
+    study_quiz: normalized.studyQuiz,
+    audio: normalized.audio,
+    fsrs: normalized.fsrs,
+    ai: normalized.ai,
+    notifications: normalized.notifications,
+    data: normalized.data,
+    quran_verse: normalized.quranVerse,
+    updated_at: now,
+    deleted: false,
+  };
+
   try {
-    const now = new Date().toISOString();
-    const payload = {
-      id: 'default',
-      appearance: settings.appearance,
-      study_quiz: settings.studyQuiz,
-      audio: settings.audio,
-      fsrs: settings.fsrs,
-      ai: settings.ai,
-      notifications: settings.notifications,
-      data: settings.data,
-      quran_verse: settings.quranVerse,
-      updated_at: now,
-      deleted: false,
-    };
-    const { error } = await supabase.from('app_settings').upsert(payload, { onConflict: 'id' });
-    if (error) {
-      console.warn('Could not push settings to Supabase:', error);
+    if (supabase) {
+      const { error } = await supabase.from('app_settings').upsert(payload, { onConflict: 'id' });
+      if (error) {
+        console.warn(
+          'Could not push settings directly to Supabase table, trying API route fallback:',
+          error.message || error
+        );
+        if (typeof fetch !== 'undefined') {
+          await fetch('/api/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ settings: normalized }),
+          });
+        }
+      }
+    } else if (typeof fetch !== 'undefined') {
+      await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settings: normalized }),
+      });
     }
   } catch (err) {
-    console.warn('Error pushing settings to Supabase:', err);
+    console.warn('Error pushing settings to Supabase / server:', err);
   }
 }
 
 /**
- * Directly fetches settings from Supabase app_settings table
+ * Directly fetches settings from Supabase app_settings table (with API route fallback)
  */
 export async function fetchSettingsFromSupabase(): Promise<AppSettings | null> {
-  if (typeof window === 'undefined' || !supabase || !navigator.onLine) {
+  if (typeof window === 'undefined' || !navigator.onLine) {
     return null;
   }
   try {
-    const { data, error } = await supabase
-      .from('app_settings')
-      .select('*')
-      .eq('id', 'default')
-      .eq('deleted', false)
-      .maybeSingle();
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('app_settings')
+        .select('*')
+        .eq('id', 'default')
+        .eq('deleted', false)
+        .maybeSingle();
 
-    if (error || !data) {
-      return null;
+      if (!error && data) {
+        const normalized = normalizeAppSettings({
+          appearance: data.appearance,
+          studyQuiz: data.study_quiz ?? data.studyQuiz,
+          audio: data.audio,
+          fsrs: data.fsrs,
+          ai: data.ai,
+          notifications: data.notifications,
+          data: data.data,
+          quranVerse: data.quran_verse ?? data.quranVerse,
+        });
+
+        saveAppSettings(normalized, false);
+        return normalized;
+      }
     }
 
-    const normalized = normalizeAppSettings({
-      appearance: data.appearance,
-      studyQuiz: data.study_quiz ?? data.studyQuiz,
-      audio: data.audio,
-      fsrs: data.fsrs,
-      ai: data.ai,
-      notifications: data.notifications,
-      data: data.data,
-      quranVerse: data.quran_verse ?? data.quranVerse,
-    });
+    // Fallback to /api/settings if direct supabase query returned null or failed
+    if (typeof fetch !== 'undefined') {
+      const response = await fetch('/api/settings', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
+      });
 
-    saveAppSettings(normalized, false);
-    return normalized;
+      if (response.ok) {
+        const json = await response.json();
+        if (json?.settings) {
+          const normalized = normalizeAppSettings(json.settings);
+          saveAppSettings(normalized, false);
+          return normalized;
+        }
+      }
+    }
+
+    return null;
   } catch (err) {
-    console.warn('Error fetching settings from Supabase:', err);
+    console.warn('Error fetching settings from Supabase / server:', err);
     return null;
   }
 }
@@ -435,30 +475,31 @@ export async function persistSettingsToRxDB(settings: AppSettings): Promise<void
   if (typeof window === 'undefined') {
     return;
   }
+  const normalized = normalizeAppSettings(settings);
   try {
     const db = await getDatabase();
     const now = new Date().toISOString();
     const existing = await db.settings.findOne('default').exec();
     const record: SettingsRecord = {
       id: 'default',
-      appearance: settings.appearance,
-      studyQuiz: settings.studyQuiz,
-      audio: settings.audio,
-      fsrs: settings.fsrs,
-      ai: settings.ai,
-      notifications: settings.notifications,
-      data: settings.data,
-      quranVerse: settings.quranVerse,
+      appearance: normalized.appearance,
+      studyQuiz: normalized.studyQuiz,
+      audio: normalized.audio,
+      fsrs: normalized.fsrs,
+      ai: normalized.ai,
+      notifications: normalized.notifications,
+      data: normalized.data,
+      quranVerse: normalized.quranVerse,
       createdAt: existing?.createdAt || now,
       updatedAt: now,
       isDeleted: false,
       lastSyncedAt: existing?.lastSyncedAt || now,
     };
     await db.settings.upsert(record);
-    void pushSettingsToSupabase(settings);
+    void pushSettingsToSupabase(normalized);
   } catch (err) {
     console.warn('Could not persist settings to RxDB:', err);
-    void pushSettingsToSupabase(settings);
+    void pushSettingsToSupabase(normalized);
   }
 }
 
@@ -467,24 +508,37 @@ let rxdbSyncSubscription: { unsubscribe: () => void } | null = null;
 let supabaseRealtimeSubscribed = false;
 
 /**
+ * Eagerly initializes settings synchronization between local and server Supabase
+ */
+export async function initAppSettingsSync(): Promise<void> {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  try {
+    await syncSettingsWithRxDB();
+  } catch (err) {
+    console.warn('Failed to initialize app settings sync:', err);
+  }
+}
+
+/**
  * Subscribes and synchronizes settings with RxDB & Supabase
  */
 export async function syncSettingsWithRxDB(dbInstance?: AppDatabase): Promise<void> {
-  if (typeof window === 'undefined' || rxdbSyncInitialized) {
+  if (typeof window === 'undefined') {
     return;
   }
   try {
     const db = dbInstance || (await getDatabase());
-    rxdbSyncInitialized = true;
 
-    // 1. Try pulling fresh settings from Supabase if online
+    // 1. Try pulling fresh settings from Supabase/Server if online
     const remoteSupabaseSettings = await fetchSettingsFromSupabase();
 
     // 2. Check RxDB doc
     const existingDoc = await db.settings.findOne('default').exec();
 
     if (remoteSupabaseSettings) {
-      // Supabase had settings; update RxDB
+      // Supabase had settings; update RxDB and localStorage
       const now = new Date().toISOString();
       await db.settings.upsert({
         id: 'default',
@@ -501,6 +555,7 @@ export async function syncSettingsWithRxDB(dbInstance?: AppDatabase): Promise<vo
         isDeleted: false,
         lastSyncedAt: now,
       });
+      saveAppSettings(remoteSupabaseSettings, false);
     } else if (!existingDoc) {
       // Seed RxDB and Supabase with current localStorage/default settings
       const current = getAppSettings();
@@ -536,6 +591,11 @@ export async function syncSettingsWithRxDB(dbInstance?: AppDatabase): Promise<vo
       saveAppSettings(remoteSettings, false);
       void pushSettingsToSupabase(remoteSettings);
     }
+
+    if (rxdbSyncInitialized) {
+      return;
+    }
+    rxdbSyncInitialized = true;
 
     // 3. Set up Realtime listener on Supabase for live multi-device settings sync
     if (!supabaseRealtimeSubscribed && supabase && typeof navigator !== 'undefined') {

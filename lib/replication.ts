@@ -17,7 +17,7 @@ import type {
 } from './db';
 import { definitionsToMeaning, mergeLegacyFlatExamples, normalizeDefinitions } from './definitions';
 import { normalizeAiExampleCount } from './examples';
-import { normalizeAppSettings } from './settings';
+import { normalizeAppSettings, saveAppSettings } from './settings';
 import { supabase } from './supabase';
 
 export type SupabaseCheckpoint = {
@@ -1072,13 +1072,32 @@ export function setupSupabaseReplication(db: AppDatabase): ReplicationsHolder {
     subscriptions.push(sentSub);
 
     // received$ observable
-    const receivedSub = rep.received$.subscribe(() => {
+    const receivedSub = rep.received$.subscribe((docOrDocs: any) => {
       const now = new Date().toISOString();
       syncState.collections[key].receivedCount += 1;
       syncState.collections[key].lastSyncedAt = now;
       syncState.totalReceived += 1;
       syncState.lastSyncedAt = now;
       addActivity('received', `Received ${label} update from cloud`, key, undefined, 1);
+
+      if (key === 'settings' && typeof window !== 'undefined') {
+        const doc = Array.isArray(docOrDocs) ? docOrDocs[0] : docOrDocs;
+        if (doc && !doc.isDeleted) {
+          saveAppSettings(
+            {
+              appearance: doc.appearance,
+              studyQuiz: doc.studyQuiz,
+              audio: doc.audio,
+              fsrs: doc.fsrs,
+              ai: doc.ai,
+              notifications: doc.notifications,
+              data: doc.data,
+              quranVerse: doc.quranVerse,
+            },
+            false
+          );
+        }
+      }
     });
     subscriptions.push(receivedSub);
 

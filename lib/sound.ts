@@ -269,6 +269,46 @@ export function useSoundPreference(): {
   };
 }
 
+const APP_SETTINGS_KEY = 'self_quiz_app_settings_v1';
+
+/**
+ * Gets configured audio volume setting (0 to 1) from stored app settings
+ */
+export function getAudioVolumeSetting(): number {
+  if (typeof window === 'undefined') {
+    return 0.7;
+  }
+  try {
+    const raw = localStorage.getItem(APP_SETTINGS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (typeof parsed?.audio?.audioVolume === 'number') {
+        return Math.max(0, Math.min(1, parsed.audio.audioVolume));
+      }
+    }
+  } catch {}
+  return 0.7;
+}
+
+/**
+ * Checks if notification sounds are enabled in application audio settings
+ */
+export function isNotificationSoundEnabled(): boolean {
+  if (typeof window === 'undefined') {
+    return true;
+  }
+  try {
+    const raw = localStorage.getItem(APP_SETTINGS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (typeof parsed?.audio?.notificationSoundsEnabled === 'boolean') {
+        return parsed.audio.notificationSoundsEnabled;
+      }
+    }
+  } catch {}
+  return true;
+}
+
 /**
  * Plays external sound file for quiz/review rating buttons.
  * - 'again': /sounds/review-again.wav
@@ -277,9 +317,13 @@ export function useSoundPreference(): {
  * - 'easy': /sounds/review-easy.wav
  */
 export function playReviewSound(rating: ReviewRating): void {
+  if (!isSoundEnabled()) {
+    return;
+  }
   const fileUrl = SOUND_FILES[rating];
   if (fileUrl) {
-    void playExternalSound(fileUrl, 0.7);
+    const volumeMultiplier = getAudioVolumeSetting();
+    void playExternalSound(fileUrl, 0.7 * volumeMultiplier);
   }
 }
 
@@ -288,5 +332,9 @@ export function playReviewSound(rating: ReviewRating): void {
  * - /sounds/notification.wav
  */
 export function playNotificationSound(): void {
-  void playExternalSound(SOUND_FILES.notification, 0.6);
+  if (!isNotificationSoundEnabled()) {
+    return;
+  }
+  const volumeMultiplier = getAudioVolumeSetting();
+  void playExternalSound(SOUND_FILES.notification, 0.6 * volumeMultiplier);
 }

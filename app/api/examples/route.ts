@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getServerSettings } from '@/app/api/settings/route';
 import { generateCloudflareExamples } from '@/lib/cloudflare';
 import { normalizeAiExampleCount } from '@/lib/examples';
 import { generateGoogleExamples } from '@/lib/google';
@@ -10,6 +11,8 @@ type ExamplesPayload = {
   count?: number;
   referenceExamples?: string[];
   partOfSpeech?: string;
+  provider?: 'google' | 'cloudflare' | 'groq' | 'auto';
+  apiKey?: string;
 };
 
 function normalizeReferenceExamples(value: unknown): string[] {
@@ -36,7 +39,6 @@ export async function POST(request: Request) {
 
   const word = body?.word?.trim();
   const meaning = body?.meaning?.trim();
-  const targetCount = normalizeAiExampleCount(body?.count);
   const referenceExamples = normalizeReferenceExamples(body?.referenceExamples);
   const partOfSpeech = normalizePartOfSpeech(body?.partOfSpeech);
 
@@ -44,55 +46,61 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Word and meaning are required' }, { status: 400 });
   }
 
-  // 1. Try Google AI (Gemma 4 26B A4B) first
-  try {
-    const examples = await generateGoogleExamples({
-      word,
-      meaning,
-      targetCount,
-      partOfSpeech,
-      referenceExamples,
-    });
-    return NextResponse.json({ examples });
-  } catch (googleError: any) {
-    console.warn(
-      'Google AI failed, falling back to Cloudflare AI:',
-      googleError.message || googleError
-    );
+  // Load server settings for AI preferences
+  const serverSettings = await getServerSettings();
+  const targetCount = normalizeAiExampleCount(body?.count ?? serverSettings.ai?.exampleCount);
+  const preferredProvider = body?.provider || serverSettings.ai?.preferredProvider || 'google';
 
-    // 2. Fallback to Cloudflare AI (Gemma 4 26B A4B)
-    try {
-      const examples = await generateCloudflareExamples({
+  const runners: Record<string, () => Promise<string[]>> = {
+    google: () =>
+      generateGoogleExamples({
         word,
         meaning,
         targetCount,
         partOfSpeech,
         referenceExamples,
-      });
-      return NextResponse.json({ examples });
-    } catch (cfError: any) {
-      console.warn('Cloudflare AI failed, falling back to Groq AI:', cfError.message || cfError);
+      }),
+    cloudflare: () =>
+      generateCloudflareExamples({
+        word,
+        meaning,
+        targetCount,
+        partOfSpeech,
+        referenceExamples,
+      }),
+    groq: () =>
+      generateGroqExamples({
+        word,
+        meaning,
+        targetCount,
+        partOfSpeech,
+        referenceExamples,
+      }),
+  };
 
-      // 3. Fallback to Groq AI (Qwen 3.6 27B / GPT-OSS 120B)
-      try {
-        const examples = await generateGroqExamples({
-          word,
-          meaning,
-          targetCount,
-          partOfSpeech,
-          referenceExamples,
-        });
-        return NextResponse.json({ examples });
-      } catch (groqError: any) {
-        console.error(
-          'All AI services (Google, Cloudflare, Groq) failed:',
-          groqError.message || groqError
-        );
-        return NextResponse.json(
-          { error: groqError?.message || 'Failed to generate examples using AI services' },
-          { status: 502 }
-        );
-      }
+  // Determine provider execution order based on server settings & request
+  const order: Array<'google' | 'cloudflare' | 'groq'> =
+    preferredProvider === 'groq'
+      ? ['groq', 'google', 'cloudflare']
+      : preferredProvider === 'cloudflare'
+        ? ['cloudflare', 'google', 'groq']
+        : ['google', 'cloudflare', 'groq'];
+
+  let lastError: Error | null = null;
+
+  for (const provider of order) {
+    try {
+      const examples = await runners[provider]();
+      return NextResponse.json({ examples, provider });
+    } catch (err: any) {
+      console.warn(`Provider ${provider} failed, trying fallback:`, err?.message || err);
+      lastError = err;
     }
   }
+
+  console.error('All AI services failed:', lastError?.message || lastError);
+  return NextResponse.json(
+    { error: lastError?.message || 'Failed to generate examples using AI services' },
+    { status: 502 }
+  );
 }

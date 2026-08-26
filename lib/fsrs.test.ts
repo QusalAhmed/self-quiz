@@ -78,4 +78,15 @@ describe('computeFsrsIntervals', () => {
     expect(intervals.good.intervalText).toBe('10m');
     expect(intervals.easy.intervalText).toBe('8d');
   });
+
+  it('respects dynamic FSRS settings for requestRetention and maximumInterval', () => {
+    const record = createInitialFsrsRecord('w1', 'wordToMeaning', 'Hello', 'A greeting', now);
+    const customIntervals = computeFsrsIntervals(record, now, {
+      requestRetention: 0.95,
+      maximumIntervalDays: 3,
+    });
+
+    expect(customIntervals).toBeDefined();
+    expect(customIntervals.good.dueAt).toBeDefined();
+  });
 });

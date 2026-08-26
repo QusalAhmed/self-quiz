@@ -3,6 +3,7 @@
 import { ActionIcon, type ActionIconProps, Tooltip } from '@mantine/core';
 import { IconVolume } from '@tabler/icons-react';
 import React, { useState } from 'react';
+import { getAppSettings } from '@/lib/settings';
 
 export type PronounceButtonProps = {
   word: string;
@@ -31,8 +32,8 @@ export function PronounceButton({
   tooltipPosition = 'top',
   className,
   style,
-  rate = 0.88,
-  pitch = 1.0,
+  rate,
+  pitch,
   lang = 'en-US',
   onStart,
   onEnd,
@@ -45,11 +46,25 @@ export function PronounceButton({
       return;
     }
 
+    const settings = getAppSettings();
+    const activeRate = rate ?? settings.audio.ttsRate ?? 0.88;
+    const activePitch = pitch ?? settings.audio.ttsPitch ?? 1.0;
+    const activeVolume = settings.audio.ttsVolume ?? 1.0;
+
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(word.trim());
     utterance.lang = lang;
-    utterance.rate = rate;
-    utterance.pitch = pitch;
+    utterance.rate = activeRate;
+    utterance.pitch = activePitch;
+    utterance.volume = activeVolume;
+
+    if (settings.audio.ttsVoiceUri && 'getVoices' in window.speechSynthesis) {
+      const voices = window.speechSynthesis.getVoices();
+      const match = voices.find((v) => v.voiceURI === settings.audio.ttsVoiceUri);
+      if (match) {
+        utterance.voice = match;
+      }
+    }
 
     utterance.onstart = () => {
       setIsSpeaking(true);

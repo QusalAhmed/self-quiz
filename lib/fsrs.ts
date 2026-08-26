@@ -27,7 +27,46 @@ export type FsrsRecord = {
   lastRating?: FsrsRating;
 };
 
-const scheduler = fsrs({ enable_fuzz: false });
+const APP_SETTINGS_KEY = 'self_quiz_app_settings_v1';
+
+export type FsrsSchedulerOptions = {
+  requestRetention?: number;
+  maximumIntervalDays?: number;
+  enableFuzz?: boolean;
+};
+
+export function getStoredFsrsOptions(): FsrsSchedulerOptions {
+  if (typeof window === 'undefined') {
+    return { requestRetention: 0.9, maximumIntervalDays: 36500, enableFuzz: false };
+  }
+  try {
+    const raw = localStorage.getItem(APP_SETTINGS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed?.fsrs) {
+        return {
+          requestRetention:
+            typeof parsed.fsrs.requestRetention === 'number' ? parsed.fsrs.requestRetention : 0.9,
+          maximumIntervalDays:
+            typeof parsed.fsrs.maximumIntervalDays === 'number'
+              ? parsed.fsrs.maximumIntervalDays
+              : 36500,
+          enableFuzz: typeof parsed.fsrs.enableFuzz === 'boolean' ? parsed.fsrs.enableFuzz : false,
+        };
+      }
+    }
+  } catch {}
+  return { requestRetention: 0.9, maximumIntervalDays: 36500, enableFuzz: false };
+}
+
+export function createFsrsScheduler(options?: FsrsSchedulerOptions) {
+  const opt = { ...getStoredFsrsOptions(), ...options };
+  return fsrs({
+    request_retention: opt.requestRetention ?? 0.9,
+    maximum_interval: opt.maximumIntervalDays ?? 36500,
+    enable_fuzz: opt.enableFuzz ?? false,
+  });
+}
 
 const STATE_TO_ENUM: Record<FsrsCardState, State> = {
   New: State.New,
@@ -122,10 +161,14 @@ export function computeFsrs(
   rating: FsrsRating,
   now: Date = new Date(),
   word: string = current.word,
-  meaning: string = current.meaning
+  meaning: string = current.meaning,
+  schedulerOptions?: FsrsSchedulerOptions
 ): FsrsRecord {
   const card = toCard(current);
-  const result = scheduler.next(card, now, RATING_TO_ENUM[rating]);
+  const activeScheduler = schedulerOptions
+    ? createFsrsScheduler(schedulerOptions)
+    : createFsrsScheduler();
+  const result = activeScheduler.next(card, now, RATING_TO_ENUM[rating]);
 
   return fromCard(
     {
@@ -193,10 +236,14 @@ export function formatInterval(dueDate: Date | string, now: Date = new Date()): 
 
 export function computeFsrsIntervals(
   current: FsrsRecord,
-  now: Date = new Date()
+  now: Date = new Date(),
+  schedulerOptions?: FsrsSchedulerOptions
 ): Record<FsrsRating, { dueAt: string; intervalText: string }> {
   const card = toCard(current);
-  const repeatResult = scheduler.repeat(card, now);
+  const activeScheduler = schedulerOptions
+    ? createFsrsScheduler(schedulerOptions)
+    : createFsrsScheduler();
+  const repeatResult = activeScheduler.repeat(card, now);
 
   const getResult = (grade: Grade) => {
     const item = repeatResult[grade];

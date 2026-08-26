@@ -36,7 +36,6 @@ import {
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { NotificationBellButton } from '@/components/NotificationSettings';
 import { useSoundPreference } from '@/lib/sound';
 
 const DEFAULT_FAB_POSITION = { right: 20, bottom: 24 } as const;
@@ -408,8 +407,6 @@ export function AppSidebar({
               </Link>
 
               <Group gap={6} align="center">
-                <NotificationBellButton size="md" variant="subtle" />
-
                 <Tooltip label={soundEnabled ? 'Mute Sounds' : 'Enable Sounds'}>
                   <ActionIcon
                     variant="subtle"

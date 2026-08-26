@@ -71,5 +71,23 @@ describe('Sound utility (External Audio Files)', () => {
         playNotificationSound();
       }).not.toThrow();
     });
+
+    it('reads audio volume and notification sounds from app settings in localStorage', () => {
+      localStorage.setItem(
+        'self_quiz_app_settings_v1',
+        JSON.stringify({
+          audio: {
+            audioVolume: 0.3,
+            notificationSoundsEnabled: false,
+            reviewSoundEffectsEnabled: true,
+          },
+        })
+      );
+
+      expect(() => {
+        playReviewSound('easy');
+        playNotificationSound();
+      }).not.toThrow();
+    });
   });
 });

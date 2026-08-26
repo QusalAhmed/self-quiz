@@ -1,12 +1,17 @@
 import { NextResponse } from 'next/server';
+import { getServerSettings } from '@/app/api/settings/route';
 import { generateCloudflareStory } from '@/lib/cloudflare';
 import { generateGoogleStory } from '@/lib/google';
 import { generateGroqStory } from '@/lib/groq';
 import type { GenerateStoryParams, GenerateStoryWordInput } from '@/lib/story';
 
+type ExtendedStoryPayload = GenerateStoryParams & {
+  provider?: 'google' | 'cloudflare' | 'groq' | 'auto';
+};
+
 export async function POST(request: Request) {
   try {
-    let body: GenerateStoryParams | null;
+    let body: ExtendedStoryPayload | null;
     try {
       body = await request.json();
     } catch {
@@ -58,44 +63,45 @@ export async function POST(request: Request) {
       includeBangla,
     };
 
-    // 1. Try Google AI (Gemma 4 26B A4B) (Tier 1)
-    try {
-      const result = await generateGoogleStory(params);
-      return NextResponse.json(result);
-    } catch (googleError: any) {
-      console.warn(
-        'Google AI failed for story generation, falling back to Cloudflare AI:',
-        googleError?.message || googleError
-      );
+    // Load server settings for AI routing
+    const serverSettings = await getServerSettings();
+    const preferredProvider = body?.provider || serverSettings.ai?.preferredProvider || 'google';
 
-      // 2. Fallback to Cloudflare AI (Gemma 4 26B A4B) (Tier 2)
+    const runners: Record<string, () => Promise<any>> = {
+      google: () => generateGoogleStory(params),
+      cloudflare: () => generateCloudflareStory(params),
+      groq: () => generateGroqStory(params),
+    };
+
+    const order: Array<'google' | 'cloudflare' | 'groq'> =
+      preferredProvider === 'groq'
+        ? ['groq', 'google', 'cloudflare']
+        : preferredProvider === 'cloudflare'
+          ? ['cloudflare', 'google', 'groq']
+          : ['google', 'cloudflare', 'groq'];
+
+    let lastError: Error | null = null;
+
+    for (const provider of order) {
       try {
-        const result = await generateCloudflareStory(params);
+        const result = await runners[provider]();
         return NextResponse.json(result);
-      } catch (cfError: any) {
+      } catch (err: any) {
         console.warn(
-          'Cloudflare AI failed for story generation, falling back to Groq AI:',
-          cfError?.message || cfError
+          `Story generation with ${provider} failed, trying fallback:`,
+          err?.message || err
         );
-
-        // 3. Fallback to Groq AI (Qwen 3.6 27B / GPT-OSS 120B) (Tier 3)
-        try {
-          const result = await generateGroqStory(params);
-          return NextResponse.json(result);
-        } catch (groqError: any) {
-          console.error(
-            'All AI services (Google, Cloudflare, Groq) failed for story generation:',
-            groqError?.message || groqError
-          );
-          return NextResponse.json(
-            {
-              error: groqError?.message || 'Failed to generate story using AI services',
-            },
-            { status: 502 }
-          );
-        }
+        lastError = err;
       }
     }
+
+    console.error('All AI services failed for story generation:', lastError?.message || lastError);
+    return NextResponse.json(
+      {
+        error: lastError?.message || 'Failed to generate story using AI services',
+      },
+      { status: 502 }
+    );
   } catch (err: any) {
     console.error('Unhandled error in /api/story:', err);
     return NextResponse.json({ error: err?.message || 'Internal Server Error' }, { status: 500 });

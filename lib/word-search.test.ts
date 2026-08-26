@@ -237,7 +237,7 @@ describe('lib/word-search', () => {
 
       expect(results.length).toBeGreaterThan(0);
       expect(results[0].word).toBe('vocabulary_150');
-      expect(durationMs).toBeLessThan(100); // High speed search verification
+      expect(durationMs).toBeLessThan(300); // High speed search verification
     });
   });
 

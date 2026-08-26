@@ -36,6 +36,7 @@ import {
   type ReplicationsHolder,
   type UnifiedSyncState,
 } from '@/lib/replication';
+import { initAppSettingsSync, useAppSettings } from '@/lib/settings';
 import { resolveWordTextFromMainTable } from '@/lib/word-display';
 
 type WordWithDefinitions<T> = T & { definitions?: WordDefinition[] };
@@ -46,6 +47,38 @@ export function AppShellLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { mode, quizDirection } = useAppSelector(selectQuizState);
   const { colorScheme, setColorScheme } = useMantineColorScheme();
+  const { settings } = useAppSettings();
+
+  // Synchronize appearance settings with document attributes & color scheme
+  useEffect(() => {
+    if (typeof document === 'undefined') {
+      return;
+    }
+    const appearance = settings.appearance;
+    document.documentElement.setAttribute('data-accent-color', appearance.accentColor || 'indigo');
+    document.documentElement.setAttribute(
+      'data-glassmorphism',
+      String(appearance.cardGlassmorphism !== false)
+    );
+    document.documentElement.setAttribute(
+      'data-reduced-motion',
+      String(Boolean(appearance.reducedMotion))
+    );
+    document.documentElement.setAttribute('data-density', appearance.uiDensity || 'comfortable');
+
+    if (appearance.colorScheme === 'dark' && colorScheme !== 'dark') {
+      setColorScheme('dark');
+    } else if (appearance.colorScheme === 'light' && colorScheme !== 'light') {
+      setColorScheme('light');
+    } else if (appearance.colorScheme === 'auto' && colorScheme !== 'auto') {
+      setColorScheme('auto');
+    }
+  }, [settings.appearance, colorScheme, setColorScheme]);
+
+  // Eagerly initialize settings synchronization on mount
+  useEffect(() => {
+    void initAppSettingsSync();
+  }, []);
 
   const [words, setWords] = useState<WordRecord[]>([]);
   const [groups, setGroups] = useState<GroupRecord[]>([]);

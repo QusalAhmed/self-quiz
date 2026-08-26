@@ -239,4 +239,33 @@ describe('lib/settings.ts', () => {
       })
     );
   });
+
+  it('falls back to /api/settings fetch when Supabase query returns null or fails', async () => {
+    (supabase.from as jest.Mock).mockReturnValue({
+      select: jest.fn().mockReturnValue({
+        eq: jest.fn().mockReturnValue({
+          eq: jest.fn().mockReturnValue({
+            maybeSingle: jest
+              .fn()
+              .mockResolvedValue({ data: null, error: new Error('Network error') }),
+          }),
+        }),
+      }),
+    });
+
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        settings: {
+          appearance: { accentColor: 'cyan' },
+          studyQuiz: { defaultQuizDirection: 'spelling' },
+        },
+      }),
+    } as any);
+
+    const result = await fetchSettingsFromSupabase();
+    expect(result).toBeDefined();
+    expect(result?.appearance.accentColor).toBe('cyan');
+    expect(result?.studyQuiz.defaultQuizDirection).toBe('spelling');
+  });
 });
