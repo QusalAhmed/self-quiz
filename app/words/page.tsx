@@ -392,13 +392,14 @@ export default function WordsPage() {
           const meaning = definitionsToMeaning(definitions);
 
           if (meaning) {
-            const updated = {
-              ...record,
-              meaning,
-              definitions,
-              updatedAt: new Date().toISOString(),
-            };
-            await database.words.upsert(updated);
+            const wordDoc = await database.words.findOne(wordId).exec();
+            if (wordDoc) {
+              await wordDoc.patch({
+                meaning,
+                definitions,
+                updatedAt: new Date().toISOString(),
+              });
+            }
           }
         }
 
@@ -421,14 +422,15 @@ export default function WordsPage() {
           examplesPerDefinition,
           targetAiExampleCount
         );
-        const updated = {
-          ...record,
-          meaning: definitionsToMeaning(updatedDefinitions),
-          definitions: updatedDefinitions,
-          updatedAt: new Date().toISOString(),
-        };
 
-        await database.words.upsert(updated);
+        const wordDoc = await database.words.findOne(wordId).exec();
+        if (wordDoc) {
+          await wordDoc.patch({
+            meaning: definitionsToMeaning(updatedDefinitions),
+            definitions: updatedDefinitions,
+            updatedAt: new Date().toISOString(),
+          });
+        }
       } catch (error) {
         console.error('Error generating AI examples:', error);
       } finally {
@@ -710,14 +712,13 @@ export default function WordsPage() {
               return;
             }
 
-            const updated = {
-              ...current,
+            const updatedAt = new Date().toISOString();
+            await doc.patch({
               meaning: aiMeaning,
               definitions: aiDefinitions,
-              updatedAt: new Date().toISOString(),
-            };
+              updatedAt,
+            });
 
-            await database.words.upsert(updated);
             const fsrsDocs = await database.fsrsRecords
               .find({
                 selector: { wordId: record.id },
@@ -728,7 +729,7 @@ export default function WordsPage() {
                 fsrsDoc.toJSON() as FsrsRecord,
                 record.word,
                 aiMeaning,
-                updated.updatedAt
+                updatedAt
               );
               await database.fsrsRecords.upsert(updatedFsrs);
             }

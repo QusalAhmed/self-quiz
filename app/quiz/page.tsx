@@ -1210,13 +1210,14 @@ export default function QuizPage() {
         const meaning = definitionsToMeaning(definitions);
 
         if (meaning) {
-          const updated = {
-            ...record,
-            meaning,
-            definitions,
-            updatedAt: new Date().toISOString(),
-          };
-          await database.words.upsert(updated);
+          const wordDoc = await database.words.findOne(id).exec();
+          if (wordDoc) {
+            await wordDoc.patch({
+              meaning,
+              definitions,
+              updatedAt: new Date().toISOString(),
+            });
+          }
         }
       }
 
@@ -1239,14 +1240,15 @@ export default function QuizPage() {
         examplesPerDefinition,
         targetAiExampleCount
       );
-      const updated = {
-        ...record,
-        meaning: definitionsToMeaning(updatedDefinitions),
-        definitions: updatedDefinitions,
-        updatedAt: new Date().toISOString(),
-      };
 
-      await database.words.upsert(updated);
+      const wordDoc = await database.words.findOne(id).exec();
+      if (wordDoc) {
+        await wordDoc.patch({
+          meaning: definitionsToMeaning(updatedDefinitions),
+          definitions: updatedDefinitions,
+          updatedAt: new Date().toISOString(),
+        });
+      }
       dispatch(
         updateQuizItem({
           id,
