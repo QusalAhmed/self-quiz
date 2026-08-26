@@ -1,7 +1,7 @@
 import { Badge, Button, Group, Text } from '@mantine/core';
 import { IconBookmark, IconBookmarkOff, IconEdit, IconEye, IconVolume } from '@tabler/icons-react';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { DefinitionsDisplay } from '@/components/DefinitionsDisplay/DefinitionsDisplay';
 import { WordActionIcon } from '@/components/WordActions/WordActionIcon';
 import { WordFamilySection } from '@/components/WordFamily/WordFamilySection';
@@ -44,7 +44,7 @@ type SrsPracticeVirtualListProps = {
   onDeleteWordFamilyMember?: (memberId: string) => Promise<void> | void;
 };
 
-export function SrsPracticeVirtualList({
+export const SrsPracticeVirtualList = memo(function SrsPracticeVirtualList({
   words,
   hideMeanings,
   revealedWordIds,
@@ -245,4 +245,4 @@ export function SrsPracticeVirtualList({
       </div>
     </div>
   );
-}
+});

@@ -106,19 +106,19 @@ export const fsrsSlice = createSlice({
     },
 
     /**
-     * Real-time timer ticker: Runs periodically on client (e.g. every second).
+     * Real-time timer ticker: Runs periodically on client (e.g. every few seconds).
      * Checks if any cards became due (dueAt <= current time) and dynamically
      * adds them to the queue without requiring page refresh!
      */
     tickTimer: (state, action: PayloadAction<string | undefined>) => {
       const nowIso = action.payload || new Date().toISOString();
-      state.nowIso = nowIso;
 
       const newlyDueIds = Object.values(state.cards)
         .filter((card) => !card.isDeleted && card.dueAt <= nowIso && !state.queue.includes(card.id))
         .map((card) => card.id);
 
       if (newlyDueIds.length > 0) {
+        state.nowIso = nowIso;
         state.queue = [...state.queue, ...newlyDueIds];
         if (!state.currentCardId) {
           state.currentCardId = state.queue[0] || null;

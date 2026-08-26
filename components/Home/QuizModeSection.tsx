@@ -31,7 +31,7 @@ import {
   IconVolume,
 } from '@tabler/icons-react';
 import { useRouter } from 'next/navigation';
-import { useMemo, useState, type ReactNode } from 'react';
+import { memo, useMemo, useState, type ReactNode } from 'react';
 import {
   practiceDisplayModes,
   quizDirections,
@@ -127,7 +127,7 @@ type QuizModeSectionProps = {
   words?: import('@/lib/db').WordRecord[];
 };
 
-export function QuizModeSection({
+export const QuizModeSection = memo(function QuizModeSection({
   quizRange,
   quizSource,
   quizDirection,
@@ -706,7 +706,7 @@ export function QuizModeSection({
       )}
     </Stack>
   );
-}
+});
 
 type SelectLikeProps = {
   data: Array<{ value: string; label: string }>;

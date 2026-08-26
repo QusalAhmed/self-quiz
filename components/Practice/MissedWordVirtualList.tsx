@@ -1,7 +1,7 @@
 import { Badge, Button, Group, RollingNumber, Text } from '@mantine/core';
 import { IconBookmarkOff, IconEye, IconVolume } from '@tabler/icons-react';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { DefinitionsDisplay } from '@/components/DefinitionsDisplay/DefinitionsDisplay';
 import { WordActionIcon } from '@/components/WordActions/WordActionIcon';
 import { WordFamilySection } from '@/components/WordFamily/WordFamilySection';
@@ -32,7 +32,7 @@ type MissedWordVirtualListProps = {
   onDeleteWordFamilyMember?: (memberId: string) => Promise<void> | void;
 };
 
-export function MissedWordVirtualList({
+export const MissedWordVirtualList = memo(function MissedWordVirtualList({
   words,
   hideMissedMeanings,
   revealedMissedWordIds,
@@ -284,4 +284,4 @@ export function MissedWordVirtualList({
       </div>
     </div>
   );
-}
+});

@@ -199,6 +199,10 @@ export default function QuizPage() {
     return new Map(words.map((word) => [word.id, word]));
   }, [words]);
 
+  const fsrsRecordsById = useMemo(() => {
+    return new Map(fsrsRecords.map((record) => [record.id, record]));
+  }, [fsrsRecords]);
+
   // Compute Stats / Practice items
   const missedWordsForMode = useMemo(
     () =>
@@ -357,7 +361,7 @@ export default function QuizPage() {
         candidates = candidates.filter((item) => {
           const wordId =
             (item as FsrsRecord).wordId || (item as MissedWordRecord).wordId || item.id;
-          const correspondingWord = words.find((w) => w.id === wordId);
+          const correspondingWord = wordsById.get(wordId);
           if (!correspondingWord) {
             return quizGroupFilter === 'none';
           }
@@ -374,7 +378,7 @@ export default function QuizPage() {
       let candidates: (WordRecord | MissedWordRecord | FsrsRecord)[] = fsrsDueRecords;
       if (quizGroupFilter !== 'all') {
         candidates = candidates.filter((item) => {
-          const correspondingWord = words.find((w) => w.id === (item as FsrsRecord).wordId);
+          const correspondingWord = wordsById.get((item as FsrsRecord).wordId);
           if (!correspondingWord) {
             return quizGroupFilter === 'none';
           }
@@ -423,7 +427,7 @@ export default function QuizPage() {
     if (quizGroupFilter !== 'all') {
       if (quizSource === 'missed') {
         candidates = candidates.filter((item) => {
-          const correspondingWord = words.find((w) => w.id === (item as MissedWordRecord).wordId);
+          const correspondingWord = wordsById.get((item as MissedWordRecord).wordId);
           if (!correspondingWord) {
             return quizGroupFilter === 'none';
           }
@@ -444,6 +448,7 @@ export default function QuizPage() {
     return candidates;
   }, [
     words,
+    wordsById,
     missedWordsForMode,
     fsrsDueRecords,
     fsrsForgettingWordsForMode,
@@ -457,9 +462,11 @@ export default function QuizPage() {
 
   const getFsrsRecordForWord = useCallback(
     (wordId: string, mode: QuizDirectionKey): FsrsRecord | undefined => {
-      return fsrsRecords.find((f) => !f.isDeleted && f.wordId === wordId && f.quizMode === mode);
+      const fsrsId = buildFsrsId(wordId, mode as import('@/lib/db').QuizMode);
+      const record = fsrsRecordsById.get(fsrsId);
+      return record && !record.isDeleted ? record : undefined;
     },
-    [fsrsRecords]
+    [fsrsRecordsById]
   );
 
   const currentPoolSignature = useMemo(() => {
@@ -486,19 +493,19 @@ export default function QuizPage() {
     const queue = shuffle(
       quizCandidates.map((word) => {
         const wordId = getCandidateWordId(word);
-        const definitions = normalizeDefinitions(
-          (word as { definitions?: WordDefinition[] }).definitions,
-          word.meaning
-        );
+        const correspondingWord = wordsById.get(wordId);
+        const rawDefinitions = (correspondingWord?.definitions ??
+          (word as { definitions?: WordDefinition[] }).definitions) as WordDefinition[] | undefined;
+        const rawMeaning = correspondingWord?.meaning || word.meaning;
+        const definitions = normalizeDefinitions(rawDefinitions, rawMeaning);
         const fsrsRecord = getFsrsRecordForWord(wordId, quizDirection);
         return {
           id: wordId,
           word: word.word,
           meaning: definitionsToMeaning(definitions),
           definitions,
-          tags: words.find((w) => w.id === wordId)?.customGroups || [],
-          notes:
-            words.find((w) => w.id === wordId)?.notes || (word as { notes?: string }).notes || '',
+          tags: correspondingWord?.customGroups || [],
+          notes: correspondingWord?.notes || (word as { notes?: string }).notes || '',
           fsrsRecord,
         };
       })
@@ -512,7 +519,7 @@ export default function QuizPage() {
   }, [
     quizCandidates,
     getCandidateWordId,
-    words,
+    wordsById,
     getFsrsRecordForWord,
     quizDirection,
     currentPoolSignature,
@@ -524,33 +531,38 @@ export default function QuizPage() {
     if (words.length === 0 || quizQueue.length === 0) {
       return;
     }
-    const wordsMap = new Map(words.map((w) => [w.id, w]));
     let hasChanges = false;
     const updatedQueue = quizQueue.map((item) => {
-      const freshWord = wordsMap.get(item.id);
+      const freshWord = wordsById.get(item.id);
       if (!freshWord) {
         return item;
       }
-      const freshDefinitions = normalizeDefinitions(freshWord.definitions, freshWord.meaning);
-      const freshMeaning = definitionsToMeaning(freshDefinitions);
+      const freshDefinitions = freshWord.definitions ?? [];
+      const freshMeaning = freshWord.meaning;
       const freshTags = freshWord.customGroups || [];
       const freshNotes = freshWord.notes || '';
       const freshFsrs = getFsrsRecordForWord(item.id, quizDirection);
-      if (
-        item.word !== freshWord.word ||
+
+      const definitionsChanged =
         item.meaning !== freshMeaning ||
-        item.notes !== freshNotes ||
-        JSON.stringify(item.tags) !== JSON.stringify(freshTags) ||
-        JSON.stringify(item.definitions) !== JSON.stringify(freshDefinitions) ||
+        (item.definitions?.length ?? 0) !== freshDefinitions.length;
+      const tagsChanged = (item.tags?.length ?? 0) !== freshTags.length;
+      const notesChanged = (item.notes || '') !== freshNotes;
+      const wordChanged = item.word !== freshWord.word;
+      const fsrsChanged =
         item.fsrsRecord?.dueAt !== freshFsrs?.dueAt ||
-        item.fsrsRecord?.stability !== freshFsrs?.stability
-      ) {
+        item.fsrsRecord?.stability !== freshFsrs?.stability ||
+        item.fsrsRecord?.difficulty !== freshFsrs?.difficulty ||
+        item.fsrsRecord?.state !== freshFsrs?.state;
+
+      if (definitionsChanged || tagsChanged || notesChanged || wordChanged || fsrsChanged) {
         hasChanges = true;
+        const normalizedDefs = normalizeDefinitions(freshDefinitions, freshMeaning);
         return {
           ...item,
           word: freshWord.word,
-          meaning: freshMeaning,
-          definitions: freshDefinitions,
+          meaning: definitionsToMeaning(normalizedDefs),
+          definitions: normalizedDefs,
           tags: freshTags,
           notes: freshNotes,
           fsrsRecord: freshFsrs || item.fsrsRecord,
@@ -562,7 +574,7 @@ export default function QuizPage() {
     if (hasChanges) {
       dispatch(syncQueueItems(updatedQueue));
     }
-  }, [words, quizQueue, getFsrsRecordForWord, quizDirection, dispatch]);
+  }, [words.length, wordsById, quizQueue, getFsrsRecordForWord, quizDirection, dispatch]);
 
   // Manage queue initialization / refill
   useEffect(() => {
@@ -611,7 +623,6 @@ export default function QuizPage() {
     let missedSubscription: { unsubscribe: () => void } | null = null;
     let fsrsSubscription: { unsubscribe: () => void } | null = null;
     let wordFamilySubscription: { unsubscribe: () => void } | null = null;
-    let reviewLogSubscription: { unsubscribe: () => void } | null = null;
     let cleanupOnlineListener: (() => void) | null = null;
     let unsubscribeSyncState: (() => void) | null = null;
 
@@ -690,12 +701,6 @@ export default function QuizPage() {
         setWordFamilies(map);
       });
 
-      const reviewLogQuery = db.reviewLogs.find({
-        selector: { isDeleted: { $ne: true } },
-      });
-
-      reviewLogSubscription = reviewLogQuery.$.subscribe(() => {});
-
       // Initialize automatic two-way Supabase replication
       const replications = setupSupabaseReplication(db);
       replicationsRef.current = replications;
@@ -732,7 +737,6 @@ export default function QuizPage() {
       missedSubscription?.unsubscribe();
       fsrsSubscription?.unsubscribe();
       wordFamilySubscription?.unsubscribe();
-      reviewLogSubscription?.unsubscribe();
       cleanupOnlineListener?.();
       unsubscribeSyncState?.();
     };
@@ -761,7 +765,7 @@ export default function QuizPage() {
     }
     const now = new Date();
     const fsrsId = buildFsrsId(currentQuizItem.id, quizDirection as import('@/lib/db').QuizMode);
-    const existing = fsrsRecords.find((r) => r.id === fsrsId);
+    const existing = currentQuizItem.fsrsRecord || fsrsRecordsById.get(fsrsId);
     const record =
       existing ||
       createInitialFsrsRecord(
@@ -778,7 +782,7 @@ export default function QuizPage() {
       good: res.good.intervalText,
       easy: res.easy.intervalText,
     };
-  }, [currentQuizItem, quizSource, quizDirection, fsrsRecords]);
+  }, [currentQuizItem, quizSource, quizDirection, fsrsRecordsById]);
 
   const isCurrentMarkedMissed = useMemo(() => {
     if (!currentQuizItem) {
@@ -1322,7 +1326,7 @@ export default function QuizPage() {
   }, [database, quizHistory, dispatch]);
 
   const handleSrsRate = useCallback(
-    async (rating: FsrsRating) => {
+    (rating: FsrsRating) => {
       if (!database || !currentQuizItem) {
         return;
       }
@@ -1330,18 +1334,21 @@ export default function QuizPage() {
       const timestamp = new Date().toISOString();
       const now = new Date();
       const durationMs = Math.max(0, Date.now() - cardPresentedAtRef.current);
-
       const fsrsId = buildFsrsId(currentQuizItem.id, quizDirection as import('@/lib/db').QuizMode);
-      const existingDoc = await database.fsrsRecords.findOne(fsrsId).exec();
-      const currentState = existingDoc
-        ? (existingDoc.toJSON() as FsrsRecord)
+
+      // Instant in-memory state resolution (0ms)
+      const existing = currentQuizItem.fsrsRecord || fsrsRecordsById.get(fsrsId);
+      const currentState = existing
+        ? existing
         : createInitialFsrsRecord(
             currentQuizItem.id,
             quizDirection as import('@/lib/db').QuizMode,
             currentQuizItem.word,
-            currentQuizItem.meaning
+            currentQuizItem.meaning,
+            now
           );
 
+      // Record undo snapshot
       dispatch(
         pushQuizHistory({
           fsrsRecord: currentState ? { ...currentState } : undefined,
@@ -1352,7 +1359,7 @@ export default function QuizPage() {
         })
       );
 
-      const updated = {
+      const updated: FsrsRecord = {
         ...computeFsrs(currentState, rating, now, currentQuizItem.word, currentQuizItem.meaning),
         word: currentQuizItem.word,
         meaning: currentQuizItem.meaning,
@@ -1360,25 +1367,37 @@ export default function QuizPage() {
         isDeleted: false,
       };
 
-      await database.fsrsRecords.upsert(updated);
-
-      const reviewLog = createReviewLogEvent({
-        currentState,
-        updatedCard: updated,
-        rating,
-        durationMs,
-        now,
-      });
-
-      try {
-        await database.reviewLogs.insert(reviewLog);
-      } catch (err) {
-        console.error('Failed to insert review log event:', err);
-      }
-
+      // Optimistically advance to next card immediately (0ms UI latency!)
       dispatch(nextCard());
+
+      // Persist to IndexedDB in the background without blocking card rendering
+      void (async () => {
+        try {
+          await database.fsrsRecords.upsert(updated);
+          const reviewLog = createReviewLogEvent({
+            currentState,
+            updatedCard: updated,
+            rating,
+            durationMs,
+            now,
+          });
+          await database.reviewLogs.insert(reviewLog);
+        } catch (err) {
+          console.error('Failed to persist FSRS record or review log:', err);
+        }
+      })();
     },
-    [database, currentQuizItem, quizDirection, quizIndex, quizQueue, revealed, completed, dispatch]
+    [
+      database,
+      currentQuizItem,
+      quizDirection,
+      fsrsRecordsById,
+      quizIndex,
+      quizQueue,
+      revealed,
+      completed,
+      dispatch,
+    ]
   );
 
   return (

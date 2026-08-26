@@ -10,7 +10,7 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { IconChevronDown, IconChevronUp, IconRotateClockwise } from '@tabler/icons-react';
-import { useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import type { WordDefinition } from '@/lib/db';
 import { normalizeDefinitions } from '@/lib/definitions';
 
@@ -34,7 +34,7 @@ export type DefinitionsDisplayProps = {
  * Contains a toggle button under each definition to open a dedicated scroller for examples.
  * User-authored examples and AI-generated examples are differentiated by distinct text colors.
  */
-export function DefinitionsDisplay({
+export const DefinitionsDisplay = memo(function DefinitionsDisplay({
   definitions,
   fallbackMeaning = '',
   emptyText = 'No definition available',
@@ -47,7 +47,10 @@ export function DefinitionsDisplay({
   isGeneratingExamples,
 }: DefinitionsDisplayProps) {
   const [expandedIndices, setExpandedIndices] = useState<Record<number, boolean>>({});
-  const normalized = normalizeDefinitions(definitions, fallbackMeaning);
+  const normalized = useMemo(
+    () => normalizeDefinitions(definitions, fallbackMeaning),
+    [definitions, fallbackMeaning]
+  );
   const isCenter = align === 'center';
 
   const toggleExpand = (index: number) => {
@@ -211,4 +214,4 @@ export function DefinitionsDisplay({
       })}
     </Stack>
   );
-}
+});

@@ -98,13 +98,13 @@ export function FsrsReviewSession({
     cardPresentedAtRef.current = Date.now();
   }, [currentCard?.id]);
 
-  // 2. Real-Time Due Timer: Client-side ticker running every 1 second.
+  // 2. Real-Time Due Timer: Client-side ticker running every 5 seconds.
   // When a card's due timestamp <= current time (e.g. 1-minute learning step),
   // automatically adds it to the current queue without requiring a page reload!
   useEffect(() => {
     const timerId = setInterval(() => {
       dispatch(tickTimer(new Date().toISOString()));
-    }, 1000);
+    }, 5000);
 
     return () => {
       clearInterval(timerId);

@@ -37,7 +37,7 @@ import {
   IconVolume,
 } from '@tabler/icons-react';
 import { motion } from 'framer-motion';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { quizDirections } from '@/app/home/constants';
 import { DefinitionsDisplay } from '@/components/DefinitionsDisplay/DefinitionsDisplay';
 import { RATING_BUTTON_INFO } from '@/components/FsrsReview';
@@ -96,7 +96,7 @@ type QuizPanelProps = {
   onDeleteWordFamilyMember?: (memberId: string) => void;
 };
 
-export function QuizPanel({
+export const QuizPanel = memo(function QuizPanel({
   item,
   quizDirection,
   revealed,
@@ -171,13 +171,17 @@ export function QuizPanel({
   const lastAutoPronouncedKeyRef = useRef<string | null>(null);
 
   const scrollToCenter = useCallback(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
     if (quizPanelRef.current) {
-      const yOffset = -20;
-      const element = quizPanelRef.current;
-      const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
-      window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
-    } else {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      const rect = quizPanelRef.current.getBoundingClientRect();
+      // Only scroll if card is out of visible viewport
+      if (rect.top < -40 || rect.bottom > window.innerHeight + 80) {
+        const yOffset = -20;
+        const y = rect.top + window.pageYOffset + yOffset;
+        window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+      }
     }
   }, []);
 
@@ -867,7 +871,7 @@ export function QuizPanel({
             initial={false}
             animate={{ rotateY: revealed ? 180 : 0 }}
             transition={{
-              duration: 0.6,
+              duration: 0.45,
               ease: [0.23, 1, 0.32, 1],
             }}
             style={{
@@ -877,6 +881,7 @@ export function QuizPanel({
               display: 'grid',
               gridTemplateColumns: '1fr',
               gridTemplateRows: '1fr',
+              willChange: 'transform',
             }}
           >
             {/* FRONT FACE (UNREVEALED) */}
@@ -1274,4 +1279,4 @@ export function QuizPanel({
       </Stack>
     </Card>
   );
-}
+});
