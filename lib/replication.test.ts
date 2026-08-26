@@ -3,6 +3,7 @@ import {
   pullFsrsModifier,
   pullGroupModifier,
   pullMissedWordModifier,
+  pullQuranVerseModifier,
   pullReviewLogModifier,
   pullSettingsModifier,
   pullSrsPracticeModifier,
@@ -12,6 +13,7 @@ import {
   pushFsrsModifier,
   pushGroupModifier,
   pushMissedWordModifier,
+  pushQuranVerseModifier,
   pushReviewLogModifier,
   pushSettingsModifier,
   pushSrsPracticeModifier,
@@ -365,8 +367,63 @@ describe('Supabase Replication Modifiers', () => {
     });
   });
 
+  describe('Quran Verses', () => {
+    it('correctly pulls and pushes single verses and verse ranges', () => {
+      const remote = {
+        id: '94:5-6',
+        chapter: 94,
+        verse: 5,
+        verse_end: 6,
+        category: 'Ease & Relief',
+        notes: 'Indeed with hardship comes ease',
+        status: 'active',
+        view_count: 3,
+        last_viewed_at: '2026-08-25T10:00:00.000Z',
+        last_error: null,
+        created_at: '2026-08-25T00:00:00.000Z',
+        updated_at: '2026-08-25T10:00:00.000Z',
+        deleted: false,
+      };
+
+      const pulled = pullQuranVerseModifier(remote);
+      expect(pulled.id).toBe('94:5-6');
+      expect(pulled.chapter).toBe(94);
+      expect(pulled.verse).toBe(5);
+      expect(pulled.verseEnd).toBe(6);
+      expect(pulled.category).toBe('Ease & Relief');
+      expect(pulled.viewCount).toBe(3);
+      expect(pulled.status).toBe('active');
+      expect(pulled.isDeleted).toBe(false);
+
+      const pushed = pushQuranVerseModifier(pulled);
+      expect(pushed.id).toBe('94:5-6');
+      expect(pushed.chapter).toBe(94);
+      expect(pushed.verse).toBe(5);
+      expect(pushed.verse_end).toBe(6);
+      expect(pushed.category).toBe('Ease & Relief');
+      expect(pushed.view_count).toBe(3);
+      expect(pushed.deleted).toBe(false);
+    });
+
+    it('derives verseEnd from id when verse_end column is absent in older Supabase schema', () => {
+      const remoteWithoutCol = {
+        id: '2:285-286',
+        chapter: 2,
+        verse: 285,
+        category: 'Faith',
+        deleted: false,
+      };
+
+      const pulled = pullQuranVerseModifier(remoteWithoutCol);
+      expect(pulled.id).toBe('2:285-286');
+      expect(pulled.chapter).toBe(2);
+      expect(pulled.verse).toBe(285);
+      expect(pulled.verseEnd).toBe(286);
+    });
+  });
+
   describe('RxDB Sync State Structures', () => {
-    it('defines the 9 required sync collection keys correctly', () => {
+    it('defines the 10 required sync collection keys correctly', () => {
       const keys = [
         'words',
         'groups',
@@ -377,8 +434,9 @@ describe('Supabase Replication Modifiers', () => {
         'dailyUsage',
         'reviewLogs',
         'settings',
+        'quranVerses',
       ];
-      expect(keys.length).toBe(9);
+      expect(keys.length).toBe(10);
       expect(keys).toContain('words');
       expect(keys).toContain('groups');
       expect(keys).toContain('missedWords');
@@ -388,6 +446,7 @@ describe('Supabase Replication Modifiers', () => {
       expect(keys).toContain('dailyUsage');
       expect(keys).toContain('reviewLogs');
       expect(keys).toContain('settings');
+      expect(keys).toContain('quranVerses');
     });
   });
 });

@@ -24,6 +24,7 @@ import {
   IconAdjustmentsHorizontal,
   IconAlertTriangle,
   IconArrowsShuffle,
+  IconBook,
   IconBrain,
   IconCheck,
   IconClock,
@@ -73,6 +74,7 @@ export type CloudSyncCardProps = {
     dailyUsage?: number;
     reviewLogs?: number;
     settings?: number;
+    quranVerses?: number;
   };
 };
 
@@ -86,6 +88,7 @@ const collectionIcons: Record<SyncCollectionKey, React.ComponentType<{ size?: nu
   dailyUsage: IconClock,
   reviewLogs: IconHistory,
   settings: IconAdjustmentsHorizontal,
+  quranVerses: IconBook,
 };
 
 function formatRelativeTime(isoString: string | null): string {

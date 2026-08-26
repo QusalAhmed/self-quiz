@@ -72,8 +72,10 @@ jest.mock('./supabase', () => ({
 }));
 
 describe('lib/quran-service.ts', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     inMemoryVerses = {};
+    const { setVerseEndSchemaSupportForTesting } = await import('./quran-service');
+    setVerseEndSchemaSupportForTesting(true);
   });
 
   it('seeds default curated verses when database is empty', async () => {
@@ -199,5 +201,54 @@ describe('lib/quran-service.ts', () => {
     const random = await getRandomActiveVerse();
     expect(random).toBeDefined();
     expect(['2:255', '94:5-6']).toContain(random?.id);
+  });
+
+  it('pushes all local verses to Supabase with onConflict handling', async () => {
+    await addQuranVerseRecord({ chapter: 2, verse: 255 });
+    await addQuranVerseRecord({ chapter: 112, verse: 1, verseEnd: 4 });
+
+    const { pushAllLocalQuranVersesToSupabase } = await import('./quran-service');
+    const res = await pushAllLocalQuranVersesToSupabase();
+    expect(res.pushed).toBe(2);
+    expect(res.error).toBeUndefined();
+  });
+
+  it('handles PGRST204 missing verse_end column by falling back to standard columns', async () => {
+    const { supabase } = await import('./supabase');
+    const mockUpsert = jest
+      .fn()
+      .mockResolvedValueOnce({
+        data: null,
+        error: {
+          code: 'PGRST204',
+          message: "Could not find the 'verse_end' column of 'quran_verses' in the schema cache",
+        },
+      })
+      .mockResolvedValueOnce({
+        data: [{ id: '94:5-6' }],
+        error: null,
+      });
+
+    const fromSpy = jest.spyOn(supabase, 'from').mockReturnValue({
+      upsert: mockUpsert,
+    } as any);
+
+    const { upsertQuranVersesToSupabase } = await import('./quran-service');
+    const res = await upsertQuranVersesToSupabase([
+      {
+        id: '94:5-6',
+        chapter: 94,
+        verse: 5,
+        verseEnd: 6,
+        category: 'Ease & Relief',
+      },
+    ]);
+
+    expect(mockUpsert).toHaveBeenCalledTimes(2);
+    // First call had verse_end, second fallback call stripped verse_end
+    expect(mockUpsert.mock.calls[0][0][0].verse_end).toBe(6);
+    expect(mockUpsert.mock.calls[1][0][0].verse_end).toBeUndefined();
+    expect(res.error).toBeNull();
+    fromSpy.mockRestore();
   });
 });

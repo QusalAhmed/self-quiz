@@ -79,3 +79,7 @@ ON CONFLICT (id) DO UPDATE SET
   category = EXCLUDED.category,
   notes = EXCLUDED.notes,
   updated_at = NOW();
+
+-- Reload PostgREST schema cache so newly added columns (such as verse_end)
+-- are recognized by Supabase client immediately without PGRST204 errors
+NOTIFY pgrst, 'reload schema';

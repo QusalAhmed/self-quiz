@@ -7,6 +7,7 @@ import type {
   FsrsRecord,
   GroupRecord,
   MissedWordRecord,
+  QuranVerseRecord,
   QuizMode,
   ReviewLogRecord,
   SettingsRecord,
@@ -33,7 +34,8 @@ export type SyncCollectionKey =
   | 'srsPracticeWords'
   | 'dailyUsage'
   | 'reviewLogs'
-  | 'settings';
+  | 'settings'
+  | 'quranVerses';
 
 export type SingleCollectionSyncState = {
   key: SyncCollectionKey;
@@ -93,6 +95,7 @@ export type ReplicationsHolder = {
   dailyUsage: RxReplicationState<DailyUsageRecord, SupabaseCheckpoint>;
   reviewLogs: RxReplicationState<ReviewLogRecord, SupabaseCheckpoint>;
   settings: RxReplicationState<SettingsRecord, SupabaseCheckpoint>;
+  quranVerses: RxReplicationState<QuranVerseRecord, SupabaseCheckpoint>;
   cancelAll: () => Promise<void>;
   reSyncAll: () => Promise<void>;
   pauseAll: () => Promise<void>;
@@ -494,6 +497,58 @@ export function pushSettingsModifier(doc: SettingsRecord): any {
 }
 
 // ---------------------------------------------------------------------------
+// Quran Verses Modifiers
+// ---------------------------------------------------------------------------
+export function pullQuranVerseModifier(row: any): WithDeleted<QuranVerseRecord> {
+  const isDeleted = Boolean(row.deleted);
+  let verseEnd: number | undefined = undefined;
+  if (row.verse_end) {
+    verseEnd = Number(row.verse_end);
+  } else if (typeof row.id === 'string' && row.id.includes('-')) {
+    const match = row.id.match(/^\d+:(\d+)-(\d+)$/);
+    if (match) {
+      verseEnd = parseInt(match[2], 10);
+    }
+  }
+
+  return {
+    id: row.id,
+    chapter: Number(row.chapter),
+    verse: Number(row.verse),
+    verseEnd,
+    category: row.category || 'Inspirational',
+    notes: row.notes || '',
+    status: (row.status as any) || 'active',
+    viewCount: Number(row.view_count || 0),
+    lastViewedAt: row.last_viewed_at || '',
+    lastError: row.last_error || '',
+    createdAt: row.created_at || row.createdAt || new Date().toISOString(),
+    updatedAt: row.updated_at || row.updatedAt || new Date().toISOString(),
+    isDeleted,
+    _deleted: isDeleted,
+    lastSyncedAt: row.updated_at || row.updatedAt || new Date().toISOString(),
+  };
+}
+
+export function pushQuranVerseModifier(doc: QuranVerseRecord): any {
+  return {
+    id: doc.id,
+    chapter: doc.chapter,
+    verse: doc.verse,
+    verse_end: doc.verseEnd || null,
+    category: doc.category || 'Inspirational',
+    notes: doc.notes || '',
+    status: doc.status || 'active',
+    view_count: doc.viewCount || 0,
+    last_viewed_at: doc.lastViewedAt || null,
+    last_error: doc.lastError || null,
+    created_at: doc.createdAt,
+    updated_at: doc.updatedAt,
+    deleted: Boolean(doc.isDeleted),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Replicate Collection Helper
 // ---------------------------------------------------------------------------
 export function createSupabaseCollectionReplication<T>({
@@ -594,6 +649,24 @@ export function createSupabaseCollectionReplication<T>({
         const payloads = rows.map((row) => pushModifier(row.newDocumentState));
         const { error } = await supabase.from(tableName).upsert(payloads, { onConflict: 'id' });
         if (error) {
+          if (
+            tableName === 'quran_verses' &&
+            (error.code === 'PGRST204' ||
+              (typeof error.message === 'string' && error.message.includes("'verse_end'")))
+          ) {
+            const fallbackPayloads = payloads.map((p) => {
+              const copy = { ...p };
+              delete copy.verse_end;
+              return copy;
+            });
+            const { error: fallbackError } = await supabase
+              .from(tableName)
+              .upsert(fallbackPayloads, { onConflict: 'id' });
+            if (fallbackError) {
+              throw fallbackError;
+            }
+            return [];
+          }
           throw error;
         }
         return [];
@@ -684,6 +757,14 @@ export function setupSupabaseReplication(db: AppDatabase): ReplicationsHolder {
     pushModifier: pushSettingsModifier,
   });
 
+  const quranVerses = createSupabaseCollectionReplication<QuranVerseRecord>({
+    replicationIdentifier: 'supabase-sync-quran-verses',
+    collection: db.quranVerses,
+    tableName: 'quran_verses',
+    pullModifier: pullQuranVerseModifier,
+    pushModifier: pushQuranVerseModifier,
+  });
+
   const replicationMap: Record<SyncCollectionKey, RxReplicationState<any, SupabaseCheckpoint>> = {
     words,
     groups,
@@ -694,6 +775,7 @@ export function setupSupabaseReplication(db: AppDatabase): ReplicationsHolder {
     dailyUsage,
     reviewLogs,
     settings,
+    quranVerses,
   };
 
   const collectionLabels: Record<SyncCollectionKey, { label: string; tableName: string }> = {
@@ -706,6 +788,7 @@ export function setupSupabaseReplication(db: AppDatabase): ReplicationsHolder {
     dailyUsage: { label: 'Daily Usage', tableName: 'daily_usage' },
     reviewLogs: { label: 'Review Logs', tableName: 'review_logs' },
     settings: { label: 'Settings', tableName: 'app_settings' },
+    quranVerses: { label: 'Quran Verses', tableName: 'quran_verses' },
   };
 
   const allReplications = Object.values(replicationMap);
@@ -720,6 +803,7 @@ export function setupSupabaseReplication(db: AppDatabase): ReplicationsHolder {
     dailyUsage: db.dailyUsage,
     reviewLogs: db.reviewLogs,
     settings: db.settings,
+    quranVerses: db.quranVerses,
   };
 
   // Initialize unified state
@@ -834,6 +918,18 @@ export function setupSupabaseReplication(db: AppDatabase): ReplicationsHolder {
         key: 'settings',
         label: 'Settings',
         tableName: 'app_settings',
+        isActive: false,
+        isPaused: false,
+        error: null,
+        lastSyncedAt: null,
+        sentCount: 0,
+        receivedCount: 0,
+        pendingCount: 0,
+      },
+      quranVerses: {
+        key: 'quranVerses',
+        label: 'Quran Verses',
+        tableName: 'quran_verses',
         isActive: false,
         isPaused: false,
         error: null,
@@ -1001,6 +1097,7 @@ export function setupSupabaseReplication(db: AppDatabase): ReplicationsHolder {
         'rxdb-daily_usage',
         'rxdb-review_logs',
         'rxdb-app_settings',
+        'rxdb-quran_verses',
       ];
       try {
         const channels = supabase
@@ -1072,7 +1169,7 @@ export function setupSupabaseReplication(db: AppDatabase): ReplicationsHolder {
       });
       syncState.pendingCount = 0;
       syncState.error = null;
-      addActivity('in_sync', 'All 6 collections confirmed 100% in-sync with Cloud');
+      addActivity('in_sync', 'All collections confirmed 100% in-sync with Cloud');
       notify();
       return true;
     } catch (err: any) {
@@ -1138,6 +1235,7 @@ export function setupSupabaseReplication(db: AppDatabase): ReplicationsHolder {
     dailyUsage,
     reviewLogs,
     settings,
+    quranVerses,
     cancelAll,
     reSyncAll,
     pauseAll,

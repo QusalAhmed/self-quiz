@@ -5,14 +5,99 @@ import { supabase } from './supabase';
 /**
  * Safely executes a Supabase query in background without throwing unhandled rejections
  */
-async function safeSupabaseSync(task: () => PromiseLike<any>): Promise<void> {
-  if (supabase && typeof navigator !== 'undefined' && navigator.onLine) {
+export async function safeSupabaseSync(task: () => PromiseLike<any>): Promise<void> {
+  if (supabase && (typeof navigator === 'undefined' || navigator.onLine)) {
     try {
-      await task();
+      const res = await task();
+      if (res && res.error) {
+        console.warn('Supabase Quran verses sync warning/error:', res.error);
+      }
     } catch (err) {
       console.warn('Supabase Quran verses sync warning:', err);
     }
   }
+}
+
+/**
+ * Tracks if the remote Supabase table schema supports 'verse_end'.
+ * If PostgREST returns PGRST204 on verse_end, this flips to false and automatically
+ * falls back to standard columns without erroring.
+ */
+let isVerseEndSupportedInSupabase = true;
+
+/**
+ * Resets or overrides verse_end schema support for testing
+ */
+export function setVerseEndSchemaSupportForTesting(supported = true): void {
+  isVerseEndSupportedInSupabase = supported;
+}
+
+/**
+ * Robustly upserts Quran verse records to Supabase.
+ * If the remote table has not been migrated with 'verse_end' column yet (PGRST204),
+ * it gracefully strips 'verse_end' and retries without error.
+ */
+export async function upsertQuranVersesToSupabase(
+  rows: Record<string, any> | Record<string, any>[]
+): Promise<{ data: any; error: any }> {
+  if (!supabase) {
+    return { data: null, error: null };
+  }
+
+  const list = Array.isArray(rows) ? rows : [rows];
+  if (list.length === 0) {
+    return { data: null, error: null };
+  }
+
+  const formatPayload = (item: Record<string, any>, includeVerseEnd: boolean) => {
+    const payload: Record<string, any> = {
+      id: item.id,
+      chapter: item.chapter,
+      verse: item.verse,
+      category: item.category || 'Inspirational',
+      notes: item.notes || '',
+      status: item.status || 'active',
+      view_count: item.viewCount ?? item.view_count ?? 0,
+      last_viewed_at: item.lastViewedAt ?? item.last_viewed_at ?? null,
+      last_error: item.lastError ?? item.last_error ?? null,
+      created_at: item.createdAt ?? item.created_at ?? new Date().toISOString(),
+      updated_at: item.updatedAt ?? item.updated_at ?? new Date().toISOString(),
+      deleted: Boolean(item.isDeleted ?? item.deleted),
+    };
+
+    if (includeVerseEnd && (item.verseEnd !== undefined || item.verse_end !== undefined)) {
+      payload.verse_end = item.verseEnd ?? item.verse_end ?? null;
+    }
+
+    return payload;
+  };
+
+  if (isVerseEndSupportedInSupabase) {
+    const payloads = list.map((item) => formatPayload(item, true));
+    const res = await supabase.from('quran_verses').upsert(payloads, { onConflict: 'id' });
+
+    if (!res.error) {
+      return res;
+    }
+
+    const isMissingVerseEndCol =
+      res.error.code === 'PGRST204' ||
+      (typeof res.error.message === 'string' && res.error.message.includes("'verse_end'"));
+
+    if (isMissingVerseEndCol) {
+      isVerseEndSupportedInSupabase = false;
+      const fallbackPayloads = list.map((item) => formatPayload(item, false));
+      const fallbackRes = await supabase
+        .from('quran_verses')
+        .upsert(fallbackPayloads, { onConflict: 'id' });
+      return fallbackRes;
+    }
+
+    return res;
+  }
+
+  const fallbackPayloads = list.map((item) => formatPayload(item, false));
+  return await supabase.from('quran_verses').upsert(fallbackPayloads, { onConflict: 'id' });
 }
 
 /**
@@ -25,11 +110,16 @@ export async function ensureDefaultQuranVersesSeeded(): Promise<QuranVerseRecord
 
     if (existing && existing.length > 0) {
       const active = existing.filter((doc) => !doc.isDeleted);
-      return active.map((doc) => doc.toJSON() as QuranVerseRecord);
+      const mappedActive = active.map((doc) => doc.toJSON() as QuranVerseRecord);
+
+      // In background, ensure existing local verses are mirrored to Supabase if missing
+      void safeSupabaseSync(() => upsertQuranVersesToSupabase(mappedActive));
+
+      return mappedActive;
     }
 
     // Try fetching from Supabase first
-    if (supabase && typeof navigator !== 'undefined' && navigator.onLine) {
+    if (supabase && (typeof navigator === 'undefined' || navigator.onLine)) {
       try {
         const { data: supaData, error } = await supabase
           .from('quran_verses')
@@ -37,22 +127,33 @@ export async function ensureDefaultQuranVersesSeeded(): Promise<QuranVerseRecord
           .eq('deleted', false);
 
         if (!error && supaData && supaData.length > 0) {
-          const mapped: QuranVerseRecord[] = supaData.map((row: any) => ({
-            id: row.id,
-            chapter: row.chapter,
-            verse: row.verse,
-            verseEnd: row.verse_end || undefined,
-            category: row.category || 'Inspirational',
-            notes: row.notes || '',
-            status: (row.status as any) || 'active',
-            viewCount: row.view_count || 0,
-            lastViewedAt: row.last_viewed_at || undefined,
-            lastError: row.last_error || undefined,
-            createdAt: row.created_at || new Date().toISOString(),
-            updatedAt: row.updated_at || new Date().toISOString(),
-            isDeleted: Boolean(row.deleted),
-            lastSyncedAt: new Date().toISOString(),
-          }));
+          const mapped: QuranVerseRecord[] = supaData.map((row: any) => {
+            let verseEnd: number | undefined = undefined;
+            if (row.verse_end) {
+              verseEnd = Number(row.verse_end);
+            } else if (typeof row.id === 'string' && row.id.includes('-')) {
+              const match = row.id.match(/^\d+:(\d+)-(\d+)$/);
+              if (match) {
+                verseEnd = parseInt(match[2], 10);
+              }
+            }
+            return {
+              id: row.id,
+              chapter: Number(row.chapter),
+              verse: Number(row.verse),
+              verseEnd,
+              category: row.category || 'Inspirational',
+              notes: row.notes || '',
+              status: (row.status as any) || 'active',
+              viewCount: Number(row.view_count || 0),
+              lastViewedAt: row.last_viewed_at || undefined,
+              lastError: row.last_error || undefined,
+              createdAt: row.created_at || new Date().toISOString(),
+              updatedAt: row.updated_at || new Date().toISOString(),
+              isDeleted: Boolean(row.deleted),
+              lastSyncedAt: new Date().toISOString(),
+            };
+          });
 
           for (const r of mapped) {
             await db.quranVerses.upsert(r);
@@ -86,23 +187,7 @@ export async function ensureDefaultQuranVersesSeeded(): Promise<QuranVerseRecord
     }
 
     // Push seeds to Supabase in background
-    void safeSupabaseSync(() =>
-      supabase.from('quran_verses').upsert(
-        seeds.map((s) => ({
-          id: s.id,
-          chapter: s.chapter,
-          verse: s.verse,
-          verse_end: s.verseEnd || null,
-          category: s.category,
-          notes: s.notes,
-          status: s.status,
-          view_count: s.viewCount,
-          created_at: s.createdAt,
-          updated_at: s.updatedAt,
-          deleted: s.isDeleted,
-        }))
-      )
-    );
+    void safeSupabaseSync(() => upsertQuranVersesToSupabase(seeds));
 
     return seeds;
   } catch (error) {
@@ -177,21 +262,7 @@ export async function addQuranVerseRecord(params: {
   await db.quranVerses.upsert(record);
 
   // Sync to Supabase in background
-  void safeSupabaseSync(() =>
-    supabase.from('quran_verses').upsert({
-      id: record.id,
-      chapter: record.chapter,
-      verse: record.verse,
-      verse_end: record.verseEnd || null,
-      category: record.category,
-      notes: record.notes,
-      status: record.status,
-      view_count: record.viewCount,
-      created_at: record.createdAt,
-      updated_at: record.updatedAt,
-      deleted: record.isDeleted,
-    })
-  );
+  void safeSupabaseSync(() => upsertQuranVersesToSupabase(record));
 
   return record;
 }
@@ -211,7 +282,6 @@ export async function addBatchQuranVerses(
   const results: QuranVerseRecord[] = [];
   const now = new Date().toISOString();
   const db = await getDatabase();
-  const supabaseRows: any[] = [];
 
   for (const item of items) {
     const meta = getChapterMetadata(item.chapter);
@@ -247,24 +317,10 @@ export async function addBatchQuranVerses(
 
     await db.quranVerses.upsert(record);
     results.push(record);
-
-    supabaseRows.push({
-      id: record.id,
-      chapter: record.chapter,
-      verse: record.verse,
-      verse_end: record.verseEnd || null,
-      category: record.category,
-      notes: record.notes,
-      status: record.status,
-      view_count: record.viewCount,
-      created_at: record.createdAt,
-      updated_at: record.updatedAt,
-      deleted: record.isDeleted,
-    });
   }
 
-  if (supabaseRows.length > 0) {
-    void safeSupabaseSync(() => supabase.from('quran_verses').upsert(supabaseRows));
+  if (results.length > 0) {
+    void safeSupabaseSync(() => upsertQuranVersesToSupabase(results));
   }
 
   return results;
@@ -411,5 +467,37 @@ export async function getQuranVerseById(id: string): Promise<QuranVerseRecord | 
   } catch (err) {
     console.error('Error fetching Quran verse by ID:', err);
     return null;
+  }
+}
+
+/**
+ * Explicitly pushes all local Quran verse records from RxDB to Supabase
+ */
+export async function pushAllLocalQuranVersesToSupabase(): Promise<{
+  pushed: number;
+  error?: string;
+}> {
+  try {
+    const db = await getDatabase();
+    const all = await db.quranVerses.find().exec();
+    if (!all || all.length === 0) {
+      return { pushed: 0 };
+    }
+
+    if (!supabase) {
+      return { pushed: 0, error: 'Supabase client not configured' };
+    }
+
+    const rows = all.map((doc) => doc.toJSON() as QuranVerseRecord);
+    const { error } = await upsertQuranVersesToSupabase(rows);
+    if (error) {
+      console.error('Failed to sync local Quran verses to Supabase:', error);
+      return { pushed: 0, error: error.message || String(error) };
+    }
+
+    return { pushed: rows.length };
+  } catch (err: any) {
+    console.error('Error pushing local Quran verses to Supabase:', err);
+    return { pushed: 0, error: err?.message || String(err) };
   }
 }
