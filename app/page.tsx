@@ -36,6 +36,7 @@ import {
 import { useAppDispatch } from '@/lib/redux/hooks';
 import { setMode } from '@/lib/redux/slices/quizSlice';
 import { setupSupabaseReplication, type ReplicationsHolder } from '@/lib/replication';
+import { getAppSettings } from '@/lib/settings';
 import { notifyFsrsWordAdded, notifyWordSaved } from '@/lib/system-notifications';
 import { buildWordFamilyId, type WordFamilyMember } from '@/lib/word-family';
 import { filterAndSortWords } from '@/lib/word-search';
@@ -625,6 +626,45 @@ export default function HomePage() {
     [database]
   );
 
+  const fetchAndStoreWordAudio = useCallback(
+    async (wordId: string, word: string) => {
+      if (!database || !navigator.onLine) {
+        return;
+      }
+      try {
+        const settings = getAppSettings();
+        const response = await fetch('/api/pronounce', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            word: capitalizeWord(word),
+            apiKey: settings.audio.merriamWebsterApiKey,
+          }),
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const data = await response.json();
+        if (data.audioUrl) {
+          const doc = await database.words.findOne(wordId).exec();
+          if (doc) {
+            await doc.patch({
+              audioUrl: data.audioUrl,
+              phonetic: data.phonetic || '',
+              audioSource: data.audioSource || 'merriam-webster',
+              updatedAt: new Date().toISOString(),
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching word pronunciation audio:', error);
+      }
+    },
+    [database]
+  );
+
   const handleRefreshWordFamily = useCallback(
     async (wordId: string, word: string) => {
       const wordDoc = words.find((w) => w.id === wordId);
@@ -731,6 +771,14 @@ export default function HomePage() {
       quizMode: 'wordToMeaning',
       meaning: normalizedMeaning,
     });
+
+    // Fetch Merriam-Webster pronunciation audio in background
+    const appSettings = getAppSettings();
+    if (appSettings.audio.autoFetchMwAudioOnAdd !== false) {
+      void fetchAndStoreWordAudio(record.id, record.word).catch((error) => {
+        console.error('Error fetching Merriam-Webster audio after add:', error);
+      });
+    }
 
     // Generate word family members using AI in background
     void fetchAndStoreWordFamily(record.id, record.word, normalizedMeaning).catch((error) => {

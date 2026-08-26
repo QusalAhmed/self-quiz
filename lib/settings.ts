@@ -54,6 +54,9 @@ export interface AppAudioSettings {
   ttsRate: number; // 0.5 to 2.0
   ttsPitch: number; // 0.5 to 1.5
   ttsVolume: number; // 0 to 1
+  merriamWebsterApiKey?: string;
+  autoFetchMwAudioOnAdd: boolean;
+  preferMwAudioOverTts: boolean;
 }
 
 export interface AppFsrsSettings {
@@ -129,6 +132,9 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     ttsRate: 1.0,
     ttsPitch: 1.0,
     ttsVolume: 1.0,
+    merriamWebsterApiKey: '',
+    autoFetchMwAudioOnAdd: true,
+    preferMwAudioOverTts: true,
   },
   fsrs: {
     requestRetention: 0.9,
@@ -185,21 +191,39 @@ export function normalizeAppSettings(raw: Partial<AppSettings> | null | undefine
       raw.appearance?.colorScheme === 'auto'
         ? raw.appearance.colorScheme
         : DEFAULT_APP_SETTINGS.appearance.colorScheme,
-    accentColor: raw.appearance?.accentColor ?? DEFAULT_APP_SETTINGS.appearance.accentColor,
+    accentColor:
+      raw.appearance?.accentColor &&
+      ['indigo', 'violet', 'blue', 'teal', 'cyan', 'emerald', 'amber', 'rose'].includes(
+        raw.appearance.accentColor
+      )
+        ? raw.appearance.accentColor
+        : DEFAULT_APP_SETTINGS.appearance.accentColor,
     cardGlassmorphism:
       raw.appearance?.cardGlassmorphism ?? DEFAULT_APP_SETTINGS.appearance.cardGlassmorphism,
     reducedMotion: raw.appearance?.reducedMotion ?? DEFAULT_APP_SETTINGS.appearance.reducedMotion,
     uiDensity:
-      raw.appearance?.uiDensity === 'compact'
-        ? 'compact'
+      raw.appearance?.uiDensity === 'compact' || raw.appearance?.uiDensity === 'comfortable'
+        ? raw.appearance.uiDensity
         : DEFAULT_APP_SETTINGS.appearance.uiDensity,
   };
 
   const studyQuiz: AppStudyQuizSettings = {
     defaultQuizDirection:
-      raw.studyQuiz?.defaultQuizDirection ?? DEFAULT_APP_SETTINGS.studyQuiz.defaultQuizDirection,
+      raw.studyQuiz?.defaultQuizDirection === 'meaningToWord' ||
+      raw.studyQuiz?.defaultQuizDirection === 'spelling' ||
+      raw.studyQuiz?.defaultQuizDirection === 'wordToMeaning'
+        ? raw.studyQuiz.defaultQuizDirection
+        : DEFAULT_APP_SETTINGS.studyQuiz.defaultQuizDirection,
     defaultQuizRange:
-      raw.studyQuiz?.defaultQuizRange ?? DEFAULT_APP_SETTINGS.studyQuiz.defaultQuizRange,
+      raw.studyQuiz?.defaultQuizRange === 'all' ||
+      raw.studyQuiz?.defaultQuizRange === 'today' ||
+      raw.studyQuiz?.defaultQuizRange === 'yesterday' ||
+      raw.studyQuiz?.defaultQuizRange === 'week' ||
+      raw.studyQuiz?.defaultQuizRange === 'month' ||
+      raw.studyQuiz?.defaultQuizRange === 'year' ||
+      raw.studyQuiz?.defaultQuizRange === 'custom'
+        ? raw.studyQuiz.defaultQuizRange
+        : DEFAULT_APP_SETTINGS.studyQuiz.defaultQuizRange,
     autoPronounceQuizWord:
       raw.studyQuiz?.autoPronounceQuizWord ?? DEFAULT_APP_SETTINGS.studyQuiz.autoPronounceQuizWord,
     autoAdvanceOnFlip:
@@ -218,9 +242,14 @@ export function normalizeAppSettings(raw: Partial<AppSettings> | null | undefine
   };
 
   const audio: AppAudioSettings = {
-    reviewSoundEffectsEnabled: raw.audio?.reviewSoundEffectsEnabled ?? isSoundEnabled(),
+    reviewSoundEffectsEnabled:
+      typeof raw.audio?.reviewSoundEffectsEnabled === 'boolean'
+        ? raw.audio.reviewSoundEffectsEnabled
+        : isSoundEnabled(),
     notificationSoundsEnabled:
-      raw.audio?.notificationSoundsEnabled ?? DEFAULT_APP_SETTINGS.audio.notificationSoundsEnabled,
+      typeof raw.audio?.notificationSoundsEnabled === 'boolean'
+        ? raw.audio.notificationSoundsEnabled
+        : DEFAULT_APP_SETTINGS.audio.notificationSoundsEnabled,
     audioVolume:
       typeof raw.audio?.audioVolume === 'number'
         ? Math.max(0, Math.min(1, raw.audio.audioVolume))
@@ -238,6 +267,18 @@ export function normalizeAppSettings(raw: Partial<AppSettings> | null | undefine
       typeof raw.audio?.ttsVolume === 'number'
         ? Math.max(0, Math.min(1, raw.audio.ttsVolume))
         : DEFAULT_APP_SETTINGS.audio.ttsVolume,
+    merriamWebsterApiKey:
+      typeof raw.audio?.merriamWebsterApiKey === 'string'
+        ? raw.audio.merriamWebsterApiKey.trim()
+        : DEFAULT_APP_SETTINGS.audio.merriamWebsterApiKey,
+    autoFetchMwAudioOnAdd:
+      typeof raw.audio?.autoFetchMwAudioOnAdd === 'boolean'
+        ? raw.audio.autoFetchMwAudioOnAdd
+        : DEFAULT_APP_SETTINGS.audio.autoFetchMwAudioOnAdd,
+    preferMwAudioOverTts:
+      typeof raw.audio?.preferMwAudioOverTts === 'boolean'
+        ? raw.audio.preferMwAudioOverTts
+        : DEFAULT_APP_SETTINGS.audio.preferMwAudioOverTts,
   };
 
   const fsrs: AppFsrsSettings = {
@@ -716,11 +757,14 @@ export function useAppSettings(): {
     section: K,
     sectionValues: Partial<AppSettings[K]>
   ) => void;
+  isHydrated: boolean;
 } {
-  const [settings, setSettingsState] = useState<AppSettings>(() => getAppSettings());
+  const [settings, setSettingsState] = useState<AppSettings>(DEFAULT_APP_SETTINGS);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
     setSettingsState(getAppSettings());
+    setIsHydrated(true);
 
     const handleSettingsChanged = (event: Event) => {
       const customEvent = event as CustomEvent<AppSettings>;
@@ -780,5 +824,6 @@ export function useAppSettings(): {
     updateSettings: update,
     resetSettings: reset,
     updateSection,
+    isHydrated,
   };
 }

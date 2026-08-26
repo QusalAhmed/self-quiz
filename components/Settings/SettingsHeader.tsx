@@ -160,20 +160,20 @@ export function SettingsHeader({ settings, onResetAll }: SettingsHeaderProps) {
 
         {/* Quick Highlights Summary Bar */}
         <Group gap="xs" wrap="wrap">
-          <Badge size="xs" variant="dot" color="indigo">
+          <Badge size="xs" variant="dot" color="indigo" suppressHydrationWarning>
             Theme: {settings.appearance.colorScheme.toUpperCase()}
           </Badge>
-          <Badge size="xs" variant="dot" color="violet">
+          <Badge size="xs" variant="dot" color="violet" suppressHydrationWarning>
             Retention:{' '}
             <RollingNumber value={Math.round(settings.fsrs.requestRetention * 100)} suffix="%" />
           </Badge>
-          <Badge size="xs" variant="dot" color="teal">
+          <Badge size="xs" variant="dot" color="teal" suppressHydrationWarning>
             AI Provider: {settings.ai.preferredProvider.toUpperCase()}
           </Badge>
-          <Badge size="xs" variant="dot" color="blue">
+          <Badge size="xs" variant="dot" color="blue" suppressHydrationWarning>
             Audio: {settings.audio.reviewSoundEffectsEnabled ? 'Active' : 'Muted'}
           </Badge>
-          <Badge size="xs" variant="dot" color="orange">
+          <Badge size="xs" variant="dot" color="orange" suppressHydrationWarning>
             Notifications:{' '}
             {settings.notifications.systemNotificationsEnabled ? 'Push Enabled' : 'In-App Only'}
           </Badge>

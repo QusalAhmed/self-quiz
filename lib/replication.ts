@@ -17,6 +17,7 @@ import type {
 } from './db';
 import { definitionsToMeaning, mergeLegacyFlatExamples, normalizeDefinitions } from './definitions';
 import { normalizeAiExampleCount } from './examples';
+import { normalizeMerriamWebsterAudioUrl } from './pronounce';
 import { normalizeAppSettings, saveAppSettings } from './settings';
 import { supabase } from './supabase';
 
@@ -142,6 +143,9 @@ export function pullWordModifier(row: any): WithDeleted<WordRecord> {
     notes: row.notes || '',
     usageFrequency: row.usage_frequency || row.usageFrequency || '',
     generatorAiDetails: row.generator_ai_details || row.generatorAiDetails || '',
+    audioUrl: normalizeMerriamWebsterAudioUrl(row.audio_url || row.audioUrl || ''),
+    phonetic: row.phonetic || '',
+    audioSource: row.audio_source || row.audioSource || '',
   };
 }
 
@@ -155,6 +159,9 @@ export function pushWordModifier(doc: WordRecord): any {
     notes: doc.notes || '',
     usage_frequency: doc.usageFrequency || '',
     generator_ai_details: doc.generatorAiDetails || '',
+    audio_url: normalizeMerriamWebsterAudioUrl(doc.audioUrl || ''),
+    phonetic: doc.phonetic || '',
+    audio_source: doc.audioSource || '',
     custom_groups: doc.customGroups || [],
     created_at: doc.createdAt,
     updated_at: doc.updatedAt,

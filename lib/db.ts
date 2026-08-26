@@ -11,6 +11,7 @@ import { RxDBQueryBuilderPlugin } from 'rxdb/plugins/query-builder';
 import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie';
 import { wrappedValidateAjvStorage } from 'rxdb/plugins/validate-ajv';
 import type { FsrsCardState, FsrsRating, FsrsRecord } from './fsrs';
+import { normalizeMerriamWebsterAudioUrl } from './pronounce';
 import type {
   AppAiSettings,
   AppAppearanceSettings,
@@ -53,6 +54,9 @@ export type WordRecord = {
   notes?: string;
   usageFrequency?: string;
   generatorAiDetails?: string;
+  audioUrl?: string;
+  phonetic?: string;
+  audioSource?: string;
 };
 
 export type WordDefinition = {
@@ -219,7 +223,7 @@ export type AppDatabase = RxDatabase<{
 
 const wordSchema: RxJsonSchema<WordRecord> = {
   title: 'word schema',
-  version: 10,
+  version: 11,
   description: 'English word memorization entries',
   primaryKey: 'id',
   type: 'object',
@@ -260,6 +264,9 @@ const wordSchema: RxJsonSchema<WordRecord> = {
     notes: { type: 'string', default: '' },
     usageFrequency: { type: 'string', default: '' },
     generatorAiDetails: { type: 'string', default: '' },
+    audioUrl: { type: 'string', default: '' },
+    phonetic: { type: 'string', default: '' },
+    audioSource: { type: 'string', default: '' },
   },
   required: [
     'id',
@@ -850,6 +857,12 @@ async function createDatabase(): Promise<AppDatabase> {
           usageFrequency: oldDoc.usageFrequency || '',
           generatorAiDetails: oldDoc.generatorAiDetails || '',
         }),
+        11: (oldDoc) => ({
+          ...oldDoc,
+          audioUrl: oldDoc.audioUrl || '',
+          phonetic: oldDoc.phonetic || '',
+          audioSource: oldDoc.audioSource || '',
+        }),
       },
     },
     groups: {
@@ -938,7 +951,38 @@ async function createDatabase(): Promise<AppDatabase> {
     },
   });
 
+  // Asynchronously self-heal any legacy malformed audio URLs
+  void repairLegacyWordAudioUrls(database);
+
   return database;
+}
+
+async function repairLegacyWordAudioUrls(database: AppDatabase): Promise<void> {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  try {
+    const wordDocs = await database.words
+      .find({
+        selector: {
+          audioUrl: { $ne: '' },
+        },
+      })
+      .exec();
+
+    for (const doc of wordDocs) {
+      const currentUrl = doc.audioUrl;
+      const normalized = normalizeMerriamWebsterAudioUrl(currentUrl);
+      if (normalized && normalized !== currentUrl) {
+        await doc.patch({
+          audioUrl: normalized,
+          updatedAt: new Date().toISOString(),
+        });
+      }
+    }
+  } catch {
+    // Non-blocking background repair
+  }
 }
 
 export function getDatabase(): Promise<AppDatabase> {

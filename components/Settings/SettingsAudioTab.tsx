@@ -17,7 +17,13 @@ import {
   TextInput,
   ThemeIcon,
 } from '@mantine/core';
-import { IconMicrophone, IconPlayerPlay, IconSparkles, IconVolume } from '@tabler/icons-react';
+import {
+  IconMicrophone,
+  IconPlayerPlay,
+  IconRefresh,
+  IconSparkles,
+  IconVolume,
+} from '@tabler/icons-react';
 import React, { useEffect, useState } from 'react';
 import type { AppAudioSettings } from '@/lib/settings';
 import { playNotificationSound, playReviewSound, type ReviewRating } from '@/lib/sound';
@@ -397,6 +403,288 @@ export function SettingsAudioTab({ settings, onChange }: SettingsAudioTabProps) 
           </Paper>
         </Stack>
       </Card>
+
+      {/* Merriam-Webster Audio & Pronunciation */}
+      <Card
+        withBorder
+        radius="md"
+        p={{ base: 'md', sm: 'lg' }}
+        style={{
+          background: 'var(--card-bg)',
+          border: '1px solid var(--card-border)',
+          boxShadow: 'var(--card-shadow)',
+        }}
+      >
+        <Group justify="space-between" align="center" mb="md" wrap="wrap" gap="sm">
+          <Group gap="sm">
+            <ThemeIcon size="lg" radius="md" color="blue" variant="light">
+              <IconSparkles size={20} />
+            </ThemeIcon>
+            <div>
+              <Text fw={700} size="md">
+                Merriam-Webster Pronunciation & Audio
+              </Text>
+              <Text size="xs" c="dimmed">
+                Authentic human-recorded pronunciation audio from Merriam-Webster Dictionary
+              </Text>
+            </div>
+          </Group>
+          <Badge color="blue" variant="light" size="sm">
+            Official MW CDN
+          </Badge>
+        </Group>
+
+        <Stack gap="md">
+          <Group justify="space-between" align="center" wrap="wrap" gap="sm">
+            <div style={{ flex: '1 1 200px' }}>
+              <Text size="sm" fw={600}>
+                Auto-fetch Audio on Word Add
+              </Text>
+              <Text size="xs" c="dimmed">
+                Automatically retrieve and save Merriam-Webster audio URL & phonetic transcription
+                when adding new vocabulary
+              </Text>
+            </div>
+            <Switch
+              checked={settings.autoFetchMwAudioOnAdd !== false}
+              onChange={(e) => onChange({ autoFetchMwAudioOnAdd: e.currentTarget.checked })}
+              color="blue"
+            />
+          </Group>
+
+          <Divider />
+
+          <Group justify="space-between" align="center" wrap="wrap" gap="sm">
+            <div style={{ flex: '1 1 200px' }}>
+              <Text size="sm" fw={600}>
+                Prefer Recorded Audio Over TTS
+              </Text>
+              <Text size="xs" c="dimmed">
+                Play real Merriam-Webster voice recordings when available, falling back to browser
+                speech synthesis
+              </Text>
+            </div>
+            <Switch
+              checked={settings.preferMwAudioOverTts !== false}
+              onChange={(e) => onChange({ preferMwAudioOverTts: e.currentTarget.checked })}
+              color="blue"
+            />
+          </Group>
+
+          <Divider />
+
+          <div>
+            <TextInput
+              label="Merriam-Webster Collegiate API Key (Optional)"
+              description="Enter your Merriam-Webster Developer key from dictionaryapi.com, or leave empty to use zero-config smart resolution."
+              placeholder="e.g. 5a1b2c3d-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+              value={settings.merriamWebsterApiKey || ''}
+              onChange={(e) => onChange({ merriamWebsterApiKey: e.currentTarget.value })}
+              radius="md"
+              size="sm"
+            />
+          </div>
+
+          <Divider />
+
+          {/* Database Audio Health Check & Repair */}
+          <BatchAudioRepairButton />
+
+          <Divider />
+
+          {/* Interactive MW Pronunciation Test Bench */}
+          <Paper
+            withBorder
+            p="md"
+            radius="md"
+            style={{ background: 'var(--mantine-color-default-hover)' }}
+          >
+            <Text size="xs" fw={700} c="dimmed" tt="uppercase" lts={1} mb="xs">
+              Test Merriam-Webster Audio Resolution
+            </Text>
+            <MwAudioTester customApiKey={settings.merriamWebsterApiKey} />
+          </Paper>
+        </Stack>
+      </Card>
+    </Stack>
+  );
+}
+
+function BatchAudioRepairButton() {
+  const [isRepairing, setIsRepairing] = useState(false);
+  const [repairStatus, setRepairStatus] = useState<string | null>(null);
+
+  const handleRepairAll = async () => {
+    setIsRepairing(true);
+    setRepairStatus(null);
+    try {
+      const { getDatabase } = await import('@/lib/db');
+      const { normalizeMerriamWebsterAudioUrl } = await import('@/lib/pronounce');
+      const db = await getDatabase();
+      const docs = await db.words.find({ selector: { isDeleted: { $ne: true } } }).exec();
+      let repairedCount = 0;
+
+      for (const doc of docs) {
+        if (doc.audioUrl) {
+          const normalized = normalizeMerriamWebsterAudioUrl(doc.audioUrl);
+          if (normalized && normalized !== doc.audioUrl) {
+            await doc.patch({
+              audioUrl: normalized,
+              updatedAt: new Date().toISOString(),
+            });
+            repairedCount++;
+          }
+        }
+      }
+
+      setRepairStatus(
+        repairedCount > 0
+          ? `Successfully repaired ${repairedCount} word audio URL(s)!`
+          : `All ${docs.length} word audio URLs are verified and healthy.`
+      );
+    } catch (err: any) {
+      setRepairStatus(`Repair error: ${err?.message || err}`);
+    } finally {
+      setIsRepairing(false);
+    }
+  };
+
+  return (
+    <Group justify="space-between" align="center" wrap="wrap" gap="sm">
+      <div style={{ flex: '1 1 200px' }}>
+        <Text size="sm" fw={600}>
+          Database Audio URL Health Check
+        </Text>
+        <Text size="xs" c="dimmed">
+          Scans stored vocabulary and repairs any legacy or malformed Merriam-Webster audio links
+        </Text>
+      </div>
+      <Button
+        variant="light"
+        color="indigo"
+        size="xs"
+        radius="md"
+        loading={isRepairing}
+        onClick={handleRepairAll}
+        leftSection={<IconRefresh size={14} />}
+      >
+        Scan & Repair Audio URLs
+      </Button>
+      {repairStatus && (
+        <Text size="xs" c="teal" fw={600} style={{ width: '100%' }}>
+          {repairStatus}
+        </Text>
+      )}
+    </Group>
+  );
+}
+
+function MwAudioTester({ customApiKey }: { customApiKey?: string }) {
+  const [testWord, setTestWord] = useState('ephemeral');
+  const [isLoading, setIsLoading] = useState(false);
+  const [audioResult, setAudioResult] = useState<{
+    audioUrl?: string;
+    phonetic?: string;
+    audioSource?: string;
+    success?: boolean;
+    error?: string;
+  } | null>(null);
+
+  const handleTestPronunciation = async () => {
+    const trimmed = testWord.trim();
+    if (!trimmed) {
+      return;
+    }
+    setIsLoading(true);
+    setAudioResult(null);
+
+    try {
+      const res = await fetch('/api/pronounce', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ word: trimmed, apiKey: customApiKey }),
+      });
+
+      if (!res.ok) {
+        setAudioResult({ error: `Request failed with status ${res.status}`, success: false });
+        return;
+      }
+
+      const data = await res.json();
+      setAudioResult(data);
+
+      if (data.audioUrl) {
+        const { playWordAudio } = await import('@/lib/sound');
+        void playWordAudio(data.audioUrl);
+      }
+    } catch (err: any) {
+      setAudioResult({ error: err?.message || 'Failed to fetch pronunciation', success: false });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <Stack gap="xs">
+      <Group align="flex-end" wrap="wrap" gap="sm">
+        <TextInput
+          label="Test Word"
+          placeholder="e.g. serendipity, ephemeral, perspicacious"
+          value={testWord}
+          onChange={(e) => setTestWord(e.currentTarget.value)}
+          style={{ flex: '1 1 200px' }}
+          radius="md"
+          size="sm"
+        />
+        <Button
+          color="blue"
+          radius="md"
+          size="sm"
+          loading={isLoading}
+          onClick={handleTestPronunciation}
+          leftSection={<IconPlayerPlay size={16} />}
+          style={{ flexShrink: 0 }}
+        >
+          Fetch & Play MW Audio
+        </Button>
+      </Group>
+
+      {audioResult && (
+        <Paper withBorder p="xs" radius="sm" mt="xs" style={{ background: 'var(--card-bg)' }}>
+          {audioResult.success ? (
+            <Group justify="space-between" align="center" wrap="wrap" gap="xs">
+              <Group gap="xs">
+                <Badge color="teal" size="sm" variant="filled">
+                  Found: {audioResult.audioSource || 'MW'}
+                </Badge>
+                {audioResult.phonetic && (
+                  <Text size="sm" fw={700} c="indigo">
+                    {audioResult.phonetic}
+                  </Text>
+                )}
+              </Group>
+              {audioResult.audioUrl && (
+                <Button
+                  size="compact-xs"
+                  variant="light"
+                  color="indigo"
+                  onClick={async () => {
+                    const { playWordAudio } = await import('@/lib/sound');
+                    void playWordAudio(audioResult.audioUrl!);
+                  }}
+                  leftSection={<IconVolume size={13} />}
+                >
+                  Replay Audio
+                </Button>
+              )}
+            </Group>
+          ) : (
+            <Text size="xs" c="red">
+              {audioResult.error || 'Audio not found for this word.'}
+            </Text>
+          )}
+        </Paper>
+      )}
     </Stack>
   );
 }

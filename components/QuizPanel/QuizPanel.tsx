@@ -49,7 +49,8 @@ import { WordFamilySection } from '@/components/WordFamily/WordFamilySection';
 import type { FsrsRecord, WordDefinition, WordFamilyMemberRecord } from '@/lib/db';
 import { normalizeDefinitions } from '@/lib/definitions';
 import type { FsrsRating as SrsRating } from '@/lib/fsrs';
-import { playReviewSound } from '@/lib/sound';
+import { getAppSettings } from '@/lib/settings';
+import { playReviewSound, playWordAudio } from '@/lib/sound';
 import { notifyQuizCompleted } from '@/lib/system-notifications';
 
 export type QuizItem = {
@@ -60,6 +61,8 @@ export type QuizItem = {
   tags?: string[];
   notes?: string;
   fsrsRecord?: FsrsRecord;
+  audioUrl?: string;
+  phonetic?: string;
 };
 
 export type QuizDirection = 'wordToMeaning' | 'meaningToWord' | 'spelling';
@@ -301,7 +304,16 @@ export const QuizPanel = memo(function QuizPanel({
     positionQuizSection,
   ]);
 
-  const handleSpeak = useCallback((text: string) => {
+  const handleSpeak = useCallback((text: string, audioUrl?: string) => {
+    const settings = getAppSettings();
+    if (audioUrl && settings.audio.preferMwAudioOverTts !== false) {
+      setIsPlayingAudio(true);
+      playWordAudio(audioUrl, settings.audio.audioVolume ?? 1, () => {
+        setIsPlayingAudio(false);
+      });
+      return;
+    }
+
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
       return;
     }
@@ -340,7 +352,7 @@ export const QuizPanel = memo(function QuizPanel({
 
     const timer = setTimeout(() => {
       lastAutoPronouncedKeyRef.current = key;
-      handleSpeak(item.word);
+      handleSpeak(item.word, item.audioUrl);
     }, 300);
 
     return () => clearTimeout(timer);
@@ -796,12 +808,23 @@ export const QuizPanel = memo(function QuizPanel({
         >
           {item.word}
         </Title>
+        {item.phonetic && (
+          <Badge
+            variant="light"
+            color="indigo"
+            size="sm"
+            radius="sm"
+            style={{ fontFamily: 'monospace' }}
+          >
+            {item.phonetic}
+          </Badge>
+        )}
         <Group gap={6}>
           <WordActionIcon
-            label="Speak pronunciation"
+            label={item.audioUrl ? 'Play Merriam-Webster pronunciation' : 'Speak pronunciation'}
             color={isPlayingAudio ? 'indigo' : 'gray'}
             size="lg"
-            onClick={() => handleSpeak(item.word)}
+            onClick={() => handleSpeak(item.word, item.audioUrl)}
             withArrow={false}
           >
             <IconVolume size={20} />

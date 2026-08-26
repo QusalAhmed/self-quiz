@@ -16,6 +16,8 @@ export interface QuizItem {
   tags?: string[];
   notes?: string;
   fsrsRecord?: FsrsRecord;
+  audioUrl?: string;
+  phonetic?: string;
 }
 
 export interface QuizHistoryItem {

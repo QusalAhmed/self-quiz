@@ -3,6 +3,7 @@ import { IconChartBar, IconPlus, IconSparkles } from '@tabler/icons-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { EditWordModal } from '@/components/EditWordModal/EditWordModal';
 import { RichNoteEditor } from '@/components/RichNoteEditor/RichNoteEditor';
+import { PronounceButton } from '@/components/WordActions/PronounceButton';
 import { DefinitionEditorCard } from '@/components/WordForm/DefinitionEditorCard';
 import { GroupSelector } from '@/components/WordForm/GroupSelector';
 import { type WordFormEditValues, type DefinitionFormValue } from '@/components/WordForm/types';
@@ -320,6 +321,9 @@ export function WordForm({
           required
           size={inputSize}
           radius="md"
+          rightSection={
+            word.trim() ? <PronounceButton word={word.trim()} size="xs" color="indigo" /> : null
+          }
         />
 
         <Stack gap="md">

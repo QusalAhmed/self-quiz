@@ -1,0 +1,76 @@
+import { createClient } from '@supabase/supabase-js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const envPath = path.resolve(__dirname, '../.env');
+if (fs.existsSync(envPath)) {
+  const envContent = fs.readFileSync(envPath, 'utf8');
+  for (const line of envContent.split('\n')) {
+    const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
+    if (match) {
+      const key = match[1];
+      let value = match[2] || '';
+      if (value.startsWith('"') && value.endsWith('"')) {
+        value = value.slice(1, -1);
+      } else if (value.startsWith("'") && value.endsWith("'")) {
+        value = value.slice(1, -1);
+      }
+      process.env[key] = value.trim();
+    }
+  }
+}
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('Missing Supabase credentials in .env');
+  process.exit(1);
+}
+
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+async function migrateDatabase() {
+  console.log('Running database migration for audio_url, phonetic, and audio_source in Supabase...');
+
+  const sqlPath = path.resolve(__dirname, 'migrate-word-pronunciation.sql');
+  const sqlStatements = fs.readFileSync(sqlPath, 'utf8');
+
+  try {
+    const { error } = await supabase.rpc('exec', { sql: sqlStatements });
+    if (error) {
+      if (error.code === 'PGRST202') {
+        console.warn(
+          '\n⚠️  Could not run migration automatically via RPC because the "public.exec" RPC function is missing on your Supabase project.'
+        );
+        console.warn(
+          'Please manually copy the contents of "scripts/migrate-word-pronunciation.sql" and run them in your Supabase SQL Editor.'
+        );
+
+        // Check if columns already exist by testing a select query
+        const { error: testError } = await supabase
+          .from('words')
+          .select('audio_url, phonetic, audio_source')
+          .limit(1);
+
+        if (!testError) {
+          console.log('✅ The "audio_url", "phonetic", and "audio_source" columns are already accessible in Supabase!');
+        } else {
+          console.warn('Note: You can run scripts/migrate-word-pronunciation.sql in your Supabase SQL Editor to enable these columns.');
+        }
+
+        process.exit(0);
+      }
+      console.error('Error executing SQL migration:', error);
+      process.exit(1);
+    }
+    console.log('✅ Supabase database migration completed successfully!');
+  } catch (error) {
+    console.error('Migration failed:', error);
+    process.exit(1);
+  }
+}
+
+migrateDatabase();

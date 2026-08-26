@@ -39,6 +39,7 @@ import {
 } from '@tabler/icons-react';
 import React, { useMemo, useState } from 'react';
 import { RichNoteViewer } from '@/components/RichNoteViewer/RichNoteViewer';
+import { PronounceButton } from '@/components/WordActions/PronounceButton';
 import { WordActionIcon } from '@/components/WordActions/WordActionIcon';
 import { WordFamilySection } from '@/components/WordFamily/WordFamilySection';
 import { formatDate, formatRelativeShort } from '@/lib/dateUtils';
@@ -61,6 +62,7 @@ export type WordDetailCardProps = {
   density?: WordViewDensity;
   isGeneratingExamples?: boolean;
   isGeneratingWordFamily?: boolean;
+  isFetchingAudio?: boolean;
   onEdit: (word: WordRecord) => void;
   onDelete: (id: string, word: string) => void;
   onRefreshExamples: (id: string) => void;
@@ -68,6 +70,7 @@ export type WordDetailCardProps = {
   onDeleteWordFamilyMember?: (memberId: string) => void;
   onToggleMissed?: (wordId: string, word: string, meaning: string) => void;
   onGroupClick?: (group: string) => void;
+  onFetchAudio?: (wordId: string, word: string) => Promise<void> | void;
 };
 
 const POS_COLORS: Record<string, string> = {
@@ -105,6 +108,7 @@ export const WordDetailCard = React.memo(function WordDetailCard({
   density = 'detailed',
   isGeneratingExamples = false,
   isGeneratingWordFamily = false,
+  isFetchingAudio = false,
   onEdit,
   onDelete,
   onRefreshExamples,
@@ -112,11 +116,11 @@ export const WordDetailCard = React.memo(function WordDetailCard({
   onDeleteWordFamilyMember,
   onToggleMissed,
   onGroupClick,
+  onFetchAudio,
 }: WordDetailCardProps) {
   const [examplesExpanded, setExamplesExpanded] = useState<Record<number, boolean>>({});
   const [notesExpanded, setNotesExpanded] = useState(true);
   const [fsrsExpanded, setFsrsExpanded] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
 
   const definitions = useMemo(() => getWordDefinitions(word), [word]);
   const groups = useMemo(() => getWordGroups(word), [word]);
@@ -146,22 +150,6 @@ export const WordDetailCard = React.memo(function WordDetailCard({
       .filter((m) => !m.isDeleted && m.wordId === word.id)
       .reduce((acc, curr) => acc + curr.missedCount, 0);
   }, [missedWordCount, missedRecords, word.id]);
-
-  // Audio pronunciation using Web Speech API
-  const speakWord = (text: string) => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
-      return;
-    }
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'en-US';
-    utterance.rate = 0.88;
-    utterance.pitch = 1.0;
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
-    window.speechSynthesis.speak(utterance);
-  };
 
   // Retention score calculation (0 to 100) based on stability and state
   const retentionScore = useMemo(() => {
@@ -220,22 +208,43 @@ export const WordDetailCard = React.memo(function WordDetailCard({
             </Text>
 
             {/* Pronunciation Audio Button */}
-            <Tooltip label="Listen to pronunciation (US English)" withArrow position="top">
-              <ActionIcon
-                variant={isSpeaking ? 'filled' : 'light'}
+            <PronounceButton
+              word={word.word}
+              audioUrl={word.audioUrl}
+              phonetic={word.phonetic}
+              size="md"
+              radius="xl"
+            />
+
+            {/* Phonetic Transcription */}
+            {word.phonetic && (
+              <Badge
+                variant="light"
                 color="indigo"
-                size="md"
-                radius="xl"
-                aria-label={`Pronounce ${word.word}`}
-                onClick={() => speakWord(word.word)}
-                style={{
-                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                  transform: isSpeaking ? 'scale(1.15)' : undefined,
-                }}
+                size="sm"
+                radius="sm"
+                style={{ fontFamily: 'monospace', fontWeight: 600 }}
               >
-                <IconVolume size={18} />
-              </ActionIcon>
-            </Tooltip>
+                {word.phonetic}
+              </Badge>
+            )}
+
+            {/* Fetch Audio Button (if no audio saved yet) */}
+            {!word.audioUrl && onFetchAudio && (
+              <Tooltip label="Fetch Merriam-Webster audio pronunciation" withArrow>
+                <Button
+                  size="compact-xs"
+                  variant="light"
+                  color="blue"
+                  radius="xl"
+                  loading={isFetchingAudio}
+                  onClick={() => onFetchAudio(word.id, word.word)}
+                  leftSection={<IconVolume size={13} />}
+                >
+                  Fetch MW Audio
+                </Button>
+              </Tooltip>
+            )}
 
             {/* Quick Copy Word */}
             <CopyButton value={word.word} timeout={2000}>
@@ -413,6 +422,24 @@ export const WordDetailCard = React.memo(function WordDetailCard({
               loading={isGeneratingWordFamily}
             >
               <IconHierarchy size={16} />
+            </WordActionIcon>
+          )}
+
+          {onFetchAudio && (
+            <WordActionIcon
+              label={
+                word.audioUrl
+                  ? `Re-fetch Merriam-Webster pronunciation for ${word.word}`
+                  : `Fetch Merriam-Webster pronunciation for ${word.word}`
+              }
+              ariaLabel={`Fetch Merriam-Webster pronunciation for ${word.word}`}
+              color="blue"
+              size="sm"
+              onClick={() => onFetchAudio(word.id, word.word)}
+              disabled={isFetchingAudio}
+              loading={isFetchingAudio}
+            >
+              <IconVolume size={16} />
             </WordActionIcon>
           )}
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { normalizeMerriamWebsterAudioUrl } from '@/lib/pronounce';
 
 const STORAGE_KEY = 'self_quiz_sound_enabled';
 const SOUND_EVENT_NAME = 'self_quiz_sound_changed';
@@ -337,4 +338,114 @@ export function playNotificationSound(): void {
   }
   const volumeMultiplier = getAudioVolumeSetting();
   void playExternalSound(SOUND_FILES.notification, 0.6 * volumeMultiplier);
+}
+
+let activeWordAudioElement: HTMLAudioElement | null = null;
+let activeWordBufferSource: AudioBufferSourceNode | null = null;
+
+/**
+ * Stops any currently active word pronunciation audio.
+ */
+export function stopWordAudio(): void {
+  try {
+    if (activeWordAudioElement) {
+      activeWordAudioElement.pause();
+      activeWordAudioElement.currentTime = 0;
+      activeWordAudioElement = null;
+    }
+    if (activeWordBufferSource) {
+      activeWordBufferSource.stop();
+      activeWordBufferSource.disconnect();
+      activeWordBufferSource = null;
+    }
+  } catch {
+    // Fail gracefully
+  }
+}
+
+/**
+ * Plays a word pronunciation audio file (e.g. Merriam-Webster MP3 CDN URL).
+ * Uses Web Audio API when available with caching, falling back to HTMLAudioElement.
+ *
+ * @param url The fully-qualified audio URL (e.g., https://media.merriam-webster.com/...)
+ * @param customVolume Optional volume override (0.0 to 1.0)
+ * @param onEnd Optional callback fired when audio playback finishes or errors
+ */
+export async function playWordAudio(
+  url: string,
+  customVolume?: number,
+  onEnd?: () => void
+): Promise<void> {
+  const normalizedUrl = normalizeMerriamWebsterAudioUrl(url);
+  if (typeof window === 'undefined' || !normalizedUrl || !normalizedUrl.trim()) {
+    onEnd?.();
+    return;
+  }
+
+  stopWordAudio();
+
+  const volumeSetting = getAudioVolumeSetting();
+  const volume =
+    customVolume !== undefined ? Math.max(0, Math.min(1, customVolume)) : volumeSetting;
+
+  const ctx = getAudioContext();
+  if (ctx) {
+    try {
+      const buffer =
+        audioBufferCache.get(normalizedUrl) || (await fetchAndDecodeAudio(normalizedUrl, ctx));
+      if (buffer) {
+        if (ctx.state === 'suspended') {
+          await ctx.resume().catch(() => {});
+        }
+
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+
+        const gainNode = ctx.createGain();
+        gainNode.gain.setValueAtTime(volume, ctx.currentTime);
+
+        source.connect(gainNode);
+        gainNode.connect(ctx.destination);
+
+        source.onended = () => {
+          if (activeWordBufferSource === source) {
+            activeWordBufferSource = null;
+          }
+          onEnd?.();
+        };
+
+        activeWordBufferSource = source;
+        source.start(0);
+        return;
+      }
+    } catch {
+      // Fallback to HTMLAudioElement
+    }
+  }
+
+  // Fallback using standard HTMLAudioElement
+  try {
+    const audio = new Audio(normalizedUrl);
+    audio.volume = Math.max(0, Math.min(1, volume));
+    activeWordAudioElement = audio;
+
+    const cleanup = () => {
+      if (activeWordAudioElement === audio) {
+        activeWordAudioElement = null;
+      }
+      onEnd?.();
+    };
+
+    audio.onended = cleanup;
+    audio.onerror = cleanup;
+
+    const playPromise = audio.play();
+    if (playPromise !== undefined) {
+      await playPromise.catch(() => {
+        cleanup();
+      });
+    }
+  } catch {
+    onEnd?.();
+  }
 }

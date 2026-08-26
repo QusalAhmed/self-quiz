@@ -180,7 +180,12 @@ export function WordList({
                     >
                       {item.word}
                     </Text>
-                    <PronounceButton word={item.word} size="xs" />
+                    <PronounceButton
+                      word={item.word}
+                      audioUrl={item.audioUrl}
+                      phonetic={item.phonetic}
+                      size="xs"
+                    />
                   </Group>
 
                   {/* Usage Frequency Badge */}

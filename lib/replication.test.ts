@@ -35,6 +35,9 @@ describe('Supabase Replication Modifiers', () => {
         notes: 'test note',
         usage_frequency: 'Top 3000',
         generator_ai_details: 'Google Gemma 4 26B',
+        audio_url: 'https://media.merriam-webster.com/audio/prons/en/us/mp3/a/abate001.mp3',
+        phonetic: '\\ə-ˈbāt\\',
+        audio_source: 'merriam-webster',
         custom_groups: ['GRE', 'TOEFL'],
         created_at: '2026-08-17T00:00:00.000Z',
         updated_at: '2026-08-17T01:00:00.000Z',
@@ -50,6 +53,11 @@ describe('Supabase Replication Modifiers', () => {
       expect(record.notes).toBe('test note');
       expect(record.usageFrequency).toBe('Top 3000');
       expect(record.generatorAiDetails).toBe('Google Gemma 4 26B');
+      expect(record.audioUrl).toBe(
+        'https://media.merriam-webster.com/audio/prons/en/us/mp3/a/abate001.mp3'
+      );
+      expect(record.phonetic).toBe('\\ə-ˈbāt\\');
+      expect(record.audioSource).toBe('merriam-webster');
     });
 
     it('correctly maps local WordRecord to remote Supabase row for push', () => {
@@ -64,6 +72,9 @@ describe('Supabase Replication Modifiers', () => {
         notes: 'my notes',
         usageFrequency: 'Top 3000',
         generatorAiDetails: 'Google Gemma 4 26B',
+        audioUrl: 'https://media.merriam-webster.com/audio/prons/en/us/mp3/a/abate001.mp3',
+        phonetic: '\\ə-ˈbāt\\',
+        audioSource: 'merriam-webster',
         customGroups: ['GRE'],
         createdAt: '2026-08-17T00:00:00.000Z',
         updatedAt: '2026-08-17T01:00:00.000Z',
@@ -77,6 +88,11 @@ describe('Supabase Replication Modifiers', () => {
       expect(row.custom_groups).toEqual(['GRE']);
       expect(row.usage_frequency).toBe('Top 3000');
       expect(row.generator_ai_details).toBe('Google Gemma 4 26B');
+      expect(row.audio_url).toBe(
+        'https://media.merriam-webster.com/audio/prons/en/us/mp3/a/abate001.mp3'
+      );
+      expect(row.phonetic).toBe('\\ə-ˈbāt\\');
+      expect(row.audio_source).toBe('merriam-webster');
       expect(row.deleted).toBe(true);
       expect(row.created_at).toBe('2026-08-17T00:00:00.000Z');
       expect(row.updated_at).toBe('2026-08-17T01:00:00.000Z');

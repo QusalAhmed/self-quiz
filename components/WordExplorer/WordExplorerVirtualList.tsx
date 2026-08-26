@@ -15,6 +15,7 @@ export type WordExplorerVirtualListProps = {
   density?: WordViewDensity;
   generatingExampleWordIds?: Record<string, boolean>;
   generatingWordFamilyWordIds?: Record<string, boolean>;
+  fetchingAudioWordIds?: Record<string, boolean>;
   onEdit: (word: WordRecord) => void;
   onDelete: (id: string, word: string) => void;
   onRefreshExamples: (id: string) => void;
@@ -22,6 +23,7 @@ export type WordExplorerVirtualListProps = {
   onDeleteWordFamilyMember?: (memberId: string) => void;
   onToggleMissed?: (wordId: string, word: string, meaning: string) => void;
   onGroupClick?: (group: string) => void;
+  onFetchAudio?: (wordId: string, word: string) => Promise<void> | void;
   onResetFilters?: () => void;
   onOpenAddModal?: () => void;
 };
@@ -36,6 +38,7 @@ export const WordExplorerVirtualList = React.memo(function WordExplorerVirtualLi
   density = 'detailed',
   generatingExampleWordIds = {},
   generatingWordFamilyWordIds = {},
+  fetchingAudioWordIds = {},
   onEdit,
   onDelete,
   onRefreshExamples,
@@ -43,6 +46,7 @@ export const WordExplorerVirtualList = React.memo(function WordExplorerVirtualLi
   onDeleteWordFamilyMember,
   onToggleMissed,
   onGroupClick,
+  onFetchAudio,
   onResetFilters,
   onOpenAddModal,
 }: WordExplorerVirtualListProps) {
@@ -236,6 +240,7 @@ export const WordExplorerVirtualList = React.memo(function WordExplorerVirtualLi
                 density={density}
                 isGeneratingExamples={isGeneratingExamples}
                 isGeneratingWordFamily={isGeneratingFamily}
+                isFetchingAudio={Boolean(fetchingAudioWordIds[item.id])}
                 onEdit={onEdit}
                 onDelete={onDelete}
                 onRefreshExamples={onRefreshExamples}
@@ -243,6 +248,7 @@ export const WordExplorerVirtualList = React.memo(function WordExplorerVirtualLi
                 onDeleteWordFamilyMember={onDeleteWordFamilyMember}
                 onToggleMissed={onToggleMissed}
                 onGroupClick={onGroupClick}
+                onFetchAudio={onFetchAudio}
               />
             </div>
           );

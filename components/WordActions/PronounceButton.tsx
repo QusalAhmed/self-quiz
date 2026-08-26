@@ -3,10 +3,14 @@
 import { ActionIcon, type ActionIconProps, Tooltip } from '@mantine/core';
 import { IconVolume } from '@tabler/icons-react';
 import React, { useState } from 'react';
+import { isValidAudioUrl } from '@/lib/pronounce';
 import { getAppSettings } from '@/lib/settings';
+import { playWordAudio } from '@/lib/sound';
 
 export type PronounceButtonProps = {
   word: string;
+  audioUrl?: string;
+  phonetic?: string;
   size?: ActionIconProps['size'];
   variant?: ActionIconProps['variant'];
   color?: ActionIconProps['color'];
@@ -24,6 +28,8 @@ export type PronounceButtonProps = {
 
 export function PronounceButton({
   word,
+  audioUrl,
+  phonetic,
   size = 'sm',
   variant,
   color = 'indigo',
@@ -42,11 +48,31 @@ export function PronounceButton({
 
   const handleSpeak = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (typeof window === 'undefined' || !('speechSynthesis' in window) || !word.trim()) {
+    if (typeof window === 'undefined' || !word.trim()) {
       return;
     }
 
     const settings = getAppSettings();
+    const hasValidAudio = isValidAudioUrl(audioUrl);
+    const preferAudio = settings.audio.preferMwAudioOverTts !== false;
+
+    // 1. Play real audio recording if available
+    if (hasValidAudio && preferAudio) {
+      setIsSpeaking(true);
+      onStart?.();
+
+      void playWordAudio(audioUrl!.trim(), settings.audio.audioVolume, () => {
+        setIsSpeaking(false);
+        onEnd?.();
+      });
+      return;
+    }
+
+    // 2. Fallback to browser SpeechSynthesis
+    if (!('speechSynthesis' in window)) {
+      return;
+    }
+
     const activeRate = rate ?? settings.audio.ttsRate ?? 0.88;
     const activePitch = pitch ?? settings.audio.ttsPitch ?? 1.0;
     const activeVolume = settings.audio.ttsVolume ?? 1.0;
@@ -87,8 +113,14 @@ export function PronounceButton({
 
   const activeVariant = variant ?? (isSpeaking ? 'filled' : 'subtle');
 
+  const tooltipLabel = phonetic
+    ? `Pronounce "${word}" ${phonetic}${audioUrl ? ' (Merriam-Webster)' : ''}`
+    : audioUrl
+      ? `Pronounce "${word}" (Merriam-Webster)`
+      : `Pronounce "${word}"`;
+
   return (
-    <Tooltip label={`Pronounce "${word}"`} withArrow position={tooltipPosition}>
+    <Tooltip label={tooltipLabel} withArrow position={tooltipPosition}>
       <ActionIcon
         size={size}
         variant={activeVariant}

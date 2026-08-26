@@ -1,15 +1,31 @@
 import React from 'react';
+import * as soundModule from '@/lib/sound';
 import { fireEvent, render, screen } from '@/test-utils';
 import { PronounceButton } from './PronounceButton';
 
+jest.mock('@/lib/sound', () => {
+  const actual = jest.requireActual('@/lib/sound');
+  return {
+    ...actual,
+    playWordAudio: jest.fn().mockImplementation((_url, _vol, onEnd) => {
+      onEnd?.();
+      return Promise.resolve();
+    }),
+  };
+});
+
 describe('PronounceButton component', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   it('renders with volume icon and tooltip/aria-label', () => {
     render(<PronounceButton word="ephemeral" />);
     const btn = screen.getByRole('button', { name: /pronounce ephemeral/i });
     expect(btn).toBeInTheDocument();
   });
 
-  it('triggers speech synthesis upon click', () => {
+  it('triggers speech synthesis upon click when no audioUrl is provided', () => {
     const speakMock = jest.fn();
     const cancelMock = jest.fn();
     Object.defineProperty(window, 'speechSynthesis', {
@@ -34,5 +50,19 @@ describe('PronounceButton component', () => {
 
     expect(cancelMock).toHaveBeenCalled();
     expect(speakMock).toHaveBeenCalled();
+    expect(soundModule.playWordAudio).not.toHaveBeenCalled();
+  });
+
+  it('plays recorded Merriam-Webster audio when valid audioUrl is provided', () => {
+    const audioUrl = 'https://media.merriam-webster.com/audio/prons/en/us/mp3/e/epheme01.mp3';
+    render(<PronounceButton word="ephemeral" audioUrl={audioUrl} phonetic="\\i-ˈfe-m(ə-)rəl\\" />);
+    const btn = screen.getByRole('button', { name: /pronounce ephemeral/i });
+    fireEvent.click(btn);
+
+    expect(soundModule.playWordAudio).toHaveBeenCalledWith(
+      audioUrl,
+      expect.any(Number),
+      expect.any(Function)
+    );
   });
 });

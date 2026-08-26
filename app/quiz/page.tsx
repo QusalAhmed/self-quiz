@@ -510,6 +510,8 @@ export default function QuizPage() {
           tags: correspondingWord?.customGroups || [],
           notes: correspondingWord?.notes || (word as { notes?: string }).notes || '',
           fsrsRecord,
+          audioUrl: correspondingWord?.audioUrl || (word as { audioUrl?: string }).audioUrl,
+          phonetic: correspondingWord?.phonetic || (word as { phonetic?: string }).phonetic,
         };
       })
     );
@@ -545,6 +547,8 @@ export default function QuizPage() {
       const freshTags = freshWord.customGroups || [];
       const freshNotes = freshWord.notes || '';
       const freshFsrs = getFsrsRecordForWord(item.id, quizDirection);
+      const freshAudioUrl = freshWord.audioUrl;
+      const freshPhonetic = freshWord.phonetic;
 
       const definitionsChanged =
         item.meaning !== freshMeaning ||
@@ -552,13 +556,21 @@ export default function QuizPage() {
       const tagsChanged = (item.tags?.length ?? 0) !== freshTags.length;
       const notesChanged = (item.notes || '') !== freshNotes;
       const wordChanged = item.word !== freshWord.word;
+      const audioChanged = item.audioUrl !== freshAudioUrl || item.phonetic !== freshPhonetic;
       const fsrsChanged =
         item.fsrsRecord?.dueAt !== freshFsrs?.dueAt ||
         item.fsrsRecord?.stability !== freshFsrs?.stability ||
         item.fsrsRecord?.difficulty !== freshFsrs?.difficulty ||
         item.fsrsRecord?.state !== freshFsrs?.state;
 
-      if (definitionsChanged || tagsChanged || notesChanged || wordChanged || fsrsChanged) {
+      if (
+        definitionsChanged ||
+        tagsChanged ||
+        notesChanged ||
+        wordChanged ||
+        audioChanged ||
+        fsrsChanged
+      ) {
         hasChanges = true;
         const normalizedDefs = normalizeDefinitions(freshDefinitions, freshMeaning);
         return {
@@ -568,6 +580,8 @@ export default function QuizPage() {
           definitions: normalizedDefs,
           tags: freshTags,
           notes: freshNotes,
+          audioUrl: freshAudioUrl,
+          phonetic: freshPhonetic,
           fsrsRecord: freshFsrs || item.fsrsRecord,
         };
       }

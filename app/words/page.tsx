@@ -42,6 +42,7 @@ import {
   wordHasGroup,
 } from '@/lib/groups';
 import { setupSupabaseReplication } from '@/lib/replication';
+import { getAppSettings } from '@/lib/settings';
 import { notifyFsrsWordAdded, notifyWordSaved } from '@/lib/system-notifications';
 import { buildWordFamilyId, isWordFamilyId } from '@/lib/word-family';
 import { filterAndSortWords } from '@/lib/word-search';
@@ -59,6 +60,7 @@ export default function WordsPage() {
   const [generatingWordFamilyWordIds, setGeneratingWordFamilyWordIds] = useState<
     Record<string, boolean>
   >({});
+  const [fetchingAudioWordIds, setFetchingAudioWordIds] = useState<Record<string, boolean>>({});
 
   // Search, Filters & Sorting
   const [searchQuery, setSearchQuery] = useState('');
@@ -526,6 +528,51 @@ export default function WordsPage() {
     [database]
   );
 
+  const fetchAndStoreWordAudio = useCallback(
+    async (wordId: string, word: string) => {
+      if (!database || !navigator.onLine) {
+        return;
+      }
+      setFetchingAudioWordIds((prev) => ({ ...prev, [wordId]: true }));
+      try {
+        const settings = getAppSettings();
+        const response = await fetch('/api/pronounce', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            word: capitalizeWord(word),
+            apiKey: settings.audio.merriamWebsterApiKey,
+          }),
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const data = await response.json();
+        if (data.audioUrl) {
+          const doc = await database.words.findOne(wordId).exec();
+          if (doc) {
+            await doc.patch({
+              audioUrl: data.audioUrl,
+              phonetic: data.phonetic || '',
+              audioSource: data.audioSource || 'merriam-webster',
+              updatedAt: new Date().toISOString(),
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching word pronunciation audio:', error);
+      } finally {
+        setFetchingAudioWordIds((prev) => {
+          const { [wordId]: _removed, ...rest } = prev;
+          return rest;
+        });
+      }
+    },
+    [database]
+  );
+
   const handleAddWord = useCallback(
     async (
       word: string,
@@ -592,6 +639,14 @@ export default function WordsPage() {
         quizMode: 'wordToMeaning',
         meaning: normalizedMeaning,
       });
+
+      // Fetch Merriam-Webster audio pronunciation in background
+      const appSettings = getAppSettings();
+      if (appSettings.audio.autoFetchMwAudioOnAdd !== false) {
+        void fetchAndStoreWordAudio(record.id, record.word).catch((error) => {
+          console.error('Error fetching Merriam-Webster audio after add:', error);
+        });
+      }
 
       // Generate word family members using AI in background
       void fetchAndStoreWordFamily(record.id, record.word, normalizedMeaning).catch((error) => {
@@ -687,7 +742,13 @@ export default function WordsPage() {
         })();
       }
     },
-    [database, ensureGroupExists, ensureMissingAiExamples, fetchAndStoreWordFamily]
+    [
+      database,
+      ensureGroupExists,
+      ensureMissingAiExamples,
+      fetchAndStoreWordFamily,
+      fetchAndStoreWordAudio,
+    ]
   );
 
   const handleEditWord = useCallback(
@@ -1052,6 +1113,7 @@ export default function WordsPage() {
           density={density}
           generatingExampleWordIds={generatingExampleWordIds}
           generatingWordFamilyWordIds={generatingWordFamilyWordIds}
+          fetchingAudioWordIds={fetchingAudioWordIds}
           onEdit={handleEdit}
           onDelete={handleDeletePrompt}
           onRefreshExamples={handleRefreshExamplesCallback}
@@ -1059,6 +1121,7 @@ export default function WordsPage() {
           onDeleteWordFamilyMember={handleDeleteWordFamilyMemberCallback}
           onToggleMissed={handleToggleMissedCallback}
           onGroupClick={handleGroupClick}
+          onFetchAudio={fetchAndStoreWordAudio}
           onResetFilters={handleResetFilters}
           onOpenAddModal={handleOpenAddModal}
         />
