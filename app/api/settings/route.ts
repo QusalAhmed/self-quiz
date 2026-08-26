@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { DEFAULT_APP_SETTINGS, normalizeAppSettings, type AppSettings } from '@/lib/settings';
+import { DEFAULT_APP_SETTINGS, normalizeAppSettings, type AppSettings } from '@/lib/settings-utils';
 import { supabase } from '@/lib/supabase';
 
 export const revalidate = 0; // Disable static caching for dynamic settings

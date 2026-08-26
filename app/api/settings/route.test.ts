@@ -1,4 +1,4 @@
-import { DEFAULT_APP_SETTINGS } from '@/lib/settings';
+import { DEFAULT_APP_SETTINGS } from '@/lib/settings-utils';
 import { supabase } from '@/lib/supabase';
 import { GET, getServerSettings, POST } from './route';
 
