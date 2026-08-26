@@ -420,6 +420,31 @@ describe('Supabase Replication Modifiers', () => {
       expect(pulled.verse).toBe(285);
       expect(pulled.verseEnd).toBe(286);
     });
+
+    it('maps empty strings in lastViewedAt and lastError to null on push to prevent PostgreSQL 22007 error', () => {
+      const doc = {
+        id: '2:255',
+        chapter: 2,
+        verse: 255,
+        category: 'Protection',
+        notes: '',
+        status: 'active' as const,
+        viewCount: 0,
+        lastViewedAt: '', // empty string default from RxDB
+        lastError: '',
+        createdAt: '2026-08-26T00:00:00.000Z',
+        updatedAt: '2026-08-26T00:00:00.000Z',
+        isDeleted: false,
+        lastSyncedAt: '',
+      };
+
+      const pushed = pushQuranVerseModifier(doc);
+      expect(pushed.last_viewed_at).toBeNull();
+      expect(pushed.last_error).toBeNull();
+      expect(pushed.verse_end).toBeNull();
+      expect(pushed.created_at).toBe('2026-08-26T00:00:00.000Z');
+      expect(pushed.updated_at).toBe('2026-08-26T00:00:00.000Z');
+    });
   });
 
   describe('RxDB Sync State Structures', () => {

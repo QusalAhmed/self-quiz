@@ -32,6 +32,12 @@ export interface QuranVerseContextType {
   currentVerseData: FetchedVersePayload | null;
   currentVerseRecord: QuranVerseRecord | null;
   isLoadingModalVerse: boolean;
+  // Countdown & Timer state
+  countdownSeconds: number;
+  nextVerseTimestamp: number | null;
+  isRecurringEnabled: boolean;
+  recurringIntervalMinutes: number;
+  resetTimer: () => void;
 }
 
 const QuranVerseContext = createContext<QuranVerseContextType | null>(null);
@@ -52,6 +58,16 @@ export function QuranVerseProvider({ children }: { children: React.ReactNode }) 
   const [currentVerseRecord, setCurrentVerseRecord] = useState<QuranVerseRecord | null>(null);
   const [isLoadingModalVerse, setIsLoadingModalVerse] = useState<boolean>(false);
 
+  // Countdown & Timer State
+  const [countdownSeconds, setCountdownSeconds] = useState<number>(() => {
+    if (!quranSettings.enabled) {
+      return 0;
+    }
+    const intervalMinutes = Math.max(1, quranSettings.recurringIntervalMinutes || 15);
+    return intervalMinutes * 60;
+  });
+  const [nextVerseTimestamp, setNextVerseTimestamp] = useState<number | null>(null);
+
   // Keep a ref of isModalOpen so background timers and interval checks always read the freshest state
   const isModalOpenRef = useRef<boolean>(false);
   useEffect(() => {
@@ -60,6 +76,18 @@ export function QuranVerseProvider({ children }: { children: React.ReactNode }) 
 
   // Prevent concurrent trigger
   const isTriggeringRef = useRef<boolean>(false);
+
+  // Manual timer reset
+  const resetTimer = useCallback(() => {
+    const now = Date.now();
+    try {
+      localStorage.setItem(STORAGE_LAST_SHOWN_KEY, String(now));
+    } catch {}
+    const intervalMinutes = Math.max(1, quranSettings.recurringIntervalMinutes || 15);
+    const intervalMs = intervalMinutes * 60 * 1000;
+    setCountdownSeconds(intervalMinutes * 60);
+    setNextVerseTimestamp(now + intervalMs);
+  }, [quranSettings.recurringIntervalMinutes]);
 
   // Load / Seed Verses on Mount
   const loadVerses = useCallback(async () => {
@@ -125,12 +153,18 @@ export function QuranVerseProvider({ children }: { children: React.ReactNode }) 
   // Picks a random active verse and shows it
   const showNextVerseNow = useCallback(
     async (options?: { force?: boolean }) => {
+      const intervalMinutes = Math.max(1, quranSettings.recurringIntervalMinutes || 15);
+      const intervalMs = intervalMinutes * 60 * 1000;
+      const now = Date.now();
+
       // Don't show second verse modal if first modal is already active unless explicitly forced
       if (isModalOpenRef.current && !options?.force) {
         // Advance last shown timestamp so the next verse pops up in the next cycle
         try {
-          localStorage.setItem(STORAGE_LAST_SHOWN_KEY, String(Date.now()));
+          localStorage.setItem(STORAGE_LAST_SHOWN_KEY, String(now));
         } catch {}
+        setCountdownSeconds(intervalMinutes * 60);
+        setNextVerseTimestamp(now + intervalMs);
         return;
       }
 
@@ -196,10 +230,12 @@ export function QuranVerseProvider({ children }: { children: React.ReactNode }) 
           playNotificationSound();
         }
 
-        // Record last shown timestamp in localStorage
+        // Record last shown timestamp in localStorage and reset countdown
         try {
-          localStorage.setItem(STORAGE_LAST_SHOWN_KEY, String(Date.now()));
+          localStorage.setItem(STORAGE_LAST_SHOWN_KEY, String(now));
         } catch {}
+        setCountdownSeconds(intervalMinutes * 60);
+        setNextVerseTimestamp(now + intervalMs);
 
         void loadVerses();
       } catch (err: any) {
@@ -209,8 +245,10 @@ export function QuranVerseProvider({ children }: { children: React.ReactNode }) 
         }
         // "If api call fails, try next again in next cycle."
         try {
-          localStorage.setItem(STORAGE_LAST_SHOWN_KEY, String(Date.now()));
+          localStorage.setItem(STORAGE_LAST_SHOWN_KEY, String(now));
         } catch {}
+        setCountdownSeconds(intervalMinutes * 60);
+        setNextVerseTimestamp(now + intervalMs);
         void loadVerses();
       } finally {
         setIsLoadingModalVerse(false);
@@ -220,17 +258,18 @@ export function QuranVerseProvider({ children }: { children: React.ReactNode }) 
     [currentVerseRecord, quranSettings, settings.audio.notificationSoundsEnabled, loadVerses]
   );
 
-  // Recurring Interval Timer Engine
+  // Recurring Interval Timer Engine & Live Countdown (1-second tick)
   useEffect(() => {
     if (!quranSettings.enabled) {
+      setCountdownSeconds(0);
+      setNextVerseTimestamp(null);
       return;
     }
 
     const intervalMinutes = Math.max(1, quranSettings.recurringIntervalMinutes || 15);
     const intervalMs = intervalMinutes * 60 * 1000;
 
-    // Check timer every 10 seconds
-    const intervalTimer = setInterval(() => {
+    const tick = () => {
       if (typeof window === 'undefined' || !quranSettings.enabled) {
         return;
       }
@@ -249,23 +288,37 @@ export function QuranVerseProvider({ children }: { children: React.ReactNode }) 
         try {
           localStorage.setItem(STORAGE_LAST_SHOWN_KEY, String(now));
         } catch {}
-        return;
+        lastShown = now;
       }
 
-      const elapsed = now - lastShown;
-      if (elapsed >= intervalMs) {
+      const target = lastShown + intervalMs;
+      const remainingMs = target - now;
+      const remainingSecs = Math.max(0, Math.ceil(remainingMs / 1000));
+
+      setCountdownSeconds(remainingSecs);
+      setNextVerseTimestamp(target);
+
+      if (remainingSecs <= 0) {
         // If first modal is active, do not show second modal; defer to next cycle
         if (isModalOpenRef.current) {
           try {
             localStorage.setItem(STORAGE_LAST_SHOWN_KEY, String(now));
           } catch {}
+          setCountdownSeconds(intervalMinutes * 60);
+          setNextVerseTimestamp(now + intervalMs);
           return;
         }
 
         // Trigger next recurring verse!
         void showNextVerseNow();
       }
-    }, 10000);
+    };
+
+    // Run tick immediately on effect start
+    tick();
+
+    // Run tick every 1000ms
+    const intervalTimer = setInterval(tick, 1000);
 
     return () => clearInterval(intervalTimer);
   }, [quranSettings.enabled, quranSettings.recurringIntervalMinutes, showNextVerseNow]);
@@ -283,6 +336,7 @@ export function QuranVerseProvider({ children }: { children: React.ReactNode }) 
           : null;
       const intervalMinutes =
         validCustomMinutes ?? Math.max(1, quranSettings.recurringIntervalMinutes || 15);
+      const intervalMs = intervalMinutes * 60 * 1000;
 
       if (currentVerseRecord?.id) {
         try {
@@ -293,6 +347,8 @@ export function QuranVerseProvider({ children }: { children: React.ReactNode }) 
       try {
         localStorage.setItem(STORAGE_LAST_SHOWN_KEY, String(now));
       } catch {}
+      setCountdownSeconds(intervalMinutes * 60);
+      setNextVerseTimestamp(now + intervalMs);
       setIsModalOpen(false);
       appNotifications.info({
         title: 'Verse Reflection Snoozed',
@@ -322,6 +378,11 @@ export function QuranVerseProvider({ children }: { children: React.ReactNode }) 
         currentVerseData,
         currentVerseRecord,
         isLoadingModalVerse,
+        countdownSeconds,
+        nextVerseTimestamp,
+        isRecurringEnabled: Boolean(quranSettings.enabled),
+        recurringIntervalMinutes: Math.max(1, quranSettings.recurringIntervalMinutes || 15),
+        resetTimer,
       }}
     >
       {children}

@@ -251,4 +251,45 @@ describe('lib/quran-service.ts', () => {
     expect(res.error).toBeNull();
     fromSpy.mockRestore();
   });
+
+  it('normalizes empty strings and whitespace in timestamps to null/valid ISO dates to prevent PostgreSQL 22007 error', async () => {
+    const { supabase } = await import('./supabase');
+    const mockUpsert = jest.fn().mockResolvedValue({ data: [], error: null });
+    const fromSpy = jest.spyOn(supabase, 'from').mockReturnValue({
+      upsert: mockUpsert,
+    } as any);
+
+    const { normalizeNullableTimestamp, normalizeRequiredTimestamp, upsertQuranVersesToSupabase } =
+      await import('./quran-service');
+
+    expect(normalizeNullableTimestamp('')).toBeNull();
+    expect(normalizeNullableTimestamp('   ')).toBeNull();
+    expect(normalizeNullableTimestamp(null)).toBeNull();
+    expect(normalizeNullableTimestamp(undefined)).toBeNull();
+    expect(normalizeNullableTimestamp('2026-08-26T12:00:00.000Z')).toBe('2026-08-26T12:00:00.000Z');
+
+    expect(normalizeRequiredTimestamp('')).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(normalizeRequiredTimestamp('2026-08-26T12:00:00.000Z')).toBe('2026-08-26T12:00:00.000Z');
+
+    await upsertQuranVersesToSupabase([
+      {
+        id: '2:255',
+        chapter: 2,
+        verse: 255,
+        lastViewedAt: '', // empty string from RxDB schema default
+        createdAt: '',
+        updatedAt: '',
+        lastError: '',
+      },
+    ]);
+
+    expect(mockUpsert).toHaveBeenCalledTimes(1);
+    const payload = mockUpsert.mock.calls[0][0][0];
+    expect(payload.last_viewed_at).toBeNull();
+    expect(payload.last_error).toBeNull();
+    expect(payload.created_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(payload.updated_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+
+    fromSpy.mockRestore();
+  });
 });

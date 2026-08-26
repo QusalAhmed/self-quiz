@@ -531,19 +531,32 @@ export function pullQuranVerseModifier(row: any): WithDeleted<QuranVerseRecord> 
 }
 
 export function pushQuranVerseModifier(doc: QuranVerseRecord): any {
+  const lastViewedAt =
+    typeof doc.lastViewedAt === 'string' && doc.lastViewedAt.trim() !== ''
+      ? doc.lastViewedAt.trim()
+      : null;
+  const lastError =
+    typeof doc.lastError === 'string' && doc.lastError.trim() !== '' ? doc.lastError.trim() : null;
+
   return {
     id: doc.id,
-    chapter: doc.chapter,
-    verse: doc.verse,
-    verse_end: doc.verseEnd || null,
+    chapter: Number(doc.chapter),
+    verse: Number(doc.verse),
+    verse_end: doc.verseEnd ? Number(doc.verseEnd) : null,
     category: doc.category || 'Inspirational',
     notes: doc.notes || '',
     status: doc.status || 'active',
-    view_count: doc.viewCount || 0,
-    last_viewed_at: doc.lastViewedAt || null,
-    last_error: doc.lastError || null,
-    created_at: doc.createdAt,
-    updated_at: doc.updatedAt,
+    view_count: Number(doc.viewCount || 0),
+    last_viewed_at: lastViewedAt,
+    last_error: lastError,
+    created_at:
+      typeof doc.createdAt === 'string' && doc.createdAt.trim() !== ''
+        ? doc.createdAt.trim()
+        : new Date().toISOString(),
+    updated_at:
+      typeof doc.updatedAt === 'string' && doc.updatedAt.trim() !== ''
+        ? doc.updatedAt.trim()
+        : new Date().toISOString(),
     deleted: Boolean(doc.isDeleted),
   };
 }

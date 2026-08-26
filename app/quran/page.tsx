@@ -16,11 +16,14 @@ import {
 import { IconAdjustments, IconBook, IconPlayerPlay } from '@tabler/icons-react';
 import Link from 'next/link';
 import React, { Suspense, useState } from 'react';
-import { AddQuranVerseModal, QuranVerseManager, useQuranVerse } from '@/components/QuranVerse';
-import { useAppSettings } from '@/lib/settings';
+import {
+  AddQuranVerseModal,
+  NextVerseCountdown,
+  QuranVerseManager,
+  useQuranVerse,
+} from '@/components/QuranVerse';
 
 function QuranPageContent() {
-  const { settings } = useAppSettings();
   const { verses, isLoadingVerses, refreshVerses, showNextVerseNow, previewVerse } =
     useQuranVerse();
 
@@ -53,18 +56,13 @@ function QuranPageContent() {
               </ThemeIcon>
 
               <Stack gap={2}>
-                <Group gap="xs" align="center">
+                <Group gap="xs" align="center" wrap="wrap">
                   <Title order={2} style={{ fontWeight: 800, letterSpacing: '-0.02em' }}>
                     <span className="text-gradient">Quran Verse Companion</span>
                   </Title>
                   <Badge variant="light" color="teal" size="md">
                     114 Surahs
                   </Badge>
-                  {settings.quranVerse.enabled && (
-                    <Badge variant="filled" color="indigo" size="sm">
-                      Popup every {settings.quranVerse.recurringIntervalMinutes}m
-                    </Badge>
-                  )}
                 </Group>
                 <Text size="sm" c="dimmed">
                   Uplifting & inspirational Quran verses with Arabic calligraphy, English & Bangla
@@ -107,6 +105,12 @@ function QuranPageContent() {
             </Group>
           </Group>
         </Paper>
+
+        {/* Dedicated Next Verse Modal Countdown Card */}
+        <NextVerseCountdown
+          variant="banner"
+          onShowRandomNow={() => void showNextVerseNow({ force: true })}
+        />
 
         {/* Verses Management Table & Dashboard */}
         <QuranVerseManager

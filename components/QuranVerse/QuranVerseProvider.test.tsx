@@ -130,12 +130,20 @@ jest.mock('@/lib/notifications', () => ({
 }));
 
 function TestConsumer() {
-  const { isModalOpen, showNextVerseNow, closeModal, snoozeVerse, currentVerseData } =
-    useQuranVerse();
+  const {
+    isModalOpen,
+    showNextVerseNow,
+    closeModal,
+    snoozeVerse,
+    currentVerseData,
+    countdownSeconds,
+    resetTimer,
+  } = useQuranVerse();
   return (
     <div>
       <div data-testid="modal-status">{isModalOpen ? 'OPEN' : 'CLOSED'}</div>
       <div data-testid="verse-key">{currentVerseData?.key || 'NONE'}</div>
+      <div data-testid="countdown-seconds">{countdownSeconds}</div>
       <button type="button" data-testid="btn-auto-trigger" onClick={() => void showNextVerseNow()}>
         Auto Trigger Next
       </button>
@@ -154,6 +162,9 @@ function TestConsumer() {
       </button>
       <button type="button" data-testid="btn-snooze-event-modal" onClick={snoozeVerse as any}>
         Snooze Modal Direct Event
+      </button>
+      <button type="button" data-testid="btn-reset-timer" onClick={resetTimer}>
+        Reset Timer
       </button>
     </div>
   );
@@ -328,5 +339,24 @@ describe('QuranVerseProvider - Recurring Cycle & Active Modal Protection', () =>
     });
     const callArg = (appNotifications.info as jest.Mock).mock.calls[0][0];
     expect(callArg.message).not.toContain('[object Object]');
+  });
+
+  it('provides countdown seconds and supports resetTimer', async () => {
+    render(
+      <QuranVerseProvider>
+        <TestConsumer />
+      </QuranVerseProvider>
+    );
+
+    const countdownEl = screen.getByTestId('countdown-seconds');
+    expect(Number(countdownEl.textContent)).toBeGreaterThan(0);
+
+    const beforeReset = Date.now();
+    fireEvent.click(screen.getByTestId('btn-reset-timer'));
+
+    expect(Number(localStorage.getItem(STORAGE_LAST_SHOWN_KEY))).toBeGreaterThanOrEqual(
+      beforeReset
+    );
+    expect(Number(screen.getByTestId('countdown-seconds').textContent)).toBe(900); // 15m * 60s
   });
 });

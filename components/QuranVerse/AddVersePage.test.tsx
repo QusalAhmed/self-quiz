@@ -34,6 +34,11 @@ jest.mock('@/components/QuranVerse', () => {
       refreshVerses: jest.fn().mockResolvedValue(undefined),
       showNextVerseNow: jest.fn().mockResolvedValue(undefined),
       previewVerse: jest.fn().mockResolvedValue(undefined),
+      countdownSeconds: 900,
+      nextVerseTimestamp: null,
+      isRecurringEnabled: true,
+      recurringIntervalMinutes: 15,
+      resetTimer: jest.fn(),
     }),
   };
 });

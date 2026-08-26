@@ -33,6 +33,35 @@ export function setVerseEndSchemaSupportForTesting(supported = true): void {
 }
 
 /**
+ * Safely normalizes optional timestamp strings to a valid ISO string or null for PostgreSQL.
+ * Empty strings, whitespace, or invalid date strings are always converted to null.
+ */
+export function normalizeNullableTimestamp(val: any): string | null {
+  if (val === null || val === undefined) {
+    return null;
+  }
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    if (!trimmed) {
+      return null;
+    }
+    const parsed = new Date(trimmed);
+    return isNaN(parsed.getTime()) ? null : parsed.toISOString();
+  }
+  if (val instanceof Date && !isNaN(val.getTime())) {
+    return val.toISOString();
+  }
+  return null;
+}
+
+/**
+ * Safely normalizes required timestamp strings to a valid ISO string for PostgreSQL.
+ */
+export function normalizeRequiredTimestamp(val: any): string {
+  return normalizeNullableTimestamp(val) || new Date().toISOString();
+}
+
+/**
  * Robustly upserts Quran verse records to Supabase.
  * If the remote table has not been migrated with 'verse_end' column yet (PGRST204),
  * it gracefully strips 'verse_end' and retries without error.
@@ -50,23 +79,30 @@ export async function upsertQuranVersesToSupabase(
   }
 
   const formatPayload = (item: Record<string, any>, includeVerseEnd: boolean) => {
+    const rawLastViewed = item.lastViewedAt ?? item.last_viewed_at;
+    const rawCreatedAt = item.createdAt ?? item.created_at;
+    const rawUpdatedAt = item.updatedAt ?? item.updated_at;
+    const rawLastError = item.lastError ?? item.last_error;
+
     const payload: Record<string, any> = {
-      id: item.id,
-      chapter: item.chapter,
-      verse: item.verse,
+      id: String(item.id),
+      chapter: Number(item.chapter),
+      verse: Number(item.verse),
       category: item.category || 'Inspirational',
       notes: item.notes || '',
       status: item.status || 'active',
-      view_count: item.viewCount ?? item.view_count ?? 0,
-      last_viewed_at: item.lastViewedAt ?? item.last_viewed_at ?? null,
-      last_error: item.lastError ?? item.last_error ?? null,
-      created_at: item.createdAt ?? item.created_at ?? new Date().toISOString(),
-      updated_at: item.updatedAt ?? item.updated_at ?? new Date().toISOString(),
+      view_count: Number(item.viewCount ?? item.view_count ?? 0),
+      last_viewed_at: normalizeNullableTimestamp(rawLastViewed),
+      last_error:
+        typeof rawLastError === 'string' && rawLastError.trim() !== '' ? rawLastError.trim() : null,
+      created_at: normalizeRequiredTimestamp(rawCreatedAt),
+      updated_at: normalizeRequiredTimestamp(rawUpdatedAt),
       deleted: Boolean(item.isDeleted ?? item.deleted),
     };
 
     if (includeVerseEnd && (item.verseEnd !== undefined || item.verse_end !== undefined)) {
-      payload.verse_end = item.verseEnd ?? item.verse_end ?? null;
+      const vEnd = item.verseEnd ?? item.verse_end;
+      payload.verse_end = vEnd !== null && vEnd !== undefined && vEnd !== '' ? Number(vEnd) : null;
     }
 
     return payload;
