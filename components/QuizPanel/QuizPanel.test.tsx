@@ -175,4 +175,39 @@ describe('QuizPanel component', () => {
     fireEvent.click(screen.getByText('Edit Word'));
     expect(handleEdit).toHaveBeenCalledWith('word-1');
   });
+
+  it('puts phonetic in menu dropdown rather than directly after the word title', () => {
+    const itemWithPhonetic: QuizItem = {
+      ...mockItem,
+      phonetic: '\\i-ˈfe-m(ə-)rəl\\',
+    };
+
+    render(
+      <QuizPanel
+        item={itemWithPhonetic}
+        quizDirection="wordToMeaning"
+        revealed={false}
+        onReveal={jest.fn()}
+        onMarkMissed={jest.fn()}
+        isMarkedMissed={false}
+        onNext={jest.fn()}
+        onPrevious={jest.fn()}
+        completed={false}
+        hasPrevious={false}
+        currentIndex={0}
+        totalCount={5}
+      />
+    );
+
+    // Phonetic should not be visible before opening the menu
+    expect(screen.queryByText(/i-ˈfe-m\(ə-\)rəl/)).not.toBeInTheDocument();
+
+    // Open menu
+    const menuButtons = screen.getAllByRole('button', { name: /actions for ephemeral/i });
+    expect(menuButtons.length).toBeGreaterThan(0);
+    fireEvent.click(menuButtons[0]);
+
+    // Phonetic should now be displayed in the menu
+    expect(screen.getByText(/i-ˈfe-m\(ə-\)rəl/)).toBeInTheDocument();
+  });
 });

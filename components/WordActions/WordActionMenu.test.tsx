@@ -143,4 +143,15 @@ describe('WordActionMenu component', () => {
     expect(screen.queryByText('Fetch MW Audio')).not.toBeInTheDocument();
     expect(screen.queryByText('Re-fetch MW Audio')).not.toBeInTheDocument();
   });
+
+  it('renders phonetic badge in the menu dropdown header when phonetic prop is provided', () => {
+    render(<WordActionMenu word="ephemeral" phonetic="\\i-ˈfe-m(ə-)rəl\\" />);
+
+    const targetBtn = screen.getByRole('button', { name: /actions for ephemeral/i });
+    fireEvent.click(targetBtn);
+
+    const phoneticBadge = screen.getByText(/i-ˈfe-m\(ə-\)rəl/);
+    expect(phoneticBadge).toBeInTheDocument();
+    expect(screen.getByText('WORD ACTIONS')).toBeInTheDocument();
+  });
 });

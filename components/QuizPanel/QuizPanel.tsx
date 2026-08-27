@@ -802,17 +802,6 @@ export const QuizPanel = memo(function QuizPanel({
         >
           {item.word}
         </Title>
-        {item.phonetic && (
-          <Badge
-            variant="light"
-            color="indigo"
-            size="sm"
-            radius="sm"
-            style={{ fontFamily: 'monospace' }}
-          >
-            {item.phonetic}
-          </Badge>
-        )}
         <WordActionMenu
           word={item.word}
           wordId={item.id}

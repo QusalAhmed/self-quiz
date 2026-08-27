@@ -3,7 +3,9 @@
 import {
   ActionIcon,
   type ActionIconProps,
+  Badge,
   CopyButton,
+  Group,
   Loader,
   Menu,
   type MenuProps,
@@ -20,7 +22,7 @@ import {
   IconTrash,
   IconVolume,
 } from '@tabler/icons-react';
-import React, { memo, useState } from 'react';
+import React, { memo, useEffect, useState } from 'react';
 import { appNotifications } from '@/lib/notifications';
 
 export type WordActionMenuProps = {
@@ -53,6 +55,7 @@ export const WordActionMenu = memo(function WordActionMenu({
   word,
   wordId,
   audioUrl,
+  phonetic,
   isPlayingAudio = false,
   onSpeak,
   onEdit,
@@ -74,6 +77,16 @@ export const WordActionMenu = memo(function WordActionMenu({
   ariaLabel,
 }: WordActionMenuProps) {
   const [isFetchingAudio, setIsFetchingAudio] = useState(false);
+  const [currentPhonetic, setCurrentPhonetic] = useState<string | undefined>(phonetic);
+  const [currentAudioUrl, setCurrentAudioUrl] = useState<string | undefined>(audioUrl);
+
+  useEffect(() => {
+    setCurrentPhonetic(phonetic);
+  }, [phonetic]);
+
+  useEffect(() => {
+    setCurrentAudioUrl(audioUrl);
+  }, [audioUrl]);
 
   const markText = missedLabel?.mark ?? 'Mark as Missed';
   const unmarkText = missedLabel?.unmark ?? 'Remove from Missed';
@@ -122,6 +135,13 @@ export const WordActionMenu = memo(function WordActionMenu({
 
       const data = await res.json();
       if (data?.audioUrl) {
+        if (data.phonetic) {
+          setCurrentPhonetic(data.phonetic);
+        }
+        if (data.audioUrl) {
+          setCurrentAudioUrl(data.audioUrl);
+        }
+
         // 1. Play audio immediately
         try {
           const { playWordAudio } = await import('@/lib/sound');
@@ -192,7 +212,7 @@ export const WordActionMenu = memo(function WordActionMenu({
       position={position}
       shadow="md"
       radius="md"
-      width={220}
+      width={currentPhonetic ? 240 : 220}
       withinPortal={withinPortal}
       withArrow
       trigger="click-hover"
@@ -232,7 +252,35 @@ export const WordActionMenu = memo(function WordActionMenu({
       </Menu.Target>
 
       <Menu.Dropdown>
-        <Menu.Label>Word Actions</Menu.Label>
+        <Menu.Label style={{ padding: '6px 10px 4px' }}>
+          <Group justify="space-between" align="center" wrap="nowrap" gap="xs">
+            <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.04em' }}>
+              WORD ACTIONS
+            </span>
+            {currentPhonetic && (
+              <Badge
+                variant="light"
+                color="indigo"
+                size="xs"
+                radius="sm"
+                style={{
+                  fontFamily: 'monospace',
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  fontSize: '11px',
+                  letterSpacing: 'normal',
+                  maxWidth: 135,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  flexShrink: 0,
+                }}
+                title={currentPhonetic}
+              >
+                {currentPhonetic}
+              </Badge>
+            )}
+          </Group>
+        </Menu.Label>
 
         {hasSpeak && (
           <Menu.Item
@@ -247,7 +295,7 @@ export const WordActionMenu = memo(function WordActionMenu({
               onSpeak?.();
             }}
           >
-            {audioUrl ? 'Play Audio (MW)' : 'Speak Pronunciation'}
+            {currentAudioUrl ? 'Play Audio (MW)' : 'Speak Pronunciation'}
           </Menu.Item>
         )}
 
@@ -256,7 +304,7 @@ export const WordActionMenu = memo(function WordActionMenu({
             leftSection={
               isFetchingAudio ? (
                 <Loader size={14} color="blue" />
-              ) : audioUrl ? (
+              ) : currentAudioUrl ? (
                 <IconRefresh size={16} color="var(--mantine-color-blue-6)" />
               ) : (
                 <IconDownload size={16} color="var(--mantine-color-blue-6)" />
@@ -268,7 +316,7 @@ export const WordActionMenu = memo(function WordActionMenu({
           >
             {isFetchingAudio
               ? 'Fetching audio...'
-              : audioUrl
+              : currentAudioUrl
                 ? 'Re-fetch MW Audio'
                 : 'Fetch MW Audio'}
           </Menu.Item>
