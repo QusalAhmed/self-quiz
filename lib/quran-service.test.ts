@@ -45,6 +45,10 @@ jest.mock('./db', () => ({
                 inMemoryVerses[selector.id] = { ...inMemoryVerses[selector.id], ...patchData };
                 return Promise.resolve();
               }),
+              incrementalPatch: jest.fn().mockImplementation((patchData: any) => {
+                inMemoryVerses[selector.id] = { ...inMemoryVerses[selector.id], ...patchData };
+                return Promise.resolve();
+              }),
             });
           }),
         })),

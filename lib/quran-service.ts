@@ -362,19 +362,34 @@ export async function addBatchQuranVerses(
   return results;
 }
 
+async function safePatchDoc(doc: any, patchData: Record<string, any>): Promise<void> {
+  if (!doc) {
+    return;
+  }
+  if (typeof doc.incrementalPatch === 'function') {
+    await doc.incrementalPatch(patchData);
+  } else if (typeof doc.patch === 'function') {
+    await doc.patch(patchData);
+  }
+}
+
 /**
  * Deletes a Quran verse (soft delete)
  */
 export async function deleteQuranVerseRecord(id: string): Promise<void> {
-  const db = await getDatabase();
-  const doc = await db.quranVerses.findOne({ selector: { id } }).exec();
   const now = new Date().toISOString();
+  try {
+    const db = await getDatabase();
+    const doc = await db.quranVerses.findOne({ selector: { id } }).exec();
 
-  if (doc) {
-    await doc.patch({
-      isDeleted: true,
-      updatedAt: now,
-    });
+    if (doc) {
+      await safePatchDoc(doc, {
+        isDeleted: true,
+        updatedAt: now,
+      });
+    }
+  } catch (err) {
+    console.warn(`Failed to mark Quran verse as deleted locally (${id}):`, err);
   }
 
   void safeSupabaseSync(() =>
@@ -386,16 +401,21 @@ export async function deleteQuranVerseRecord(id: string): Promise<void> {
  * Toggles a verse between active and paused status
  */
 export async function toggleQuranVerseStatus(id: string, active: boolean): Promise<void> {
-  const db = await getDatabase();
-  const doc = await db.quranVerses.findOne({ selector: { id } }).exec();
   const now = new Date().toISOString();
   const newStatus = active ? 'active' : 'paused';
 
-  if (doc) {
-    await doc.patch({
-      status: newStatus,
-      updatedAt: now,
-    });
+  try {
+    const db = await getDatabase();
+    const doc = await db.quranVerses.findOne({ selector: { id } }).exec();
+
+    if (doc) {
+      await safePatchDoc(doc, {
+        status: newStatus,
+        updatedAt: now,
+      });
+    }
+  } catch (err) {
+    console.warn(`Failed to toggle Quran verse status locally (${id}):`, err);
   }
 
   void safeSupabaseSync(() =>
@@ -407,19 +427,26 @@ export async function toggleQuranVerseStatus(id: string, active: boolean): Promi
  * Updates status when an API call succeeds
  */
 export async function recordVerseFetchSuccess(id: string): Promise<void> {
-  const db = await getDatabase();
-  const doc = await db.quranVerses.findOne({ selector: { id } }).exec();
   const now = new Date().toISOString();
+  let updatedCount = 1;
 
-  if (doc) {
-    const currentCount = doc.viewCount || 0;
-    await doc.patch({
-      status: 'active',
-      viewCount: currentCount + 1,
-      lastViewedAt: now,
-      lastError: '',
-      updatedAt: now,
-    });
+  try {
+    const db = await getDatabase();
+    const doc = await db.quranVerses.findOne({ selector: { id } }).exec();
+
+    if (doc) {
+      const currentCount = doc.viewCount || 0;
+      updatedCount = currentCount + 1;
+      await safePatchDoc(doc, {
+        status: 'active',
+        viewCount: updatedCount,
+        lastViewedAt: now,
+        lastError: '',
+        updatedAt: now,
+      });
+    }
+  } catch (err) {
+    console.warn(`Failed to record Quran verse fetch success locally (${id}):`, err);
   }
 
   void safeSupabaseSync(() =>
@@ -427,7 +454,7 @@ export async function recordVerseFetchSuccess(id: string): Promise<void> {
       .from('quran_verses')
       .update({
         status: 'active',
-        view_count: (doc?.viewCount || 0) + 1,
+        view_count: updatedCount,
         last_viewed_at: now,
         last_error: null,
         updated_at: now,
@@ -440,16 +467,21 @@ export async function recordVerseFetchSuccess(id: string): Promise<void> {
  * Updates status when an API call fails
  */
 export async function recordVerseFetchError(id: string, errorMessage: string): Promise<void> {
-  const db = await getDatabase();
-  const doc = await db.quranVerses.findOne({ selector: { id } }).exec();
   const now = new Date().toISOString();
 
-  if (doc) {
-    await doc.patch({
-      status: 'error',
-      lastError: errorMessage,
-      updatedAt: now,
-    });
+  try {
+    const db = await getDatabase();
+    const doc = await db.quranVerses.findOne({ selector: { id } }).exec();
+
+    if (doc) {
+      await safePatchDoc(doc, {
+        status: 'error',
+        lastError: errorMessage,
+        updatedAt: now,
+      });
+    }
+  } catch (err) {
+    console.warn(`Failed to record Quran verse fetch error locally (${id}):`, err);
   }
 
   void safeSupabaseSync(() =>

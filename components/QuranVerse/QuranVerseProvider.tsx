@@ -172,7 +172,11 @@ export function QuranVerseProvider({ children }: { children: React.ReactNode }) 
           (effectiveEnd && effectiveEnd > verse
             ? `${chapter}:${verse}-${effectiveEnd}`
             : `${chapter}:${verse}`);
-        await recordVerseFetchSuccess(id);
+        try {
+          await recordVerseFetchSuccess(id);
+        } catch (dbErr) {
+          console.warn('Could not record verse fetch success in DB:', dbErr);
+        }
         void loadVerses();
       } catch (err: any) {
         console.error(`Failed to fetch verse ${chapter}:${verse}:`, err);
@@ -265,7 +269,11 @@ export function QuranVerseProvider({ children }: { children: React.ReactNode }) 
         setCurrentVerseData(payload);
 
         // Record success in database
-        await recordVerseFetchSuccess(targetRecord.id);
+        try {
+          await recordVerseFetchSuccess(targetRecord.id);
+        } catch (dbErr) {
+          console.warn('Could not record verse fetch success in DB:', dbErr);
+        }
 
         // Sound notification if enabled
         if (quranSettings.soundNotification && settings.audio.notificationSoundsEnabled) {
