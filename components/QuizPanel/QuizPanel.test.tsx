@@ -139,4 +139,40 @@ describe('QuizPanel component', () => {
     fireEvent.click(undoButtons[0]);
     expect(handleUndo).toHaveBeenCalledTimes(1);
   });
+
+  it('renders word action menu button and opens dropdown with actions', () => {
+    const handleEdit = jest.fn();
+    const handleMarkMissed = jest.fn();
+
+    render(
+      <QuizPanel
+        item={mockItem}
+        quizDirection="wordToMeaning"
+        revealed={false}
+        onReveal={jest.fn()}
+        onMarkMissed={handleMarkMissed}
+        isMarkedMissed={false}
+        onNext={jest.fn()}
+        onPrevious={jest.fn()}
+        completed={false}
+        hasPrevious={false}
+        currentIndex={0}
+        totalCount={5}
+        onEditClick={handleEdit}
+      />
+    );
+
+    expect(screen.getAllByText('ephemeral').length).toBeGreaterThan(0);
+    const menuButtons = screen.getAllByRole('button', { name: /actions for ephemeral/i });
+    expect(menuButtons.length).toBeGreaterThan(0);
+
+    fireEvent.click(menuButtons[0]);
+    expect(screen.getByText('Speak Pronunciation')).toBeInTheDocument();
+    expect(screen.getByText('Copy word')).toBeInTheDocument();
+    expect(screen.getByText('Edit Word')).toBeInTheDocument();
+    expect(screen.getByText('Mark as Missed')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Edit Word'));
+    expect(handleEdit).toHaveBeenCalledWith('word-1');
+  });
 });

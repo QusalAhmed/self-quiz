@@ -3,7 +3,6 @@ import {
   Button,
   Card,
   Collapse,
-  CopyButton,
   Divider,
   Group,
   Kbd,
@@ -23,16 +22,11 @@ import {
 import {
   IconArrowBackUp,
   IconAward,
-  IconBookmark,
-  IconBookmarkOff,
   IconBrain,
-  IconCheck,
   IconChevronDown,
   IconChevronLeft,
   IconChevronRight,
   IconChevronUp,
-  IconCopy,
-  IconEdit,
   IconNotes,
   IconRotateClockwise,
   IconTrash,
@@ -44,7 +38,7 @@ import { quizDirections } from '@/app/home/constants';
 import { DefinitionsDisplay } from '@/components/DefinitionsDisplay/DefinitionsDisplay';
 import { RATING_BUTTON_INFO } from '@/components/FsrsReview';
 import { RichNoteViewer } from '@/components/RichNoteViewer/RichNoteViewer';
-import { WordActionIcon } from '@/components/WordActions/WordActionIcon';
+import { WordActionIcon, WordActionMenu } from '@/components/WordActions';
 import { WordFamilySection } from '@/components/WordFamily/WordFamilySection';
 import type { FsrsRecord, WordDefinition, WordFamilyMemberRecord } from '@/lib/db';
 import { normalizeDefinitions } from '@/lib/definitions';
@@ -600,23 +594,6 @@ export const QuizPanel = memo(function QuizPanel({
       </Group>
     ) : null;
 
-  const markMissedAction = (
-    <WordActionIcon
-      label={isMarkedMissed ? 'Marked as missed (click to unmark)' : 'Mark as missed'}
-      color={isMarkedMissed ? 'red' : 'gray'}
-      variant={isMarkedMissed ? 'light' : 'subtle'}
-      size="lg"
-      onClick={onMarkMissed}
-      withArrow={false}
-    >
-      {isMarkedMissed ? (
-        <IconBookmark size={20} style={{ fill: 'currentColor' }} />
-      ) : (
-        <IconBookmarkOff size={20} />
-      )}
-    </WordActionIcon>
-  );
-
   // Review rating bar — shown after reveal in review mode (Anki + RemNote inspired)
   const srsRatingButtons =
     srsMode && revealed && onSrsRate ? (
@@ -836,55 +813,25 @@ export const QuizPanel = memo(function QuizPanel({
             {item.phonetic}
           </Badge>
         )}
-        <Group gap={6}>
-          <WordActionIcon
-            label={item.audioUrl ? 'Play Merriam-Webster pronunciation' : 'Speak pronunciation'}
-            color={isPlayingAudio ? 'indigo' : 'gray'}
-            size="lg"
-            onClick={() => handleSpeak(item.word, item.audioUrl)}
-            withArrow={false}
-          >
-            <IconVolume size={20} />
-          </WordActionIcon>
-          <CopyButton value={item.word} timeout={2000}>
-            {({ copied, copy }) => (
-              <WordActionIcon
-                label={copied ? 'Copied word to clipboard!' : 'Copy word'}
-                color={copied ? 'teal' : 'gray'}
-                variant={copied ? 'light' : 'subtle'}
-                size="lg"
-                onClick={copy}
-                withArrow={false}
-              >
-                {copied ? <IconCheck size={20} /> : <IconCopy size={20} />}
-              </WordActionIcon>
-            )}
-          </CopyButton>
-          {onEditClick && (
-            <WordActionIcon
-              label="Edit word"
-              size="lg"
-              onClick={() => {
-                const baseId = item.id.includes(':') ? item.id.split(':')[0] : item.id;
-                onEditClick(baseId);
-              }}
-              withArrow={false}
-            >
-              <IconEdit size={20} />
-            </WordActionIcon>
-          )}
-          {onDeleteFsrsRecord && (
-            <WordActionIcon
-              label="Delete FSRS record for this quiz mode"
-              color="red"
-              onClick={() => setConfirmDeleteFsrsOpened(true)}
-              withArrow={false}
-            >
-              <IconTrash size={20} />
-            </WordActionIcon>
-          )}
-          {includeMissed && markMissedAction}
-        </Group>
+        <WordActionMenu
+          word={item.word}
+          audioUrl={item.audioUrl}
+          phonetic={item.phonetic}
+          onSpeak={() => handleSpeak(item.word, item.audioUrl)}
+          isPlayingAudio={isPlayingAudio}
+          onEdit={
+            onEditClick
+              ? () => {
+                  const baseId = item.id.includes(':') ? item.id.split(':')[0] : item.id;
+                  onEditClick(baseId);
+                }
+              : undefined
+          }
+          isMissed={isMarkedMissed}
+          onToggleMissed={includeMissed ? onMarkMissed : undefined}
+          onDeleteFsrs={onDeleteFsrsRecord ? () => setConfirmDeleteFsrsOpened(true) : undefined}
+          size="lg"
+        />
       </Group>
     </Stack>
   );

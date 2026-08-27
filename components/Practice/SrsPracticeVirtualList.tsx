@@ -1,17 +1,9 @@
-import { Badge, Button, CopyButton, Group, Text } from '@mantine/core';
-import {
-  IconBookmark,
-  IconBookmarkOff,
-  IconCheck,
-  IconCopy,
-  IconEdit,
-  IconEye,
-  IconVolume,
-} from '@tabler/icons-react';
+import { Badge, Button, Group, Text } from '@mantine/core';
+import { IconEye } from '@tabler/icons-react';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { DefinitionsDisplay } from '@/components/DefinitionsDisplay/DefinitionsDisplay';
-import { WordActionIcon } from '@/components/WordActions/WordActionIcon';
+import { WordActionMenu } from '@/components/WordActions';
 import { WordFamilySection } from '@/components/WordFamily/WordFamilySection';
 import type { SrsPracticeRecord, WordDefinition, WordFamilyMemberRecord } from '@/lib/db';
 
@@ -182,51 +174,27 @@ export const SrsPracticeVirtualList = memo(function SrsPracticeVirtualList({
                       )}
                     </Group>
 
-                    <Group gap={4} style={{ flexShrink: 0 }}>
-                      <WordActionIcon
-                        label="Listen to pronunciation"
-                        onClick={() => speakWord(word.word)}
-                      >
-                        <IconVolume size={16} />
-                      </WordActionIcon>
-                      <CopyButton value={word.word} timeout={2000}>
-                        {({ copied, copy }) => (
-                          <WordActionIcon
-                            label={copied ? 'Copied word to clipboard!' : 'Copy word'}
-                            color={copied ? 'teal' : 'gray'}
-                            variant={copied ? 'light' : 'subtle'}
-                            onClick={copy}
-                          >
-                            {copied ? <IconCheck size={16} /> : <IconCopy size={16} />}
-                          </WordActionIcon>
-                        )}
-                      </CopyButton>
-                      {onEditClick && (
-                        <WordActionIcon
-                          label="Edit word"
-                          onClick={() => {
-                            const baseId =
-                              word.wordId ||
-                              (word.id.includes(':') ? word.id.split(':')[0] : word.id);
-                            onEditClick(baseId);
-                          }}
-                        >
-                          <IconEdit size={16} />
-                        </WordActionIcon>
-                      )}
-                      <WordActionIcon
-                        label={missed ? 'Marked as missed (click to remove)' : 'Add to missed list'}
-                        color={missed ? 'red' : 'gray'}
-                        variant={missed ? 'light' : 'subtle'}
-                        onClick={() => onToggleMissed(word)}
-                      >
-                        {missed ? (
-                          <IconBookmark size={16} style={{ fill: 'currentColor' }} />
-                        ) : (
-                          <IconBookmarkOff size={16} />
-                        )}
-                      </WordActionIcon>
-                    </Group>
+                    <WordActionMenu
+                      word={word.word}
+                      onSpeak={() => speakWord(word.word)}
+                      onEdit={
+                        onEditClick
+                          ? () => {
+                              const baseId =
+                                word.wordId ||
+                                (word.id.includes(':') ? word.id.split(':')[0] : word.id);
+                              onEditClick(baseId);
+                            }
+                          : undefined
+                      }
+                      isMissed={missed}
+                      onToggleMissed={() => onToggleMissed(word)}
+                      missedLabel={{
+                        mark: 'Add to missed list',
+                        unmark: 'Remove from missed list',
+                      }}
+                      size="sm"
+                    />
                   </div>
 
                   <Text size="xs" c="dimmed" mb={6}>
