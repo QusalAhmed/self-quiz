@@ -3,6 +3,7 @@
 export const DAILY_USAGE_TICK_EVENT = 'self_quiz_daily_usage_tick';
 export const DAILY_USAGE_STATUS_EVENT = 'self_quiz_daily_usage_status';
 export const DAILY_USAGE_STORAGE_KEY = 'self_quiz_daily_usage_today_seconds_v1';
+export const DAILY_USAGE_DATE_STORAGE_KEY = 'self_quiz_daily_usage_today_date_v1';
 
 export interface DailyUsageTickDetail {
   secondsToday: number;
@@ -21,14 +22,22 @@ let inMemoryIsActive = true;
 /**
  * Returns current in-memory / persisted daily study usage state
  */
-export function getDailyUsageState(): { secondsToday: number; isActive: boolean } {
+export function getDailyUsageState(): { secondsToday: number; isActive: boolean; date: string } {
+  const todayDate = new Date().toLocaleDateString('en-CA');
   if (typeof window !== 'undefined') {
     try {
-      const stored = localStorage.getItem(DAILY_USAGE_STORAGE_KEY);
-      if (stored !== null) {
-        const parsed = parseInt(stored, 10);
-        if (!Number.isNaN(parsed) && parsed >= 0) {
-          inMemoryDailyUsageSeconds = Math.max(inMemoryDailyUsageSeconds, parsed);
+      const storedDate = localStorage.getItem(DAILY_USAGE_DATE_STORAGE_KEY);
+      if (storedDate && storedDate !== todayDate) {
+        inMemoryDailyUsageSeconds = 0;
+        localStorage.setItem(DAILY_USAGE_DATE_STORAGE_KEY, todayDate);
+        localStorage.setItem(DAILY_USAGE_STORAGE_KEY, '0');
+      } else {
+        const stored = localStorage.getItem(DAILY_USAGE_STORAGE_KEY);
+        if (stored !== null) {
+          const parsed = parseInt(stored, 10);
+          if (!Number.isNaN(parsed) && parsed >= 0) {
+            inMemoryDailyUsageSeconds = Math.max(inMemoryDailyUsageSeconds, parsed);
+          }
         }
       }
     } catch {}
@@ -36,6 +45,7 @@ export function getDailyUsageState(): { secondsToday: number; isActive: boolean 
   return {
     secondsToday: inMemoryDailyUsageSeconds,
     isActive: inMemoryIsActive,
+    date: todayDate,
   };
 }
 
@@ -47,15 +57,16 @@ export function setDailyUsageState(
   isActive: boolean = true,
   date?: string
 ): void {
+  const todayDate = date || new Date().toLocaleDateString('en-CA');
   inMemoryDailyUsageSeconds = Math.max(0, secondsToday);
   inMemoryIsActive = isActive;
 
   if (typeof window !== 'undefined') {
     try {
+      localStorage.setItem(DAILY_USAGE_DATE_STORAGE_KEY, todayDate);
       localStorage.setItem(DAILY_USAGE_STORAGE_KEY, String(inMemoryDailyUsageSeconds));
     } catch {}
 
-    const todayDate = date || new Date().toLocaleDateString('en-CA');
     window.dispatchEvent(
       new CustomEvent<DailyUsageTickDetail>(DAILY_USAGE_TICK_EVENT, {
         detail: {

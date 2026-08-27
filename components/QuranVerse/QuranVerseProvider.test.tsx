@@ -417,4 +417,23 @@ describe('QuranVerseProvider - Recurring Cycle & Active Modal Protection', () =>
       expect(screen.getByTestId('modal-status').textContent).toBe('OPEN');
     });
   });
+
+  it('does NOT pop up verse modal on page reload / refresh when countdown has remaining time', async () => {
+    const today = new Date().toLocaleDateString('en-CA');
+    localStorage.setItem('self_quiz_quran_last_shown_date_v1', today);
+    localStorage.setItem(STORAGE_LAST_SHOWN_USAGE_SECONDS_KEY, '500');
+    setDailyUsageState(600, true, today);
+
+    render(
+      <QuranVerseProvider>
+        <TestConsumer />
+      </QuranVerseProvider>
+    );
+
+    // Modal should remain CLOSED on page mount/refresh
+    expect(screen.getByTestId('modal-status').textContent).toBe('CLOSED');
+
+    // Remaining countdown = (500 + 900) - 600 = 800 seconds
+    expect(screen.getByTestId('countdown-seconds').textContent).toBe('800');
+  });
 });

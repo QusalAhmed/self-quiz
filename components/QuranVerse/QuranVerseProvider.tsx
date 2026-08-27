@@ -52,6 +52,7 @@ const QuranVerseContext = createContext<QuranVerseContextType | null>(null);
 
 export const STORAGE_LAST_SHOWN_KEY = 'self_quiz_quran_popup_last_shown_v1';
 export const STORAGE_LAST_SHOWN_USAGE_SECONDS_KEY = 'self_quiz_quran_last_shown_usage_seconds_v1';
+export const STORAGE_LAST_SHOWN_DATE_KEY = 'self_quiz_quran_last_shown_date_v1';
 export const STORAGE_SNOOZED_VERSE_ID_KEY = 'self_quiz_quran_popup_snoozed_verse_id_v1';
 
 export function QuranVerseProvider({ children }: { children: React.ReactNode }) {
@@ -82,13 +83,26 @@ export function QuranVerseProvider({ children }: { children: React.ReactNode }) 
       return intervalSeconds;
     }
     try {
+      const todayDate = new Date().toLocaleDateString('en-CA');
       const currentUsage = getDailyUsageState().secondsToday;
-      const stored = localStorage.getItem(STORAGE_LAST_SHOWN_USAGE_SECONDS_KEY);
-      let lastShown = stored !== null ? parseInt(stored, 10) : currentUsage;
-      if (Number.isNaN(lastShown) || currentUsage < lastShown) {
-        lastShown = currentUsage;
-        localStorage.setItem(STORAGE_LAST_SHOWN_USAGE_SECONDS_KEY, String(lastShown));
+      const storedDate = localStorage.getItem(STORAGE_LAST_SHOWN_DATE_KEY);
+      const storedUsageStr = localStorage.getItem(STORAGE_LAST_SHOWN_USAGE_SECONDS_KEY);
+
+      let lastShown = currentUsage;
+      if (storedDate && storedDate !== todayDate) {
+        lastShown = 0;
+        localStorage.setItem(STORAGE_LAST_SHOWN_DATE_KEY, todayDate);
+        localStorage.setItem(STORAGE_LAST_SHOWN_USAGE_SECONDS_KEY, '0');
+      } else if (storedUsageStr !== null) {
+        const parsed = parseInt(storedUsageStr, 10);
+        if (!Number.isNaN(parsed) && parsed >= 0) {
+          lastShown = parsed;
+        }
+      } else {
+        localStorage.setItem(STORAGE_LAST_SHOWN_DATE_KEY, todayDate);
+        localStorage.setItem(STORAGE_LAST_SHOWN_USAGE_SECONDS_KEY, String(currentUsage));
       }
+
       const target = lastShown + intervalSeconds;
       return Math.max(0, target - currentUsage);
     } catch {
@@ -117,11 +131,13 @@ export function QuranVerseProvider({ children }: { children: React.ReactNode }) 
   const resetTimer = useCallback(() => {
     const currentUsage = getDailyUsageState().secondsToday;
     const now = Date.now();
+    const todayDate = new Date().toLocaleDateString('en-CA');
     const intervalMinutes = Math.max(1, quranSettings.recurringIntervalMinutes || 15);
     const intervalSeconds = intervalMinutes * 60;
 
     try {
       localStorage.setItem(STORAGE_LAST_SHOWN_KEY, String(now));
+      localStorage.setItem(STORAGE_LAST_SHOWN_DATE_KEY, todayDate);
       localStorage.setItem(STORAGE_LAST_SHOWN_USAGE_SECONDS_KEY, String(currentUsage));
     } catch {}
 
@@ -281,8 +297,10 @@ export function QuranVerseProvider({ children }: { children: React.ReactNode }) 
         }
 
         // Record last shown daily usage seconds in localStorage and reset countdown
+        const todayDate = new Date().toLocaleDateString('en-CA');
         try {
           localStorage.setItem(STORAGE_LAST_SHOWN_KEY, String(now));
+          localStorage.setItem(STORAGE_LAST_SHOWN_DATE_KEY, todayDate);
           localStorage.setItem(STORAGE_LAST_SHOWN_USAGE_SECONDS_KEY, String(currentUsage));
         } catch {}
         setCountdownSeconds(intervalSeconds);
@@ -295,8 +313,10 @@ export function QuranVerseProvider({ children }: { children: React.ReactNode }) 
           await recordVerseFetchError(currentVerseRecord.id, err?.message || 'Network error');
         }
         // "If api call fails, try next again in next cycle."
+        const todayDate = new Date().toLocaleDateString('en-CA');
         try {
           localStorage.setItem(STORAGE_LAST_SHOWN_KEY, String(now));
+          localStorage.setItem(STORAGE_LAST_SHOWN_DATE_KEY, todayDate);
           localStorage.setItem(STORAGE_LAST_SHOWN_USAGE_SECONDS_KEY, String(currentUsage));
         } catch {}
         setCountdownSeconds(intervalSeconds);
@@ -319,44 +339,60 @@ export function QuranVerseProvider({ children }: { children: React.ReactNode }) 
     }
 
     const intervalSeconds = Math.max(1, quranSettings.recurringIntervalMinutes || 15) * 60;
+    const getTodayDateString = () => new Date().toLocaleDateString('en-CA');
 
-    const evaluateAndSetRemaining = (currentUsageSecs: number) => {
+    const getStoredLastShownUsage = (currentUsageSecs: number): number => {
+      const todayDate = getTodayDateString();
+      try {
+        const storedDate = localStorage.getItem(STORAGE_LAST_SHOWN_DATE_KEY);
+        const storedUsageStr = localStorage.getItem(STORAGE_LAST_SHOWN_USAGE_SECONDS_KEY);
+
+        // Date rollover check
+        if (storedDate && storedDate !== todayDate) {
+          localStorage.setItem(STORAGE_LAST_SHOWN_DATE_KEY, todayDate);
+          localStorage.setItem(STORAGE_LAST_SHOWN_USAGE_SECONDS_KEY, '0');
+          return 0;
+        }
+
+        if (storedUsageStr === null) {
+          localStorage.setItem(STORAGE_LAST_SHOWN_DATE_KEY, todayDate);
+          localStorage.setItem(STORAGE_LAST_SHOWN_USAGE_SECONDS_KEY, String(currentUsageSecs));
+          return currentUsageSecs;
+        }
+
+        const parsed = parseInt(storedUsageStr, 10);
+        if (Number.isNaN(parsed) || parsed < 0) {
+          localStorage.setItem(STORAGE_LAST_SHOWN_DATE_KEY, todayDate);
+          localStorage.setItem(STORAGE_LAST_SHOWN_USAGE_SECONDS_KEY, String(currentUsageSecs));
+          return currentUsageSecs;
+        }
+
+        return parsed;
+      } catch {
+        return currentUsageSecs;
+      }
+    };
+
+    const evaluateAndSetRemaining = (currentUsageSecs: number, isLiveTick: boolean = false) => {
       if (typeof window === 'undefined' || !quranSettings.enabled) {
         return;
       }
 
-      let lastShown = 0;
-      try {
-        const stored = localStorage.getItem(STORAGE_LAST_SHOWN_USAGE_SECONDS_KEY);
-        if (stored !== null) {
-          lastShown = parseInt(stored, 10);
-        } else {
-          lastShown = currentUsageSecs;
-          localStorage.setItem(STORAGE_LAST_SHOWN_USAGE_SECONDS_KEY, String(lastShown));
-        }
-      } catch {
-        lastShown = currentUsageSecs;
-      }
-
-      // Midnight rollover or invalid value check
-      if (Number.isNaN(lastShown) || currentUsageSecs < lastShown) {
-        lastShown = currentUsageSecs;
-        try {
-          localStorage.setItem(STORAGE_LAST_SHOWN_USAGE_SECONDS_KEY, String(lastShown));
-        } catch {}
-      }
-
+      const todayDate = getTodayDateString();
+      const lastShown = getStoredLastShownUsage(currentUsageSecs);
       const targetUsage = lastShown + intervalSeconds;
       const remainingSecs = Math.max(0, targetUsage - currentUsageSecs);
 
       setCountdownSeconds(remainingSecs);
       setNextVerseTimestamp(Date.now() + remainingSecs * 1000);
 
-      if (remainingSecs <= 0) {
+      // Only trigger automatic modal popup on an active live tick when remaining time reaches 0
+      if (isLiveTick && remainingSecs <= 0) {
         // If modal is currently active, defer to next cycle
         if (isModalOpenRef.current) {
           try {
             localStorage.setItem(STORAGE_LAST_SHOWN_KEY, String(Date.now()));
+            localStorage.setItem(STORAGE_LAST_SHOWN_DATE_KEY, todayDate);
             localStorage.setItem(STORAGE_LAST_SHOWN_USAGE_SECONDS_KEY, String(currentUsageSecs));
           } catch {}
           setCountdownSeconds(intervalSeconds);
@@ -369,16 +405,16 @@ export function QuranVerseProvider({ children }: { children: React.ReactNode }) 
       }
     };
 
-    // Initial evaluation from current daily usage state
+    // Initial evaluation from current daily usage state without auto-triggering modal on page load
     const initialState = getDailyUsageState();
     setIsStudyTimerActive(initialState.isActive);
-    evaluateAndSetRemaining(initialState.secondsToday);
+    evaluateAndSetRemaining(initialState.secondsToday, false);
 
     const handleTick = (event: Event) => {
       const customEvent = event as CustomEvent<DailyUsageTickDetail>;
       if (customEvent.detail) {
         setIsStudyTimerActive(customEvent.detail.isActive);
-        evaluateAndSetRemaining(customEvent.detail.secondsToday);
+        evaluateAndSetRemaining(customEvent.detail.secondsToday, true);
       }
     };
 
@@ -405,6 +441,7 @@ export function QuranVerseProvider({ children }: { children: React.ReactNode }) 
   const snoozeVerse = useCallback(
     (customMinutes?: number) => {
       const now = Date.now();
+      const todayDate = new Date().toLocaleDateString('en-CA');
       const validCustomMinutes =
         typeof customMinutes === 'number' && Number.isFinite(customMinutes) && customMinutes > 0
           ? Math.round(customMinutes)
@@ -426,6 +463,7 @@ export function QuranVerseProvider({ children }: { children: React.ReactNode }) 
 
       try {
         localStorage.setItem(STORAGE_LAST_SHOWN_KEY, String(now));
+        localStorage.setItem(STORAGE_LAST_SHOWN_DATE_KEY, todayDate);
         localStorage.setItem(STORAGE_LAST_SHOWN_USAGE_SECONDS_KEY, String(effectiveLastShown));
       } catch {}
 
