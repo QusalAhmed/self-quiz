@@ -34,6 +34,7 @@ export type WordActionMenuProps = {
   variant?: ActionIconProps['variant'];
   color?: ActionIconProps['color'];
   radius?: ActionIconProps['radius'];
+  iconSize?: number;
   position?: MenuProps['position'];
   withinPortal?: boolean;
   style?: React.CSSProperties;
@@ -54,6 +55,7 @@ export const WordActionMenu = memo(function WordActionMenu({
   variant = 'subtle',
   color = 'gray',
   radius = 'md',
+  iconSize,
   position = 'bottom-end',
   withinPortal = true,
   style,
@@ -67,7 +69,19 @@ export const WordActionMenu = memo(function WordActionMenu({
   const hasMissed = Boolean(onToggleMissed);
   const hasDeleteFsrs = Boolean(onDeleteFsrs);
 
-  const iconDimension = size === 'lg' ? 22 : size === 'sm' ? 16 : size === 'xs' ? 14 : 18;
+  const iconDimension =
+    iconSize ??
+    (size === 'xl'
+      ? 38
+      : size === 'lg'
+        ? 30
+        : size === 'md'
+          ? 24
+          : size === 'sm'
+            ? 20
+            : size === 'xs'
+              ? 16
+              : 24);
 
   return (
     <Menu
@@ -103,6 +117,8 @@ export const WordActionMenu = memo(function WordActionMenu({
               style={{
                 width: iconDimension,
                 height: iconDimension,
+                maxWidth: '100%',
+                maxHeight: '100%',
                 objectFit: 'contain',
                 display: 'block',
               }}

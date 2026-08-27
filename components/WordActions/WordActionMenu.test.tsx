@@ -8,12 +8,22 @@ describe('WordActionMenu component', () => {
   });
 
   it('renders target action icon button with appropriate aria-label and action.png icon', () => {
-    render(<WordActionMenu word="ephemeral" />);
+    render(<WordActionMenu word="ephemeral" size="lg" />);
     const button = screen.getByRole('button', { name: /actions for ephemeral/i });
     expect(button).toBeInTheDocument();
     const img = button.querySelector('img');
     expect(img).toBeInTheDocument();
     expect(img).toHaveAttribute('src', '/icon/action.png');
+    expect(img).toHaveAttribute('width', '30');
+    expect(img).toHaveAttribute('height', '30');
+  });
+
+  it('respects custom iconSize prop', () => {
+    render(<WordActionMenu word="ephemeral" iconSize={36} />);
+    const button = screen.getByRole('button', { name: /actions for ephemeral/i });
+    const img = button.querySelector('img');
+    expect(img).toHaveAttribute('width', '36');
+    expect(img).toHaveAttribute('height', '36');
   });
 
   it('opens menu with action items when clicked and triggers callbacks', () => {
