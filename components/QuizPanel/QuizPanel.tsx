@@ -499,8 +499,25 @@ export const QuizPanel = memo(function QuizPanel({
             </Text>
           </Stack>
 
-          {onRestart && totalCount > 0 && (
-            <Group justify="center" mt="md">
+          <Group justify="center" mt="md" gap="md" wrap="wrap">
+            {canUndo && onUndo && (
+              <Button
+                variant="light"
+                color="grape"
+                size="md"
+                radius="md"
+                leftSection={<IconArrowBackUp size={18} />}
+                onClick={() => {
+                  onUndo();
+                  positionQuizSection();
+                }}
+                style={{ fontWeight: 800 }}
+              >
+                Undo Rating
+              </Button>
+            )}
+
+            {onRestart && totalCount > 0 && (
               <Button
                 onClick={onRestart}
                 className="btn-premium btn-pulse"
@@ -510,8 +527,8 @@ export const QuizPanel = memo(function QuizPanel({
               >
                 Restart Session
               </Button>
-            </Group>
-          )}
+            )}
+          </Group>
         </Stack>
       </Card>
     );

@@ -6,7 +6,7 @@ import {
   IconConfetti,
   IconRotateClockwise,
 } from '@tabler/icons-react';
-import React from 'react';
+import React, { useEffect } from 'react';
 
 export type FsrsCompletionStateProps = {
   reviewedCount: number;
@@ -23,6 +23,31 @@ export function FsrsCompletionState({
   canUndo,
   onUndo,
 }: FsrsCompletionStateProps) {
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const activeTag = document.activeElement?.tagName.toLowerCase();
+      if (
+        activeTag === 'input' ||
+        activeTag === 'textarea' ||
+        document.activeElement?.hasAttribute('contenteditable')
+      ) {
+        return;
+      }
+
+      if (
+        canUndo &&
+        onUndo &&
+        (event.key === 'z' || event.key === 'Z' || event.key === 'u' || event.key === 'U')
+      ) {
+        event.preventDefault();
+        onUndo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [canUndo, onUndo]);
+
   return (
     <Card
       radius="24px"
@@ -144,7 +169,7 @@ export function FsrsCompletionState({
               onClick={onUndo}
               style={{ fontWeight: 700 }}
             >
-              Undo Last Rating
+              Undo Rating
             </Button>
           )}
 
