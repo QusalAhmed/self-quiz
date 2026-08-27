@@ -4,6 +4,7 @@ import {
   ActionIcon,
   type ActionIconProps,
   CopyButton,
+  Loader,
   Menu,
   type MenuProps,
   Tooltip,
@@ -13,14 +14,18 @@ import {
   IconBookmarkOff,
   IconCheck,
   IconCopy,
+  IconDownload,
   IconEdit,
+  IconRefresh,
   IconTrash,
   IconVolume,
 } from '@tabler/icons-react';
-import React, { memo } from 'react';
+import React, { memo, useState } from 'react';
+import { appNotifications } from '@/lib/notifications';
 
 export type WordActionMenuProps = {
   word: string;
+  wordId?: string;
   audioUrl?: string;
   phonetic?: string;
   isPlayingAudio?: boolean;
@@ -30,6 +35,9 @@ export type WordActionMenuProps = {
   onToggleMissed?: () => void;
   missedLabel?: { mark?: string; unmark?: string };
   onDeleteFsrs?: () => void;
+  onFetchAudio?: (word: string, wordId?: string) => Promise<void> | void;
+  onAudioUpdated?: (audioUrl: string, phonetic?: string) => void;
+  showFetchAudio?: boolean;
   size?: ActionIconProps['size'];
   variant?: ActionIconProps['variant'];
   color?: ActionIconProps['color'];
@@ -43,6 +51,7 @@ export type WordActionMenuProps = {
 
 export const WordActionMenu = memo(function WordActionMenu({
   word,
+  wordId,
   audioUrl,
   isPlayingAudio = false,
   onSpeak,
@@ -51,16 +60,21 @@ export const WordActionMenu = memo(function WordActionMenu({
   onToggleMissed,
   missedLabel,
   onDeleteFsrs,
+  onFetchAudio,
+  onAudioUpdated,
+  showFetchAudio = true,
   size = 'md',
   variant = 'subtle',
   color = 'gray',
   radius = 'md',
   iconSize,
-  position = 'bottom-end',
+  position = 'bottom',
   withinPortal = true,
   style,
   ariaLabel,
 }: WordActionMenuProps) {
+  const [isFetchingAudio, setIsFetchingAudio] = useState(false);
+
   const markText = missedLabel?.mark ?? 'Mark as Missed';
   const unmarkText = missedLabel?.unmark ?? 'Remove from Missed';
 
@@ -68,6 +82,96 @@ export const WordActionMenu = memo(function WordActionMenu({
   const hasEdit = Boolean(onEdit);
   const hasMissed = Boolean(onToggleMissed);
   const hasDeleteFsrs = Boolean(onDeleteFsrs);
+
+  const handleFetchAudio = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isFetchingAudio) {
+      return;
+    }
+
+    if (onFetchAudio) {
+      try {
+        setIsFetchingAudio(true);
+        await onFetchAudio(word, wordId);
+      } finally {
+        setIsFetchingAudio(false);
+      }
+      return;
+    }
+
+    const cleanWord = word.trim();
+    if (!cleanWord) {
+      return;
+    }
+
+    setIsFetchingAudio(true);
+    try {
+      const res = await fetch('/api/pronounce', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ word: cleanWord }),
+      });
+
+      if (!res.ok) {
+        appNotifications.error({
+          title: 'Fetch Audio Failed',
+          message: `Server returned status ${res.status}`,
+        });
+        return;
+      }
+
+      const data = await res.json();
+      if (data?.audioUrl) {
+        // 1. Play audio immediately
+        try {
+          const { playWordAudio } = await import('@/lib/sound');
+          void playWordAudio(data.audioUrl);
+        } catch {}
+
+        // 2. Persist to RxDB if wordId or word is available
+        try {
+          const { getDatabase } = await import('@/lib/db');
+          const db = await getDatabase();
+          let doc = null;
+          if (wordId) {
+            const cleanId = wordId.includes(':') ? wordId.split(':')[0] : wordId;
+            doc = await db.words.findOne(cleanId).exec();
+          }
+          if (!doc) {
+            doc = await db.words.findOne({ selector: { word: cleanWord.toLowerCase() } }).exec();
+          }
+          if (doc) {
+            await doc.patch({
+              audioUrl: data.audioUrl,
+              ...(data.phonetic ? { phonetic: data.phonetic } : {}),
+              updatedAt: new Date().toISOString(),
+            });
+          }
+        } catch (dbErr) {
+          console.warn('Could not persist fetched audio to RxDB:', dbErr);
+        }
+
+        onAudioUpdated?.(data.audioUrl, data.phonetic);
+
+        appNotifications.success({
+          title: 'Audio Found',
+          message: `Merriam-Webster audio for "${cleanWord}" saved!`,
+        });
+      } else {
+        appNotifications.warning({
+          title: 'No Audio Found',
+          message: `No Merriam-Webster audio available for "${cleanWord}".`,
+        });
+      }
+    } catch (err: any) {
+      appNotifications.error({
+        title: 'Error',
+        message: err?.message || 'Failed to fetch audio pronunciation',
+      });
+    } finally {
+      setIsFetchingAudio(false);
+    }
+  };
 
   const iconDimension =
     iconSize ??
@@ -144,6 +248,29 @@ export const WordActionMenu = memo(function WordActionMenu({
             }}
           >
             {audioUrl ? 'Play Audio (MW)' : 'Speak Pronunciation'}
+          </Menu.Item>
+        )}
+
+        {showFetchAudio && (
+          <Menu.Item
+            leftSection={
+              isFetchingAudio ? (
+                <Loader size={14} color="blue" />
+              ) : audioUrl ? (
+                <IconRefresh size={16} color="var(--mantine-color-blue-6)" />
+              ) : (
+                <IconDownload size={16} color="var(--mantine-color-blue-6)" />
+              )
+            }
+            disabled={isFetchingAudio}
+            closeMenuOnClick={false}
+            onClick={handleFetchAudio}
+          >
+            {isFetchingAudio
+              ? 'Fetching audio...'
+              : audioUrl
+                ? 'Re-fetch MW Audio'
+                : 'Fetch MW Audio'}
           </Menu.Item>
         )}
 

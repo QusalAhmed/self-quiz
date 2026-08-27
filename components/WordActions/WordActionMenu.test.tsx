@@ -91,6 +91,56 @@ describe('WordActionMenu component', () => {
     fireEvent.click(targetBtn);
 
     expect(screen.getByText('Play Audio (MW)')).toBeInTheDocument();
+    expect(screen.getByText('Re-fetch MW Audio')).toBeInTheDocument();
     expect(screen.getByText('Remove from Missed')).toBeInTheDocument();
+  });
+
+  it('displays Fetch MW Audio and triggers onFetchAudio when clicked', () => {
+    const handleFetch = jest.fn();
+
+    render(<WordActionMenu word="perspicacious" onFetchAudio={handleFetch} />);
+
+    const targetBtn = screen.getByRole('button', { name: /actions for perspicacious/i });
+    fireEvent.click(targetBtn);
+
+    const fetchBtn = screen.getByText('Fetch MW Audio');
+    expect(fetchBtn).toBeInTheDocument();
+
+    fireEvent.click(fetchBtn);
+    expect(handleFetch).toHaveBeenCalledTimes(1);
+    expect(handleFetch).toHaveBeenCalledWith('perspicacious', undefined);
+  });
+
+  it('displays Re-fetch MW Audio when audioUrl is present and calls onFetchAudio', () => {
+    const handleFetch = jest.fn();
+
+    render(
+      <WordActionMenu
+        word="perspicacious"
+        wordId="word-123"
+        audioUrl="https://example.com/audio.mp3"
+        onFetchAudio={handleFetch}
+      />
+    );
+
+    const targetBtn = screen.getByRole('button', { name: /actions for perspicacious/i });
+    fireEvent.click(targetBtn);
+
+    const refetchBtn = screen.getByText('Re-fetch MW Audio');
+    expect(refetchBtn).toBeInTheDocument();
+
+    fireEvent.click(refetchBtn);
+    expect(handleFetch).toHaveBeenCalledTimes(1);
+    expect(handleFetch).toHaveBeenCalledWith('perspicacious', 'word-123');
+  });
+
+  it('hides Fetch Audio item when showFetchAudio is false', () => {
+    render(<WordActionMenu word="perspicacious" showFetchAudio={false} />);
+
+    const targetBtn = screen.getByRole('button', { name: /actions for perspicacious/i });
+    fireEvent.click(targetBtn);
+
+    expect(screen.queryByText('Fetch MW Audio')).not.toBeInTheDocument();
+    expect(screen.queryByText('Re-fetch MW Audio')).not.toBeInTheDocument();
   });
 });

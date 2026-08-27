@@ -815,10 +815,19 @@ export const QuizPanel = memo(function QuizPanel({
         )}
         <WordActionMenu
           word={item.word}
+          wordId={item.id}
           audioUrl={item.audioUrl}
           phonetic={item.phonetic}
           onSpeak={() => handleSpeak(item.word, item.audioUrl)}
           isPlayingAudio={isPlayingAudio}
+          onAudioUpdated={(newAudioUrl, newPhonetic) => {
+            if (item) {
+              item.audioUrl = newAudioUrl;
+              if (newPhonetic) {
+                item.phonetic = newPhonetic;
+              }
+            }
+          }}
           onEdit={
             onEditClick
               ? () => {
