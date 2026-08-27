@@ -102,4 +102,59 @@ describe('DailyUsageTimer component', () => {
 
     expect(screen.getByText('Active')).toBeInTheDocument();
   });
+
+  it('pauses immediately when window loses focus (window blur) and resumes on window focus', async () => {
+    await act(async () => {
+      render(<DailyUsageTimer />);
+    });
+
+    expect(screen.getByText('Active')).toBeInTheDocument();
+
+    // User leaves the app window (e.g. alt-tab / switch to another app / click outside)
+    act(() => {
+      jest.spyOn(document, 'hasFocus').mockReturnValue(false);
+      fireEvent(window, new Event('blur'));
+    });
+
+    expect(screen.getByText('Idle (Paused)')).toBeInTheDocument();
+
+    // User returns to the app window
+    act(() => {
+      jest.spyOn(document, 'hasFocus').mockReturnValue(true);
+      fireEvent(window, new Event('focus'));
+    });
+
+    expect(screen.getByText('Active')).toBeInTheDocument();
+  });
+
+  it('stays paused on background events when window is blurred', async () => {
+    await act(async () => {
+      render(<DailyUsageTimer />);
+    });
+
+    expect(screen.getByText('Active')).toBeInTheDocument();
+
+    // Blur window
+    act(() => {
+      jest.spyOn(document, 'hasFocus').mockReturnValue(false);
+      fireEvent(window, new Event('blur'));
+    });
+
+    expect(screen.getByText('Idle (Paused)')).toBeInTheDocument();
+
+    // Event fired while unfocused should not mark it active
+    act(() => {
+      fireEvent.mouseMove(window);
+    });
+
+    expect(screen.getByText('Idle (Paused)')).toBeInTheDocument();
+
+    // Focusing window marks it active
+    act(() => {
+      jest.spyOn(document, 'hasFocus').mockReturnValue(true);
+      fireEvent(window, new Event('focus'));
+    });
+
+    expect(screen.getByText('Active')).toBeInTheDocument();
+  });
 });

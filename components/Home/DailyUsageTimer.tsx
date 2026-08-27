@@ -193,22 +193,53 @@ export function DailyUsageTimer() {
 
     const lastActivityTimeRef = { current: Date.now() };
     let wasActive = true;
+    let isWindowFocused = true;
+
+    const isAppFocusedAndVisible = () => {
+      if (typeof document === 'undefined') {
+        return true;
+      }
+      const isVisible = document.visibilityState === 'visible';
+      return isVisible && isWindowFocused;
+    };
 
     const updateActivity = () => {
-      lastActivityTimeRef.current = Date.now();
-      const isVisible =
-        typeof document !== 'undefined' ? document.visibilityState === 'visible' : true;
-      if (isVisible && !wasActive) {
-        wasActive = true;
-        setIsActive(true);
-        setDailyUsageStatus(true);
+      if (isAppFocusedAndVisible()) {
+        lastActivityTimeRef.current = Date.now();
+        if (!wasActive) {
+          wasActive = true;
+          setIsActive(true);
+          setDailyUsageStatus(true);
+        }
+      }
+    };
+
+    const handleBlur = () => {
+      isWindowFocused = false;
+      if (wasActive) {
+        wasActive = false;
+        setIsActive(false);
+        setDailyUsageStatus(false);
+        void flushUsageToDb();
+      }
+    };
+
+    const handleFocus = () => {
+      isWindowFocused = true;
+      if (isAppFocusedAndVisible()) {
+        lastActivityTimeRef.current = Date.now();
+        if (!wasActive) {
+          wasActive = true;
+          setIsActive(true);
+          setDailyUsageStatus(true);
+        }
       }
     };
 
     const handleVisibilityChange = () => {
       const isVisible =
         typeof document !== 'undefined' ? document.visibilityState === 'visible' : true;
-      if (isVisible) {
+      if (isVisible && isWindowFocused) {
         lastActivityTimeRef.current = Date.now();
         if (!wasActive) {
           wasActive = true;
@@ -221,10 +252,6 @@ export function DailyUsageTimer() {
         setDailyUsageStatus(false);
         void flushUsageToDb();
       }
-    };
-
-    const handleFocus = () => {
-      updateActivity();
     };
 
     const activityEvents = [
@@ -247,6 +274,7 @@ export function DailyUsageTimer() {
     });
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', handleFocus);
+    window.addEventListener('blur', handleBlur);
 
     // Timer interval: updates UI every 1s in memory, throttles DB saves to every SAVE_INTERVAL_SECS
     const intervalId = setInterval(() => {
@@ -283,10 +311,9 @@ export function DailyUsageTimer() {
         return;
       }
 
-      const isVisible =
-        typeof document !== 'undefined' ? document.visibilityState === 'visible' : true;
+      const hasFocusAndVisibility = isAppFocusedAndVisible();
       const idleTime = Date.now() - lastActivityTimeRef.current;
-      const currentlyActive = isVisible && idleTime < IDLE_THRESHOLD_MS;
+      const currentlyActive = hasFocusAndVisibility && idleTime < IDLE_THRESHOLD_MS;
 
       if (currentlyActive !== wasActive) {
         wasActive = currentlyActive;
@@ -323,6 +350,11 @@ export function DailyUsageTimer() {
 
     // Save immediately on page hide / unload
     const handlePageHide = () => {
+      if (wasActive) {
+        wasActive = false;
+        setIsActive(false);
+        setDailyUsageStatus(false);
+      }
       void flushUsageToDb();
     };
     window.addEventListener('pagehide', handlePageHide);
@@ -337,6 +369,7 @@ export function DailyUsageTimer() {
       });
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('blur', handleBlur);
       window.removeEventListener('pagehide', handlePageHide);
       window.removeEventListener('beforeunload', handlePageHide);
       clearInterval(intervalId);

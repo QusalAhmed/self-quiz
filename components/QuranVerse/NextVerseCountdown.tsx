@@ -96,6 +96,7 @@ export function RollingCountdownDisplay({
         gap={2}
         align="baseline"
         wrap="nowrap"
+        suppressHydrationWarning
         style={{ display: 'inline-flex', fontVariantNumeric: 'tabular-nums' }}
       >
         {hours > 0 && (
@@ -120,6 +121,7 @@ export function RollingCountdownDisplay({
       gap={4}
       align="baseline"
       wrap="nowrap"
+      suppressHydrationWarning
       style={{ display: 'inline-flex', fontVariantNumeric: 'tabular-nums' }}
     >
       {hours > 0 && <RollingNumber value={hours} suffix="h" />}
