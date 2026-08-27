@@ -99,12 +99,7 @@ export function StatsDashboard({
                 <RollingNumber value={fsrsDueTodayCount} thousandSeparator />
               </Text>
               {fsrsNextDueText && (
-                <Text
-                  size="xs"
-                  fw={800}
-                  c={fsrsDueTodayCount > 0 ? 'pink.6' : 'dimmed'}
-                  style={{ opacity: 0.95 }}
-                >
+                <Text size="xs" fw={800} c={'pink.6'} style={{ opacity: 0.95 }}>
                   • {fsrsNextDueText}
                 </Text>
               )}
