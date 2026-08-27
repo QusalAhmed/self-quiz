@@ -1,6 +1,13 @@
 'use client';
 
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import {
+  DAILY_USAGE_STATUS_EVENT,
+  DAILY_USAGE_TICK_EVENT,
+  getDailyUsageState,
+  type DailyUsageStatusDetail,
+  type DailyUsageTickDetail,
+} from '@/lib/daily-usage';
 import { type QuranVerseRecord } from '@/lib/db';
 import { appNotifications } from '@/lib/notifications';
 import { fetchVerseFromQuranApi, type FetchedVersePayload } from '@/lib/quran-api';
@@ -35,6 +42,7 @@ export interface QuranVerseContextType {
   // Countdown & Timer state
   countdownSeconds: number;
   nextVerseTimestamp: number | null;
+  isStudyTimerActive: boolean;
   isRecurringEnabled: boolean;
   recurringIntervalMinutes: number;
   resetTimer: () => void;
@@ -43,6 +51,7 @@ export interface QuranVerseContextType {
 const QuranVerseContext = createContext<QuranVerseContextType | null>(null);
 
 export const STORAGE_LAST_SHOWN_KEY = 'self_quiz_quran_popup_last_shown_v1';
+export const STORAGE_LAST_SHOWN_USAGE_SECONDS_KEY = 'self_quiz_quran_last_shown_usage_seconds_v1';
 export const STORAGE_SNOOZED_VERSE_ID_KEY = 'self_quiz_quran_popup_snoozed_verse_id_v1';
 
 export function QuranVerseProvider({ children }: { children: React.ReactNode }) {
@@ -58,17 +67,44 @@ export function QuranVerseProvider({ children }: { children: React.ReactNode }) 
   const [currentVerseRecord, setCurrentVerseRecord] = useState<QuranVerseRecord | null>(null);
   const [isLoadingModalVerse, setIsLoadingModalVerse] = useState<boolean>(false);
 
-  // Countdown & Timer State
+  // Active / Idle state from daily usage tracker
+  const [isStudyTimerActive, setIsStudyTimerActive] = useState<boolean>(
+    () => getDailyUsageState().isActive
+  );
+
+  // Countdown & Timer State based on active study seconds
   const [countdownSeconds, setCountdownSeconds] = useState<number>(() => {
     if (!quranSettings.enabled) {
       return 0;
     }
-    const intervalMinutes = Math.max(1, quranSettings.recurringIntervalMinutes || 15);
-    return intervalMinutes * 60;
+    const intervalSeconds = Math.max(1, quranSettings.recurringIntervalMinutes || 15) * 60;
+    if (typeof window === 'undefined') {
+      return intervalSeconds;
+    }
+    try {
+      const currentUsage = getDailyUsageState().secondsToday;
+      const stored = localStorage.getItem(STORAGE_LAST_SHOWN_USAGE_SECONDS_KEY);
+      let lastShown = stored !== null ? parseInt(stored, 10) : currentUsage;
+      if (Number.isNaN(lastShown) || currentUsage < lastShown) {
+        lastShown = currentUsage;
+        localStorage.setItem(STORAGE_LAST_SHOWN_USAGE_SECONDS_KEY, String(lastShown));
+      }
+      const target = lastShown + intervalSeconds;
+      return Math.max(0, target - currentUsage);
+    } catch {
+      return intervalSeconds;
+    }
   });
-  const [nextVerseTimestamp, setNextVerseTimestamp] = useState<number | null>(null);
 
-  // Keep a ref of isModalOpen so background timers and interval checks always read the freshest state
+  const [nextVerseTimestamp, setNextVerseTimestamp] = useState<number | null>(() => {
+    if (!quranSettings.enabled) {
+      return null;
+    }
+    const intervalSeconds = Math.max(1, quranSettings.recurringIntervalMinutes || 15) * 60;
+    return Date.now() + intervalSeconds * 1000;
+  });
+
+  // Keep a ref of isModalOpen so background events and checks always read the freshest state
   const isModalOpenRef = useRef<boolean>(false);
   useEffect(() => {
     isModalOpenRef.current = isModalOpen;
@@ -79,14 +115,18 @@ export function QuranVerseProvider({ children }: { children: React.ReactNode }) 
 
   // Manual timer reset
   const resetTimer = useCallback(() => {
+    const currentUsage = getDailyUsageState().secondsToday;
     const now = Date.now();
+    const intervalMinutes = Math.max(1, quranSettings.recurringIntervalMinutes || 15);
+    const intervalSeconds = intervalMinutes * 60;
+
     try {
       localStorage.setItem(STORAGE_LAST_SHOWN_KEY, String(now));
+      localStorage.setItem(STORAGE_LAST_SHOWN_USAGE_SECONDS_KEY, String(currentUsage));
     } catch {}
-    const intervalMinutes = Math.max(1, quranSettings.recurringIntervalMinutes || 15);
-    const intervalMs = intervalMinutes * 60 * 1000;
-    setCountdownSeconds(intervalMinutes * 60);
-    setNextVerseTimestamp(now + intervalMs);
+
+    setCountdownSeconds(intervalSeconds);
+    setNextVerseTimestamp(now + intervalSeconds * 1000);
   }, [quranSettings.recurringIntervalMinutes]);
 
   // Load / Seed Verses on Mount
@@ -154,17 +194,19 @@ export function QuranVerseProvider({ children }: { children: React.ReactNode }) 
   const showNextVerseNow = useCallback(
     async (options?: { force?: boolean }) => {
       const intervalMinutes = Math.max(1, quranSettings.recurringIntervalMinutes || 15);
-      const intervalMs = intervalMinutes * 60 * 1000;
+      const intervalSeconds = intervalMinutes * 60;
       const now = Date.now();
+      const currentUsage = getDailyUsageState().secondsToday;
 
       // Don't show second verse modal if first modal is already active unless explicitly forced
       if (isModalOpenRef.current && !options?.force) {
-        // Advance last shown timestamp so the next verse pops up in the next cycle
+        // Advance last shown daily usage seconds so next verse pops up after another full study cycle
         try {
           localStorage.setItem(STORAGE_LAST_SHOWN_KEY, String(now));
+          localStorage.setItem(STORAGE_LAST_SHOWN_USAGE_SECONDS_KEY, String(currentUsage));
         } catch {}
-        setCountdownSeconds(intervalMinutes * 60);
-        setNextVerseTimestamp(now + intervalMs);
+        setCountdownSeconds(intervalSeconds);
+        setNextVerseTimestamp(now + intervalSeconds * 1000);
         return;
       }
 
@@ -230,12 +272,13 @@ export function QuranVerseProvider({ children }: { children: React.ReactNode }) 
           playNotificationSound();
         }
 
-        // Record last shown timestamp in localStorage and reset countdown
+        // Record last shown daily usage seconds in localStorage and reset countdown
         try {
           localStorage.setItem(STORAGE_LAST_SHOWN_KEY, String(now));
+          localStorage.setItem(STORAGE_LAST_SHOWN_USAGE_SECONDS_KEY, String(currentUsage));
         } catch {}
-        setCountdownSeconds(intervalMinutes * 60);
-        setNextVerseTimestamp(now + intervalMs);
+        setCountdownSeconds(intervalSeconds);
+        setNextVerseTimestamp(now + intervalSeconds * 1000);
 
         void loadVerses();
       } catch (err: any) {
@@ -246,9 +289,10 @@ export function QuranVerseProvider({ children }: { children: React.ReactNode }) 
         // "If api call fails, try next again in next cycle."
         try {
           localStorage.setItem(STORAGE_LAST_SHOWN_KEY, String(now));
+          localStorage.setItem(STORAGE_LAST_SHOWN_USAGE_SECONDS_KEY, String(currentUsage));
         } catch {}
-        setCountdownSeconds(intervalMinutes * 60);
-        setNextVerseTimestamp(now + intervalMs);
+        setCountdownSeconds(intervalSeconds);
+        setNextVerseTimestamp(now + intervalSeconds * 1000);
         void loadVerses();
       } finally {
         setIsLoadingModalVerse(false);
@@ -258,7 +302,7 @@ export function QuranVerseProvider({ children }: { children: React.ReactNode }) 
     [currentVerseRecord, quranSettings, settings.audio.notificationSoundsEnabled, loadVerses]
   );
 
-  // Recurring Interval Timer Engine & Live Countdown (1-second tick)
+  // Subscribe to central Daily Usage Timer (pauses automatically on inactivity, runs NO extra timer)
   useEffect(() => {
     if (!quranSettings.enabled) {
       setCountdownSeconds(0);
@@ -266,46 +310,49 @@ export function QuranVerseProvider({ children }: { children: React.ReactNode }) 
       return;
     }
 
-    const intervalMinutes = Math.max(1, quranSettings.recurringIntervalMinutes || 15);
-    const intervalMs = intervalMinutes * 60 * 1000;
+    const intervalSeconds = Math.max(1, quranSettings.recurringIntervalMinutes || 15) * 60;
 
-    const tick = () => {
+    const evaluateAndSetRemaining = (currentUsageSecs: number) => {
       if (typeof window === 'undefined' || !quranSettings.enabled) {
         return;
       }
 
       let lastShown = 0;
       try {
-        const stored = localStorage.getItem(STORAGE_LAST_SHOWN_KEY);
-        if (stored) {
+        const stored = localStorage.getItem(STORAGE_LAST_SHOWN_USAGE_SECONDS_KEY);
+        if (stored !== null) {
           lastShown = parseInt(stored, 10);
+        } else {
+          lastShown = currentUsageSecs;
+          localStorage.setItem(STORAGE_LAST_SHOWN_USAGE_SECONDS_KEY, String(lastShown));
         }
-      } catch {}
-
-      const now = Date.now();
-      if (!lastShown) {
-        // First run: initialize timer for full cycle from now
-        try {
-          localStorage.setItem(STORAGE_LAST_SHOWN_KEY, String(now));
-        } catch {}
-        lastShown = now;
+      } catch {
+        lastShown = currentUsageSecs;
       }
 
-      const target = lastShown + intervalMs;
-      const remainingMs = target - now;
-      const remainingSecs = Math.max(0, Math.ceil(remainingMs / 1000));
+      // Midnight rollover or invalid value check
+      if (Number.isNaN(lastShown) || currentUsageSecs < lastShown) {
+        lastShown = currentUsageSecs;
+        try {
+          localStorage.setItem(STORAGE_LAST_SHOWN_USAGE_SECONDS_KEY, String(lastShown));
+        } catch {}
+      }
+
+      const targetUsage = lastShown + intervalSeconds;
+      const remainingSecs = Math.max(0, targetUsage - currentUsageSecs);
 
       setCountdownSeconds(remainingSecs);
-      setNextVerseTimestamp(target);
+      setNextVerseTimestamp(Date.now() + remainingSecs * 1000);
 
       if (remainingSecs <= 0) {
-        // If first modal is active, do not show second modal; defer to next cycle
+        // If modal is currently active, defer to next cycle
         if (isModalOpenRef.current) {
           try {
-            localStorage.setItem(STORAGE_LAST_SHOWN_KEY, String(now));
+            localStorage.setItem(STORAGE_LAST_SHOWN_KEY, String(Date.now()));
+            localStorage.setItem(STORAGE_LAST_SHOWN_USAGE_SECONDS_KEY, String(currentUsageSecs));
           } catch {}
-          setCountdownSeconds(intervalMinutes * 60);
-          setNextVerseTimestamp(now + intervalMs);
+          setCountdownSeconds(intervalSeconds);
+          setNextVerseTimestamp(Date.now() + intervalSeconds * 1000);
           return;
         }
 
@@ -314,13 +361,33 @@ export function QuranVerseProvider({ children }: { children: React.ReactNode }) 
       }
     };
 
-    // Run tick immediately on effect start
-    tick();
+    // Initial evaluation from current daily usage state
+    const initialState = getDailyUsageState();
+    setIsStudyTimerActive(initialState.isActive);
+    evaluateAndSetRemaining(initialState.secondsToday);
 
-    // Run tick every 1000ms
-    const intervalTimer = setInterval(tick, 1000);
+    const handleTick = (event: Event) => {
+      const customEvent = event as CustomEvent<DailyUsageTickDetail>;
+      if (customEvent.detail) {
+        setIsStudyTimerActive(customEvent.detail.isActive);
+        evaluateAndSetRemaining(customEvent.detail.secondsToday);
+      }
+    };
 
-    return () => clearInterval(intervalTimer);
+    const handleStatus = (event: Event) => {
+      const customEvent = event as CustomEvent<DailyUsageStatusDetail>;
+      if (customEvent.detail) {
+        setIsStudyTimerActive(customEvent.detail.isActive);
+      }
+    };
+
+    window.addEventListener(DAILY_USAGE_TICK_EVENT, handleTick);
+    window.addEventListener(DAILY_USAGE_STATUS_EVENT, handleStatus);
+
+    return () => {
+      window.removeEventListener(DAILY_USAGE_TICK_EVENT, handleTick);
+      window.removeEventListener(DAILY_USAGE_STATUS_EVENT, handleStatus);
+    };
   }, [quranSettings.enabled, quranSettings.recurringIntervalMinutes, showNextVerseNow]);
 
   const closeModal = useCallback(() => {
@@ -334,9 +401,10 @@ export function QuranVerseProvider({ children }: { children: React.ReactNode }) 
         typeof customMinutes === 'number' && Number.isFinite(customMinutes) && customMinutes > 0
           ? Math.round(customMinutes)
           : null;
-      const intervalMinutes =
+      const snoozeMinutes =
         validCustomMinutes ?? Math.max(1, quranSettings.recurringIntervalMinutes || 15);
-      const intervalMs = intervalMinutes * 60 * 1000;
+      const snoozeSeconds = snoozeMinutes * 60;
+      const intervalSeconds = Math.max(1, quranSettings.recurringIntervalMinutes || 15) * 60;
 
       if (currentVerseRecord?.id) {
         try {
@@ -344,17 +412,23 @@ export function QuranVerseProvider({ children }: { children: React.ReactNode }) 
         } catch {}
       }
 
+      const currentUsage = getDailyUsageState().secondsToday;
+      // Record effective last shown usage seconds so next countdown target equals currentUsage + snoozeSeconds
+      const effectiveLastShown = currentUsage + snoozeSeconds - intervalSeconds;
+
       try {
         localStorage.setItem(STORAGE_LAST_SHOWN_KEY, String(now));
+        localStorage.setItem(STORAGE_LAST_SHOWN_USAGE_SECONDS_KEY, String(effectiveLastShown));
       } catch {}
-      setCountdownSeconds(intervalMinutes * 60);
-      setNextVerseTimestamp(now + intervalMs);
+
+      setCountdownSeconds(snoozeSeconds);
+      setNextVerseTimestamp(now + snoozeSeconds * 1000);
       setIsModalOpen(false);
       appNotifications.info({
         title: 'Verse Reflection Snoozed',
-        message: `Next Quran verse will appear in ${intervalMinutes} minute${
-          intervalMinutes === 1 ? '' : 's'
-        }.`,
+        message: `Next Quran verse will appear in ${snoozeMinutes} minute${
+          snoozeMinutes === 1 ? '' : 's'
+        } of active study.`,
       });
     },
     [currentVerseRecord?.id, quranSettings.recurringIntervalMinutes]
@@ -380,6 +454,7 @@ export function QuranVerseProvider({ children }: { children: React.ReactNode }) 
         isLoadingModalVerse,
         countdownSeconds,
         nextVerseTimestamp,
+        isStudyTimerActive,
         isRecurringEnabled: Boolean(quranSettings.enabled),
         recurringIntervalMinutes: Math.max(1, quranSettings.recurringIntervalMinutes || 15),
         resetTimer,

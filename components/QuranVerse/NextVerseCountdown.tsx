@@ -147,6 +147,7 @@ export function NextVerseCountdown({
   const {
     countdownSeconds,
     isRecurringEnabled,
+    isStudyTimerActive,
     recurringIntervalMinutes,
     resetTimer,
     showNextVerseNow,
@@ -183,13 +184,18 @@ export function NextVerseCountdown({
       >
         <Group justify="space-between" align="flex-start">
           <Stack gap={4} style={{ flex: 1 }}>
-            <Group gap={6} align="center">
+            <Group gap={6} align="center" wrap="wrap">
               <Text size="xs" fw={700} c="dimmed" style={{ letterSpacing: '0.05em' }}>
                 NEXT POPUP COUNTDOWN
               </Text>
               {isRecurringEnabled && (
                 <Badge variant="dot" color="teal" size="xs">
                   {recurringIntervalMinutes}m
+                </Badge>
+              )}
+              {isRecurringEnabled && !isStudyTimerActive && (
+                <Badge variant="light" color="yellow" size="xs">
+                  Idle
                 </Badge>
               )}
             </Group>
@@ -314,6 +320,11 @@ export function NextVerseCountdown({
                 >
                   {isRecurringEnabled ? `Every ${recurringIntervalMinutes}m` : 'Paused'}
                 </Badge>
+                {isRecurringEnabled && !isStudyTimerActive && (
+                  <Badge variant="light" color="yellow" size="sm">
+                    Timer Paused (Idle)
+                  </Badge>
+                )}
               </Group>
 
               <Group gap="xs" align="baseline" wrap="wrap">
@@ -410,7 +421,9 @@ export function NextVerseCountdown({
     >
       {isRecurringEnabled ? (
         <Tooltip
-          label={`Next Quran verse reflection scheduled in ${formatCountdownHuman(countdownSeconds)} (Every ${recurringIntervalMinutes}m)`}
+          label={`Next Quran verse reflection scheduled in ${formatCountdownHuman(countdownSeconds)} (Every ${recurringIntervalMinutes}m${
+            isStudyTimerActive ? '' : ' • Paused while idle'
+          })`}
           position="bottom"
           withArrow
         >

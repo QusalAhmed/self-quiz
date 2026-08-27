@@ -3,6 +3,7 @@
 import { Badge, Card, Group, RollingNumber, Text, Tooltip } from '@mantine/core';
 import { IconClock } from '@tabler/icons-react';
 import { useEffect, useRef, useState } from 'react';
+import { getDailyUsageState, setDailyUsageState, setDailyUsageStatus } from '@/lib/daily-usage';
 import { getDatabase, type DailyUsageRecord } from '@/lib/db';
 
 const DEVICE_ID_KEY = 'self_quiz_device_id';
@@ -72,7 +73,7 @@ export const IDLE_THRESHOLD_MS = 30000;
 export function DailyUsageTimer() {
   const [mounted, setMounted] = useState(false);
   const [isActive, setIsActive] = useState(true);
-  const [secondsToday, setSecondsToday] = useState(0);
+  const [secondsToday, setSecondsToday] = useState<number>(() => getDailyUsageState().secondsToday);
 
   // Track active date to handle midnight rollover cleanly
   const currentDateRef = useRef(getTodayDateString());
@@ -158,6 +159,7 @@ export function DailyUsageTimer() {
           total += localSecondsRef.current;
         }
         setSecondsToday(total);
+        setDailyUsageState(total, isActive, targetDate);
       });
     } catch (err) {
       console.error('Failed to subscribe to daily usage RxDB query:', err);
@@ -199,6 +201,7 @@ export function DailyUsageTimer() {
       if (isVisible && !wasActive) {
         wasActive = true;
         setIsActive(true);
+        setDailyUsageStatus(true);
       }
     };
 
@@ -210,10 +213,12 @@ export function DailyUsageTimer() {
         if (!wasActive) {
           wasActive = true;
           setIsActive(true);
+          setDailyUsageStatus(true);
         }
       } else if (wasActive) {
         wasActive = false;
         setIsActive(false);
+        setDailyUsageStatus(false);
         void flushUsageToDb();
       }
     };
@@ -271,6 +276,7 @@ export function DailyUsageTimer() {
 
         // 3. Reset UI display
         setSecondsToday(0);
+        setDailyUsageState(0, true, nowToday);
 
         // 4. Switch RxDB live subscription to the new date
         void setupSubscriptionForDate(nowToday, deviceId);
@@ -285,6 +291,7 @@ export function DailyUsageTimer() {
       if (currentlyActive !== wasActive) {
         wasActive = currentlyActive;
         setIsActive(currentlyActive);
+        setDailyUsageStatus(currentlyActive);
         if (!currentlyActive) {
           void flushUsageToDb();
         }
@@ -304,6 +311,7 @@ export function DailyUsageTimer() {
         total += s;
       }
       setSecondsToday(total);
+      setDailyUsageState(total, true, nowToday);
 
       // Throttled persistence to DB / remote replication (every SAVE_INTERVAL_SECS)
       secondsSinceLastSaveRef.current += 1;

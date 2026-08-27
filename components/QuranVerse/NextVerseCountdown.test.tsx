@@ -13,6 +13,7 @@ const mockResetTimer = jest.fn();
 let mockContextValue = {
   countdownSeconds: 845,
   nextVerseTimestamp: Date.now() + 845000,
+  isStudyTimerActive: true,
   isRecurringEnabled: true,
   recurringIntervalMinutes: 15,
   resetTimer: mockResetTimer,
@@ -69,6 +70,7 @@ describe('NextVerseCountdown Component', () => {
     mockContextValue = {
       countdownSeconds: 845,
       nextVerseTimestamp: Date.now() + 845000,
+      isStudyTimerActive: true,
       isRecurringEnabled: true,
       recurringIntervalMinutes: 15,
       resetTimer: mockResetTimer,
@@ -127,5 +129,18 @@ describe('NextVerseCountdown Component', () => {
 
     render(<NextVerseCountdown variant="pill" />);
     expect(screen.getByText(/Popups Paused/i)).toBeInTheDocument();
+  });
+
+  it('renders idle pause indicator when user is inactive', () => {
+    mockContextValue = {
+      ...mockContextValue,
+      isStudyTimerActive: false,
+    };
+
+    render(<NextVerseCountdown variant="banner" />);
+    expect(screen.getByText(/Timer Paused \(Idle\)/i)).toBeInTheDocument();
+
+    render(<NextVerseCountdown variant="stat" />);
+    expect(screen.getByText('Idle')).toBeInTheDocument();
   });
 });

@@ -1,11 +1,13 @@
 import React from 'react';
+import { setDailyUsageState } from '@/lib/daily-usage';
 import { appNotifications } from '@/lib/notifications';
 import { fetchVerseFromQuranApi } from '@/lib/quran-api';
 import { ensureDefaultQuranVersesSeeded, recordVerseFetchSuccess } from '@/lib/quran-service';
-import { fireEvent, render, screen, waitFor } from '@/test-utils';
+import { act, fireEvent, render, screen, waitFor } from '@/test-utils';
 import {
   QuranVerseProvider,
   STORAGE_LAST_SHOWN_KEY,
+  STORAGE_LAST_SHOWN_USAGE_SECONDS_KEY,
   STORAGE_SNOOZED_VERSE_ID_KEY,
   useQuranVerse,
 } from './QuranVerseProvider';
@@ -173,6 +175,7 @@ function TestConsumer() {
 describe('QuranVerseProvider - Recurring Cycle & Active Modal Protection', () => {
   beforeEach(() => {
     localStorage.clear();
+    setDailyUsageState(0, true);
     jest.clearAllMocks();
   });
 
@@ -307,7 +310,7 @@ describe('QuranVerseProvider - Recurring Cycle & Active Modal Protection', () =>
     // Notification should properly show formatted string, not [object Object]
     expect(appNotifications.info).toHaveBeenCalledWith({
       title: 'Verse Reflection Snoozed',
-      message: 'Next Quran verse will appear in 20 minutes.',
+      message: expect.stringMatching(/20 minutes of active study/),
     });
 
     // Once displayed, the snoozed ID key is cleared from storage
@@ -335,7 +338,9 @@ describe('QuranVerseProvider - Recurring Cycle & Active Modal Protection', () =>
     expect(screen.getByTestId('modal-status').textContent).toBe('CLOSED');
     expect(appNotifications.info).toHaveBeenCalledWith({
       title: 'Verse Reflection Snoozed',
-      message: expect.stringMatching(/^Next Quran verse will appear in \d+ minutes\.$/),
+      message: expect.stringMatching(
+        /^Next Quran verse will appear in \d+ minutes of active study\.$/
+      ),
     });
     const callArg = (appNotifications.info as jest.Mock).mock.calls[0][0];
     expect(callArg.message).not.toContain('[object Object]');
@@ -358,5 +363,58 @@ describe('QuranVerseProvider - Recurring Cycle & Active Modal Protection', () =>
       beforeReset
     );
     expect(Number(screen.getByTestId('countdown-seconds').textContent)).toBe(900); // 15m * 60s
+  });
+
+  it('tracks daily usage time of previous verse and triggers next verse when target active time is reached', async () => {
+    localStorage.setItem(STORAGE_LAST_SHOWN_USAGE_SECONDS_KEY, '100');
+    setDailyUsageState(100, true);
+    render(
+      <QuranVerseProvider>
+        <TestConsumer />
+      </QuranVerseProvider>
+    );
+
+    // Initial tick with base usage seconds = 100
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent('self_quiz_daily_usage_tick', {
+          detail: { secondsToday: 100, isActive: true, date: '2026-08-27' },
+        })
+      );
+    });
+
+    // Countdown should now be 900 seconds (15m cycle: target 100 + 900 = 1000, current 100 => 900)
+    expect(screen.getByTestId('countdown-seconds').textContent).toBe('900');
+
+    // Simulate 300 active study seconds (secondsToday = 400 => remaining 1000 - 400 = 600)
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent('self_quiz_daily_usage_tick', {
+          detail: { secondsToday: 400, isActive: true, date: '2026-08-27' },
+        })
+      );
+    });
+
+    // Countdown should have decreased to 600 seconds (10m left)
+    expect(screen.getByTestId('countdown-seconds').textContent).toBe('600');
+
+    // While user is inactive/idle, NO ticks are emitted -> countdown remains paused at 600s
+    expect(screen.getByTestId('countdown-seconds').textContent).toBe('600');
+
+    (fetchVerseFromQuranApi as jest.Mock).mockClear();
+
+    // Now user resumes active study until target (secondsToday = 1000 => 100 + 900)
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent('self_quiz_daily_usage_tick', {
+          detail: { secondsToday: 1000, isActive: true, date: '2026-08-27' },
+        })
+      );
+    });
+
+    // Modal should now trigger automatically
+    await waitFor(() => {
+      expect(screen.getByTestId('modal-status').textContent).toBe('OPEN');
+    });
   });
 });
