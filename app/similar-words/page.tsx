@@ -16,6 +16,7 @@ import {
 import { IconCheck, IconSparkles, IconTopologyStarRing3 } from '@tabler/icons-react';
 import { useRouter } from 'next/navigation';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { GROUP_QUIZ_STORAGE_KEY, SIMILAR_CLUSTERS_CACHE_KEY } from '@/app/home/constants';
 import {
   type ClusterSortOption,
   SimilarWordClusterCard,
@@ -27,7 +28,7 @@ import {
 } from '@/components/SimilarWords';
 import { getDatabase, type WordRecord, type WordSimilarityRecord } from '@/lib/db';
 import { useAppDispatch } from '@/lib/redux/hooks';
-import { openAllWordsQuiz, setMode } from '@/lib/redux/slices/quizSlice';
+import { startGroupQuiz } from '@/lib/redux/slices/quizSlice';
 import { setupSupabaseReplication } from '@/lib/replication';
 import { clusterSimilarWords, type SimilarWordCluster } from '@/lib/similar-words/clustering';
 import { similarWordsEngine } from '@/lib/similar-words/engine';
@@ -129,9 +130,19 @@ export default function SimilarWordsPage() {
       recordsToCluster = records;
     }
 
-    return clusterSimilarWords(wordItems, recordsToCluster, {
+    const clusters = clusterSimilarWords(wordItems, recordsToCluster, {
       minScore: minScoreThreshold,
     });
+
+    if (clusters.length > 0 && typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(SIMILAR_CLUSTERS_CACHE_KEY, JSON.stringify(clusters));
+      } catch {
+        // ignore
+      }
+    }
+
+    return clusters;
   }, [words, similarityRecords, minScoreThreshold]);
 
   // Category Counts
@@ -273,15 +284,90 @@ export default function SimilarWordsPage() {
     setDetailModalOpen(true);
   }, []);
 
-  // Study / Practice Cluster Words Handler
+  // Study / Practice Specific Cluster Words Handler
   const handleStudyCluster = useCallback(
-    (_clusterWords: string[]) => {
-      dispatch(setMode('quiz'));
-      dispatch(openAllWordsQuiz());
-      router.push('/quiz');
+    (cluster: SimilarWordCluster) => {
+      const clusterContextData = {
+        clusterId: cluster.id,
+        clusterName: cluster.name,
+        clusterType: cluster.clusterType,
+        hubWord: cluster.hubWord,
+        words: cluster.words,
+        explanation: cluster.explanation,
+      };
+
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(
+            GROUP_QUIZ_STORAGE_KEY,
+            JSON.stringify({
+              quizSource: 'similarGroups',
+              selectedGroupId: cluster.id,
+              targetWordIds: cluster.wordIds,
+              clusterContext: clusterContextData,
+            })
+          );
+        } catch {
+          // ignore
+        }
+      }
+
+      dispatch(
+        startGroupQuiz({
+          wordIds: cluster.wordIds,
+          words: cluster.words,
+          clusterId: cluster.id,
+          clusterName: cluster.name,
+          clusterType: cluster.clusterType,
+          hubWord: cluster.hubWord,
+          explanation: cluster.explanation,
+        })
+      );
+      router.push(`/quiz?source=similarGroups&clusterId=${encodeURIComponent(cluster.id)}`);
     },
     [dispatch, router]
   );
+
+  // Study / Practice All Discovered Clustered Words Handler
+  const handleStudyAllClusters = useCallback(() => {
+    const allWordIds = Array.from(new Set(allClusters.flatMap((c) => c.wordIds)));
+    const allWordStrings = Array.from(new Set(allClusters.flatMap((c) => c.words)));
+    const clusterContextData = {
+      clusterId: 'all',
+      clusterName: 'All Clustered Words',
+      clusterType: 'all',
+      words: allWordStrings,
+      explanation: `Comprehensive quiz covering all ${allWordIds.length} words discovered across linguistic similarity groups.`,
+    };
+
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(
+          GROUP_QUIZ_STORAGE_KEY,
+          JSON.stringify({
+            quizSource: 'similarGroups',
+            selectedGroupId: 'all',
+            targetWordIds: allWordIds,
+            clusterContext: clusterContextData,
+          })
+        );
+      } catch {
+        // ignore
+      }
+    }
+
+    dispatch(
+      startGroupQuiz({
+        wordIds: allWordIds,
+        words: allWordStrings,
+        clusterId: 'all',
+        clusterName: 'All Clustered Words',
+        clusterType: 'all',
+        explanation: `Comprehensive quiz covering all ${allWordIds.length} words discovered across linguistic similarity groups.`,
+      })
+    );
+    router.push('/quiz?source=similarGroups&clusterId=all');
+  }, [allClusters, dispatch, router]);
 
   // Navigate Word Handler
   const handleNavigateWord = useCallback(
@@ -312,6 +398,7 @@ export default function SimilarWordsPage() {
           viewMode={viewMode}
           onViewModeChange={setViewMode}
           onRecomputeAll={handleRecomputeAll}
+          onStudyAllClusters={handleStudyAllClusters}
         />
 
         {/* Feedback Message */}

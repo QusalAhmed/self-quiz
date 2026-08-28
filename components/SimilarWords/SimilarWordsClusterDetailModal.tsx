@@ -27,7 +27,7 @@ export type SimilarWordsClusterDetailModalProps = {
   onClose: () => void;
   cluster: SimilarWordCluster | null;
   wordRecordsMap?: Map<string, WordRecord>;
-  onStudyCluster?: (words: string[]) => void;
+  onStudyCluster?: (cluster: SimilarWordCluster) => void;
   onNavigateWord?: (word: string) => void;
 };
 
@@ -250,7 +250,7 @@ export const SimilarWordsClusterDetailModal = React.memo(function SimilarWordsCl
               leftSection={<IconBrain size={14} />}
               onClick={() => {
                 onClose();
-                onStudyCluster(cluster.words);
+                onStudyCluster(cluster);
               }}
             >
               Practice Flashcards for this Group ({cluster.size} words)

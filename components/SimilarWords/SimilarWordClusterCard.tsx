@@ -40,7 +40,7 @@ export type SimilarWordClusterCardProps = {
   cluster: SimilarWordCluster;
   wordRecordsMap?: Map<string, WordRecord>;
   onInspectCluster: (cluster: SimilarWordCluster) => void;
-  onStudyCluster?: (words: string[]) => void;
+  onStudyCluster?: (cluster: SimilarWordCluster) => void;
   onNavigateWord?: (word: string) => void;
 };
 
@@ -362,7 +362,7 @@ export const SimilarWordClusterCard = React.memo(function SimilarWordClusterCard
                   color="teal"
                   radius="sm"
                   leftSection={<IconBrain size={14} />}
-                  onClick={() => onStudyCluster(cluster.words)}
+                  onClick={() => onStudyCluster(cluster)}
                 >
                   Study Quiz
                 </Button>

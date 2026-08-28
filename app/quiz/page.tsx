@@ -2,7 +2,13 @@
 
 import { Container, Stack } from '@mantine/core';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { type QuizDirectionKey, quizDirections } from '@/app/home/constants';
+import {
+  type QuizDirectionKey,
+  type QuizSourceKey,
+  quizDirections,
+  GROUP_QUIZ_STORAGE_KEY,
+  SIMILAR_CLUSTERS_CACHE_KEY,
+} from '@/app/home/constants';
 import {
   capitalizeWord,
   getMissingAiExampleDefinitionIndexes,
@@ -28,6 +34,7 @@ import {
   type WordDefinition,
   type WordFamilyMemberRecord,
   type WordRecord,
+  type WordSimilarityRecord,
 } from '@/lib/db';
 import { definitionsToMeaning, getWordDefinitions, normalizeDefinitions } from '@/lib/definitions';
 import { mergeAiExamples, normalizeAiExampleCount, normalizeAiExamples } from '@/lib/examples';
@@ -44,6 +51,7 @@ import { getActiveGroupNames, wordHasAnyGroup, wordHasGroup } from '@/lib/groups
 import { showQueueRefillNotification } from '@/lib/notifications';
 import { useAppDispatch, useAppSelector } from '@/lib/redux/hooks';
 import {
+  clearGroupQuiz,
   computePoolSignature,
   nextCard,
   openForgettingQuiz,
@@ -53,6 +61,7 @@ import {
   removeQuizItem,
   selectQuizState,
   setAutoPronounceQuizWord,
+  setClusterContext,
   setCustomEnd,
   setCustomStart,
   setHideMissedMeanings,
@@ -67,11 +76,15 @@ import {
   setRevealed,
   setRevealedMissedWordIds,
   setRevealedSrsPracticeWordIds,
+  setSelectedGroupId,
+  setTargetWordIds,
   syncQueueItems,
   undoQuizHistory,
   updateQuizItem,
 } from '@/lib/redux/slices/quizSlice';
 import { setupSupabaseReplication, type ReplicationsHolder } from '@/lib/replication';
+import { clusterSimilarWords } from '@/lib/similar-words/clustering';
+import { similarWordsEngine } from '@/lib/similar-words/engine';
 import { notifyFsrsQueueRefill, notifyWordSaved } from '@/lib/system-notifications';
 import { resolveWordTextFromMainTable } from '@/lib/word-display';
 import { buildWordFamilyId, type WordFamilyMember } from '@/lib/word-family';
@@ -91,6 +104,9 @@ export default function QuizPage() {
     autoPronounceQuizWord,
     hideMissedMeanings,
     hideSrsPracticeMeanings,
+    targetWordIds,
+    selectedGroupId,
+    clusterContext,
     revealedMissedWordIds,
     revealedSrsPracticeWordIds,
     queue: quizQueue,
@@ -108,6 +124,7 @@ export default function QuizPage() {
   const [groups, setGroups] = useState<GroupRecord[]>([]);
   const [missedWords, setMissedWords] = useState<MissedWordRecord[]>([]);
   const [fsrsRecords, setFsrsRecords] = useState<FsrsRecord[]>([]);
+  const [similarityRecords, setSimilarityRecords] = useState<WordSimilarityRecord[]>([]);
   const [wordFamilies, setWordFamilies] = useState<Record<string, WordFamilyMemberRecord[]>>({});
   const [generatingWordFamilyWordIds, setGeneratingWordFamilyWordIds] = useState<
     Record<string, boolean>
@@ -134,6 +151,243 @@ export default function QuizPage() {
   // Ensure mode is set to 'quiz' in Redux
   useEffect(() => {
     dispatch(setMode('quiz'));
+  }, [dispatch]);
+
+  // Recover Group Quiz from URL query params or localStorage upon page load / refresh
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const sourceParam = params.get('source');
+    const clusterIdParam = params.get('clusterId') || params.get('groupId');
+    const clusterNameParam = params.get('clusterName');
+
+    let savedState: any = null;
+    try {
+      const saved = localStorage.getItem(GROUP_QUIZ_STORAGE_KEY);
+      if (saved) {
+        savedState = JSON.parse(saved);
+      }
+    } catch (err) {
+      console.warn('Could not restore group quiz from localStorage:', err);
+    }
+
+    if (sourceParam === 'similarGroups' || clusterIdParam) {
+      dispatch(setQuizSource('similarGroups'));
+      const activeGroupId = clusterIdParam || savedState?.selectedGroupId || 'all';
+      dispatch(setSelectedGroupId(activeGroupId));
+
+      if (
+        savedState &&
+        savedState.quizSource === 'similarGroups' &&
+        (savedState.selectedGroupId === activeGroupId || activeGroupId === 'all')
+      ) {
+        if (savedState.targetWordIds && Array.isArray(savedState.targetWordIds)) {
+          dispatch(setTargetWordIds(savedState.targetWordIds));
+        }
+        if (savedState.clusterContext) {
+          dispatch(setClusterContext(savedState.clusterContext));
+        }
+      } else if (clusterNameParam) {
+        dispatch(
+          setClusterContext({
+            clusterId: activeGroupId,
+            clusterName: clusterNameParam,
+          })
+        );
+      }
+      return;
+    }
+
+    if (savedState && savedState.quizSource === 'similarGroups') {
+      dispatch(setQuizSource('similarGroups'));
+      if (savedState.selectedGroupId) {
+        dispatch(setSelectedGroupId(savedState.selectedGroupId));
+      }
+      if (savedState.targetWordIds && Array.isArray(savedState.targetWordIds)) {
+        dispatch(setTargetWordIds(savedState.targetWordIds));
+      }
+      if (savedState.clusterContext) {
+        dispatch(setClusterContext(savedState.clusterContext));
+      }
+    }
+  }, [dispatch]);
+
+  // Persist Group Quiz state to localStorage
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    if (quizSource === 'similarGroups') {
+      try {
+        const existingRaw = localStorage.getItem(GROUP_QUIZ_STORAGE_KEY);
+        const existing = existingRaw ? JSON.parse(existingRaw) : null;
+
+        const payload = {
+          quizSource: 'similarGroups',
+          selectedGroupId: selectedGroupId || existing?.selectedGroupId || 'all',
+          targetWordIds: targetWordIds ?? existing?.targetWordIds ?? null,
+          clusterContext: clusterContext ?? existing?.clusterContext ?? null,
+        };
+        localStorage.setItem(GROUP_QUIZ_STORAGE_KEY, JSON.stringify(payload));
+      } catch {
+        // ignore
+      }
+    } else {
+      try {
+        localStorage.removeItem(GROUP_QUIZ_STORAGE_KEY);
+      } catch {
+        // ignore
+      }
+    }
+  }, [quizSource, selectedGroupId, targetWordIds, clusterContext]);
+
+  // Compute all similar clusters for the database words (with cached fallback)
+  const allSimilarClusters = useMemo(() => {
+    const wordItems = words.map((w) => ({ id: w.id, word: w.word }));
+    let recordsToCluster: any[] = similarityRecords;
+    if (recordsToCluster.length === 0 && wordItems.length > 1) {
+      const { records } = similarWordsEngine.batchComputeAll(wordItems, 0.45);
+      recordsToCluster = records;
+    }
+
+    const computed = clusterSimilarWords(wordItems, recordsToCluster, { minScore: 0.45 });
+    if (computed.length > 0) {
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(SIMILAR_CLUSTERS_CACHE_KEY, JSON.stringify(computed));
+        } catch {
+          // ignore
+        }
+      }
+      return computed;
+    }
+
+    // Fallback to cached clusters in localStorage
+    if (typeof window !== 'undefined') {
+      try {
+        const cachedRaw = localStorage.getItem(SIMILAR_CLUSTERS_CACHE_KEY);
+        if (cachedRaw) {
+          const cached = JSON.parse(cachedRaw);
+          if (Array.isArray(cached) && cached.length > 0) {
+            return cached;
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    return [];
+  }, [words, similarityRecords]);
+
+  // Synchronize targetWordIds and clusterContext with computed clusters
+  useEffect(() => {
+    if (quizSource !== 'similarGroups' || allSimilarClusters.length === 0) {
+      return;
+    }
+
+    if (!selectedGroupId || selectedGroupId === 'all') {
+      const allClusteredWordIds = Array.from(new Set(allSimilarClusters.flatMap((c) => c.wordIds)));
+      const allWordsList = Array.from(new Set(allSimilarClusters.flatMap((c) => c.words)));
+      dispatch(setTargetWordIds(allClusteredWordIds));
+      dispatch(
+        setClusterContext({
+          clusterId: 'all',
+          clusterName: 'All Clustered Words',
+          clusterType: 'all_groups',
+          words: allWordsList,
+          explanation: `Comprehensive quiz across all ${allClusteredWordIds.length} words in ${allSimilarClusters.length} linguistic groups.`,
+        })
+      );
+      return;
+    }
+
+    const matched = allSimilarClusters.find(
+      (c) => c.id === selectedGroupId || c.name === selectedGroupId
+    );
+    if (matched) {
+      dispatch(setTargetWordIds(matched.wordIds));
+      dispatch(
+        setClusterContext({
+          clusterId: matched.id,
+          clusterName: matched.name,
+          clusterType: matched.clusterType,
+          hubWord: matched.hubWord,
+          words: matched.words,
+          explanation: matched.explanation,
+        })
+      );
+    }
+  }, [quizSource, selectedGroupId, allSimilarClusters, dispatch]);
+
+  const handleSetQuizSource = useCallback(
+    (source: QuizSourceKey) => {
+      dispatch(setQuizSource(source));
+      if (source === 'similarGroups') {
+        if (!selectedGroupId) {
+          dispatch(setSelectedGroupId('all'));
+        }
+        if (typeof window !== 'undefined') {
+          const url = new URL(window.location.href);
+          url.searchParams.set('source', 'similarGroups');
+          url.searchParams.set('clusterId', selectedGroupId || 'all');
+          window.history.replaceState({}, '', url.toString());
+        }
+      } else {
+        dispatch(setSelectedGroupId(null));
+        dispatch(setTargetWordIds(null));
+        dispatch(setClusterContext(null));
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.removeItem(GROUP_QUIZ_STORAGE_KEY);
+          } catch {
+            // ignore
+          }
+          const url = new URL(window.location.href);
+          url.searchParams.delete('source');
+          url.searchParams.delete('clusterId');
+          url.searchParams.delete('groupId');
+          window.history.replaceState({}, '', url.toString());
+        }
+      }
+    },
+    [dispatch, selectedGroupId]
+  );
+
+  const handleSetSelectedGroupId = useCallback(
+    (groupId: string | null) => {
+      dispatch(setSelectedGroupId(groupId));
+      if (typeof window !== 'undefined') {
+        const url = new URL(window.location.href);
+        if (groupId) {
+          url.searchParams.set('source', 'similarGroups');
+          url.searchParams.set('clusterId', groupId);
+        } else {
+          url.searchParams.delete('clusterId');
+        }
+        window.history.replaceState({}, '', url.toString());
+      }
+    },
+    [dispatch]
+  );
+
+  const handleClearGroupQuiz = useCallback(() => {
+    dispatch(clearGroupQuiz());
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem(GROUP_QUIZ_STORAGE_KEY);
+      } catch {
+        // ignore
+      }
+      const url = new URL(window.location.href);
+      url.searchParams.delete('source');
+      url.searchParams.delete('clusterId');
+      url.searchParams.delete('groupId');
+      window.history.replaceState({}, '', url.toString());
+    }
   }, [dispatch]);
 
   // Network & Replication Sync
@@ -349,6 +603,53 @@ export default function QuizPage() {
   );
 
   const quizCandidates = useMemo(() => {
+    // Similar Word Groups Quiz
+    if (quizSource === 'similarGroups') {
+      if (selectedGroupId && selectedGroupId !== 'all') {
+        const matchedCluster = allSimilarClusters.find(
+          (c) => c.id === selectedGroupId || c.name === selectedGroupId
+        );
+        if (matchedCluster) {
+          const idSet = new Set(matchedCluster.wordIds);
+          const textSet = new Set((matchedCluster.words || []).map((w: string) => w.toLowerCase()));
+          return words.filter((w) => idSet.has(w.id) || textSet.has(w.word.toLowerCase()));
+        }
+      }
+
+      if (targetWordIds && targetWordIds.length > 0) {
+        const targetIdSet = new Set(targetWordIds);
+        const targetWordTextSet = new Set(
+          (clusterContext?.words || []).map((w: string) => w.toLowerCase())
+        );
+        return words.filter(
+          (w) => targetIdSet.has(w.id) || targetWordTextSet.has(w.word.toLowerCase())
+        );
+      }
+
+      if (clusterContext?.words && clusterContext.words.length > 0) {
+        const textSet = new Set((clusterContext.words || []).map((w: string) => w.toLowerCase()));
+        return words.filter((w) => textSet.has(w.word.toLowerCase()));
+      }
+
+      // If all groups, filter to words belonging to any discovered cluster
+      const allClusterWordIds = new Set(allSimilarClusters.flatMap((c) => c.wordIds));
+      if (allClusterWordIds.size > 0) {
+        return words.filter((w) => allClusterWordIds.has(w.id));
+      }
+
+      return [];
+    }
+
+    // If targetWordIds are provided directly, constrain the pool to those target words
+    if (targetWordIds && targetWordIds.length > 0) {
+      const targetIdSet = new Set(targetWordIds);
+      const targetWordTextSet = new Set((clusterContext?.words || []).map((w) => w.toLowerCase()));
+
+      return words.filter(
+        (w) => targetIdSet.has(w.id) || targetWordTextSet.has(w.word.toLowerCase())
+      );
+    }
+
     if (quizSource === 'fsrsForgetting') {
       let candidates: (WordRecord | MissedWordRecord | FsrsRecord)[];
       if (practiceDisplayMode === 'fsrsAgain') {
@@ -463,6 +764,10 @@ export default function QuizPage() {
     customStart,
     customEnd,
     quizGroupFilter,
+    targetWordIds,
+    selectedGroupId,
+    clusterContext,
+    allSimilarClusters,
   ]);
 
   const getFsrsRecordForWord = useCallback(
@@ -483,6 +788,9 @@ export default function QuizPage() {
       customStart,
       customEnd,
       practiceDisplayMode,
+      targetWordIds,
+      selectedGroupId,
+      clusterContext,
     });
   }, [
     quizRange,
@@ -492,6 +800,9 @@ export default function QuizPage() {
     customStart,
     customEnd,
     practiceDisplayMode,
+    targetWordIds,
+    selectedGroupId,
+    clusterContext,
   ]);
 
   const resetQuiz = useCallback(() => {
@@ -744,6 +1055,7 @@ export default function QuizPage() {
     let missedSubscription: { unsubscribe: () => void } | null = null;
     let fsrsSubscription: { unsubscribe: () => void } | null = null;
     let wordFamilySubscription: { unsubscribe: () => void } | null = null;
+    let simSubscription: { unsubscribe: () => void } | null = null;
     let cleanupOnlineListener: (() => void) | null = null;
     let unsubscribeSyncState: (() => void) | null = null;
 
@@ -835,6 +1147,18 @@ export default function QuizPage() {
         setWordFamilies(map);
       });
 
+      if (db.wordSimilarities) {
+        simSubscription = db.wordSimilarities.find().$.subscribe((docs) => {
+          if (!isMounted) {
+            return;
+          }
+          const activeSims = docs
+            .map((doc) => doc.toJSON() as WordSimilarityRecord)
+            .filter((s) => !s.isDeleted);
+          setSimilarityRecords(activeSims);
+        });
+      }
+
       // Initialize automatic two-way Supabase replication
       const replications = setupSupabaseReplication(db);
       replicationsRef.current = replications;
@@ -871,6 +1195,7 @@ export default function QuizPage() {
       missedSubscription?.unsubscribe();
       fsrsSubscription?.unsubscribe();
       wordFamilySubscription?.unsubscribe();
+      simSubscription?.unsubscribe();
       cleanupOnlineListener?.();
       unsubscribeSyncState?.();
     };
@@ -1602,7 +1927,7 @@ export default function QuizPage() {
           hasRemovedWords={removedQuizItems.length > 0}
           removedWordsCount={removedQuizItems.length}
           onSetQuizRange={(value) => dispatch(setQuizRange(value))}
-          onSetQuizSource={(value) => dispatch(setQuizSource(value))}
+          onSetQuizSource={handleSetQuizSource}
           onSetQuizDirection={(value) => dispatch(setQuizDirection(value))}
           onSetQuizGroupFilter={(value) => dispatch(setQuizGroupFilter(value))}
           onSetCustomStart={(value) => dispatch(setCustomStart(value))}
@@ -1638,6 +1963,11 @@ export default function QuizPage() {
           onUndo={handleUndoQuiz}
           quizCandidates={quizCandidates}
           words={words}
+          clusterContext={clusterContext}
+          selectedGroupId={selectedGroupId}
+          onSetSelectedGroupId={handleSetSelectedGroupId}
+          similarClusters={allSimilarClusters}
+          onClearGroupQuiz={handleClearGroupQuiz}
         />
       </Stack>
 

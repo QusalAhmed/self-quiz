@@ -79,4 +79,81 @@ describe('QuizModeSection component', () => {
     fireEvent.click(refreshButton);
     expect(handleReset).toHaveBeenCalledTimes(1);
   });
+
+  it('renders Group Quiz banner and calls onClearGroupQuiz when Exit is clicked', () => {
+    const handleClearGroup = jest.fn();
+    render(
+      <QuizModeSection
+        {...baseProps}
+        clusterContext={{
+          clusterName: 'retail Family',
+          clusterType: 'word_family',
+          hubWord: 'retail',
+          explanation: 'Word family with suffix -er',
+        }}
+        onClearGroupQuiz={handleClearGroup}
+      />
+    );
+
+    expect(screen.getByText('Group Quiz: retail Family')).toBeInTheDocument();
+    expect(screen.getByText(/Word family with suffix -er/i)).toBeInTheDocument();
+
+    const exitBtn = screen.getByRole('button', { name: /exit group quiz/i });
+    fireEvent.click(exitBtn);
+    expect(handleClearGroup).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders Similar Word Group selection dropdown when quizSource is similarGroups', () => {
+    const handleSetGroup = jest.fn();
+    render(
+      <QuizModeSection
+        {...baseProps}
+        quizSource="similarGroups"
+        selectedGroupId="cluster-1"
+        similarClusters={[
+          {
+            id: 'cluster-1',
+            name: 'retail Family',
+            clusterType: 'word_family',
+            hubWord: 'retail',
+            hubWordId: 'w1',
+            words: ['retail', 'retailer', 'retailing'],
+            wordIds: ['w1', 'w2', 'w3'],
+            edges: [],
+            averageScore: 0.95,
+            maxScore: 0.95,
+            density: 1,
+            size: 3,
+            explanation: 'Word family',
+            sharedFeatures: {},
+          },
+        ]}
+        onSetSelectedGroupId={handleSetGroup}
+      />
+    );
+
+    expect(screen.getByText(/SELECT SIMILAR-WORD GROUP \/ CLUSTER/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 Groups Available/i)).toBeInTheDocument();
+  });
+
+  it('renders fallback cluster in select options when similarClusters is empty but clusterContext is active', () => {
+    render(
+      <QuizModeSection
+        {...baseProps}
+        quizSource="similarGroups"
+        selectedGroupId="cluster-trial-trail"
+        clusterContext={{
+          clusterId: 'cluster-trial-trail',
+          clusterName: 'trial ↔ trail Pair',
+          clusterType: 'transposition',
+          hubWord: 'trial',
+          words: ['trial', 'trail'],
+        }}
+        similarClusters={[]}
+      />
+    );
+
+    expect(screen.getByText(/SELECT SIMILAR-WORD GROUP \/ CLUSTER/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/trial ↔ trail Pair/i).length).toBeGreaterThanOrEqual(1);
+  });
 });

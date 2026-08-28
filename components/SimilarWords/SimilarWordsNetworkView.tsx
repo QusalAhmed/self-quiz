@@ -9,7 +9,7 @@ import type { SimilarWordCluster } from '@/lib/similar-words/clustering';
 export type SimilarWordsNetworkViewProps = {
   clusters: SimilarWordCluster[];
   onInspectCluster: (cluster: SimilarWordCluster) => void;
-  onStudyCluster?: (words: string[]) => void;
+  onStudyCluster?: (cluster: SimilarWordCluster) => void;
   onNavigateWord?: (word: string) => void;
 };
 
@@ -144,7 +144,7 @@ export const SimilarWordsNetworkView = React.memo(function SimilarWordsNetworkVi
                       size="xs"
                       variant="subtle"
                       color="teal"
-                      onClick={() => onStudyCluster(cluster.words)}
+                      onClick={() => onStudyCluster(cluster)}
                       leftSection={<IconBrain size={13} />}
                       style={{ fontSize: '11px', height: 22 }}
                     >

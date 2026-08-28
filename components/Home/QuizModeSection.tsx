@@ -8,11 +8,13 @@ import {
   Grid,
   Group,
   Indicator,
+  Paper,
   RollingNumber,
   Select,
   Stack,
   Text,
   TextInput,
+  ThemeIcon,
   Title,
   Tooltip,
 } from '@mantine/core';
@@ -29,7 +31,9 @@ import {
   IconRotateClockwise,
   IconSparkles,
   IconTarget,
+  IconTopologyStarRing3,
   IconVolume,
+  IconX,
 } from '@tabler/icons-react';
 import { useRouter } from 'next/navigation';
 import { memo, useMemo, useState, type ReactNode } from 'react';
@@ -130,6 +134,11 @@ type QuizModeSectionProps = {
     | QuizItem
   >;
   words?: import('@/lib/db').WordRecord[];
+  clusterContext?: import('@/lib/redux/slices/quizSlice').GroupQuizClusterContext | null;
+  selectedGroupId?: string | null;
+  onSetSelectedGroupId?: (groupId: string | null) => void;
+  similarClusters?: import('@/lib/similar-words/clustering').SimilarWordCluster[];
+  onClearGroupQuiz?: () => void;
 };
 
 export const QuizModeSection = memo(function QuizModeSection({
@@ -197,6 +206,11 @@ export const QuizModeSection = memo(function QuizModeSection({
   removedWordsCount: _removedWordsCount = 0,
   quizCandidates,
   words,
+  clusterContext,
+  selectedGroupId,
+  onSetSelectedGroupId,
+  similarClusters = [],
+  onClearGroupQuiz,
 }: QuizModeSectionProps) {
   const router = useRouter();
   const displayedMissedItems = useMemo(() => {
@@ -229,8 +243,113 @@ export const QuizModeSection = memo(function QuizModeSection({
     return new Map(words.map((w) => [w.id, w]));
   }, [words]);
 
+  const clusterSelectData = useMemo(() => {
+    const totalWords = similarClusters.reduce((acc, c) => acc + c.words.length, 0);
+    const options = [
+      {
+        value: 'all',
+        label: `✨ All Clustered Groups (${totalWords > 0 ? `${totalWords} words` : 'All Groups'})`,
+      },
+      ...similarClusters.map((c) => ({
+        value: c.id,
+        label: `${c.name} (${c.words.length} words • ${c.clusterType.replace('_', ' ')})`,
+      })),
+    ];
+
+    // If a specific group is selected via clusterContext or URL but not yet in similarClusters list, add it so the dropdown is NEVER empty!
+    if (
+      selectedGroupId &&
+      selectedGroupId !== 'all' &&
+      !options.some((opt) => opt.value === selectedGroupId)
+    ) {
+      const name = clusterContext?.clusterName || selectedGroupId;
+      const count = clusterContext?.words?.length ? ` (${clusterContext.words.length} words)` : '';
+      const type = clusterContext?.clusterType
+        ? ` • ${clusterContext.clusterType.replace('_', ' ')}`
+        : '';
+      options.splice(1, 0, {
+        value: selectedGroupId,
+        label: `${name}${count}${type}`,
+      });
+    }
+
+    return options;
+  }, [similarClusters, selectedGroupId, clusterContext]);
+
   return (
     <Stack gap="lg" style={{ minHeight: '100vh' }}>
+      {/* Group Quiz Active Banner */}
+      {clusterContext && (
+        <Paper
+          p="md"
+          radius="lg"
+          style={{
+            background:
+              'linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(168, 85, 247, 0.12) 100%)',
+            border: '1px solid rgba(99, 102, 241, 0.3)',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.04)',
+          }}
+        >
+          <Group justify="space-between" align="center" wrap="wrap" gap="sm">
+            <Group gap="sm" align="center">
+              <ThemeIcon
+                size="lg"
+                radius="md"
+                variant="gradient"
+                gradient={{ from: 'indigo', to: 'violet', deg: 135 }}
+              >
+                <IconTopologyStarRing3 size={20} />
+              </ThemeIcon>
+              <div>
+                <Group gap={8} align="center" wrap="wrap">
+                  <Text size="sm" fw={800} style={{ fontFamily: 'var(--font-title)' }}>
+                    Group Quiz: {clusterContext.clusterName}
+                  </Text>
+                  {clusterContext.clusterType && (
+                    <Badge size="xs" variant="light" color="indigo">
+                      {clusterContext.clusterType.replace('_', ' ')}
+                    </Badge>
+                  )}
+                  <Badge size="xs" variant="filled" color="indigo">
+                    {quizCandidatesCount} Words in Pool
+                  </Badge>
+                </Group>
+                {clusterContext.explanation && (
+                  <Text size="xs" c="dimmed" mt={2}>
+                    {clusterContext.explanation}
+                  </Text>
+                )}
+              </div>
+            </Group>
+
+            <Group gap="xs">
+              <Button
+                size="xs"
+                radius="md"
+                variant="light"
+                color="indigo"
+                leftSection={<IconRotateClockwise size={14} />}
+                onClick={onResetQuiz}
+              >
+                Restart Group Quiz
+              </Button>
+              {onClearGroupQuiz && (
+                <Button
+                  size="xs"
+                  radius="md"
+                  variant="subtle"
+                  color="red"
+                  leftSection={<IconX size={14} />}
+                  onClick={onClearGroupQuiz}
+                >
+                  Exit Group Quiz
+                </Button>
+              )}
+            </Group>
+          </Group>
+        </Paper>
+      )}
+
       <Card
         className="glass-panel"
         radius="lg"
@@ -250,12 +369,24 @@ export const QuizModeSection = memo(function QuizModeSection({
               <Text size="sm" fw={800} style={{ letterSpacing: '-0.01em' }}>
                 Quiz Settings
               </Text>
-              <Badge size="xs" variant="light" color="indigo">
-                {quizRanges[quizRange] || quizRange}
-              </Badge>
-              <Badge size="xs" variant="light" color="violet">
-                {quizSources[quizSource] || quizSource}
-              </Badge>
+              {quizSource === 'similarGroups' || clusterContext ? (
+                <Badge size="xs" variant="filled" color="indigo">
+                  🎯 Group:{' '}
+                  {clusterContext?.clusterName ||
+                    (selectedGroupId === 'all' || !selectedGroupId
+                      ? 'All Groups'
+                      : 'Similar Groups')}
+                </Badge>
+              ) : (
+                <>
+                  <Badge size="xs" variant="light" color="indigo">
+                    {quizRanges[quizRange] || quizRange}
+                  </Badge>
+                  <Badge size="xs" variant="light" color="violet">
+                    {quizSources[quizSource] || quizSource}
+                  </Badge>
+                </>
+              )}
               <Badge size="xs" variant="light" color="teal">
                 {quizDirections[quizDirection] || quizDirection}
               </Badge>
@@ -340,6 +471,37 @@ export const QuizModeSection = memo(function QuizModeSection({
                   />
                 </Grid.Col>
               </Grid>
+
+              {quizSource === 'similarGroups' && (
+                <div
+                  style={{
+                    borderRadius: '12px',
+                    border: '1px solid rgba(99,102,241,0.25)',
+                    background: 'rgba(99,102,241,0.06)',
+                    padding: '14px 16px',
+                  }}
+                >
+                  <Stack gap="xs">
+                    <Group justify="space-between" align="center" wrap="wrap">
+                      <Group gap="xs" align="center">
+                        <IconTopologyStarRing3 size={18} style={{ color: '#6366f1' }} />
+                        <Text size="xs" fw={700} c="indigo">
+                          SELECT SIMILAR-WORD GROUP / CLUSTER
+                        </Text>
+                      </Group>
+                      <Badge size="xs" variant="light" color="indigo">
+                        {similarClusters.length} Groups Available
+                      </Badge>
+                    </Group>
+
+                    <SelectLike
+                      data={clusterSelectData}
+                      value={selectedGroupId || 'all'}
+                      onChange={(value) => onSetSelectedGroupId?.(value ?? 'all')}
+                    />
+                  </Stack>
+                </div>
+              )}
 
               {quizRange === 'custom' && (
                 <div

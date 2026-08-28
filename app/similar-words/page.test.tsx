@@ -4,9 +4,11 @@ import { useAppDispatch } from '@/lib/redux/hooks';
 import { fireEvent, render, screen, waitFor } from '@/test-utils';
 import SimilarWordsPage from './page';
 
+const mockRouterPush = jest.fn();
+
 jest.mock('next/navigation', () => ({
   useRouter: () => ({
-    push: jest.fn(),
+    push: mockRouterPush,
   }),
 }));
 
@@ -103,5 +105,30 @@ describe('SimilarWordsPage (/similar-words)', () => {
     fireEvent.change(searchInput, { target: { value: 'nonexistentword' } });
 
     expect(screen.getByText(/No Similar Word Groups Found/i)).toBeInTheDocument();
+  });
+
+  it('triggers startGroupQuiz when Study Quiz on a cluster card is clicked', async () => {
+    render(<SimilarWordsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('retail Family')).toBeInTheDocument();
+    });
+
+    const studyBtn = screen.getByRole('button', { name: /study quiz/i });
+    fireEvent.click(studyBtn);
+
+    expect(mockDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'quiz/startGroupQuiz',
+        payload: expect.objectContaining({
+          clusterName: 'retail Family',
+          clusterType: 'word_family',
+        }),
+      })
+    );
+
+    expect(mockRouterPush).toHaveBeenCalledWith(
+      expect.stringContaining('/quiz?source=similarGroups&clusterId=')
+    );
   });
 });

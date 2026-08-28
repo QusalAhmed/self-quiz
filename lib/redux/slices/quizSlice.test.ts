@@ -1,4 +1,5 @@
 import quizReducer, {
+  clearGroupQuiz,
   computePoolSignature,
   nextCard,
   openAllWordsQuiz,
@@ -8,6 +9,7 @@ import quizReducer, {
   pushQuizHistory,
   type QuizItem,
   type QuizSliceState,
+  startGroupQuiz,
   removeQuizItem,
   selectCanUndoQuiz,
   selectCurrentQuizIndex,
@@ -25,6 +27,7 @@ import quizReducer, {
   setQuizQueue,
   setQuizRange,
   setQuizSource,
+  setSelectedGroupId,
   setRevealed,
   syncQueueItems,
   undoQuizHistory,
@@ -202,6 +205,8 @@ describe('quizSlice', () => {
     expect(state.quizSource).toBe('words');
     expect(state.quizRange).toBe('all');
     expect(state.quizGroupFilter).toBe('all');
+    expect(state.targetWordIds).toBeNull();
+    expect(state.clusterContext).toBeNull();
 
     state = quizReducer(state, openTodayQuiz());
     expect(state.mode).toBe('quiz');
@@ -211,6 +216,38 @@ describe('quizSlice', () => {
     state = quizReducer(state, openFsrsQuiz());
     expect(state.mode).toBe('quiz');
     expect(state.quizSource).toBe('fsrs');
+  });
+
+  it('handles startGroupQuiz and clearGroupQuiz', () => {
+    let state = quizReducer(undefined, { type: '@@INIT' });
+
+    state = quizReducer(
+      state,
+      startGroupQuiz({
+        wordIds: ['word-1', 'word-2'],
+        clusterId: 'cluster-retail',
+        clusterName: 'retail Family',
+        clusterType: 'word_family',
+        hubWord: 'retail',
+        words: ['retail', 'retailer'],
+      })
+    );
+
+    expect(state.mode).toBe('quiz');
+    expect(state.quizSource).toBe('similarGroups');
+    expect(state.selectedGroupId).toBe('cluster-retail');
+    expect(state.targetWordIds).toEqual(['word-1', 'word-2']);
+    expect(state.clusterContext?.clusterName).toBe('retail Family');
+    expect(state.clusterContext?.clusterType).toBe('word_family');
+    expect(state.clusterContext?.hubWord).toBe('retail');
+    expect(state.queue).toEqual([]);
+    expect(state.isInitialized).toBe(false);
+
+    state = quizReducer(state, clearGroupQuiz());
+    expect(state.quizSource).toBe('words');
+    expect(state.selectedGroupId).toBeNull();
+    expect(state.targetWordIds).toBeNull();
+    expect(state.clusterContext).toBeNull();
   });
 
   it('handles filter setters', () => {
@@ -233,6 +270,9 @@ describe('quizSlice', () => {
 
     state = quizReducer(state, setPracticeDisplayMode('fsrsAgain'));
     expect(state.practiceDisplayMode).toBe('fsrsAgain');
+
+    state = quizReducer(state, setSelectedGroupId('group-123'));
+    expect(state.selectedGroupId).toBe('group-123');
 
     state = quizReducer(
       state,
@@ -263,8 +303,11 @@ describe('quizSlice', () => {
       quizGroupFilter: 'MyGroup',
       customStart: '2026-01-01T00:00',
       customEnd: '2026-01-02T00:00',
+      selectedGroupId: 'group-1',
     });
-    expect(sig2).toBe('custom::words::spelling::MyGroup::2026-01-01T00:00_2026-01-02T00:00::');
+    expect(sig2).toBe(
+      'custom::words::spelling::MyGroup::2026-01-01T00:00_2026-01-02T00:00::::groupId:group-1'
+    );
   });
 
   it('works with selectors correctly', () => {
@@ -280,9 +323,13 @@ describe('quizSlice', () => {
       autoPronounceQuizWord: true,
       hideMissedMeanings: false,
       hideSrsPracticeMeanings: false,
+      targetWordIds: null,
+      selectedGroupId: null,
+      clusterContext: null,
       revealedMissedWordIds: {},
       revealedSrsPracticeWordIds: {},
       queue: dummyItems,
+
       currentIndex: 1,
       revealed: true,
       completed: false,
@@ -312,7 +359,11 @@ describe('quizSlice', () => {
       autoPronounceQuizWord: true,
       hideMissedMeanings: false,
       hideSrsPracticeMeanings: false,
+      targetWordIds: null,
+      selectedGroupId: null,
+      clusterContext: null,
     });
+
     expect(selectQuizQueue(rootState)).toEqual(dummyItems);
     expect(selectCurrentQuizIndex(rootState)).toBe(1);
     expect(selectCurrentQuizItem(rootState)).toEqual(dummyItems[1]);

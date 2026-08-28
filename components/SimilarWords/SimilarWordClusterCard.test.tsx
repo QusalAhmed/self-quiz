@@ -79,6 +79,6 @@ describe('SimilarWordClusterCard component', () => {
     const studyBtn = screen.getByRole('button', { name: /study quiz/i });
     fireEvent.click(studyBtn);
 
-    expect(handleStudy).toHaveBeenCalledWith(mockCluster.words);
+    expect(handleStudy).toHaveBeenCalledWith(mockCluster);
   });
 });

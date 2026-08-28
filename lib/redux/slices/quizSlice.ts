@@ -29,6 +29,15 @@ export interface QuizHistoryItem {
   previousCompleted: boolean;
 }
 
+export interface GroupQuizClusterContext {
+  clusterId?: string;
+  clusterName: string;
+  clusterType?: string;
+  hubWord?: string;
+  words?: string[];
+  explanation?: string;
+}
+
 export interface QuizFilterState {
   mode: 'study' | 'quiz';
   quizRange: QuizRangeKey;
@@ -41,6 +50,9 @@ export interface QuizFilterState {
   autoPronounceQuizWord: boolean;
   hideMissedMeanings: boolean;
   hideSrsPracticeMeanings: boolean;
+  targetWordIds: string[] | null;
+  selectedGroupId: string | null;
+  clusterContext: GroupQuizClusterContext | null;
 }
 
 export interface QuizSliceState extends QuizFilterState {
@@ -63,15 +75,30 @@ export function computePoolSignature(filters: {
   customStart: string;
   customEnd: string;
   practiceDisplayMode?: PracticeDisplayKey;
+  targetWordIds?: string[] | null;
+  selectedGroupId?: string | null;
+  clusterContext?: GroupQuizClusterContext | null;
 }): string {
-  return [
+  const parts = [
     filters.quizRange,
     filters.quizSource,
     filters.quizDirection,
     filters.quizGroupFilter,
     filters.quizRange === 'custom' ? `${filters.customStart}_${filters.customEnd}` : '',
     filters.quizSource === 'fsrsForgetting' ? (filters.practiceDisplayMode ?? '') : '',
-  ].join('::');
+  ];
+
+  if (filters.selectedGroupId) {
+    parts.push(`groupId:${filters.selectedGroupId}`);
+  }
+  if (filters.targetWordIds && filters.targetWordIds.length > 0) {
+    parts.push(`targets:${[...filters.targetWordIds].sort().join(',')}`);
+  }
+  if (filters.clusterContext?.clusterName) {
+    parts.push(`cluster:${filters.clusterContext.clusterName}`);
+  }
+
+  return parts.join('::');
 }
 
 const initialCustomStart = getInitialCustomStart();
@@ -89,6 +116,9 @@ const initialState: QuizSliceState = {
   autoPronounceQuizWord: false,
   hideMissedMeanings: false,
   hideSrsPracticeMeanings: false,
+  targetWordIds: null,
+  selectedGroupId: null,
+  clusterContext: null,
   revealedMissedWordIds: {},
   revealedSrsPracticeWordIds: {},
   queue: [],
@@ -181,11 +211,75 @@ export const quizSlice = createSlice({
       }
     },
 
+    setTargetWordIds: (state, action: PayloadAction<string[] | null>) => {
+      state.targetWordIds = action.payload;
+    },
+
+    setSelectedGroupId: (state, action: PayloadAction<string | null>) => {
+      state.selectedGroupId = action.payload;
+    },
+
+    setClusterContext: (state, action: PayloadAction<GroupQuizClusterContext | null>) => {
+      state.clusterContext = action.payload;
+    },
+
+    startGroupQuiz: (
+      state,
+      action: PayloadAction<{
+        wordIds: string[];
+        clusterId?: string;
+        clusterName?: string;
+        clusterType?: string;
+        hubWord?: string;
+        words?: string[];
+        explanation?: string;
+      }>
+    ) => {
+      state.mode = 'quiz';
+      state.quizSource = 'similarGroups';
+      state.quizRange = 'all';
+      state.quizGroupFilter = 'all';
+      state.selectedGroupId = action.payload.clusterId || action.payload.clusterName || 'all';
+      state.targetWordIds = action.payload.wordIds;
+      state.clusterContext = {
+        clusterId: action.payload.clusterId,
+        clusterName: action.payload.clusterName || 'Group Quiz',
+        clusterType: action.payload.clusterType,
+        hubWord: action.payload.hubWord,
+        words: action.payload.words,
+        explanation: action.payload.explanation,
+      };
+      state.queue = [];
+      state.currentIndex = 0;
+      state.revealed = false;
+      state.completed = false;
+      state.history = [];
+      state.isInitialized = false;
+      state.poolSignature = '';
+    },
+
+    clearGroupQuiz: (state) => {
+      state.quizSource = 'words';
+      state.selectedGroupId = null;
+      state.targetWordIds = null;
+      state.clusterContext = null;
+      state.queue = [];
+      state.currentIndex = 0;
+      state.revealed = false;
+      state.completed = false;
+      state.history = [];
+      state.isInitialized = false;
+      state.poolSignature = '';
+    },
+
     openAllWordsQuiz: (state) => {
       state.mode = 'quiz';
       state.quizSource = 'words';
       state.quizRange = 'all';
       state.quizGroupFilter = 'all';
+      state.selectedGroupId = null;
+      state.targetWordIds = null;
+      state.clusterContext = null;
     },
 
     openTodayQuiz: (state) => {
@@ -193,11 +287,17 @@ export const quizSlice = createSlice({
       state.quizSource = 'words';
       state.quizRange = 'today';
       state.quizGroupFilter = 'all';
+      state.selectedGroupId = null;
+      state.targetWordIds = null;
+      state.clusterContext = null;
     },
 
     openFsrsQuiz: (state) => {
       state.mode = 'quiz';
       state.quizSource = 'fsrs';
+      state.selectedGroupId = null;
+      state.targetWordIds = null;
+      state.clusterContext = null;
     },
 
     openSrsPracticeQuiz: (state) => {
@@ -205,11 +305,17 @@ export const quizSlice = createSlice({
       state.quizSource = 'fsrs';
       state.quizRange = 'all';
       state.quizGroupFilter = 'all';
+      state.selectedGroupId = null;
+      state.targetWordIds = null;
+      state.clusterContext = null;
     },
 
     openForgettingQuiz: (state) => {
       state.mode = 'quiz';
       state.quizSource = 'fsrsForgetting';
+      state.selectedGroupId = null;
+      state.targetWordIds = null;
+      state.clusterContext = null;
     },
 
     setQuizFilters: (state, action: PayloadAction<Partial<QuizFilterState>>) => {
@@ -331,6 +437,11 @@ export const {
   setHideSrsPracticeMeanings,
   setRevealedMissedWordIds,
   setRevealedSrsPracticeWordIds,
+  setTargetWordIds,
+  setSelectedGroupId,
+  setClusterContext,
+  startGroupQuiz,
+  clearGroupQuiz,
   openAllWordsQuiz,
   openTodayQuiz,
   openFsrsQuiz,
@@ -368,6 +479,9 @@ export const selectQuizFilters = (state: { quiz: QuizSliceState }): QuizFilterSt
     autoPronounceQuizWord,
     hideMissedMeanings,
     hideSrsPracticeMeanings,
+    targetWordIds,
+    selectedGroupId,
+    clusterContext,
   } = state.quiz;
   return {
     mode,
@@ -381,6 +495,9 @@ export const selectQuizFilters = (state: { quiz: QuizSliceState }): QuizFilterSt
     autoPronounceQuizWord,
     hideMissedMeanings,
     hideSrsPracticeMeanings,
+    targetWordIds,
+    selectedGroupId,
+    clusterContext,
   };
 };
 
@@ -404,5 +521,15 @@ export const selectQuizHistory = (state: { quiz: QuizSliceState }): QuizHistoryI
 
 export const selectCanUndoQuiz = (state: { quiz: QuizSliceState }): boolean =>
   state.quiz.history.length > 0;
+
+export const selectGroupQuizContext = (state: {
+  quiz: QuizSliceState;
+}): GroupQuizClusterContext | null => state.quiz.clusterContext;
+
+export const selectTargetWordIds = (state: { quiz: QuizSliceState }): string[] | null =>
+  state.quiz.targetWordIds;
+
+export const selectSelectedGroupId = (state: { quiz: QuizSliceState }): string | null =>
+  state.quiz.selectedGroupId;
 
 export default quizSlice.reducer;

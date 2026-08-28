@@ -15,6 +15,7 @@ import {
 } from '@mantine/core';
 import {
   IconArrowsExchange,
+  IconBrain,
   IconCards,
   IconCircleCheck,
   IconRotateClockwise,
@@ -33,6 +34,7 @@ export type SimilarWordsHeaderProps = {
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
   onRecomputeAll: () => Promise<void> | void;
+  onStudyAllClusters?: () => void;
 };
 
 export const SimilarWordsHeader = React.memo(function SimilarWordsHeader({
@@ -43,6 +45,7 @@ export const SimilarWordsHeader = React.memo(function SimilarWordsHeader({
   viewMode,
   onViewModeChange,
   onRecomputeAll,
+  onStudyAllClusters,
 }: SimilarWordsHeaderProps) {
   const totalClusteredWords = React.useMemo(() => {
     const unique = new Set<string>();
@@ -145,6 +148,19 @@ export const SimilarWordsHeader = React.memo(function SimilarWordsHeader({
                 },
               }}
             />
+
+            {onStudyAllClusters && totalClusteredWords > 0 && (
+              <Button
+                size="xs"
+                radius="md"
+                variant="light"
+                color="teal"
+                leftSection={<IconBrain size={14} />}
+                onClick={onStudyAllClusters}
+              >
+                Quiz All Groups ({totalClusteredWords})
+              </Button>
+            )}
 
             <Button
               size="xs"
