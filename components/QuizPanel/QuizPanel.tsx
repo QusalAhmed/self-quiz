@@ -702,12 +702,12 @@ export const QuizPanel = memo(function QuizPanel({
     item?.fsrsRecord ||
     (srsMode
       ? {
-          state: 'New' as const,
-          reps: 0,
-          lapses: 0,
-          stability: 0,
-          difficulty: 0,
-        }
+        state: 'New' as const,
+        reps: 0,
+        lapses: 0,
+        stability: 0,
+        difficulty: 0,
+      }
       : undefined);
 
   const fsrsMetaBar = (
@@ -820,9 +820,9 @@ export const QuizPanel = memo(function QuizPanel({
           onEdit={
             onEditClick
               ? () => {
-                  const baseId = item.id.includes(':') ? item.id.split(':')[0] : item.id;
-                  onEditClick(baseId);
-                }
+                const baseId = item.id.includes(':') ? item.id.split(':')[0] : item.id;
+                onEditClick(baseId);
+              }
               : undefined
           }
           isMissed={isMarkedMissed}

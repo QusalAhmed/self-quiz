@@ -4,9 +4,18 @@ import { createTheme } from '@mantine/core';
 
 export const theme = createTheme({
   fontFamily: 'var(--font-body)',
-  fontFamilyMonospace: 'Courier, monospace',
+  fontFamilyMonospace: 'var(--font-mono)',
   headings: {
     fontFamily: 'var(--font-title)',
+    fontWeight: '700',
+    sizes: {
+      h1: { fontSize: '2rem', lineHeight: '1.25', fontWeight: '800' },
+      h2: { fontSize: '1.5rem', lineHeight: '1.3', fontWeight: '750' },
+      h3: { fontSize: '1.25rem', lineHeight: '1.35', fontWeight: '700' },
+      h4: { fontSize: '1.1rem', lineHeight: '1.4', fontWeight: '650' },
+      h5: { fontSize: '0.95rem', lineHeight: '1.45', fontWeight: '600' },
+      h6: { fontSize: '0.85rem', lineHeight: '1.5', fontWeight: '600' },
+    },
   },
   primaryColor: 'indigo',
   primaryShade: 6,

@@ -223,7 +223,7 @@ export const WordDetailCard = React.memo(function WordDetailCard({
                 color="indigo"
                 size="sm"
                 radius="sm"
-                style={{ fontFamily: 'monospace', fontWeight: 600 }}
+                style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, letterSpacing: '0.01em' }}
               >
                 {word.phonetic}
               </Badge>

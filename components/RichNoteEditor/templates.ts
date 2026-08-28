@@ -226,13 +226,17 @@ export const STUDY_SYMBOLS = [
 ];
 
 export const FONT_FAMILIES = [
-  { value: '', label: 'Default Sans (Inter/System)' },
-  { value: 'Inter, sans-serif', label: 'Modern Inter' },
-  { value: 'Georgia, serif', label: 'Editorial Serif (Georgia)' },
-  { value: '"Merriweather", serif', label: 'Classic Book (Merriweather)' },
-  { value: '"Fira Code", "Courier New", monospace', label: 'Monospace Code' },
-  { value: '"Caveat", cursive, sans-serif', label: 'Handwritten / Casual' },
-  { value: 'system-ui, -apple-system, sans-serif', label: 'System UI' },
+  { value: '', label: 'Default (Inter UI)' },
+  { value: "'Plus Jakarta Sans', sans-serif", label: 'Plus Jakarta Sans (Display)' },
+  { value: 'Inter, sans-serif', label: 'Inter (Clean Sans)' },
+  {
+    value: "'JetBrains Mono', 'Fira Code', ui-monospace, monospace",
+    label: 'JetBrains Mono (Code/IPA)',
+  },
+  { value: "Georgia, 'Times New Roman', serif", label: 'Editorial Serif (Georgia)' },
+  { value: "'Merriweather', serif", label: 'Classic Book (Merriweather)' },
+  { value: "'Amiri', 'Traditional Arabic', serif", label: 'Arabic & Quran (Amiri)' },
+  { value: "'Caveat', cursive, sans-serif", label: 'Handwritten (Caveat)' },
 ];
 
 export const FONT_SIZES = [

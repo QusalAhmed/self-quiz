@@ -73,9 +73,9 @@ export const FsrsCardViewer = memo(function FsrsCardViewer({
   const progressPercent =
     totalCardsInQueue > 0
       ? Math.min(
-          100,
-          Math.max(10, (1 - (newCount + learningCount) / (totalCardsInQueue + 1)) * 100)
-        )
+        100,
+        Math.max(10, (1 - (newCount + learningCount) / (totalCardsInQueue + 1)) * 100)
+      )
       : 100;
 
   /**

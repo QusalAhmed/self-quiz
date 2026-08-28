@@ -499,7 +499,8 @@ export function QuranVerseModal({
               <Text
                 dir="rtl"
                 style={{
-                  fontFamily: "'Amiri', 'Scheherazade New', 'Traditional Arabic', serif",
+                  fontFamily:
+                    "var(--font-arabic, 'Amiri', 'Scheherazade New', 'Traditional Arabic', serif)",
                   fontSize: 'clamp(1.15rem, 3.8vw, 1.65rem)',
                   lineHeight: '2.2',
                   color: 'var(--mantine-color-text)',

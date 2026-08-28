@@ -4,12 +4,41 @@ import '@mantine/nprogress/styles.css';
 import './global.css';
 import { ColorSchemeScript, mantineHtmlProps, MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
+import { Amiri, Inter, JetBrains_Mono, Plus_Jakarta_Sans } from 'next/font/google';
 import React from 'react';
 import { AppShellLayout } from '@/components/Layout/AppShellLayout';
 import { NavigationProgressBar } from '@/components/Navigation';
 import { QuranVerseProvider } from '@/components/QuranVerse';
 import { ReduxProvider } from '@/lib/redux/provider';
 import { theme } from '@/theme';
+
+const inter = Inter({
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600', '700', '800'],
+  variable: '--font-body',
+  display: 'swap',
+});
+
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700', '800'],
+  variable: '--font-title',
+  display: 'swap',
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-mono',
+  display: 'swap',
+});
+
+const amiri = Amiri({
+  subsets: ['arabic', 'latin'],
+  weight: ['400', '700'],
+  variable: '--font-arabic',
+  display: 'swap',
+});
 
 export const metadata = {
   title: 'English Word Memorizer',
@@ -18,7 +47,12 @@ export const metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" {...mantineHtmlProps} suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`${inter.variable} ${plusJakartaSans.variable} ${jetbrainsMono.variable} ${amiri.variable}`}
+      {...mantineHtmlProps}
+      suppressHydrationWarning
+    >
       <head>
         <ColorSchemeScript suppressHydrationWarning />
         <link rel="shortcut icon" href="/favicon.svg" />
@@ -30,7 +64,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
         <title>Self Quiz</title>
       </head>
-      <body>
+      <body
+        className={`${inter.variable} ${plusJakartaSans.variable} ${jetbrainsMono.variable} ${amiri.variable}`}
+      >
         <ReduxProvider>
           <MantineProvider theme={theme}>
             <QuranVerseProvider>
