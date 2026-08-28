@@ -5,6 +5,7 @@ import {
   Collapse,
   Divider,
   Group,
+  Indicator,
   Kbd,
   Modal,
   Paper,
@@ -89,6 +90,8 @@ type QuizPanelProps = {
   onDeleteFsrsRecord?: (wordId: string, quizMode: QuizDirection) => void;
   canUndo?: boolean;
   onUndo?: () => void;
+  hasAddedWords?: boolean;
+  addedWordsCount?: number;
   wordFamilyMembers?: WordFamilyMemberRecord[];
   isGeneratingWordFamily?: boolean;
   onRefreshWordFamily?: (wordId: string, word: string) => void;
@@ -109,6 +112,8 @@ export const QuizPanel = memo(function QuizPanel({
   currentIndex = 0,
   totalCount = 0,
   onRestart,
+  hasAddedWords = false,
+  addedWordsCount: _addedWordsCount = 0,
   onRefreshExamples,
   isGeneratingExamples = false,
   autoPronounceWord = false,
@@ -512,15 +517,29 @@ export const QuizPanel = memo(function QuizPanel({
             )}
 
             {onRestart && totalCount > 0 && (
-              <Button
-                onClick={onRestart}
-                className="btn-premium btn-pulse"
-                size="md"
-                radius="md"
-                leftSection={<IconRotateClockwise size={18} />}
+              <Indicator
+                disabled={!hasAddedWords}
+                color="violet"
+                size={11}
+                offset={4}
+                processing
+                styles={{
+                  indicator: {
+                    boxShadow:
+                      '0 0 10px rgba(168, 85, 247, 0.9), 0 0 20px rgba(168, 85, 247, 0.6), 0 0 4px #ffffff',
+                  },
+                }}
               >
-                Restart Session
-              </Button>
+                <Button
+                  onClick={onRestart}
+                  className="btn-premium btn-pulse"
+                  size="md"
+                  radius="md"
+                  leftSection={<IconRotateClockwise size={18} />}
+                >
+                  {hasAddedWords ? 'Refresh Session' : 'Restart Session'}
+                </Button>
+              </Indicator>
             )}
           </Group>
         </Stack>
@@ -702,12 +721,12 @@ export const QuizPanel = memo(function QuizPanel({
     item?.fsrsRecord ||
     (srsMode
       ? {
-        state: 'New' as const,
-        reps: 0,
-        lapses: 0,
-        stability: 0,
-        difficulty: 0,
-      }
+          state: 'New' as const,
+          reps: 0,
+          lapses: 0,
+          stability: 0,
+          difficulty: 0,
+        }
       : undefined);
 
   const fsrsMetaBar = (
@@ -820,9 +839,9 @@ export const QuizPanel = memo(function QuizPanel({
           onEdit={
             onEditClick
               ? () => {
-                const baseId = item.id.includes(':') ? item.id.split(':')[0] : item.id;
-                onEditClick(baseId);
-              }
+                  const baseId = item.id.includes(':') ? item.id.split(':')[0] : item.id;
+                  onEditClick(baseId);
+                }
               : undefined
           }
           isMissed={isMarkedMissed}

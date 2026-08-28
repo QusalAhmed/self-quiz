@@ -7,6 +7,7 @@ import {
   Divider,
   Grid,
   Group,
+  Indicator,
   RollingNumber,
   Select,
   Stack,
@@ -118,6 +119,10 @@ type QuizModeSectionProps = {
   onDeleteFsrsRecord?: (wordId: string, quizMode: QuizDirection) => void;
   canUndo?: boolean;
   onUndo?: () => void;
+  hasAddedWords?: boolean;
+  addedWordsCount?: number;
+  hasRemovedWords?: boolean;
+  removedWordsCount?: number;
   quizCandidates?: Array<
     | import('@/lib/db').WordRecord
     | import('@/lib/db').MissedWordRecord
@@ -186,6 +191,10 @@ export const QuizModeSection = memo(function QuizModeSection({
   onDeleteFsrsRecord,
   canUndo,
   onUndo,
+  hasAddedWords = false,
+  addedWordsCount = 0,
+  hasRemovedWords: _hasRemovedWords = false,
+  removedWordsCount: _removedWordsCount = 0,
   quizCandidates,
   words,
 }: QuizModeSectionProps) {
@@ -476,17 +485,52 @@ export const QuizModeSection = memo(function QuizModeSection({
                       {autoPronounceQuizWord ? 'Auto Pronounce On' : 'Auto Pronounce Off'}
                     </Button>
                   </Tooltip>
-                  <Button
-                    variant="light"
-                    color="indigo"
-                    size="md"
-                    radius="md"
-                    onClick={onResetQuiz}
-                    disabled={quizQueueLength === 0}
-                    leftSection={<IconRotateClockwise size={18} />}
+                  <Tooltip
+                    label={
+                      hasAddedWords
+                        ? `${addedWordsCount} new due card${addedWordsCount > 1 ? 's' : ''} available! Click to refresh.`
+                        : 'Restart or refresh the current quiz queue'
+                    }
+                    withArrow
                   >
-                    Restart Quiz
-                  </Button>
+                    <Indicator
+                      disabled={!hasAddedWords}
+                      color="violet"
+                      size={9}
+                      offset={3}
+                      processing
+                      styles={{
+                        indicator: {
+                          boxShadow:
+                            '0 0 8px rgba(168, 85, 247, 0.9), 0 0 16px rgba(168, 85, 247, 0.6), 0 0 4px #ffffff',
+                        },
+                      }}
+                    >
+                      <Button
+                        variant={hasAddedWords ? 'gradient' : 'light'}
+                        gradient={
+                          hasAddedWords ? { from: 'indigo', to: 'violet', deg: 135 } : undefined
+                        }
+                        color="indigo"
+                        size="sm"
+                        radius="md"
+                        onClick={onResetQuiz}
+                        disabled={quizQueueLength === 0 && !hasAddedWords}
+                        leftSection={<IconRotateClockwise size={16} />}
+                        className={hasAddedWords ? 'btn-premium btn-pulse' : undefined}
+                        style={
+                          hasAddedWords
+                            ? {
+                                boxShadow: '0 4px 15px rgba(168, 85, 247, 0.35)',
+                                fontWeight: 700,
+                              }
+                            : undefined
+                        }
+                      >
+                        {hasAddedWords ? 'Refresh Quiz' : 'Restart Quiz'}
+                      </Button>
+                    </Indicator>
+                  </Tooltip>
                 </Group>
               </Group>
             </Stack>
@@ -508,6 +552,8 @@ export const QuizModeSection = memo(function QuizModeSection({
         currentIndex={quizIndex}
         totalCount={quizQueueLength}
         onRestart={onResetQuiz}
+        hasAddedWords={hasAddedWords}
+        addedWordsCount={addedWordsCount}
         onRefreshExamples={onRefreshExamples}
         isGeneratingExamples={
           currentQuizItem ? Boolean(generatingExampleWordIds[currentQuizItem.id]) : false

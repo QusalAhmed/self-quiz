@@ -724,7 +724,6 @@ pre {
 
 /* --- Comprehensive Mobile & Responsive Enhancements --- */
 @media (max-width: 48em) {
-
   /* Prevent horizontal scroll from nested components */
   html,
   body {
@@ -961,13 +960,13 @@ li[data-type='taskItem'] {
   margin: 0.25em 0;
 }
 
-li[data-type='taskItem']>label {
+li[data-type='taskItem'] > label {
   margin-top: 3px;
   cursor: pointer;
   user-select: none;
 }
 
-li[data-type='taskItem']>div {
+li[data-type='taskItem'] > div {
   flex: 1;
 }
 
@@ -1015,5 +1014,32 @@ li[data-type='taskItem']>div {
   box-shadow:
     0 0 16px #c084fc,
     0 0 8px #818cf8 !important;
-  transform: rotate(2deg) translateY(-2px) !important;
+}
+
+/* Glowing dot indicator for queue refresh */
+@keyframes glowing-dot-pulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow:
+      0 0 0 0 rgba(168, 85, 247, 0.8),
+      0 0 8px #a855f7;
+  }
+
+  70% {
+    transform: scale(1.15);
+    box-shadow:
+      0 0 0 8px rgba(168, 85, 247, 0),
+      0 0 16px #c084fc;
+  }
+
+  100% {
+    transform: scale(0.95);
+    box-shadow:
+      0 0 0 0 rgba(168, 85, 247, 0),
+      0 0 8px #a855f7;
+  }
+}
+
+.glowing-dot-indicator {
+  animation: glowing-dot-pulse 2s infinite ease-in-out !important;
 }

@@ -1,11 +1,13 @@
 'use client';
 
 import {
+  ActionIcon,
   Badge,
   Button,
   Card,
   CopyButton,
   Group,
+  Indicator,
   Progress,
   RollingNumber,
   Stack,
@@ -19,6 +21,7 @@ import {
   IconCopy,
   IconEdit,
   IconEye,
+  IconRotateClockwise,
   IconVolume,
 } from '@tabler/icons-react';
 import { motion } from 'framer-motion';
@@ -48,6 +51,9 @@ export type FsrsCardViewerProps = {
   onEditWord?: (wordId: string) => void;
   onRefreshWordFamily?: (wordId: string, word: string) => void;
   onDeleteWordFamilyMember?: (memberId: string) => void;
+  onRefreshQuiz?: () => void;
+  hasAddedWords?: boolean;
+  addedWordsCount?: number;
 };
 
 export const FsrsCardViewer = memo(function FsrsCardViewer({
@@ -67,15 +73,18 @@ export const FsrsCardViewer = memo(function FsrsCardViewer({
   onEditWord,
   onRefreshWordFamily,
   onDeleteWordFamilyMember,
+  onRefreshQuiz,
+  hasAddedWords = false,
+  addedWordsCount = 0,
 }: FsrsCardViewerProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const totalCardsInQueue = newCount + learningCount + reviewCount;
   const progressPercent =
     totalCardsInQueue > 0
       ? Math.min(
-        100,
-        Math.max(10, (1 - (newCount + learningCount) / (totalCardsInQueue + 1)) * 100)
-      )
+          100,
+          Math.max(10, (1 - (newCount + learningCount) / (totalCardsInQueue + 1)) * 100)
+        )
       : 100;
 
   /**
@@ -251,6 +260,29 @@ export const FsrsCardViewer = memo(function FsrsCardViewer({
           </Group>
 
           <Group gap="xs" align="center">
+            {onRefreshQuiz && (
+              <Tooltip
+                label={
+                  hasAddedWords
+                    ? `${addedWordsCount} new due card${addedWordsCount > 1 ? 's' : ''} ready! Click to refresh.`
+                    : 'Refresh review queue'
+                }
+                withArrow
+              >
+                <Indicator inline processing color="red" size={12}>
+                  <ActionIcon
+                    variant="transparent"
+                    color="violet"
+                    size="sm"
+                    radius="md"
+                    onClick={onRefreshQuiz}
+                    aria-label="Refresh review queue"
+                  >
+                    <IconRotateClockwise size={14} />
+                  </ActionIcon>
+                </Indicator>
+              </Tooltip>
+            )}
             <FsrsCounterBadge
               newCount={newCount}
               learningCount={learningCount}

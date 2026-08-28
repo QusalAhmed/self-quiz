@@ -15,6 +15,7 @@ import {
   toMutableWordRecord,
 } from '@/app/home/utils';
 import { EditWordModal } from '@/components/EditWordModal/EditWordModal';
+import { FsrsQueueChangeModal } from '@/components/FsrsReview';
 import { ClearMissedWordsModal } from '@/components/Home/ClearMissedWordsModal';
 import { QuizModeSection } from '@/components/Home/QuizModeSection';
 import {
@@ -102,6 +103,7 @@ export default function QuizPage() {
   } = useAppSelector(selectQuizState);
 
   const [database, setDatabase] = useState<AppDatabase | null>(null);
+  const [isDbLoaded, setIsDbLoaded] = useState(false);
   const [words, setWords] = useState<WordRecord[]>([]);
   const [groups, setGroups] = useState<GroupRecord[]>([]);
   const [missedWords, setMissedWords] = useState<MissedWordRecord[]>([]);
@@ -531,6 +533,108 @@ export default function QuizPage() {
     dispatch,
   ]);
 
+  // Track dismissed removed word IDs so dismissing does not repeatedly trigger popup
+  const [dismissedRemovedWordIds, setDismissedRemovedWordIds] = useState<Set<string>>(
+    () => new Set()
+  );
+  const [queueChangeModalOpened, setQueueChangeModalOpened] = useState(false);
+
+  // Set of word IDs currently stored in active Redux queue
+  const reduxWordIds = useMemo(() => new Set(quizQueue.map((item) => item.id)), [quizQueue]);
+
+  // Set of candidate word IDs available in live database
+  const candidateWordIds = useMemo(() => {
+    return new Set(quizCandidates.map((c) => getCandidateWordId(c)));
+  }, [quizCandidates, getCandidateWordId]);
+
+  // For FSRS review: words that became due in DB but are not yet in Redux queue
+  const addedQuizWords = useMemo(() => {
+    if (!isDbLoaded || quizSource !== 'fsrs' || poolSignature !== currentPoolSignature) {
+      return [];
+    }
+    return quizCandidates.filter((c) => !reduxWordIds.has(getCandidateWordId(c)));
+  }, [
+    isDbLoaded,
+    quizSource,
+    poolSignature,
+    currentPoolSignature,
+    quizCandidates,
+    reduxWordIds,
+    getCandidateWordId,
+  ]);
+
+  const hasAddedQuizWords = addedQuizWords.length > 0;
+
+  // For FSRS review: remaining unreviewed items in Redux queue that were deleted or are no longer in candidate pool
+  const removedQuizItems = useMemo(() => {
+    if (
+      !isDbLoaded ||
+      quizSource !== 'fsrs' ||
+      quizQueue.length === 0 ||
+      completed ||
+      poolSignature !== currentPoolSignature
+    ) {
+      return [];
+    }
+    const remaining = quizQueue.slice(quizIndex);
+    return remaining.filter((item) => {
+      const freshWord = wordsById.get(item.id);
+      const freshFsrs = getFsrsRecordForWord(item.id, quizDirection);
+      if (!freshWord || freshWord.isDeleted || !freshFsrs || freshFsrs.isDeleted) {
+        return true;
+      }
+      return !candidateWordIds.has(item.id);
+    });
+  }, [
+    isDbLoaded,
+    quizSource,
+    quizQueue,
+    completed,
+    poolSignature,
+    currentPoolSignature,
+    quizIndex,
+    wordsById,
+    getFsrsRecordForWord,
+    quizDirection,
+    candidateWordIds,
+  ]);
+
+  // Automatically trigger removed-word alert modal when unhandled removed items are detected
+  useEffect(() => {
+    if (!isDbLoaded || quizSource !== 'fsrs' || poolSignature !== currentPoolSignature) {
+      setQueueChangeModalOpened(false);
+      return;
+    }
+    const unhandled = removedQuizItems.filter((item) => !dismissedRemovedWordIds.has(item.id));
+    if (unhandled.length > 0) {
+      setQueueChangeModalOpened(true);
+    } else {
+      setQueueChangeModalOpened(false);
+    }
+  }, [
+    isDbLoaded,
+    quizSource,
+    poolSignature,
+    currentPoolSignature,
+    removedQuizItems,
+    dismissedRemovedWordIds,
+  ]);
+
+  const handleDismissQueueChangeModal = useCallback(() => {
+    setQueueChangeModalOpened(false);
+    setDismissedRemovedWordIds((prev) => {
+      const next = new Set(prev);
+      removedQuizItems.forEach((item) => next.add(item.id));
+      return next;
+    });
+  }, [removedQuizItems]);
+
+  const handleRefreshFromQueueChangeModal = useCallback(() => {
+    setQueueChangeModalOpened(false);
+    setDismissedRemovedWordIds(new Set());
+    resetQuiz();
+  }, [resetQuiz]);
+
   // Synchronize card content in active queue when words / FSRS records update
   useEffect(() => {
     if (words.length === 0 || quizQueue.length === 0) {
@@ -651,6 +755,15 @@ export default function QuizPage() {
 
       setDatabase(db);
 
+      let wordsLoaded = false;
+      let fsrsLoaded = false;
+
+      const checkInitialReady = () => {
+        if (wordsLoaded && fsrsLoaded && isMounted) {
+          setIsDbLoaded(true);
+        }
+      };
+
       const wordQuery = db.words.find({
         selector: { isDeleted: { $ne: true } },
         sort: [{ updatedAt: 'desc' }],
@@ -661,6 +774,8 @@ export default function QuizPage() {
           return;
         }
         setWords(docs.map((doc) => toMutableWordRecord(doc.toJSON())));
+        wordsLoaded = true;
+        checkInitialReady();
       });
 
       const groupQuery = db.groups.find({
@@ -697,6 +812,8 @@ export default function QuizPage() {
           return;
         }
         setFsrsRecords(docs.map((doc) => doc.toJSON() as FsrsRecord));
+        fsrsLoaded = true;
+        checkInitialReady();
       });
 
       const wordFamilyQuery = db.wordFamilies.find({
@@ -1439,6 +1556,18 @@ export default function QuizPage() {
         onConfirm={handleConfirmClearAll}
       />
 
+      <FsrsQueueChangeModal
+        opened={queueChangeModalOpened}
+        onClose={handleDismissQueueChangeModal}
+        onRefresh={handleRefreshFromQueueChangeModal}
+        removedItems={removedQuizItems.map((item) => ({
+          id: item.id,
+          word: item.word,
+          meaning: item.meaning,
+        }))}
+        addedCount={addedQuizWords.length}
+      />
+
       <Stack gap="xl">
         <QuizModeSection
           quizRange={quizRange}
@@ -1468,6 +1597,10 @@ export default function QuizPage() {
           autoPronounceQuizWord={autoPronounceQuizWord}
           wordFamilies={wordFamilies}
           generatingWordFamilyWordIds={generatingWordFamilyWordIds}
+          hasAddedWords={hasAddedQuizWords}
+          addedWordsCount={addedQuizWords.length}
+          hasRemovedWords={removedQuizItems.length > 0}
+          removedWordsCount={removedQuizItems.length}
           onSetQuizRange={(value) => dispatch(setQuizRange(value))}
           onSetQuizSource={(value) => dispatch(setQuizSource(value))}
           onSetQuizDirection={(value) => dispatch(setQuizDirection(value))}
