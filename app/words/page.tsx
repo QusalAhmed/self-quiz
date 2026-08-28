@@ -1125,6 +1125,10 @@ export default function WordsPage() {
           onFetchAudio={fetchAndStoreWordAudio}
           onResetFilters={handleResetFilters}
           onOpenAddModal={handleOpenAddModal}
+          onNavigateWord={(targetWord) => {
+            setSearchQuery(targetWord);
+            setSelectedLetter('ALL');
+          }}
         />
       </Stack>
 

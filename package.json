@@ -22,7 +22,10 @@
     "migrate:daily-usage": "node scripts/migrate-daily-usage.mjs",
     "migrate:definitions": "node scripts/migrate-definitions.mjs",
     "migrate:review-logs": "node scripts/migrate-review-logs.mjs",
+    "migrate:similarities": "node scripts/migrate-word-similarities.mjs",
+    "compute:similarities": "node scripts/compute-similarities.mjs",
     "test": "npx next typegen && npm run format:test && npm run lint && npm run typecheck && npm run jest",
+
     "storybook": "storybook dev -p 6006",
     "storybook:build": "storybook build"
   },

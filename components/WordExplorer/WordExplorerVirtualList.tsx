@@ -26,6 +26,7 @@ export type WordExplorerVirtualListProps = {
   onFetchAudio?: (wordId: string, word: string) => Promise<void> | void;
   onResetFilters?: () => void;
   onOpenAddModal?: () => void;
+  onNavigateWord?: (wordText: string) => void;
 };
 
 const EMPTY_MEMBERS: WordFamilyMemberRecord[] = [];
@@ -49,6 +50,7 @@ export const WordExplorerVirtualList = React.memo(function WordExplorerVirtualLi
   onFetchAudio,
   onResetFilters,
   onOpenAddModal,
+  onNavigateWord,
 }: WordExplorerVirtualListProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const [scrollMargin, setScrollMargin] = useState(0);
@@ -237,6 +239,7 @@ export const WordExplorerVirtualList = React.memo(function WordExplorerVirtualLi
                 isWordMissed={missedInfo?.isMissed ?? false}
                 missedWordCount={missedInfo?.count ?? 0}
                 wordFamilyMembers={familyMembers}
+                allWords={words}
                 density={density}
                 isGeneratingExamples={isGeneratingExamples}
                 isGeneratingWordFamily={isGeneratingFamily}
@@ -249,6 +252,7 @@ export const WordExplorerVirtualList = React.memo(function WordExplorerVirtualLi
                 onToggleMissed={onToggleMissed}
                 onGroupClick={onGroupClick}
                 onFetchAudio={onFetchAudio}
+                onNavigateWord={onNavigateWord}
               />
             </div>
           );

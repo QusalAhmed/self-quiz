@@ -41,12 +41,14 @@ import React, { useMemo, useState } from 'react';
 import { RichNoteViewer } from '@/components/RichNoteViewer/RichNoteViewer';
 import { PronounceButton } from '@/components/WordActions/PronounceButton';
 import { WordActionIcon } from '@/components/WordActions/WordActionIcon';
+import { SimilarWordsSection } from '@/components/WordExplorer/SimilarWordsSection';
 import { WordFamilySection } from '@/components/WordFamily/WordFamilySection';
 import { formatDate, formatRelativeShort } from '@/lib/dateUtils';
 import type { FsrsRecord, MissedWordRecord, WordFamilyMemberRecord, WordRecord } from '@/lib/db';
 import { getWordDefinitions } from '@/lib/definitions';
 import { formatInterval } from '@/lib/fsrs';
 import { getWordGroups } from '@/lib/groups';
+import type { WordSimilarityResult } from '@/lib/similar-words/types';
 import { getUsageFrequencyBadgeProps } from '@/lib/word-family';
 
 export type WordViewDensity = 'detailed' | 'compact' | 'card';
@@ -59,6 +61,8 @@ export type WordDetailCardProps = {
   fsrsRecords?: FsrsRecord[];
   missedRecords?: MissedWordRecord[];
   wordFamilyMembers?: WordFamilyMemberRecord[];
+  similarWords?: WordSimilarityResult[];
+  allWords?: Array<{ id: string; word: string }>;
   density?: WordViewDensity;
   isGeneratingExamples?: boolean;
   isGeneratingWordFamily?: boolean;
@@ -71,6 +75,8 @@ export type WordDetailCardProps = {
   onToggleMissed?: (wordId: string, word: string, meaning: string) => void;
   onGroupClick?: (group: string) => void;
   onFetchAudio?: (wordId: string, word: string) => Promise<void> | void;
+  onNavigateWord?: (wordText: string) => void;
+  onRefreshSimilarWords?: (wordId: string, word: string) => Promise<void> | void;
 };
 
 const POS_COLORS: Record<string, string> = {
@@ -105,6 +111,8 @@ export const WordDetailCard = React.memo(function WordDetailCard({
   fsrsRecords = [],
   missedRecords = [],
   wordFamilyMembers = [],
+  similarWords = [],
+  allWords = [],
   density = 'detailed',
   isGeneratingExamples = false,
   isGeneratingWordFamily = false,
@@ -117,6 +125,8 @@ export const WordDetailCard = React.memo(function WordDetailCard({
   onToggleMissed,
   onGroupClick,
   onFetchAudio,
+  onNavigateWord,
+  onRefreshSimilarWords,
 }: WordDetailCardProps) {
   const [examplesExpanded, setExamplesExpanded] = useState<Record<number, boolean>>({});
   const [notesExpanded, setNotesExpanded] = useState(true);
@@ -717,6 +727,16 @@ export const WordDetailCard = React.memo(function WordDetailCard({
         isLoading={isGeneratingWordFamily}
         onRefresh={onRefreshWordFamily}
         onDeleteMember={onDeleteWordFamilyMember}
+      />
+
+      {/* ── Similar & Structurally Related Words Section ── */}
+      <SimilarWordsSection
+        wordId={word.id}
+        word={word.word}
+        similarWords={similarWords}
+        allWords={allWords}
+        onNavigateWord={onNavigateWord}
+        onRefreshSimilarWords={onRefreshSimilarWords}
       />
 
       {/* ── Spaced Repetition (FSRS) & Memory Retention Footer ── */}

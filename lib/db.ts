@@ -206,6 +206,9 @@ export type ReviewLogCollection = RxCollection<ReviewLogRecord>;
 export type SettingsCollection = RxCollection<SettingsRecord>;
 export type StoryCollection = RxCollection<StoryRecord>;
 export type QuranVerseCollection = RxCollection<QuranVerseRecord>;
+export type WordSimilarityRecord = import('./similar-words/types').WordSimilarityRecord;
+export type WordSimilarityCollection = RxCollection<WordSimilarityRecord>;
+
 export type AppDatabase = RxDatabase<{
   words: WordCollection;
   missedWords: MissedWordCollection;
@@ -219,6 +222,7 @@ export type AppDatabase = RxDatabase<{
   settings: SettingsCollection;
   stories: StoryCollection;
   quranVerses: QuranVerseCollection;
+  wordSimilarities: WordSimilarityCollection;
 }>;
 
 const wordSchema: RxJsonSchema<WordRecord> = {
@@ -712,6 +716,60 @@ const quranVerseSchema: RxJsonSchema<QuranVerseRecord> = {
   indexes: ['status', 'updatedAt', 'isDeleted'],
 };
 
+const wordSimilaritySchema: RxJsonSchema<WordSimilarityRecord> = {
+  title: 'word similarity schema',
+  version: 1,
+  description: 'Precomputed linguistic similarity relationships between words',
+  primaryKey: 'id',
+  type: 'object',
+  properties: {
+    id: { type: 'string', maxLength: 128 },
+    sourceWordId: { type: 'string', maxLength: 64 },
+    targetWordId: { type: 'string', maxLength: 64 },
+    sourceWord: { type: 'string', maxLength: 128 },
+    targetWord: { type: 'string', maxLength: 128 },
+    overallScore: { type: 'number', minimum: 0, maximum: 1 },
+    orthographicScore: { type: 'number', minimum: 0, maximum: 1, default: 0 },
+    ngramScore: { type: 'number', minimum: 0, maximum: 1, default: 0 },
+    prefixScore: { type: 'number', minimum: 0, maximum: 1, default: 0 },
+    suffixScore: { type: 'number', minimum: 0, maximum: 1, default: 0 },
+    morphologicalScore: { type: 'number', minimum: 0, maximum: 1, default: 0 },
+    lengthScore: { type: 'number', minimum: 0, maximum: 1, default: 0 },
+    relationshipType: { type: 'string', maxLength: 32, default: 'orthographic' },
+    secondaryTypes: {
+      type: 'array',
+      items: { type: 'string' },
+      default: [],
+    },
+    commonPrefix: { type: 'string', default: '' },
+    commonSuffix: { type: 'string', default: '' },
+    commonSubstring: { type: 'string', default: '' },
+    sharedSequence: { type: 'string', default: '' },
+    affix: { type: 'string', default: '' },
+    stem: { type: 'string', default: '' },
+    explanation: { type: 'string', default: '' },
+    signals: { type: 'object', default: {} },
+    algorithmVersion: { type: 'string', maxLength: 16, default: 'v1' },
+    createdAt: { type: 'string', maxLength: 32 },
+    updatedAt: { type: 'string', maxLength: 32 },
+    isDeleted: { type: 'boolean', default: false },
+  },
+  required: [
+    'id',
+    'sourceWordId',
+    'targetWordId',
+    'sourceWord',
+    'targetWord',
+    'overallScore',
+    'relationshipType',
+    'algorithmVersion',
+    'createdAt',
+    'updatedAt',
+    'isDeleted',
+  ],
+  indexes: ['sourceWordId', 'targetWordId', 'relationshipType', 'updatedAt', 'isDeleted'],
+};
+
 if (process.env.NODE_ENV !== 'production') {
   addRxPlugin(RxDBDevModePlugin);
 }
@@ -945,6 +1003,12 @@ async function createDatabase(): Promise<AppDatabase> {
     },
     quranVerses: {
       schema: quranVerseSchema,
+      migrationStrategies: {
+        1: (oldDoc) => ({ ...oldDoc }),
+      },
+    },
+    wordSimilarities: {
+      schema: wordSimilaritySchema,
       migrationStrategies: {
         1: (oldDoc) => ({ ...oldDoc }),
       },

@@ -30,6 +30,7 @@ import {
   IconSparkles,
   IconSun,
   IconTags,
+  IconTopologyStarRing3,
   IconVolume,
   IconVolumeOff,
 } from '@tabler/icons-react';
@@ -157,6 +158,7 @@ export function AppSidebar({
   const isHomePage = pathname === '/';
   const isQuizPage = pathname === '/quiz' || pathname.startsWith('/quiz');
   const isWordsPage = pathname === '/words';
+  const isSimilarWordsPage = pathname === '/similar-words' || pathname.startsWith('/similar-words');
   const isStoriesPage = pathname === '/stories';
   const isAnalysisPage = pathname === '/analysis';
   const isQuranPage = pathname === '/quran' || pathname.startsWith('/quran');
@@ -224,6 +226,17 @@ export function AppSidebar({
                 </Badge>
               }
               active={isWordsPage}
+              onClick={() => setMobileOpened(false)}
+              style={{ borderRadius: 8 }}
+            />
+
+            <NavLink
+              component={Link}
+              href="/similar-words"
+              label="Similar Word Groups"
+              description="Linguistic clusters & spelling twins"
+              leftSection={<IconTopologyStarRing3 size={18} />}
+              active={isSimilarWordsPage}
               onClick={() => setMobileOpened(false)}
               style={{ borderRadius: 8 }}
             />

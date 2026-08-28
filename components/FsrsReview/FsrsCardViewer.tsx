@@ -269,7 +269,19 @@ export const FsrsCardViewer = memo(function FsrsCardViewer({
                 }
                 withArrow
               >
-                <Indicator inline processing color="red" size={12}>
+                <Indicator
+                  disabled={!hasAddedWords}
+                  color="violet"
+                  size={10}
+                  offset={2}
+                  processing
+                  styles={{
+                    indicator: {
+                      boxShadow:
+                        '0 0 8px rgba(209, 192, 225, 0.9), 0 0 16px rgba(168, 85, 247, 0.6)',
+                    },
+                  }}
+                >
                   <ActionIcon
                     variant="transparent"
                     color="violet"
