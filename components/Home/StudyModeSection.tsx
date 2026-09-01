@@ -15,7 +15,6 @@ import {
   Title,
 } from '@mantine/core';
 import {
-  IconBook,
   IconCheck,
   IconExternalLink,
   IconHierarchy,
@@ -25,6 +24,7 @@ import {
 import { useRouter } from 'next/navigation';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { GroupManager } from '@/components/GroupManager/GroupManager';
+import { AppIcon } from '@/components/Logo';
 import { WordForm } from '@/components/WordForm/WordForm';
 import { WordList } from '@/components/WordList/WordList';
 import type { GroupRecord, WordDefinition, WordFamilyMemberRecord, WordRecord } from '@/lib/db';
@@ -187,7 +187,7 @@ export function StudyModeSection({
         <Stack gap="md">
           <Group justify="space-between" align="center" wrap="wrap">
             <Group gap="xs">
-              <IconBook size={22} style={{ color: '#a855f7' }} />
+              <AppIcon size={26} radius={7} withGlow={false} />
               <Title
                 order={3}
                 style={{

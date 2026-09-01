@@ -1,8 +1,135 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Word Memorizer">
-  <rect width="256" height="256" fill="#111827" />
-  <rect x="40" y="40" width="176" height="176" rx="20" fill="#f8fafc" />
-  <path d="M72 92h112" stroke="#111827" stroke-width="12" stroke-linecap="round" />
-  <path d="M72 128h112" stroke="#111827" stroke-width="12" stroke-linecap="round" />
-  <path d="M72 164h80" stroke="#111827" stroke-width="12" stroke-linecap="round" />
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%" role="img" aria-label="English Word Memorizer">
+  <defs>
+    <!-- Background Radial Gradient -->
+    <radialGradient id="appBgGrad" cx="50%" cy="35%" r="75%">
+      <stop offset="0%" stop-color="#1e1b4b" />
+      <stop offset="45%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#030712" />
+    </radialGradient>
 
+    <!-- Glowing Sphere Backdrop Gradient -->
+    <radialGradient id="sphereGlow" cx="50%" cy="45%" r="55%">
+      <stop offset="0%" stop-color="#6366f1" stop-opacity="0.45" />
+      <stop offset="50%" stop-color="#a855f7" stop-opacity="0.2" />
+      <stop offset="100%" stop-color="#0f172a" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- Page Gradients -->
+    <linearGradient id="leftPageGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="70%" stop-color="#e0e7ff" />
+      <stop offset="100%" stop-color="#c7d2fe" />
+    </linearGradient>
+
+    <linearGradient id="rightPageGrad" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="70%" stop-color="#fae8ff" />
+      <stop offset="100%" stop-color="#f5d0fe" />
+    </linearGradient>
+
+    <!-- Neural Stream Gradients -->
+    <linearGradient id="neuralStream" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#6366f1" />
+      <stop offset="50%" stop-color="#a855f7" />
+      <stop offset="100%" stop-color="#38bdf8" />
+    </linearGradient>
+
+    <linearGradient id="goldStar" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fde047" />
+      <stop offset="100%" stop-color="#f59e0b" />
+    </linearGradient>
+
+    <!-- App Border Stroke Gradient -->
+    <linearGradient id="borderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="rgba(99, 102, 241, 0.6)" />
+      <stop offset="50%" stop-color="rgba(168, 85, 247, 0.4)" />
+      <stop offset="100%" stop-color="rgba(56, 189, 248, 0.2)" />
+    </linearGradient>
+
+    <!-- Filters -->
+    <filter id="coreGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="12" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="20" flood-color="#000000" flood-opacity="0.6" />
+    </filter>
+  </defs>
+
+  <!-- Squircle Base Frame -->
+  <rect width="512" height="512" rx="120" fill="url(#appBgGrad)" />
+
+  <!-- Ambient Glow Sphere behind book -->
+  <circle cx="256" cy="240" r="180" fill="url(#sphereGlow)" />
+
+  <!-- Outer Glass Border -->
+  <rect x="6" y="6" width="500" height="500" rx="114" fill="none" stroke="url(#borderGrad)" stroke-width="4" />
+
+  <!-- Glass Highlight Arch -->
+  <path d="M30 110 C30 50, 50 30, 110 30 L402 30 C462 30, 482 50, 482 110 C482 130, 400 170, 256 170 C112 170, 30 130, 30 110 Z" fill="rgba(255, 255, 255, 0.05)" />
+
+  <!-- Main Symbol Group with Soft Drop Shadow -->
+  <g filter="url(#softShadow)">
+    <!-- Behind-the-Book Flashcard Stack Effect -->
+    <path d="M120 180 C170 162, 230 168, 256 182 C282 168, 342 162, 392 180 L380 340 C336 326, 280 332, 256 348 C232 332, 176 326, 132 340 Z" fill="rgba(99, 102, 241, 0.25)" />
+
+    <!-- Open Book Left Wing -->
+    <path d="M256 384 C218 354, 136 340, 84 350 C74 352, 64 344, 64 332 L64 168 C64 156, 74 148, 86 146 C140 136, 222 150, 256 182 Z"
+          fill="url(#leftPageGrad)" />
+
+    <!-- Open Book Right Wing -->
+    <path d="M256 384 C294 354, 376 340, 428 350 C438 352, 448 344, 448 332 L448 168 C448 156, 438 148, 426 146 C372 136, 290 150, 256 182 Z"
+          fill="url(#rightPageGrad)" />
+
+    <!-- Book Center Seam & Lighting -->
+    <path d="M256 182 L256 390" stroke="#4f46e5" stroke-width="7" stroke-linecap="round" />
+
+    <!-- Left Page Text/Word Lines -->
+    <path d="M116 200 C152 194, 202 200, 226 216" stroke="#4f46e5" stroke-width="7" stroke-linecap="round" />
+    <path d="M116 242 C152 236, 202 242, 226 258" stroke="#6366f1" stroke-width="7" stroke-linecap="round" />
+    <path d="M116 284 C152 278, 202 284, 226 300" stroke="#818cf8" stroke-width="7" stroke-linecap="round" />
+
+    <!-- Right Page Text/Word Lines -->
+    <path d="M396 200 C360 194, 310 200, 286 216" stroke="#7c3aed" stroke-width="7" stroke-linecap="round" />
+    <path d="M396 242 C360 236, 310 242, 286 258" stroke="#a855f7" stroke-width="7" stroke-linecap="round" />
+    <path d="M396 284 C360 278, 310 284, 286 300" stroke="#c084fc" stroke-width="7" stroke-linecap="round" />
+
+    <!-- Spaced Repetition / Memory Synaptic Emitter (Brain & FSRS network) -->
+    <!-- Synaptic Connection Rays -->
+    <g filter="url(#coreGlow)">
+      <path d="M256 160 L200 100" stroke="url(#neuralStream)" stroke-width="5" stroke-linecap="round" />
+      <path d="M256 160 L312 100" stroke="url(#neuralStream)" stroke-width="5" stroke-linecap="round" />
+      <path d="M256 140 L256 64" stroke="url(#neuralStream)" stroke-width="6" stroke-linecap="round" />
+      <path d="M200 100 L148 76" stroke="#6366f1" stroke-width="4" stroke-linecap="round" />
+      <path d="M312 100 L364 76" stroke="#c084fc" stroke-width="4" stroke-linecap="round" />
+      <path d="M200 100 L256 64" stroke="#818cf8" stroke-width="3" stroke-dasharray="4 4" stroke-linecap="round" />
+      <path d="M312 100 L256 64" stroke="#c084fc" stroke-width="3" stroke-dasharray="4 4" stroke-linecap="round" />
+
+      <!-- Synapse Memory Nodes -->
+      <!-- Central Apex Node (Master Memory Spark) -->
+      <circle cx="256" cy="62" r="20" fill="#38bdf8" />
+      <circle cx="256" cy="62" r="10" fill="#ffffff" />
+
+      <!-- Left Logic Node -->
+      <circle cx="200" cy="100" r="16" fill="#6366f1" />
+      <circle cx="200" cy="100" r="8" fill="#ffffff" />
+
+      <!-- Right Creativity Node -->
+      <circle cx="312" cy="100" r="16" fill="#ec4899" />
+      <circle cx="312" cy="100" r="8" fill="#ffffff" />
+
+      <!-- Outer Satellite Nodes -->
+      <circle cx="148" cy="76" r="10" fill="#818cf8" />
+      <circle cx="148" cy="76" r="5" fill="#ffffff" />
+
+      <circle cx="364" cy="76" r="10" fill="#f43f5e" />
+      <circle cx="364" cy="76" r="5" fill="#ffffff" />
+    </g>
+
+    <!-- Sparkling Golden Retention Stars -->
+    <path d="M256 400 L260 412 L272 416 L260 420 L256 432 L252 420 L240 416 L252 412 Z" fill="url(#goldStar)" filter="url(#coreGlow)" />
+    <path d="M410 110 L413 118 L422 121 L413 124 L410 132 L407 124 L398 121 L407 118 Z" fill="#38bdf8" />
+    <path d="M102 110 L105 118 L114 121 L105 124 L102 132 L99 124 L90 121 L99 118 Z" fill="#f43f5e" />
+  </g>
+</svg>

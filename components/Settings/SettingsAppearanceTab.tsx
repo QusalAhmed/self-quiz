@@ -23,7 +23,7 @@ import {
   IconSun,
   IconSunMoon,
 } from '@tabler/icons-react';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import type { AccentColorKey, AppAppearanceSettings } from '@/lib/settings';
 
 export interface SettingsAppearanceTabProps {
@@ -44,6 +44,18 @@ const ACCENT_COLORS: Array<{ key: AccentColorKey; label: string; color: string }
 
 export function SettingsAppearanceTab({ settings, onChange }: SettingsAppearanceTabProps) {
   const { colorScheme, setColorScheme } = useMantineColorScheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const activeScheme = mounted
+    ? settings.colorScheme || colorScheme || 'auto'
+    : settings.colorScheme || 'auto';
+  const isLight = activeScheme === 'light';
+  const isDark = activeScheme === 'dark';
+  const isAuto = activeScheme === 'auto';
 
   const handleSchemeChange = (value: string) => {
     const valid = value as 'light' | 'dark' | 'auto';
@@ -87,11 +99,10 @@ export function SettingsAppearanceTab({ settings, onChange }: SettingsAppearance
             radius="md"
             style={{
               cursor: 'pointer',
-              border:
-                colorScheme === 'light'
-                  ? '2px solid var(--mantine-color-indigo-5)'
-                  : '1px solid var(--card-border)',
-              background: colorScheme === 'light' ? 'rgba(99, 102, 241, 0.08)' : 'var(--card-bg)',
+              border: isLight
+                ? '2px solid var(--mantine-color-indigo-5)'
+                : '1px solid var(--card-border)',
+              background: isLight ? 'rgba(99, 102, 241, 0.08)' : 'var(--card-bg)',
               transition: 'all 0.2s ease',
             }}
             onClick={() => handleSchemeChange('light')}
@@ -100,7 +111,7 @@ export function SettingsAppearanceTab({ settings, onChange }: SettingsAppearance
               <ThemeIcon color="yellow" variant="light" size="md" radius="xl">
                 <IconSun size={18} />
               </ThemeIcon>
-              {colorScheme === 'light' && (
+              {isLight && (
                 <ThemeIcon color="indigo" size="xs" radius="xl">
                   <IconCheck size={12} />
                 </ThemeIcon>
@@ -120,11 +131,10 @@ export function SettingsAppearanceTab({ settings, onChange }: SettingsAppearance
             radius="md"
             style={{
               cursor: 'pointer',
-              border:
-                colorScheme === 'dark'
-                  ? '2px solid var(--mantine-color-indigo-5)'
-                  : '1px solid var(--card-border)',
-              background: colorScheme === 'dark' ? 'rgba(99, 102, 241, 0.08)' : 'var(--card-bg)',
+              border: isDark
+                ? '2px solid var(--mantine-color-indigo-5)'
+                : '1px solid var(--card-border)',
+              background: isDark ? 'rgba(99, 102, 241, 0.08)' : 'var(--card-bg)',
               transition: 'all 0.2s ease',
             }}
             onClick={() => handleSchemeChange('dark')}
@@ -133,7 +143,7 @@ export function SettingsAppearanceTab({ settings, onChange }: SettingsAppearance
               <ThemeIcon color="violet" variant="light" size="md" radius="xl">
                 <IconMoon size={18} />
               </ThemeIcon>
-              {colorScheme === 'dark' && (
+              {isDark && (
                 <ThemeIcon color="indigo" size="xs" radius="xl">
                   <IconCheck size={12} />
                 </ThemeIcon>
@@ -153,11 +163,10 @@ export function SettingsAppearanceTab({ settings, onChange }: SettingsAppearance
             radius="md"
             style={{
               cursor: 'pointer',
-              border:
-                colorScheme === 'auto'
-                  ? '2px solid var(--mantine-color-indigo-5)'
-                  : '1px solid var(--card-border)',
-              background: colorScheme === 'auto' ? 'rgba(99, 102, 241, 0.08)' : 'var(--card-bg)',
+              border: isAuto
+                ? '2px solid var(--mantine-color-indigo-5)'
+                : '1px solid var(--card-border)',
+              background: isAuto ? 'rgba(99, 102, 241, 0.08)' : 'var(--card-bg)',
               transition: 'all 0.2s ease',
             }}
             onClick={() => handleSchemeChange('auto')}
@@ -166,7 +175,7 @@ export function SettingsAppearanceTab({ settings, onChange }: SettingsAppearance
               <ThemeIcon color="blue" variant="light" size="md" radius="xl">
                 <IconSunMoon size={18} />
               </ThemeIcon>
-              {colorScheme === 'auto' && (
+              {isAuto && (
                 <ThemeIcon color="indigo" size="xs" radius="xl">
                   <IconCheck size={12} />
                 </ThemeIcon>

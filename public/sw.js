@@ -1,5 +1,5 @@
 // Auto-generated at build time — do not edit manually.
-const CACHE_VERSION = 'mt7j6ish';
+const CACHE_VERSION = 'mtivs4c7';
 const STATIC_CACHE = 'self-quiz-static-' + CACHE_VERSION;
 const RUNTIME_CACHE = 'self-quiz-runtime-' + CACHE_VERSION;
 // App shell and critical static assets to precache on install

@@ -13,8 +13,9 @@ import {
   Text,
   ThemeIcon,
 } from '@mantine/core';
-import { IconBrain, IconDeviceLaptop, IconKeyboard } from '@tabler/icons-react';
+import { IconDeviceLaptop, IconKeyboard } from '@tabler/icons-react';
 import React, { useEffect, useState } from 'react';
+import { AppIcon } from '@/components/Logo';
 
 export function SettingsAboutTab() {
   const [diagnostics, setDiagnostics] = useState<{
@@ -88,15 +89,8 @@ export function SettingsAboutTab() {
         }}
       >
         <Group justify="space-between" align="center" mb="sm">
-          <Group gap="sm">
-            <ThemeIcon
-              size={44}
-              radius="md"
-              variant="gradient"
-              gradient={{ from: 'indigo', to: 'violet', deg: 135 }}
-            >
-              <IconBrain size={24} />
-            </ThemeIcon>
+          <Group gap="md">
+            <AppIcon size={48} radius={12} withGlow />
             <div>
               <Group gap="xs" align="center">
                 <Text fw={700} size="lg">

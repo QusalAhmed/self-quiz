@@ -55,14 +55,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <head>
         <ColorSchemeScript suppressHydrationWarning />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         <link rel="shortcut icon" href="/favicon.svg" />
+        <link rel="apple-touch-icon" href="/icon.svg" />
         <link rel="manifest" href="/manifest.webmanifest" />
-        <meta name="theme-color" content="#111827" />
+        <meta name="theme-color" content="#4f46e5" />
         <meta
           name="viewport"
           content="minimum-scale=1, initial-scale=1, width=device-width, user-scalable=no"
         />
-        <title>Self Quiz</title>
+        <title>Self Quiz - English Word Memorizer</title>
       </head>
       <body
         className={`${inter.variable} ${plusJakartaSans.variable} ${jetbrainsMono.variable} ${amiri.variable}`}

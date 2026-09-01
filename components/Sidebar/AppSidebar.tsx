@@ -14,7 +14,6 @@ import {
   ScrollArea,
   Stack,
   Text,
-  Title,
   Tooltip,
 } from '@mantine/core';
 import {
@@ -37,6 +36,7 @@ import {
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { AppLogo } from '@/components/Logo';
 import { useSoundPreference } from '@/lib/sound';
 
 const DEFAULT_FAB_POSITION = { right: 20, bottom: 24 } as const;
@@ -174,37 +174,12 @@ export function AppSidebar({
       <Stack justify="space-between" style={{ minHeight: '100%', padding: '16px 12px 36px 12px' }}>
         {/* Top Branding Section */}
         <Stack gap="sm">
-          <Link
-            href="/"
-            style={{ cursor: 'pointer', textDecoration: 'none', color: 'inherit' }}
+          <AppLogo
+            size="md"
+            withGlow
             onClick={() => setMobileOpened(false)}
-          >
-            <Group justify="flex-start" align="center">
-              <Box
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 10,
-                  background: 'var(--accent-gradient)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#fff',
-                  boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)',
-                }}
-              >
-                <IconBrain size={22} />
-              </Box>
-              <Stack gap={0}>
-                <Title order={4} style={{ fontSize: '1.02rem', lineHeight: 1.2 }}>
-                  <span className="text-gradient">Word Memorizer</span>
-                </Title>
-                <Text size="xs" c="dimmed" style={{ fontSize: '0.7rem' }}>
-                  Vocabulary Companion
-                </Text>
-              </Stack>
-            </Group>
-          </Link>
+            style={{ paddingLeft: 4 }}
+          />
 
           <Divider my="xs" style={{ borderColor: 'var(--card-border)' }} />
 

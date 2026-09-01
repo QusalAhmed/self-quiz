@@ -1,16 +1,25 @@
 {
-  "name": "English Word Memorizer",
+  "name": "English Word Memorizer & Quiz Companion",
   "short_name": "Word Memorizer",
-  "description": "Local-first English word memorization with quiz practice.",
+  "description": "Local-first English word memorization with FSRS spaced repetition and AI quiz practice.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#111827",
-  "theme_color": "#111827",
+  "orientation": "portrait-primary",
+  "background_color": "#0b0f19",
+  "theme_color": "#4f46e5",
+  "categories": ["education", "productivity", "utilities"],
   "icons": [
     {
       "src": "/icon.svg",
       "sizes": "any",
-      "type": "image/svg+xml"
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
     }
   ]
 }
