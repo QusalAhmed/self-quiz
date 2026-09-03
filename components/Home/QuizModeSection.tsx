@@ -751,7 +751,8 @@ export const QuizModeSection = memo(function QuizModeSection({
       <Card
         className="glass-panel"
         radius="lg"
-        padding="lg"
+        padding="sm"
+        p={{ base: 'sm', sm: 'lg' }}
         style={{ borderLeft: '4px solid #ef4444', overflow: 'hidden' }}
       >
         <Group justify="space-between" align="center" mb="md" gap="md" wrap="wrap">

@@ -214,6 +214,40 @@ body::before {
   animation: none !important;
 }
 
+/* Responsive ambient aurora sizing for mobile & tablets */
+@media (max-width: 48em) {
+  .aurora-orb {
+    filter: blur(55px);
+    opacity: 0.25;
+  }
+
+  [data-mantine-color-scheme='dark'] .aurora-orb {
+    filter: blur(65px);
+    opacity: 0.22;
+  }
+
+  .aurora-orb-1 {
+    width: 280px;
+    height: 280px;
+    top: -5%;
+    right: -10%;
+  }
+
+  .aurora-orb-2 {
+    width: 260px;
+    height: 260px;
+    bottom: 5%;
+    left: -15%;
+  }
+
+  .aurora-orb-3 {
+    width: 200px;
+    height: 200px;
+    top: 35%;
+    right: 5%;
+  }
+}
+
 /* --- Typography Overrides --- */
 h1,
 h2,
@@ -253,15 +287,40 @@ pre {
 /* Responsive Glassmorphism: Smooth hardware-accelerated blur across screens */
 @media (max-width: 48em) {
   .glass-panel,
-  .mantine-Card-root {
-    backdrop-filter: blur(12px) saturate(160%) !important;
-    -webkit-backdrop-filter: blur(12px) saturate(160%) !important;
-    background: rgba(255, 255, 255, 0.88) !important;
+  .mantine-Card-root,
+  .word-card,
+  .virtual-word-card {
+    backdrop-filter: blur(14px) saturate(160%) !important;
+    -webkit-backdrop-filter: blur(14px) saturate(160%) !important;
+    background: rgba(255, 255, 255, 0.78) !important;
+    border-radius: 12px !important;
   }
 
   [data-mantine-color-scheme='dark'] .glass-panel,
-  [data-mantine-color-scheme='dark'] .mantine-Card-root {
-    background: rgba(18, 22, 38, 0.84) !important;
+  [data-mantine-color-scheme='dark'] .mantine-Card-root,
+  [data-mantine-color-scheme='dark'] .word-card,
+  [data-mantine-color-scheme='dark'] .virtual-word-card {
+    background: rgba(18, 22, 38, 0.74) !important;
+  }
+}
+
+/* Compact Mobile Devices (<= 480px) */
+@media (max-width: 30em) {
+  .glass-panel,
+  .mantine-Card-root,
+  .word-card,
+  .virtual-word-card {
+    backdrop-filter: blur(10px) saturate(150%) !important;
+    -webkit-backdrop-filter: blur(10px) saturate(150%) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.08), var(--glass-specular) !important;
+  }
+
+  [data-mantine-color-scheme='dark'] .glass-panel,
+  [data-mantine-color-scheme='dark'] .mantine-Card-root,
+  [data-mantine-color-scheme='dark'] .word-card,
+  [data-mantine-color-scheme='dark'] .virtual-word-card {
+    box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.4), var(--glass-specular) !important;
   }
 }
 
@@ -301,10 +360,19 @@ pre {
   transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
-.hover-lift:hover {
-  transform: translateY(-4px) scale(1.006) !important;
-  box-shadow: var(--card-shadow-hover), var(--glass-specular) !important;
-  border-color: var(--card-border-glow) !important;
+@media (hover: hover) and (pointer: fine) {
+  .hover-lift:hover {
+    transform: translateY(-3px) scale(1.004) !important;
+    box-shadow: var(--card-shadow-hover), var(--glass-specular) !important;
+    border-color: var(--card-border-glow) !important;
+  }
+}
+
+@media (hover: none) {
+  .hover-lift:active {
+    transform: scale(0.99) !important;
+    transition: transform 0.1s ease !important;
+  }
 }
 
 /* Virtual List & Vocabulary Cards with High-Performance Glassmorphism */
@@ -322,10 +390,19 @@ pre {
     transform 0.2s ease !important;
 }
 
-.virtual-word-card:hover {
-  border-color: var(--card-border-glow) !important;
-  box-shadow: var(--card-shadow-hover), var(--glass-specular) !important;
-  transform: translateY(-2px);
+@media (hover: hover) and (pointer: fine) {
+  .virtual-word-card:hover {
+    border-color: var(--card-border-glow) !important;
+    box-shadow: var(--card-shadow-hover), var(--glass-specular) !important;
+    transform: translateY(-2px);
+  }
+}
+
+@media (hover: none) {
+  .virtual-word-card:active {
+    transform: scale(0.99) !important;
+    transition: transform 0.1s ease !important;
+  }
 }
 
 .virtual-list-row {
@@ -518,21 +595,18 @@ pre {
     background-color 0.2s ease !important;
 }
 
-.word-card:hover {
-  border-color: var(--card-border-glow) !important;
-  box-shadow: var(--card-shadow-hover), var(--glass-specular) !important;
-  transform: translateY(-2px);
+@media (hover: hover) and (pointer: fine) {
+  .word-card:hover {
+    border-color: var(--card-border-glow) !important;
+    box-shadow: var(--card-shadow-hover), var(--glass-specular) !important;
+    transform: translateY(-2px);
+  }
 }
 
-@media (max-width: 48em) {
-  .word-card {
-    backdrop-filter: blur(12px) saturate(160%) !important;
-    -webkit-backdrop-filter: blur(12px) saturate(160%) !important;
-    background: rgba(255, 255, 255, 0.88) !important;
-  }
-
-  [data-mantine-color-scheme='dark'] .word-card {
-    background: rgba(18, 22, 38, 0.84) !important;
+@media (hover: none) {
+  .word-card:active {
+    transform: scale(0.99);
+    transition: transform 0.1s ease !important;
   }
 }
 
@@ -1275,6 +1349,22 @@ li[data-type='taskItem'] > div {
   box-shadow: var(--card-shadow-hover), var(--glass-specular) !important;
   border-radius: 20px !important;
   overflow: hidden !important;
+}
+
+@media (max-width: 48em) {
+  .mantine-Modal-content {
+    border-radius: 16px !important;
+    margin: 8px !important;
+    max-width: calc(100vw - 16px) !important;
+  }
+}
+
+@media (max-width: 30em) {
+  .mantine-Modal-content {
+    border-radius: 14px !important;
+    margin: 6px !important;
+    max-width: calc(100vw - 12px) !important;
+  }
 }
 
 .mantine-Modal-header {

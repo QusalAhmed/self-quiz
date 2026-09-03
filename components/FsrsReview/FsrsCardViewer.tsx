@@ -216,7 +216,8 @@ export const FsrsCardViewer = memo(function FsrsCardViewer({
       ref={cardRef}
       className="glass-panel hover-lift"
       radius="xl"
-      padding="xl"
+      padding="md"
+      p={{ base: 'md', sm: 'xl' }}
       style={{
         width: '100%',
         maxWidth: 640,

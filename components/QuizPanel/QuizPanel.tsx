@@ -457,7 +457,8 @@ export const QuizPanel = memo(function QuizPanel({
       <Card
         className="glass-panel animate-float"
         radius="lg"
-        padding="xl"
+        padding="md"
+        p={{ base: 'md', sm: 'xl' }}
         style={{
           textAlign: 'center',
           border: '1px solid rgba(99, 102, 241, 0.25)',
@@ -979,7 +980,7 @@ export const QuizPanel = memo(function QuizPanel({
   // );
 
   return (
-    <Card ref={quizPanelRef} className="glass-panel" radius="lg" padding="xl">
+    <Card ref={quizPanelRef} className="glass-panel" radius="lg" padding="md" p={{ base: 'md', sm: 'xl' }}>
       <Stack gap="xl">
         {totalCount > 0 && (
           <Stack gap="xs">

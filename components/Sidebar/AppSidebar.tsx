@@ -479,7 +479,15 @@ export function AppSidebar({
         styles={{
           content: {
             background: 'var(--card-bg)',
-            backdropFilter: 'blur(16px)',
+            backdropFilter: 'var(--glass-blur-heavy)',
+            WebkitBackdropFilter: 'var(--glass-blur-heavy)',
+            borderRight: '1px solid var(--card-border)',
+            boxShadow: '4px 0 32px rgba(0, 0, 0, 0.2), var(--glass-specular)',
+          },
+          overlay: {
+            background: 'rgba(15, 23, 42, 0.4)',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
           },
         }}
       >
