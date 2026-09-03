@@ -410,13 +410,12 @@ export function StoryReader({
 
       {/* Main Story Container */}
       <Card
-        withBorder
         padding="xl"
         radius="lg"
-        shadow="sm"
+        className="glass-panel"
         style={{
-          background: 'var(--mantine-color-body)',
-          borderColor: 'var(--mantine-color-indigo-1)',
+          background: 'var(--card-bg)',
+          borderColor: 'var(--card-border)',
         }}
       >
         <Stack gap="md">
@@ -444,7 +443,7 @@ export function StoryReader({
                           : 'blue'
                     }
                   >
-                    {story.difficulty.charAt(0).toUpperCase() + story.difficulty.slice(1)}
+                    {story.difficulty}
                   </Badge>
                 )}
                 <Text size="xs" c="dimmed">
@@ -455,14 +454,14 @@ export function StoryReader({
             </Stack>
 
             <Paper
-              withBorder
               p="xs"
               radius="md"
+              className="glass-panel"
               style={{
                 background: isClozeMode
-                  ? 'var(--mantine-color-indigo-0)'
-                  : 'var(--mantine-color-gray-0)',
-                borderColor: isClozeMode ? 'var(--mantine-color-indigo-3)' : undefined,
+                  ? 'rgba(99, 102, 241, 0.1)'
+                  : 'var(--card-bg-subtle)',
+                borderColor: isClozeMode ? 'var(--card-border-glow)' : 'var(--card-border-subtle)',
               }}
             >
               <Group gap="xs">
@@ -494,10 +493,10 @@ export function StoryReader({
           <Paper
             p="xs"
             radius="md"
-            withBorder
+            className="glass-panel"
             style={{
-              background: 'var(--mantine-color-indigo-0)',
-              borderColor: 'var(--mantine-color-indigo-2)',
+              background: 'var(--card-bg-subtle)',
+              borderColor: 'var(--card-border-subtle)',
             }}
           >
             <Group justify="space-between" align="center" wrap="wrap">

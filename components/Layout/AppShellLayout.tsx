@@ -47,7 +47,7 @@ export function AppShellLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { mode, quizDirection } = useAppSelector(selectQuizState);
   const { colorScheme, setColorScheme } = useMantineColorScheme();
-  const { settings } = useAppSettings();
+  const { settings, updateSection } = useAppSettings();
 
   // Synchronize appearance settings with document attributes & color scheme
   useEffect(() => {
@@ -410,7 +410,14 @@ export function AppShellLayout({ children }: { children: React.ReactNode }) {
   }, [fsrsRecords, quizDirection, nowTicker, fsrsDueTodayCount]);
 
   return (
-    <Box style={{ display: 'flex', minHeight: '100vh', width: '100%' }}>
+    <Box style={{ display: 'flex', minHeight: '100vh', width: '100%', position: 'relative' }}>
+      {/* Ambient Aurora Glass Lighting Atmosphere */}
+      <div className="ambient-aurora-container" aria-hidden="true">
+        <div className="aurora-orb aurora-orb-1" />
+        <div className="aurora-orb aurora-orb-2" />
+        <div className="aurora-orb aurora-orb-3" />
+      </div>
+
       <PwaRegister />
 
       {/* Permanent Desktop Sidebar + Mobile Drawer FAB */}
@@ -446,7 +453,11 @@ export function AppShellLayout({ children }: { children: React.ReactNode }) {
         todayCount={todayCount}
         fsrsDueTodayCount={fsrsDueTodayCount}
         colorScheme={colorScheme}
-        onToggleTheme={() => setColorScheme(colorScheme === 'dark' ? 'light' : 'dark')}
+        onToggleTheme={() => {
+          const nextScheme = colorScheme === 'dark' ? 'light' : 'dark';
+          setColorScheme(nextScheme);
+          updateSection('appearance', { colorScheme: nextScheme });
+        }}
       />
 
       {/* Main Right Content Column */}

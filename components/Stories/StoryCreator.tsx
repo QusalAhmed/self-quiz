@@ -358,7 +358,7 @@ export function StoryCreator({
     <Grid gap="xl">
       {/* Left Column: Word Selection Suite */}
       <Grid.Col span={{ base: 12, md: 7, lg: 8 }}>
-        <Paper p="md" radius="md" withBorder>
+        <Paper p="md" radius="lg" className="glass-panel">
           <Tabs value={activeTab} onChange={setActiveTab} variant="outline" radius="md">
             <Tabs.List mb="md">
               <Tabs.Tab value="presets" leftSection={<IconBrain size={16} />}>
@@ -557,7 +557,7 @@ export function StoryCreator({
       <Grid.Col span={{ base: 12, md: 5, lg: 4 }}>
         <Stack gap="md" style={{ position: 'sticky', top: 20 }}>
           {/* Target Words Tray */}
-          <Paper p="md" radius="md" withBorder>
+          <Paper p="md" radius="lg" className="glass-panel">
             <Stack gap="sm">
               <Group justify="space-between" align="center">
                 <Group gap="xs">
@@ -621,7 +621,8 @@ export function StoryCreator({
                   withBorder
                   p="sm"
                   radius="md"
-                  style={{ background: 'var(--mantine-color-gray-0)' }}
+                  className="glass-panel"
+                  style={{ background: 'var(--card-bg-subtle)' }}
                 >
                   <Text size="xs" c="dimmed" ta="center">
                     No words selected. Choose a preset or browse library.
@@ -632,7 +633,7 @@ export function StoryCreator({
           </Paper>
 
           {/* Story Settings */}
-          <Paper p="md" radius="md" withBorder>
+          <Paper p="md" radius="lg" className="glass-panel">
             <Stack gap="md">
               <Title order={5}>Story Settings</Title>
 

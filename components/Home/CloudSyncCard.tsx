@@ -23,7 +23,6 @@ import {
   IconActivity,
   IconAdjustmentsHorizontal,
   IconAlertTriangle,
-  IconArrowsShuffle,
   IconBook,
   IconBrain,
   IconCheck,
@@ -70,7 +69,6 @@ export type CloudSyncCardProps = {
     missedWords?: number;
     wordFamilies?: number;
     fsrsRecords?: number;
-    srsPracticeWords?: number;
     dailyUsage?: number;
     reviewLogs?: number;
     settings?: number;
@@ -84,7 +82,6 @@ const collectionIcons: Record<SyncCollectionKey, React.ComponentType<{ size?: nu
   missedWords: IconListCheck,
   wordFamilies: IconHierarchy,
   fsrsRecords: IconBrain,
-  srsPracticeWords: IconArrowsShuffle,
   dailyUsage: IconClock,
   reviewLogs: IconHistory,
   settings: IconAdjustmentsHorizontal,
@@ -233,18 +230,6 @@ export function CloudSyncCard({
           key: 'fsrsRecords',
           label: 'FSRS Records',
           tableName: 'fsrs_records',
-          isActive: isActuallySyncing,
-          isPaused,
-          error: null,
-          lastSyncedAt: null,
-          sentCount: 0,
-          receivedCount: 0,
-          pendingCount: 0,
-        },
-        {
-          key: 'srsPracticeWords',
-          label: 'SRS Practice',
-          tableName: 'srs_practice_words',
           isActive: isActuallySyncing,
           isPaused,
           error: null,

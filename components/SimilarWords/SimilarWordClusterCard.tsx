@@ -122,12 +122,10 @@ export const SimilarWordClusterCard = React.memo(function SimilarWordClusterCard
     <Card
       p="md"
       radius="md"
-      withBorder
+      className="glass-panel hover-lift"
       style={{
         background: styleConfig.bg,
         borderColor: styleConfig.border,
-        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.04)',
-        transition: 'transform 0.15s ease, box-shadow 0.15s ease',
       }}
     >
       <Stack gap="xs">

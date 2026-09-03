@@ -343,9 +343,10 @@ export const WordExplorerHeader = React.memo(function WordExplorerHeader({
             <Paper
               p="xs"
               radius="md"
+              className="glass-panel"
               style={{
-                background: 'rgba(99, 102, 241, 0.06)',
-                border: '1px solid rgba(99, 102, 241, 0.15)',
+                background: 'rgba(99, 102, 241, 0.08)',
+                border: '1px solid rgba(99, 102, 241, 0.22)',
               }}
             >
               <Group justify="space-between" align="center">
@@ -364,9 +365,10 @@ export const WordExplorerHeader = React.memo(function WordExplorerHeader({
             <Paper
               p="xs"
               radius="md"
+              className="glass-panel"
               style={{
-                background: 'rgba(34, 197, 94, 0.06)',
-                border: '1px solid rgba(34, 197, 94, 0.15)',
+                background: 'rgba(34, 197, 94, 0.08)',
+                border: '1px solid rgba(34, 197, 94, 0.22)',
               }}
             >
               <Group justify="space-between" align="center">
@@ -385,9 +387,10 @@ export const WordExplorerHeader = React.memo(function WordExplorerHeader({
             <Paper
               p="xs"
               radius="md"
+              className="glass-panel"
               style={{
-                background: 'rgba(249, 115, 22, 0.06)',
-                border: '1px solid rgba(249, 115, 22, 0.15)',
+                background: 'rgba(249, 115, 22, 0.08)',
+                border: '1px solid rgba(249, 115, 22, 0.22)',
               }}
             >
               <Group justify="space-between" align="center">
@@ -406,9 +409,10 @@ export const WordExplorerHeader = React.memo(function WordExplorerHeader({
             <Paper
               p="xs"
               radius="md"
+              className="glass-panel"
               style={{
-                background: 'rgba(168, 85, 247, 0.06)',
-                border: '1px solid rgba(168, 85, 247, 0.15)',
+                background: 'rgba(168, 85, 247, 0.08)',
+                border: '1px solid rgba(168, 85, 247, 0.22)',
               }}
             >
               <Group justify="space-between" align="center">
@@ -427,9 +431,10 @@ export const WordExplorerHeader = React.memo(function WordExplorerHeader({
             <Paper
               p="xs"
               radius="md"
+              className="glass-panel"
               style={{
-                background: 'rgba(236, 72, 153, 0.06)',
-                border: '1px solid rgba(236, 72, 153, 0.15)',
+                background: 'rgba(236, 72, 153, 0.08)',
+                border: '1px solid rgba(236, 72, 153, 0.22)',
               }}
             >
               <Group justify="space-between" align="center">

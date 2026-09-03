@@ -19,6 +19,8 @@ export const theme = createTheme({
   },
   primaryColor: 'indigo',
   primaryShade: 6,
+  defaultRadius: 'md',
+  cursorType: 'pointer',
   colors: {
     // Custom indigo shades to blend beautifully
     indigo: [
@@ -33,5 +35,27 @@ export const theme = createTheme({
       '#312e81',
       '#1e1b4b',
     ],
+  },
+  components: {
+    Card: {
+      defaultProps: {
+        radius: 'lg',
+      },
+    },
+    Paper: {
+      defaultProps: {
+        radius: 'lg',
+      },
+    },
+    Modal: {
+      defaultProps: {
+        radius: 'xl',
+      },
+    },
+    Button: {
+      defaultProps: {
+        radius: 'md',
+      },
+    },
   },
 });

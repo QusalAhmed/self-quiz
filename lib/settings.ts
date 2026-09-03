@@ -420,6 +420,10 @@ export function useAppSettings(): {
     section: K,
     sectionValues: Partial<AppSettings[K]>
   ) => void;
+  updateSetting: <K extends keyof AppSettings>(
+    section: K,
+    sectionValues: Partial<AppSettings[K]>
+  ) => void;
   isHydrated: boolean;
 } {
   const [settings, setSettingsState] = useState<AppSettings>(DEFAULT_APP_SETTINGS);
@@ -487,6 +491,7 @@ export function useAppSettings(): {
     updateSettings: update,
     resetSettings: reset,
     updateSection,
+    updateSetting: updateSection,
     isHydrated,
   };
 }

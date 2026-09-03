@@ -372,8 +372,9 @@ export function AppSidebar({
           <Paper
             p="xs"
             radius="md"
+            className="glass-panel"
             style={{
-              background: 'rgba(99, 102, 241, 0.05)',
+              background: 'var(--card-bg-subtle)',
               border: '1px solid var(--card-border)',
             }}
           >

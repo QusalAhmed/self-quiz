@@ -494,9 +494,10 @@ export const WordDetailCard = React.memo(function WordDetailCard({
               key={`def-${index}`}
               p="sm"
               radius="md"
+              className="glass-panel"
               style={{
-                background: 'rgba(99, 102, 241, 0.04)',
-                border: '1px solid rgba(99, 102, 241, 0.12)',
+                background: 'var(--card-bg-subtle)',
+                border: '1px solid var(--card-border-subtle)',
               }}
             >
               <Stack gap={6}>
