@@ -217,7 +217,7 @@ export function ReviewDetailModal({
           }}
         >
           <Text size="xs" fw={700} c="dimmed" mb="xs" style={{ letterSpacing: '0.04em' }}>
-            FSRS-4.5 COMPUTED PARAMETERS
+            FSRS-5 COMPUTED PARAMETERS
           </Text>
 
           <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md">

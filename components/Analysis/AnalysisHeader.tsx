@@ -27,7 +27,7 @@ import {
   IconRefresh,
   IconSparkles,
 } from '@tabler/icons-react';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import type {
   AnalysisFilters,
   ComparisonPeriod,
@@ -81,6 +81,22 @@ export function AnalysisHeader({
       });
     }
   };
+
+  const groupSelectData = useMemo(() => {
+    const seen = new Set<string>(['all', 'none']);
+    const options = [
+      { label: 'All Groups', value: 'all' },
+      { label: 'Ungrouped Words', value: 'none' },
+    ];
+    for (const g of availableGroups) {
+      const trimmed = g.trim();
+      if (trimmed && !seen.has(trimmed)) {
+        seen.add(trimmed);
+        options.push({ label: trimmed, value: trimmed });
+      }
+    }
+    return options;
+  }, [availableGroups]);
 
   const activeFiltersCount =
     (filters.quizMode !== 'all' ? 1 : 0) +
@@ -398,11 +414,7 @@ export function AnalysisHeader({
                       groupFilter: val || 'all',
                     })
                   }
-                  data={[
-                    { label: 'All Groups', value: 'all' },
-                    { label: 'Ungrouped Words', value: 'none' },
-                    ...availableGroups.map((g) => ({ label: g, value: g })),
-                  ]}
+                  data={groupSelectData}
                 />
 
                 <Select

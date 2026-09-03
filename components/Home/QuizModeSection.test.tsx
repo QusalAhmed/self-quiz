@@ -156,4 +156,17 @@ describe('QuizModeSection component', () => {
     expect(screen.getByText(/SELECT SIMILAR-WORD GROUP \/ CLUSTER/i)).toBeInTheDocument();
     expect(screen.getAllByText(/trial ↔ trail Pair/i).length).toBeGreaterThanOrEqual(1);
   });
+
+  it('renders without error when customGroups contains duplicate or reserved group names', () => {
+    expect(() => {
+      render(
+        <QuizModeSection
+          {...baseProps}
+          customGroups={['Include', 'Include', 'all', 'none', '  Include  ', 'Verbs']}
+        />
+      );
+    }).not.toThrow();
+
+    expect(screen.getByText('QUIZ GROUP')).toBeInTheDocument();
+  });
 });

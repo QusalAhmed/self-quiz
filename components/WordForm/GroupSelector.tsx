@@ -1,6 +1,6 @@
 import { ActionIcon, Group, MultiSelect, Text, TextInput, Tooltip } from '@mantine/core';
 import { IconCheck, IconPlus, IconX } from '@tabler/icons-react';
-import type { KeyboardEvent } from 'react';
+import { useMemo, type KeyboardEvent } from 'react';
 
 type GroupSelectorProps = {
   customGroups: string[];
@@ -31,6 +31,18 @@ export function GroupSelector({
   onConfirmNewGroup,
   onCancelNewGroup,
 }: GroupSelectorProps) {
+  const selectData = useMemo(() => {
+    const seen = new Set<string>();
+    const options: Array<{ value: string; label: string }> = [];
+    for (const g of [...customGroups, ...groups]) {
+      const trimmed = g.trim();
+      if (trimmed && !seen.has(trimmed)) {
+        seen.add(trimmed);
+        options.push({ value: trimmed, label: trimmed });
+      }
+    }
+    return options;
+  }, [customGroups, groups]);
   return (
     <div
       style={{
@@ -66,7 +78,7 @@ export function GroupSelector({
           placeholder="Choose one or more groups..."
           value={groups}
           onChange={onGroupsChange}
-          data={customGroups.map((group) => ({ value: group, label: group }))}
+          data={selectData}
           disabled={disabled || isSaving}
           size="sm"
           radius="md"

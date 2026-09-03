@@ -71,7 +71,7 @@ export function LearningStateDistribution({
             </Text>
           </div>
 
-          <Tooltip label="FSRS-4.5 state rules" multiline w={300} withArrow>
+          <Tooltip label="FSRS-5 state rules" multiline w={300} withArrow>
             <Badge
               variant="light"
               color="indigo"

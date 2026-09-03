@@ -276,6 +276,22 @@ export const QuizModeSection = memo(function QuizModeSection({
     return options;
   }, [similarClusters, selectedGroupId, clusterContext]);
 
+  const quizGroupSelectData = useMemo(() => {
+    const seen = new Set<string>(['all', 'none']);
+    const options = [
+      { value: 'all', label: 'All Groups' },
+      { value: 'none', label: 'No Group' },
+    ];
+    for (const g of customGroups) {
+      const trimmed = g.trim();
+      if (trimmed && !seen.has(trimmed)) {
+        seen.add(trimmed);
+        options.push({ value: trimmed, label: trimmed });
+      }
+    }
+    return options;
+  }, [customGroups]);
+
   return (
     <Stack gap="lg" style={{ minHeight: '100vh' }}>
       {/* Group Quiz Active Banner */}
@@ -461,11 +477,7 @@ export const QuizModeSection = memo(function QuizModeSection({
                     QUIZ GROUP
                   </Text>
                   <SelectLike
-                    data={[
-                      { value: 'all', label: 'All Groups' },
-                      { value: 'none', label: 'No Group' },
-                      ...customGroups.map((g) => ({ value: g, label: g })),
-                    ]}
+                    data={quizGroupSelectData}
                     value={quizGroupFilter}
                     onChange={(value) => onSetQuizGroupFilter(value ?? 'all')}
                   />
@@ -924,9 +936,21 @@ type SelectLikeProps = {
 };
 
 function SelectLike({ data, value, onChange }: SelectLikeProps) {
+  const uniqueData = useMemo(() => {
+    const seen = new Set<string>();
+    const result: typeof data = [];
+    for (const item of data) {
+      if (item && item.value && !seen.has(item.value)) {
+        seen.add(item.value);
+        result.push(item);
+      }
+    }
+    return result;
+  }, [data]);
+
   return (
     <Select
-      data={data}
+      data={uniqueData}
       value={value}
       size="md"
       radius="md"

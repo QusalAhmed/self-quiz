@@ -173,8 +173,12 @@ CREATE TABLE IF NOT EXISTS public.fsrs_records (
   state TEXT NOT NULL DEFAULT 'New',
   last_reviewed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  deleted BOOLEAN DEFAULT FALSE
+  deleted BOOLEAN DEFAULT FALSE,
+  last_rating TEXT DEFAULT ''
 );
+
+-- Add last_rating column for existing deployments
+ALTER TABLE public.fsrs_records ADD COLUMN IF NOT EXISTS last_rating TEXT DEFAULT '';
 
 CREATE INDEX IF NOT EXISTS idx_fsrs_records_word_id ON public.fsrs_records(word_id);
 CREATE INDEX IF NOT EXISTS idx_fsrs_records_quiz_mode ON public.fsrs_records(quiz_mode);

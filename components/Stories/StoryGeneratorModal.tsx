@@ -362,7 +362,9 @@ export function StoryGeneratorModal({
               <Select
                 size="xs"
                 placeholder="By Group/Tag..."
-                data={customGroups.map((g) => ({ value: g, label: g }))}
+                data={Array.from(new Set(customGroups.map((g) => g.trim()).filter(Boolean))).map(
+                  (g) => ({ value: g, label: g })
+                )}
                 onChange={(val) => {
                   if (val) {
                     handleApplyGroup(val);

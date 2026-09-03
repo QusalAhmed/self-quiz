@@ -19,11 +19,14 @@ export function wordHasAnyGroup(word: Pick<WordRecord, 'customGroups'>): boolean
 }
 
 export function getActiveGroupNames(groups: GroupRecord[]): string[] {
-  return groups
-    .filter((g) => !g.isDeleted)
-    .map((g) => g.name.trim())
-    .filter((name) => name.length > 0)
-    .sort((a, b) => a.localeCompare(b));
+  return Array.from(
+    new Set(
+      groups
+        .filter((g) => !g.isDeleted)
+        .map((g) => g.name.trim())
+        .filter((name) => name.length > 0)
+    )
+  ).sort((a, b) => a.localeCompare(b));
 }
 
 export function replaceGroupInWordGroups(

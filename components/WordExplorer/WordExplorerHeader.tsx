@@ -33,7 +33,7 @@ import {
   IconTags,
 } from '@tabler/icons-react';
 import { useRouter } from 'next/navigation';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { WordViewDensity } from './WordDetailCard';
 
 export type SearchScope = 'word' | 'wordAndDefinition' | 'all';
@@ -221,6 +221,22 @@ export const WordExplorerHeader = React.memo(function WordExplorerHeader({
   }, []);
 
   const isSearching = Boolean(localQuery.trim() || searchQuery.trim());
+
+  const groupSelectData = useMemo(() => {
+    const seen = new Set<string>(['all', 'none']);
+    const options = [
+      { value: 'all', label: 'All Custom Groups' },
+      { value: 'none', label: 'No Group Assigned' },
+    ];
+    for (const g of customGroups) {
+      const trimmed = g.trim();
+      if (trimmed && !seen.has(trimmed)) {
+        seen.add(trimmed);
+        options.push({ value: trimmed, label: `#${trimmed}` });
+      }
+    }
+    return options;
+  }, [customGroups]);
 
   return (
     <Stack gap="md">
@@ -542,11 +558,7 @@ export const WordExplorerHeader = React.memo(function WordExplorerHeader({
                 placeholder="Filter by Group"
                 value={groupFilter}
                 onChange={(val) => onGroupFilterChange(val ?? 'all')}
-                data={[
-                  { value: 'all', label: 'All Custom Groups' },
-                  { value: 'none', label: 'No Group Assigned' },
-                  ...customGroups.map((g) => ({ value: g, label: `#${g}` })),
-                ]}
+                data={groupSelectData}
                 leftSection={<IconTags size={16} />}
                 size="sm"
                 radius="md"

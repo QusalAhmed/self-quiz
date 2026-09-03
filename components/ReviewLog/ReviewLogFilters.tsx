@@ -23,7 +23,7 @@ import {
   IconTags,
   IconX,
 } from '@tabler/icons-react';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import type { QuizMode } from '@/lib/db';
 import type { FsrsRating } from '@/lib/fsrs';
 
@@ -78,6 +78,19 @@ export function ReviewLogFilters({
     filters.datePreset !== 'all' ||
     filters.groupFilter !== 'all' ||
     filters.sortBy !== 'newest';
+
+  const groupSelectData = useMemo(() => {
+    const seen = new Set<string>(['all']);
+    const options = [{ label: 'All Groups', value: 'all' }];
+    for (const g of availableGroups) {
+      const trimmed = g.trim();
+      if (trimmed && !seen.has(trimmed)) {
+        seen.add(trimmed);
+        options.push({ label: trimmed, value: trimmed });
+      }
+    }
+    return options;
+  }, [availableGroups]);
 
   return (
     <Card className="glass-panel" radius="xl" padding="md">
@@ -279,10 +292,7 @@ export function ReviewLogFilters({
                   leftSection={<IconTags size={14} />}
                   value={filters.groupFilter}
                   onChange={(val) => onFiltersChange({ ...filters, groupFilter: val || 'all' })}
-                  data={[
-                    { label: 'All Groups', value: 'all' },
-                    ...availableGroups.map((g) => ({ label: g, value: g })),
-                  ]}
+                  data={groupSelectData}
                   w={180}
                 />
               </Group>

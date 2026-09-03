@@ -22,7 +22,7 @@ import {
   IconTags,
 } from '@tabler/icons-react';
 import { useRouter } from 'next/navigation';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { GroupManager } from '@/components/GroupManager/GroupManager';
 import { AppIcon } from '@/components/Logo';
 import { WordForm } from '@/components/WordForm/WordForm';
@@ -128,6 +128,22 @@ export function StudyModeSection({
   const router = useRouter();
   const [localQuery, setLocalQuery] = useState(searchQuery);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const groupSelectData = useMemo(() => {
+    const seen = new Set<string>(['all', 'none']);
+    const options = [
+      { value: 'all', label: 'All Groups' },
+      { value: 'none', label: 'No Group' },
+    ];
+    for (const g of customGroups) {
+      const trimmed = g.trim();
+      if (trimmed && !seen.has(trimmed)) {
+        seen.add(trimmed);
+        options.push({ value: trimmed, label: trimmed });
+      }
+    }
+    return options;
+  }, [customGroups]);
 
   useEffect(() => {
     setLocalQuery(searchQuery);
@@ -315,11 +331,7 @@ export function StudyModeSection({
                   onSetGroupFilter(value ?? 'all');
                   onSetPage(1);
                 }}
-                data={[
-                  { value: 'all', label: 'All Groups' },
-                  { value: 'none', label: 'No Group' },
-                  ...customGroups.map((g) => ({ value: g, label: g })),
-                ]}
+                data={groupSelectData}
                 size="md"
                 radius="md"
                 allowDeselect={false}

@@ -68,12 +68,12 @@ export function FsrsMemoryHealth({ memoryHealth, statusInfo }: FsrsMemoryHealthP
               </Tooltip>
             </Group>
             <Text size="xs" c="dimmed">
-              Diagnostic overview of Free Spaced Repetition Scheduler (FSRS-4.5) memory parameters.
+              Diagnostic overview of Free Spaced Repetition Scheduler (FSRS-5) memory parameters.
             </Text>
           </div>
 
           <Badge variant="gradient" gradient={{ from: 'indigo', to: 'violet', deg: 45 }} size="md">
-            FSRS-4.5 Core
+            FSRS-5 Core
           </Badge>
         </Group>
 
