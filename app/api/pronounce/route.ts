@@ -66,7 +66,7 @@ async function fetchFromMerriamWebsterApi(
     }
 
     const data = await response.json();
-    const extracted = extractMerriamWebsterAudioFromApiResponse(data);
+    const extracted = extractMerriamWebsterAudioFromApiResponse(data, word);
     if (extracted?.audioUrl) {
       return {
         word,
@@ -93,7 +93,8 @@ async function resolveMerriamWebsterViaAi(word: string): Promise<PronounceResult
   const cfApiToken = process.env.CF_API_TOKEN;
 
   const prompt = `You are a Merriam-Webster dictionary audio specialist.
-For the English word "${word}", provide the exact Merriam-Webster audio filename base (e.g. "epheme01", "apple001", "ubiqui01", "serend02", "perspi04", "mellif01", "quixot01", "ineffa01"), the phonetic spelling, and any common alternative MW audio filenames.
+For the exact English word "${word}", provide the exact Merriam-Webster audio filename base (e.g. "epheme01", "apple001", "ubiqui01", "serend02", "abject02" for abjectly, "cautio02" for cautionary, "percol03" for percolation), the phonetic spelling, and any common alternative MW audio filenames.
+CRITICAL: If the word is a derivative, adverb, or run-on (e.g. ending in -ly, -ary, -tion, -ness, -ment), provide the audio filename for the EXACT derived form, NOT the root/stem headword (e.g., for "abjectly", do NOT return "abject01" which is "abject"; for "cautionary", do NOT return "cautio01" which is "caution"; for "percolation", do NOT return "percol02" which is "percolate").
 Return ONLY a valid JSON object:
 {
   "audioFilename": "<filename without .mp3>",
@@ -107,7 +108,8 @@ Return ONLY a valid JSON object:
   // 1. Try Gemini
   if (geminiKey && !parsed) {
     try {
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`;
+      const model = process.env.GOOGLE_AI_MODEL || 'gemini-2.0-flash';
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`;
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 6000);
       const res = await fetch(geminiUrl, {
@@ -143,7 +145,7 @@ Return ONLY a valid JSON object:
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'qwen/qwen3.6-27b',
+          model: process.env.GROQ_AI_MODEL || 'qwen/qwen3.6-27b',
           messages: [{ role: 'user', content: prompt }],
           response_format: { type: 'json_object' },
         }),
@@ -206,11 +208,10 @@ Return ONLY a valid JSON object:
       Boolean
     ) as string[];
 
-    // Also add heuristic candidate (e.g. first 6 chars + "01" / "001")
+    // Candidates based on the full word (never truncate to 6 letters which strips suffixes)
     const cleanWord = word.toLowerCase().replace(/[^a-z]/g, '');
     if (cleanWord.length >= 3) {
-      const shortRoot = cleanWord.slice(0, 6);
-      rawCandidates.push(`${shortRoot}01`, `${shortRoot}001`, `${cleanWord}01`, `${cleanWord}001`);
+      rawCandidates.push(`${cleanWord}01`, `${cleanWord}001`, `${cleanWord}02`, `${cleanWord}_1`);
     }
 
     const uniqueCandidates = Array.from(new Set(rawCandidates));
@@ -260,7 +261,18 @@ async function fetchFromDictionaryApiFallback(word: string): Promise<PronounceRe
     let audioUrl = '';
     let phonetic = '';
 
+    const cleanWord = word.toLowerCase().replace(/[^a-z0-9]/g, '');
+
     for (const entry of data) {
+      // Ensure the entry word matches the target word
+      if (
+        entry?.word &&
+        typeof entry.word === 'string' &&
+        entry.word.toLowerCase().replace(/[^a-z0-9]/g, '') !== cleanWord
+      ) {
+        continue;
+      }
+
       if (entry.phonetic && !phonetic) {
         phonetic = entry.phonetic;
       }
@@ -294,7 +306,8 @@ async function fetchFromDictionaryApiFallback(word: string): Promise<PronounceRe
 }
 
 export async function POST(request: Request) {
-  let body: { word?: string; apiKey?: string } | null = null;
+  let body: { word?: string; apiKey?: string; forceRefresh?: boolean; refresh?: boolean } | null =
+    null;
   try {
     body = await request.json();
   } catch {
@@ -307,15 +320,16 @@ export async function POST(request: Request) {
   }
 
   const normalizedWord = rawWord.toLowerCase();
+  const forceRefresh = Boolean(body?.forceRefresh || body?.refresh);
   const customApiKey =
     body?.apiKey?.trim() ||
     process.env.MERRIAM_WEBSTER_API_KEY ||
     process.env.NEXT_PUBLIC_MERRIAM_WEBSTER_API_KEY;
 
-  // Check in-memory cache
+  // Check in-memory cache (unless forceRefresh is requested)
   const now = Date.now();
   const cached = pronounceCache.get(normalizedWord);
-  if (cached && cached.expiresAt > now) {
+  if (!forceRefresh && cached && cached.expiresAt > now) {
     return NextResponse.json(cached.data);
   }
 
@@ -365,6 +379,8 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const word = searchParams.get('word')?.trim();
   const apiKey = searchParams.get('apiKey')?.trim() || undefined;
+  const refresh =
+    searchParams.get('refresh') === 'true' || searchParams.get('forceRefresh') === 'true';
 
   if (!word) {
     return NextResponse.json({ error: 'Word parameter is required' }, { status: 400 });
@@ -373,7 +389,7 @@ export async function GET(request: Request) {
   const postRequest = new Request('http://localhost/api/pronounce', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ word, apiKey }),
+    body: JSON.stringify({ word, apiKey, forceRefresh: refresh }),
   });
 
   return POST(postRequest);

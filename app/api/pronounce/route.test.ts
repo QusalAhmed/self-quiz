@@ -76,4 +76,50 @@ describe('Pronounce API Route (/api/pronounce)', () => {
     expect(data.audioSource).toBe('merriam-webster');
     expect(data.success).toBe(true);
   });
+
+  it('correctly resolves derived run-ons (abjectly, cautionary, percolation) instead of root headword audio', async () => {
+    const mockAbjectlyData = [
+      {
+        meta: { id: 'abject' },
+        hwi: {
+          hw: 'ab*ject',
+          prs: [{ mw: 'ˈab-ˌjekt', sound: { audio: 'abject01', ref: 'c' } }],
+        },
+        uros: [
+          {
+            ure: 'ab*ject*ly',
+            prs: [{ mw: 'ˈab-ˌjek(t)-lē', sound: { audio: 'abject02', ref: 'c' } }],
+          },
+        ],
+      },
+    ];
+
+    global.fetch = jest.fn().mockImplementation((url: string) => {
+      if (String(url).includes('dictionaryapi.com')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockAbjectlyData),
+        });
+      }
+      return Promise.resolve({ ok: false, status: 404 });
+    });
+
+    const request = new Request('http://localhost/api/pronounce', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ word: 'abjectly', apiKey: 'test-api-key', forceRefresh: true }),
+    });
+
+    const response = await POST(request);
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.word).toBe('abjectly');
+    expect(data.audioUrl).toBe(
+      'https://media.merriam-webster.com/audio/prons/en/us/mp3/a/abject02.mp3'
+    );
+    expect(data.phonetic).toBe('\\ˈab-ˌjek(t)-lē\\');
+    expect(data.audioSource).toBe('merriam-webster');
+    expect(data.success).toBe(true);
+  });
 });

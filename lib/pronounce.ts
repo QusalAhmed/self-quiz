@@ -124,87 +124,262 @@ export type ExtractedMwPronunciation = {
   phonetic: string;
 };
 
+type MwPrsItem = {
+  mw?: string;
+  sound?: {
+    audio?: string;
+    ref?: string;
+  };
+};
+
+/**
+ * Normalizes a word string for dictionary matching by:
+ * - Lowercasing and trimming
+ * - Stripping Merriam-Webster syllable markers ('*')
+ * - Stripping homograph suffixes (':1', ':2', etc.)
+ * - Normalizing inner whitespace and hyphens
+ */
+export function normalizeDictionaryWord(str?: string | null): string {
+  if (!str || typeof str !== 'string') {
+    return '';
+  }
+  return str
+    .toLowerCase()
+    .replace(/:\d+$/, '') // strip homograph id like "caution:1"
+    .replace(/[*•·]/g, '') // strip syllable markers
+    .trim();
+}
+
+/**
+ * Checks if a dictionary candidate (headword, run-on, variant, inflection)
+ * matches the target word, taking into account hyphens, spaces, and punctuation,
+ * while strictly maintaining distinct word boundaries (e.g. "drag on" does not match "dragon").
+ */
+export function isDictionaryWordMatch(
+  candidate?: string | null,
+  targetWord?: string | null
+): boolean {
+  const cleanCand = normalizeDictionaryWord(candidate);
+  const cleanTarget = normalizeDictionaryWord(targetWord);
+  if (!cleanCand || !cleanTarget) {
+    return false;
+  }
+  if (cleanCand === cleanTarget) {
+    return true;
+  }
+  // Compare with normalized spaces/hyphens
+  const candWords = cleanCand.replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim();
+  const targetWords = cleanTarget.replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim();
+  return candWords === targetWords;
+}
+
+function extractAudioFromPrsList(
+  prs?: MwPrsItem[]
+): { audioFilename: string; ref: string; phonetic: string } | null {
+  if (!Array.isArray(prs)) {
+    return null;
+  }
+  for (const pr of prs) {
+    const audio = pr?.sound?.audio;
+    if (typeof audio === 'string' && audio.trim().length > 0) {
+      const ref = pr?.sound?.ref || 'en/us';
+      const phonetic = pr.mw ? formatPhonetic(pr.mw) : '';
+      return {
+        audioFilename: audio.trim(),
+        ref,
+        phonetic,
+      };
+    }
+  }
+  return null;
+}
+
 /**
  * Extracts pronunciation audio filename, full URL, and phonetic representation
  * from Merriam-Webster Dictionary API JSON response entries.
+ *
+ * When targetWord is provided:
+ * 1. Checks undefined run-ons (uros) for exact matches (e.g. "abjectly", "cautionary", "percolation")
+ * 2. Checks exact headwords (hwi.hw or meta.id)
+ * 3. Checks defined run-ons (dros)
+ * 4. Checks inflections (ins)
+ * 5. Checks variants (vrs)
+ * This prevents derived forms from mistakenly receiving their root headword's pronunciation.
+ *
+ * When targetWord is omitted, falls back to the first available audio.
  */
 export function extractMerriamWebsterAudioFromApiResponse(
-  apiData: unknown
+  apiData: unknown,
+  targetWord?: string
 ): ExtractedMwPronunciation | null {
   if (!Array.isArray(apiData) || apiData.length === 0) {
     return null;
   }
 
+  // Phase 1: Targeted matching when targetWord is provided
+  if (targetWord && typeof targetWord === 'string' && targetWord.trim().length > 0) {
+    // 1a. Check undefined run-ons (uros) across all entries
+    // Derived adverbs, adjectives, and nouns like "abjectly", "cautionary", "percolation"
+    // are indexed under root headwords in uros with their own dedicated audio recordings.
+    for (const entry of apiData) {
+      if (!entry || typeof entry !== 'object') {
+        continue;
+      }
+      const uros = (entry as { uros?: Array<{ ure?: string; prs?: MwPrsItem[] }> }).uros;
+      if (Array.isArray(uros)) {
+        for (const uro of uros) {
+          if (isDictionaryWordMatch(uro?.ure, targetWord)) {
+            const extracted = extractAudioFromPrsList(uro?.prs);
+            if (extracted) {
+              return {
+                audioFilename: extracted.audioFilename,
+                audioUrl: buildMerriamWebsterAudioUrl(extracted.audioFilename, extracted.ref),
+                phonetic: extracted.phonetic,
+              };
+            }
+          }
+        }
+      }
+    }
+
+    // 1b. Check exact headword (hwi.hw or meta.id) across all entries
+    for (const entry of apiData) {
+      if (!entry || typeof entry !== 'object') {
+        continue;
+      }
+      const hwi = (entry as { hwi?: { hw?: string; prs?: MwPrsItem[] }; meta?: { id?: string } })
+        .hwi;
+      const metaId = (entry as { meta?: { id?: string } }).meta?.id;
+      if (isDictionaryWordMatch(hwi?.hw, targetWord) || isDictionaryWordMatch(metaId, targetWord)) {
+        const extracted = extractAudioFromPrsList(hwi?.prs);
+        if (extracted) {
+          return {
+            audioFilename: extracted.audioFilename,
+            audioUrl: buildMerriamWebsterAudioUrl(extracted.audioFilename, extracted.ref),
+            phonetic: extracted.phonetic,
+          };
+        }
+      }
+    }
+
+    // 1c. Check defined run-ons (dros) across all entries
+    for (const entry of apiData) {
+      if (!entry || typeof entry !== 'object') {
+        continue;
+      }
+      const dros = (entry as { dros?: Array<{ drp?: string; prs?: MwPrsItem[] }> }).dros;
+      if (Array.isArray(dros)) {
+        for (const dro of dros) {
+          if (isDictionaryWordMatch(dro?.drp, targetWord)) {
+            const extracted = extractAudioFromPrsList(dro?.prs);
+            if (extracted) {
+              return {
+                audioFilename: extracted.audioFilename,
+                audioUrl: buildMerriamWebsterAudioUrl(extracted.audioFilename, extracted.ref),
+                phonetic: extracted.phonetic,
+              };
+            }
+          }
+        }
+      }
+    }
+
+    // 1d. Check inflections (ins) across all entries
+    for (const entry of apiData) {
+      if (!entry || typeof entry !== 'object') {
+        continue;
+      }
+      const ins = (entry as { ins?: Array<{ if?: string; prs?: MwPrsItem[] }> }).ins;
+      if (Array.isArray(ins)) {
+        for (const inf of ins) {
+          if (isDictionaryWordMatch(inf?.if, targetWord)) {
+            const extracted = extractAudioFromPrsList(inf?.prs);
+            if (extracted) {
+              return {
+                audioFilename: extracted.audioFilename,
+                audioUrl: buildMerriamWebsterAudioUrl(extracted.audioFilename, extracted.ref),
+                phonetic: extracted.phonetic,
+              };
+            }
+          }
+        }
+      }
+    }
+
+    // 1e. Check variants (vrs) across all entries
+    for (const entry of apiData) {
+      if (!entry || typeof entry !== 'object') {
+        continue;
+      }
+      const vrs = (entry as { vrs?: Array<{ va?: string; vl?: string; prs?: MwPrsItem[] }> }).vrs;
+      if (Array.isArray(vrs)) {
+        for (const vr of vrs) {
+          if (
+            isDictionaryWordMatch(vr?.va, targetWord) ||
+            isDictionaryWordMatch(vr?.vl, targetWord)
+          ) {
+            const extracted = extractAudioFromPrsList(vr?.prs);
+            if (extracted) {
+              return {
+                audioFilename: extracted.audioFilename,
+                audioUrl: buildMerriamWebsterAudioUrl(extracted.audioFilename, extracted.ref),
+                phonetic: extracted.phonetic,
+              };
+            }
+          }
+        }
+      }
+    }
+
+    // Target word was provided, but no exact matching section with audio was found.
+    // Return null so fallback strategies (DictionaryAPI or TTS) can pronounce the actual word,
+    // rather than speaking an unrelated root headword.
+    return null;
+  }
+
+  // Phase 2: Fallback when targetWord is omitted (backward compatibility)
   for (const entry of apiData) {
     if (!entry || typeof entry !== 'object') {
       continue;
     }
 
     // Check headword information (hwi)
-    const hwi = (
-      entry as { hwi?: { prs?: Array<{ mw?: string; sound?: { audio?: string; ref?: string } }> } }
-    ).hwi;
-    if (hwi?.prs && Array.isArray(hwi.prs)) {
-      for (const pr of hwi.prs) {
-        const audio = pr?.sound?.audio;
-        if (typeof audio === 'string' && audio.trim().length > 0) {
-          const ref = pr?.sound?.ref || 'en/us';
-          const phonetic = pr.mw ? formatPhonetic(pr.mw) : '';
+    const hwi = (entry as { hwi?: { prs?: MwPrsItem[] } }).hwi;
+    const hwiExtracted = extractAudioFromPrsList(hwi?.prs);
+    if (hwiExtracted) {
+      return {
+        audioFilename: hwiExtracted.audioFilename,
+        audioUrl: buildMerriamWebsterAudioUrl(hwiExtracted.audioFilename, hwiExtracted.ref),
+        phonetic: hwiExtracted.phonetic,
+      };
+    }
+
+    // Check variants (vrs)
+    const vrs = (entry as { vrs?: Array<{ prs?: MwPrsItem[] }> }).vrs;
+    if (Array.isArray(vrs)) {
+      for (const vr of vrs) {
+        const vrExtracted = extractAudioFromPrsList(vr?.prs);
+        if (vrExtracted) {
           return {
-            audioFilename: audio.trim(),
-            audioUrl: buildMerriamWebsterAudioUrl(audio, ref),
-            phonetic,
+            audioFilename: vrExtracted.audioFilename,
+            audioUrl: buildMerriamWebsterAudioUrl(vrExtracted.audioFilename, vrExtracted.ref),
+            phonetic: vrExtracted.phonetic,
           };
         }
       }
     }
 
-    // Check variants (vrs)
-    const vrs = (
-      entry as {
-        vrs?: Array<{ prs?: Array<{ mw?: string; sound?: { audio?: string; ref?: string } }> }>;
-      }
-    ).vrs;
-    if (Array.isArray(vrs)) {
-      for (const vr of vrs) {
-        if (Array.isArray(vr?.prs)) {
-          for (const pr of vr.prs) {
-            const audio = pr?.sound?.audio;
-            if (typeof audio === 'string' && audio.trim().length > 0) {
-              const ref = pr?.sound?.ref || 'en/us';
-              const phonetic = pr.mw ? formatPhonetic(pr.mw) : '';
-              return {
-                audioFilename: audio.trim(),
-                audioUrl: buildMerriamWebsterAudioUrl(audio, ref),
-                phonetic,
-              };
-            }
-          }
-        }
-      }
-    }
-
     // Check undefined run-ons (uros)
-    const uros = (
-      entry as {
-        uros?: Array<{ prs?: Array<{ mw?: string; sound?: { audio?: string; ref?: string } }> }>;
-      }
-    ).uros;
+    const uros = (entry as { uros?: Array<{ prs?: MwPrsItem[] }> }).uros;
     if (Array.isArray(uros)) {
       for (const uro of uros) {
-        if (Array.isArray(uro?.prs)) {
-          for (const pr of uro.prs) {
-            const audio = pr?.sound?.audio;
-            if (typeof audio === 'string' && audio.trim().length > 0) {
-              const ref = pr?.sound?.ref || 'en/us';
-              const phonetic = pr.mw ? formatPhonetic(pr.mw) : '';
-              return {
-                audioFilename: audio.trim(),
-                audioUrl: buildMerriamWebsterAudioUrl(audio, ref),
-                phonetic,
-              };
-            }
-          }
+        const uroExtracted = extractAudioFromPrsList(uro?.prs);
+        if (uroExtracted) {
+          return {
+            audioFilename: uroExtracted.audioFilename,
+            audioUrl: buildMerriamWebsterAudioUrl(uroExtracted.audioFilename, uroExtracted.ref),
+            phonetic: uroExtracted.phonetic,
+          };
         }
       }
     }

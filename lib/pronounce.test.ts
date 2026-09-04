@@ -3,7 +3,9 @@ import {
   extractMerriamWebsterAudioFromApiResponse,
   formatPhonetic,
   getMerriamWebsterSubdirectory,
+  isDictionaryWordMatch,
   isValidAudioUrl,
+  normalizeDictionaryWord,
   normalizeMerriamWebsterAudioUrl,
 } from './pronounce';
 
@@ -159,6 +161,25 @@ describe('pronounce utilities', () => {
     });
   });
 
+  describe('normalizeDictionaryWord and isDictionaryWordMatch', () => {
+    it('normalizes syllable dots, homograph numbers, and casing', () => {
+      expect(normalizeDictionaryWord('ab*ject*ly')).toBe('abjectly');
+      expect(normalizeDictionaryWord('cau*tion:1')).toBe('caution');
+      expect(normalizeDictionaryWord('per*co*la*tion')).toBe('percolation');
+      expect(normalizeDictionaryWord('')).toBe('');
+      expect(normalizeDictionaryWord(null)).toBe('');
+    });
+
+    it('matches words across varying formats while preserving word boundaries', () => {
+      expect(isDictionaryWordMatch('ab*ject*ly', 'abjectly')).toBe(true);
+      expect(isDictionaryWordMatch('cau*tion*ary', 'cautionary')).toBe(true);
+      expect(isDictionaryWordMatch('cau*tion:1', 'cautionary')).toBe(false);
+      expect(isDictionaryWordMatch('ab*ject', 'abjectly')).toBe(false);
+      expect(isDictionaryWordMatch('drag*on', 'drag on')).toBe(false);
+      expect(isDictionaryWordMatch('apple-pie', 'apple pie')).toBe(true);
+    });
+  });
+
   describe('extractMerriamWebsterAudioFromApiResponse', () => {
     it('extracts audio and phonetic from standard hwi.prs response with canonical URL', () => {
       const mockApiData = [
@@ -185,6 +206,95 @@ describe('pronounce utilities', () => {
         audioUrl: 'https://media.merriam-webster.com/audio/prons/en/us/mp3/e/epheme01.mp3',
         phonetic: '\\i-ˈfe-m(ə-)rəl\\',
       });
+    });
+
+    it('extracts exact run-on (uro) audio when targetWord is a derived form like abjectly, cautionary, percolation', () => {
+      const mockAbjectlyData = [
+        {
+          meta: { id: 'abject' },
+          hwi: {
+            hw: 'ab*ject',
+            prs: [{ mw: 'ˈab-ˌjekt', sound: { audio: 'abject01', ref: 'c' } }],
+          },
+          uros: [
+            {
+              ure: 'ab*ject*ly',
+              prs: [{ mw: 'ˈab-ˌjek(t)-lē', sound: { audio: 'abject02', ref: 'c' } }],
+            },
+          ],
+        },
+      ];
+
+      const result = extractMerriamWebsterAudioFromApiResponse(mockAbjectlyData, 'abjectly');
+      expect(result).toEqual({
+        audioFilename: 'abject02',
+        audioUrl: 'https://media.merriam-webster.com/audio/prons/en/us/mp3/a/abject02.mp3',
+        phonetic: '\\ˈab-ˌjek(t)-lē\\',
+      });
+    });
+
+    it('extracts exact run-on audio for cautionary and percolation', () => {
+      const mockCautionaryData = [
+        {
+          meta: { id: 'caution:1' },
+          hwi: {
+            hw: 'cau*tion',
+            prs: [{ mw: 'ˈkȯ-shən', sound: { audio: 'cautio01', ref: 'c' } }],
+          },
+          uros: [
+            {
+              ure: 'cau*tion*ary',
+              prs: [{ mw: 'ˈkȯ-shə-ˌner-ē', sound: { audio: 'cautio02', ref: 'c' } }],
+            },
+          ],
+        },
+      ];
+
+      const resultCautionary = extractMerriamWebsterAudioFromApiResponse(
+        mockCautionaryData,
+        'cautionary'
+      );
+      expect(resultCautionary?.audioFilename).toBe('cautio02');
+      expect(resultCautionary?.phonetic).toBe('\\ˈkȯ-shə-ˌner-ē\\');
+
+      const mockPercolationData = [
+        {
+          meta: { id: 'percolate' },
+          hwi: {
+            hw: 'per*co*late',
+            prs: [{ mw: 'ˈpər-kə-ˌlāt', sound: { audio: 'percol02', ref: 'c' } }],
+          },
+          uros: [
+            {
+              ure: 'per*co*la*tion',
+              prs: [{ mw: 'ˌpər-kə-ˈlā-shən', sound: { audio: 'percol03', ref: 'c' } }],
+            },
+          ],
+        },
+      ];
+
+      const resultPercolation = extractMerriamWebsterAudioFromApiResponse(
+        mockPercolationData,
+        'percolation'
+      );
+      expect(resultPercolation?.audioFilename).toBe('percol03');
+      expect(resultPercolation?.phonetic).toBe('\\ˌpər-kə-ˈlā-shən\\');
+    });
+
+    it('does not return root headword audio when targetWord does not match headword and has no run-on audio', () => {
+      const mockData = [
+        {
+          meta: { id: 'dragon' },
+          hwi: {
+            hw: 'drag*on',
+            prs: [{ mw: 'ˈdra-gən', sound: { audio: 'dragon01', ref: 'c' } }],
+          },
+        },
+      ];
+
+      // "drag on" should NOT match "dragon"
+      const result = extractMerriamWebsterAudioFromApiResponse(mockData, 'drag on');
+      expect(result).toBeNull();
     });
 
     it('returns null if no audio is present', () => {
