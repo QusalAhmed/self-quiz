@@ -70,9 +70,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       >
         <ReduxProvider>
           <MantineProvider theme={theme}>
-            <QuranVerseProvider>
+            <QuranVerseProvider>``
               <NavigationProgressBar />
-              <Notifications position="top-right" zIndex={9999} />
+              <Notifications position="top-right" zIndex={9999} autoClose={3000} />
               <AppShellLayout>{children}</AppShellLayout>
             </QuranVerseProvider>
           </MantineProvider>
