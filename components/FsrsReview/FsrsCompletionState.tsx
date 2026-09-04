@@ -18,6 +18,7 @@ import {
   IconRotateClockwise,
 } from '@tabler/icons-react';
 import React, { useEffect } from 'react';
+import { getAppSettings } from '@/lib/settings';
 
 export type FsrsCompletionStateProps = {
   reviewedCount: number;
@@ -42,6 +43,10 @@ export function FsrsCompletionState({
         activeTag === 'textarea' ||
         document.activeElement?.hasAttribute('contenteditable')
       ) {
+        return;
+      }
+
+      if (getAppSettings().studyQuiz?.enableKeyboardShortcuts === false) {
         return;
       }
 

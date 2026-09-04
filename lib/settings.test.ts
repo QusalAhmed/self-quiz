@@ -105,12 +105,16 @@ describe('lib/settings.ts', () => {
       studyQuiz: {
         ...DEFAULT_APP_SETTINGS.studyQuiz,
         defaultQuizDirection: 'spelling',
+        enableKeyboardShortcuts: false,
+        showKeyboardShortcutHints: false,
       },
     });
 
     const stored = getAppSettings();
     expect(stored.appearance.accentColor).toBe('emerald');
     expect(stored.studyQuiz.defaultQuizDirection).toBe('spelling');
+    expect(stored.studyQuiz.enableKeyboardShortcuts).toBe(false);
+    expect(stored.studyQuiz.showKeyboardShortcutHints).toBe(false);
   });
 
   it('dispatches custom event on saveAppSettings', () => {

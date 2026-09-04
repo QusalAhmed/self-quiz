@@ -34,6 +34,7 @@ import { WordActionIcon } from '@/components/WordActions/WordActionIcon';
 import { WordFamilySection } from '@/components/WordFamily/WordFamilySection';
 import type { WordFamilyMemberRecord } from '@/lib/db';
 import type { FsrsRating, FsrsRecord } from '@/lib/fsrs';
+import { getAppSettings } from '@/lib/settings';
 import { playReviewSound } from '@/lib/sound';
 import { FsrsCounterBadge } from './FsrsCounterBadge';
 import { FsrsRatingBar } from './FsrsRatingBar';
@@ -152,6 +153,10 @@ export const FsrsCardViewer = memo(function FsrsCardViewer({
         activeTag === 'textarea' ||
         document.activeElement?.hasAttribute('contenteditable')
       ) {
+        return;
+      }
+
+      if (getAppSettings().studyQuiz?.enableKeyboardShortcuts === false) {
         return;
       }
 

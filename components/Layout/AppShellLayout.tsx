@@ -65,6 +65,10 @@ export function AppShellLayout({ children }: { children: React.ReactNode }) {
       String(Boolean(appearance.reducedMotion))
     );
     document.documentElement.setAttribute('data-density', appearance.uiDensity || 'comfortable');
+    document.documentElement.setAttribute(
+      'data-keyboard-hints',
+      String(settings.studyQuiz?.showKeyboardShortcutHints !== false)
+    );
 
     if (appearance.colorScheme === 'dark' && colorScheme !== 'dark') {
       setColorScheme('dark');
@@ -73,7 +77,12 @@ export function AppShellLayout({ children }: { children: React.ReactNode }) {
     } else if (appearance.colorScheme === 'auto' && colorScheme !== 'auto') {
       setColorScheme('auto');
     }
-  }, [settings.appearance, colorScheme, setColorScheme]);
+  }, [
+    settings.appearance,
+    settings.studyQuiz?.showKeyboardShortcutHints,
+    colorScheme,
+    setColorScheme,
+  ]);
 
   // Eagerly initialize settings synchronization on mount
   useEffect(() => {

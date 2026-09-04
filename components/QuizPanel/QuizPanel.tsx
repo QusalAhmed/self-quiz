@@ -258,6 +258,10 @@ export const QuizPanel = memo(function QuizPanel({
         return;
       }
 
+      if (getAppSettings().studyQuiz?.enableKeyboardShortcuts === false) {
+        return;
+      }
+
       const {
         canUndo: _canUndo,
         onUndo: _onUndo,

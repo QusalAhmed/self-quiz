@@ -18,6 +18,7 @@ import {
 import {
   IconBrain,
   IconEyeOff,
+  IconKeyboard,
   IconListNumbers,
   IconPlayerTrackNext,
   IconVolume,
@@ -328,6 +329,70 @@ export function SettingsStudyQuizTab({ settings, onChange }: SettingsStudyQuizTa
                 onChange({ hideSrsPracticeMeaningsDefault: e.currentTarget.checked })
               }
               color="orange"
+            />
+          </Group>
+        </Stack>
+      </Card>
+
+      {/* Keyboard Shortcuts & Hotkeys */}
+      <Card
+        withBorder
+        radius="md"
+        p={{ base: 'md', sm: 'lg' }}
+        style={{
+          background: 'var(--card-bg)',
+          border: '1px solid var(--card-border)',
+          boxShadow: 'var(--card-shadow)',
+        }}
+      >
+        <Group gap="sm" mb="md">
+          <ThemeIcon size="lg" radius="md" color="violet" variant="light">
+            <IconKeyboard size={20} />
+          </ThemeIcon>
+          <div>
+            <Text fw={700} size="md">
+              Keyboard Shortcuts & Hotkeys
+            </Text>
+            <Text size="xs" c="dimmed">
+              Configure keyboard accelerators and visual hotkey indicators during study sessions
+            </Text>
+          </div>
+        </Group>
+
+        <Stack gap="md">
+          <Group justify="space-between" align="center" wrap="wrap" gap="sm">
+            <div style={{ flex: '1 1 200px' }}>
+              <Text size="sm" fw={600}>
+                Enable Keyboard Shortcuts
+              </Text>
+              <Text size="xs" c="dimmed">
+                Allow answering quizzes, grading cards (1-4), revealing (Space), undoing (Z/U), and
+                restarting (R) via keyboard
+              </Text>
+            </div>
+            <Switch
+              checked={settings.enableKeyboardShortcuts !== false}
+              onChange={(e) => onChange({ enableKeyboardShortcuts: e.currentTarget.checked })}
+              color="violet"
+            />
+          </Group>
+
+          <Divider />
+
+          <Group justify="space-between" align="center" wrap="wrap" gap="sm">
+            <div style={{ flex: '1 1 200px' }}>
+              <Text size="sm" fw={600}>
+                Show Shortcut Hints on Desktop
+              </Text>
+              <Text size="xs" c="dimmed">
+                Display keyboard badge hints (Kbd) and bottom legend bar on desktop screens
+                (automatically hidden on phones)
+              </Text>
+            </div>
+            <Switch
+              checked={settings.showKeyboardShortcutHints !== false}
+              onChange={(e) => onChange({ showKeyboardShortcutHints: e.currentTarget.checked })}
+              color="indigo"
             />
           </Group>
         </Stack>

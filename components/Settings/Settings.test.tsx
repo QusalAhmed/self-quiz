@@ -65,7 +65,7 @@ describe('Settings Components', () => {
   });
 
   describe('SettingsStudyQuizTab', () => {
-    it('renders quiz direction options and batch range selector', () => {
+    it('renders quiz direction options, batch range selector, and keyboard shortcuts config', () => {
       const changeMock = jest.fn();
       render(
         <SettingsStudyQuizTab settings={DEFAULT_APP_SETTINGS.studyQuiz} onChange={changeMock} />
@@ -75,6 +75,9 @@ describe('Settings Components', () => {
       expect(screen.getByText('Word → Meaning')).toBeInTheDocument();
       expect(screen.getByText('Meaning → Word')).toBeInTheDocument();
       expect(screen.getByText('Spelling Practice')).toBeInTheDocument();
+      expect(screen.getByText('Keyboard Shortcuts & Hotkeys')).toBeInTheDocument();
+      expect(screen.getByText('Enable Keyboard Shortcuts')).toBeInTheDocument();
+      expect(screen.getByText('Show Shortcut Hints on Desktop')).toBeInTheDocument();
     });
   });
 
@@ -187,6 +190,13 @@ describe('Settings Components', () => {
       expect(screen.getByText('English Word Memorizer & Quiz Companion')).toBeInTheDocument();
       expect(screen.getByText('Keyboard Shortcuts Cheatsheet')).toBeInTheDocument();
       expect(screen.getByText('System Diagnostics & Runtime Capabilities')).toBeInTheDocument();
+
+      // Verify newly added shortcuts in cheatsheet
+      expect(screen.getByText('Z / U')).toBeInTheDocument();
+      expect(screen.getByText('R')).toBeInTheDocument();
+      expect(screen.getByText('M')).toBeInTheDocument();
+      expect(screen.getByText('N')).toBeInTheDocument();
+      expect(screen.getByText('H / ?')).toBeInTheDocument();
     });
   });
 });

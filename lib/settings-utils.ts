@@ -75,6 +75,8 @@ export interface AppStudyQuizSettings {
   hideMissedMeaningsDefault: boolean;
   hideSrsPracticeMeaningsDefault: boolean;
   shuffleChoices: boolean;
+  enableKeyboardShortcuts: boolean;
+  showKeyboardShortcutHints: boolean;
 }
 
 export interface AppAudioSettings {
@@ -154,6 +156,8 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     hideMissedMeaningsDefault: false,
     hideSrsPracticeMeaningsDefault: false,
     shuffleChoices: true,
+    enableKeyboardShortcuts: true,
+    showKeyboardShortcutHints: true,
   },
   audio: {
     reviewSoundEffectsEnabled: true,
@@ -270,6 +274,14 @@ export function normalizeAppSettings(raw: Partial<AppSettings> | null | undefine
       raw.studyQuiz?.hideSrsPracticeMeaningsDefault ??
       DEFAULT_APP_SETTINGS.studyQuiz.hideSrsPracticeMeaningsDefault,
     shuffleChoices: raw.studyQuiz?.shuffleChoices ?? DEFAULT_APP_SETTINGS.studyQuiz.shuffleChoices,
+    enableKeyboardShortcuts:
+      typeof raw.studyQuiz?.enableKeyboardShortcuts === 'boolean'
+        ? raw.studyQuiz.enableKeyboardShortcuts
+        : DEFAULT_APP_SETTINGS.studyQuiz.enableKeyboardShortcuts,
+    showKeyboardShortcutHints:
+      typeof raw.studyQuiz?.showKeyboardShortcutHints === 'boolean'
+        ? raw.studyQuiz.showKeyboardShortcutHints
+        : DEFAULT_APP_SETTINGS.studyQuiz.showKeyboardShortcutHints,
   };
 
   const audio: AppAudioSettings = {

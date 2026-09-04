@@ -262,6 +262,12 @@ body::before {
   }
 }
 
+/* When user disables shortcut hints in Settings -> Study & Quiz */
+[data-keyboard-hints='false'] .kbd-hint,
+[data-keyboard-hints='false'] .mantine-Button-section:has(.kbd-hint) {
+  display: none !important;
+}
+
 /* --- Typography Overrides --- */
 h1,
 h2,

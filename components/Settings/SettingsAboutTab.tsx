@@ -56,12 +56,18 @@ export function SettingsAboutTab() {
   }, []);
 
   const SHORTCUTS = [
-    { key: 'Space / Enter', action: 'Flip card & reveal meaning / examples' },
+    { key: 'Space', action: 'Flip card & reveal definition / answer' },
+    { key: 'Enter / →', action: 'Advance to next card or complete session' },
+    { key: '← / Backspace', action: 'Navigate to previous flashcard' },
     { key: '1, 2, 3, 4', action: 'Grade card: 1=Again, 2=Hard, 3=Good, 4=Easy' },
-    { key: '← / →', action: 'Navigate to previous / next flashcard' },
+    { key: 'Z / U', action: 'Undo last card rating (session & completion)' },
+    { key: 'R', action: 'Restart session from completion screen' },
+    { key: 'M', action: 'Mark / unmark current word as Missed' },
     { key: 'P', action: 'Pronounce current vocabulary word' },
-    { key: 'E', action: 'Open quick edit definition modal' },
-    { key: 'Esc', action: 'Dismiss modal, drawer, or search dropdown' },
+    { key: 'N', action: 'Toggle personal notes panel (after reveal)' },
+    { key: 'E', action: 'Quick edit word / toggle custom examples' },
+    { key: 'H / ?', action: 'Show interactive keyboard shortcuts dialog' },
+    { key: 'Esc', action: 'Flip card back / back to library / dismiss modal' },
   ];
 
   const TECH_STACK = [
