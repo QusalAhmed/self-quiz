@@ -1545,3 +1545,8 @@ li[data-type='taskItem'] > div {
   background: rgba(99, 102, 241, 0.06) !important;
 }
 
+/* --- Ensure notifications always render above modals & overlays --- */
+.mantine-Notifications-root {
+  z-index: 9999 !important;
+}
+

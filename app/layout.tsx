@@ -72,7 +72,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <MantineProvider theme={theme}>
             <QuranVerseProvider>
               <NavigationProgressBar />
-              <Notifications position="top-right" zIndex={2000} autoClose={1000} />
+              <Notifications position="top-right" zIndex={9999} />
               <AppShellLayout>{children}</AppShellLayout>
             </QuranVerseProvider>
           </MantineProvider>
