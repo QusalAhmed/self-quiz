@@ -8,9 +8,12 @@ import {
   CopyButton,
   Group,
   Indicator,
+  Kbd,
+  Modal,
   Progress,
   RollingNumber,
   Stack,
+  Table,
   Text,
   Title,
   Tooltip,
@@ -21,11 +24,12 @@ import {
   IconCopy,
   IconEdit,
   IconEye,
+  IconHelp,
   IconRotateClockwise,
   IconVolume,
 } from '@tabler/icons-react';
 import { motion } from 'framer-motion';
-import React, { memo, useCallback, useEffect, useRef } from 'react';
+import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { WordActionIcon } from '@/components/WordActions/WordActionIcon';
 import { WordFamilySection } from '@/components/WordFamily/WordFamilySection';
 import type { WordFamilyMemberRecord } from '@/lib/db';
@@ -136,6 +140,9 @@ export const FsrsCardViewer = memo(function FsrsCardViewer({
     positionReviewSection();
   }, [isRevealed, positionReviewSection]);
 
+  // State for help modal
+  const [showHelpModal, setShowHelpModal] = useState(false);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -159,6 +166,20 @@ export const FsrsCardViewer = memo(function FsrsCardViewer({
         return;
       }
 
+      // Help modal: H or ?
+      if (event.key === 'h' || event.key === 'H' || event.key === '?') {
+        event.preventDefault();
+        setShowHelpModal((prev) => !prev);
+        return;
+      }
+
+      // Pronounce word: P
+      if (onPronounce && (event.key === 'p' || event.key === 'P')) {
+        event.preventDefault();
+        onPronounce(card.word);
+        return;
+      }
+
       if (event.key === ' ' || event.code === 'Space') {
         if (!isRevealed) {
           event.preventDefault();
@@ -166,6 +187,14 @@ export const FsrsCardViewer = memo(function FsrsCardViewer({
           positionReviewSection();
           return;
         }
+      }
+
+      // Escape: flip card back to front when revealed
+      if (event.key === 'Escape' && isRevealed) {
+        event.preventDefault();
+        onReveal();
+        positionReviewSection();
+        return;
       }
 
       if (isRevealed) {
@@ -201,7 +230,50 @@ export const FsrsCardViewer = memo(function FsrsCardViewer({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [canUndo, onUndo, isRevealed, onReveal, onRate, positionReviewSection]);
+  }, [canUndo, onUndo, isRevealed, onReveal, onRate, positionReviewSection, onPronounce, card.word]);
+
+  // Keyboard shortcuts help content
+  const helpModalContent = (
+    <Stack gap="xs">
+      <Text size="xs" c="dimmed" fw={700} style={{ letterSpacing: '0.06em' }}>
+        GENERAL
+      </Text>
+      <Table striped highlightOnHover withTableBorder withColumnBorders fz="sm">
+        <Table.Tbody>
+          {[
+            ['Space', 'Reveal answer'],
+            ['Escape', 'Flip card back to front'],
+            ...(onPronounce ? [['P', 'Pronounce the word']] : []),
+            ['Z / U', 'Undo last rating'],
+            ['H / ?', 'Toggle this help'],
+          ].map(([key, action]) => (
+            <Table.Tr key={key}>
+              <Table.Td><Kbd size="xs">{key}</Kbd></Table.Td>
+              <Table.Td>{action}</Table.Td>
+            </Table.Tr>
+          ))}
+        </Table.Tbody>
+      </Table>
+      <Text size="xs" c="dimmed" fw={700} style={{ letterSpacing: '0.06em', marginTop: 8 }}>
+        SRS RATINGS (after reveal)
+      </Text>
+      <Table striped highlightOnHover withTableBorder withColumnBorders fz="sm">
+        <Table.Tbody>
+          {[
+            ['1', 'Again — Forgot / Incorrect'],
+            ['2', 'Hard — Recalled with heavy effort'],
+            ['3', 'Good — Recalled correctly'],
+            ['4', 'Easy — Instantly recalled'],
+          ].map(([key, action]) => (
+            <Table.Tr key={key}>
+              <Table.Td><Kbd size="xs">{key}</Kbd></Table.Td>
+              <Table.Td>{action}</Table.Td>
+            </Table.Tr>
+          ))}
+        </Table.Tbody>
+      </Table>
+    </Stack>
+  );
 
   // Determine card state color theme
   const stateBadgeProps =
@@ -603,7 +675,7 @@ export const FsrsCardViewer = memo(function FsrsCardViewer({
         </div>
 
         {/* Bottom Keyboard Legend */}
-        <Group justify="center" gap="lg" style={{ opacity: 0.65 }}>
+        <Group justify="center" gap="lg" style={{ opacity: 0.65 }} wrap="wrap">
           {canUndo && (
             <Text size="xs" fw={700}>
               <Text span fw={900} c="pink.4">
@@ -618,6 +690,20 @@ export const FsrsCardViewer = memo(function FsrsCardViewer({
             </Text>{' '}
             Reveal
           </Text>
+          <Text size="xs" fw={700}>
+            <Text span fw={900} c="cyan.4">
+              Escape
+            </Text>{' '}
+            Flip Back
+          </Text>
+          {onPronounce && (
+            <Text size="xs" fw={700}>
+              <Text span fw={900} c="violet.4">
+                P
+              </Text>{' '}
+              Speak
+            </Text>
+          )}
           <Text size="xs" fw={700}>
             <Text span fw={900} c="red.4">
               1
@@ -642,7 +728,36 @@ export const FsrsCardViewer = memo(function FsrsCardViewer({
             </Text>{' '}
             Easy
           </Text>
+          <Tooltip label="Show all keyboard shortcuts" withArrow>
+            <Text
+              size="xs"
+              fw={700}
+              c="indigo"
+              style={{ cursor: 'pointer', textDecoration: 'underline dotted' }}
+              onClick={() => setShowHelpModal(true)}
+            >
+              <Text span fw={900} c="indigo.4">H / ?</Text>{' '}Help
+            </Text>
+          </Tooltip>
         </Group>
+
+        {/* Help Modal */}
+        <Modal
+          opened={showHelpModal}
+          onClose={() => setShowHelpModal(false)}
+          title={
+            <Group gap="xs">
+              <IconHelp size={18} color="#a855f7" />
+              <Text fw={700} size="md">Keyboard Shortcuts</Text>
+            </Group>
+          }
+          centered
+          radius="lg"
+          padding="lg"
+          size="sm"
+        >
+          {helpModalContent}
+        </Modal>
       </Stack>
     </Card>
   );

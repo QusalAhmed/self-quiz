@@ -15,6 +15,7 @@ import {
   ScrollArea,
   SimpleGrid,
   Stack,
+  Table,
   Text,
   TextInput,
   Title,
@@ -28,6 +29,7 @@ import {
   IconChevronLeft,
   IconChevronRight,
   IconChevronUp,
+  IconHelp,
   IconNotes,
   IconRotateClockwise,
   IconTrash,
@@ -135,6 +137,7 @@ export const QuizPanel = memo(function QuizPanel({
   const [showUserExamples, setShowUserExamples] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   const [confirmDeleteFsrsOpened, setConfirmDeleteFsrsOpened] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
   const quizPanelRef = useRef<HTMLDivElement>(null);
 
   const completionNotifiedRef = useRef(false);
@@ -197,6 +200,52 @@ export const QuizPanel = memo(function QuizPanel({
     });
   }, []);
 
+  /**
+   * Ref that always holds the latest values needed by the keyboard shortcut handler.
+   * Updated synchronously each render so the stable handler closure can read current values
+   * without being re-registered on every state change.
+   */
+  const kbStateRef = useRef({
+    canUndo: false as boolean | undefined,
+    onUndo: undefined as (() => void) | undefined,
+    completed: false,
+    item: null as QuizItem | null,
+    revealed: false,
+    srsMode: false,
+    onSrsRate: undefined as ((r: SrsRating) => void) | undefined,
+    onReveal: () => {},
+    onNext: () => {},
+    hasPrevious: false,
+    onPrevious: () => {},
+    onMarkMissed: () => {},
+    onRestart: undefined as (() => void) | undefined,
+    quizDirection: 'wordToMeaning' as QuizDirection,
+    hasNotes: false,
+    hasExamples: false,
+  });
+
+  // Sync ref each render (no cost, no re-subscription)
+  kbStateRef.current = {
+    canUndo,
+    onUndo,
+    completed,
+    item,
+    revealed,
+    srsMode,
+    onSrsRate,
+    onReveal,
+    onNext,
+    hasPrevious,
+    onPrevious,
+    onMarkMissed,
+    onRestart,
+    quizDirection,
+    // hasNotes and hasExamples are filled in later each render after the values are computed;
+    // they start as false and are patched below.
+    hasNotes: false,
+    hasExamples: false,
+  };
+
   // Keyboard shortcut listener across all quiz interactions
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -209,99 +258,167 @@ export const QuizPanel = memo(function QuizPanel({
         return;
       }
 
+      const {
+        canUndo: _canUndo,
+        onUndo: _onUndo,
+        completed: _completed,
+        item: _item,
+        revealed: _revealed,
+        srsMode: _srsMode,
+        onSrsRate: _onSrsRate,
+        onReveal: _onReveal,
+        onNext: _onNext,
+        hasPrevious: _hasPrevious,
+        onPrevious: _onPrevious,
+        onMarkMissed: _onMarkMissed,
+        onRestart: _onRestart,
+        quizDirection: _quizDirection,
+        hasNotes: _hasNotes,
+        hasExamples: _hasExamples,
+      } = kbStateRef.current;
+
+      // Help modal: H or ?
+      if (event.key === 'h' || event.key === 'H' || event.key === '?') {
+        event.preventDefault();
+        setShowHelpModal((prev) => !prev);
+        return;
+      }
+
       // Undo shortcut: Z / U
       if (
-        canUndo &&
-        onUndo &&
+        _canUndo &&
+        _onUndo &&
         (event.key === 'z' || event.key === 'Z' || event.key === 'u' || event.key === 'U')
       ) {
         event.preventDefault();
-        onUndo();
+        _onUndo();
         positionQuizSection();
         return;
       }
 
-      if (completed || !item) {
+      // Restart shortcut on completion screen: R
+      if (_completed && _onRestart && (event.key === 'r' || event.key === 'R')) {
+        event.preventDefault();
+        _onRestart();
+        return;
+      }
+
+      if (_completed || !_item) {
+        return;
+      }
+
+      // Pronounce word: P
+      if (event.key === 'p' || event.key === 'P') {
+        event.preventDefault();
+        handleSpeakRef.current(_item.word, _item.audioUrl);
         return;
       }
 
       // Space: Reveal answer if hidden, or Next if revealed in standard mode
       if (event.key === ' ' || event.code === 'Space') {
-        if (!revealed) {
+        if (!_revealed) {
           event.preventDefault();
-          onReveal();
+          _onReveal();
           positionQuizSection();
           return;
-        } else if (!srsMode) {
+        } else if (!_srsMode) {
           event.preventDefault();
-          onNext();
+          _onNext();
           positionQuizSection();
           return;
         }
       }
 
+      // Enter: Next card (alternative to Space) — only after reveal in standard mode
+      if (event.key === 'Enter' && _revealed && !_srsMode) {
+        event.preventDefault();
+        _onNext();
+        positionQuizSection();
+        return;
+      }
+
+      // Escape: flip card back (un-reveal) when revealed
+      if (event.key === 'Escape') {
+        if (_revealed && _quizDirection !== 'spelling') {
+          event.preventDefault();
+          _onReveal();
+        }
+        return;
+      }
+
+      // Mark as Missed: M (standard mode only, not SRS)
+      if (!_srsMode && (event.key === 'm' || event.key === 'M')) {
+        event.preventDefault();
+        _onMarkMissed();
+        return;
+      }
+
+      // Toggle Notes: N (when notes are available, after reveal)
+      if (_revealed && _hasNotes && (event.key === 'n' || event.key === 'N')) {
+        event.preventDefault();
+        setShowNotes((prev) => !prev);
+        positionQuizSection();
+        return;
+      }
+
+      // Toggle My Examples: E
+      if (_hasExamples && (event.key === 'e' || event.key === 'E')) {
+        event.preventDefault();
+        setShowUserExamples((prev) => !prev);
+        positionQuizSection();
+        return;
+      }
+
       // SRS Rating shortcuts: 1, 2, 3, 4
-      if (srsMode && revealed && onSrsRate) {
+      if (_srsMode && _revealed && _onSrsRate) {
         if (event.key === '1') {
           event.preventDefault();
           playReviewSound('again');
-          onSrsRate('again');
+          _onSrsRate('again');
           positionQuizSection();
           return;
         }
         if (event.key === '2') {
           event.preventDefault();
           playReviewSound('hard');
-          onSrsRate('hard');
+          _onSrsRate('hard');
           positionQuizSection();
           return;
         }
         if (event.key === '3') {
           event.preventDefault();
           playReviewSound('good');
-          onSrsRate('good');
+          _onSrsRate('good');
           positionQuizSection();
           return;
         }
         if (event.key === '4') {
           event.preventDefault();
           playReviewSound('easy');
-          onSrsRate('easy');
+          _onSrsRate('easy');
           positionQuizSection();
           return;
         }
       }
 
       // Navigation shortcuts
-      if (event.key === 'ArrowRight' && revealed && !srsMode) {
+      if (event.key === 'ArrowRight' && _revealed && !_srsMode) {
         event.preventDefault();
-        onNext();
+        _onNext();
         positionQuizSection();
         return;
       }
-      if (event.key === 'ArrowLeft' && hasPrevious) {
+      if (event.key === 'ArrowLeft' && _hasPrevious) {
         event.preventDefault();
-        onPrevious();
+        _onPrevious();
         positionQuizSection();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [
-    canUndo,
-    onUndo,
-    completed,
-    item,
-    revealed,
-    srsMode,
-    onSrsRate,
-    onReveal,
-    onNext,
-    hasPrevious,
-    onPrevious,
-    positionQuizSection,
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [positionQuizSection]);
 
   const handleSpeak = useCallback((text: string, audioUrl?: string) => {
     const settings = getAppSettings();
@@ -330,6 +447,9 @@ export const QuizPanel = memo(function QuizPanel({
     window.speechSynthesis.speak(utterance);
   }, []);
 
+  /** Stable ref to handleSpeak for use inside keyboard handler */
+  const handleSpeakRef = useRef(handleSpeak);
+  handleSpeakRef.current = handleSpeak;
   useEffect(() => {
     if (!item || completed) {
       return;
@@ -452,6 +572,63 @@ export const QuizPanel = memo(function QuizPanel({
     ['z', 'x', 'c', 'v', 'b', 'n', 'm'],
   ];
 
+  // Keyboard shortcut help content
+  const helpModalContent = (
+    <Stack gap="xs">
+      <Text size="xs" c="dimmed" fw={700} style={{ letterSpacing: '0.06em' }}>
+        GENERAL
+      </Text>
+      <Table striped highlightOnHover withTableBorder withColumnBorders fz="sm">
+        <Table.Tbody>
+          {[
+            ['Space', 'Reveal answer / Next card'],
+            ['Enter', 'Next card (after reveal, standard mode)'],
+            ['← / →', 'Previous / Next card'],
+            ['Escape', 'Flip card back to front'],
+            ['P', 'Pronounce the word'],
+            ['M', 'Toggle Mark as Missed (standard mode)'],
+            ['N', 'Toggle Notes panel (after reveal)'],
+            ['E', 'Toggle My Examples'],
+            ['Z / U', 'Undo last rating'],
+            ['R', 'Restart session (completion screen)'],
+            ['H / ?', 'Toggle this help'],
+          ].map(([key, action]) => (
+            <Table.Tr key={key}>
+              <Table.Td>
+                <Kbd size="xs">{key}</Kbd>
+              </Table.Td>
+              <Table.Td>{action}</Table.Td>
+            </Table.Tr>
+          ))}
+        </Table.Tbody>
+      </Table>
+      {srsMode && (
+        <>
+          <Text size="xs" c="dimmed" fw={700} style={{ letterSpacing: '0.06em', marginTop: 8 }}>
+            SRS RATINGS (after reveal)
+          </Text>
+          <Table striped highlightOnHover withTableBorder withColumnBorders fz="sm">
+            <Table.Tbody>
+              {[
+                ['1', 'Again — Forgot / Incorrect'],
+                ['2', 'Hard — Recalled with heavy effort'],
+                ['3', 'Good — Recalled correctly'],
+                ['4', 'Easy — Instantly recalled'],
+              ].map(([key, action]) => (
+                <Table.Tr key={key}>
+                  <Table.Td>
+                    <Kbd size="xs">{key}</Kbd>
+                  </Table.Td>
+                  <Table.Td>{action}</Table.Td>
+                </Table.Tr>
+              ))}
+            </Table.Tbody>
+          </Table>
+        </>
+      )}
+    </Stack>
+  );
+
   if (completed) {
     return (
       <Card
@@ -537,13 +714,37 @@ export const QuizPanel = memo(function QuizPanel({
                   size="md"
                   radius="md"
                   leftSection={<IconRotateClockwise size={18} />}
+                  rightSection={<Kbd size="xs" style={{ opacity: 0.75, fontSize: '0.62rem' }}>R</Kbd>}
                 >
                   {hasAddedWords ? 'Refresh Session' : 'Restart Session'}
                 </Button>
               </Indicator>
             )}
           </Group>
+
+          <Text size="xs" c="dimmed" fw={500} style={{ opacity: 0.6 }}>
+            Press{' '}
+            <Kbd size="xs" style={{ fontSize: '0.65rem' }}>H</Kbd> for keyboard shortcuts
+          </Text>
         </Stack>
+
+        {/* Help Modal */}
+        <Modal
+          opened={showHelpModal}
+          onClose={() => setShowHelpModal(false)}
+          title={
+            <Group gap="xs">
+              <IconHelp size={18} color="#6366f1" />
+              <Text fw={700} size="md">Keyboard Shortcuts</Text>
+            </Group>
+          }
+          centered
+          radius="lg"
+          padding="lg"
+          size="sm"
+        >
+          {helpModalContent}
+        </Modal>
       </Card>
     );
   }
@@ -563,6 +764,9 @@ export const QuizPanel = memo(function QuizPanel({
   const definitions = normalizeDefinitions(item?.definitions, item.meaning);
   const allUserExamples = definitions.flatMap((definition) => definition.userExamples);
   const isWordToMeaning = quizDirection === 'wordToMeaning';
+
+  // Patch kbStateRef so the stable keyboard handler can read the latest hasExamples value
+  kbStateRef.current.hasExamples = allUserExamples.length > 0;
 
   const userExamplesBlock =
     showUserExamples && allUserExamples.length > 0 ? (
@@ -888,6 +1092,9 @@ export const QuizPanel = memo(function QuizPanel({
     item.notes.trim() !== '<p><br></p>'
   );
 
+  // Patch kbStateRef so the stable keyboard handler can read the latest hasNotes value
+  kbStateRef.current.hasNotes = hasNotes;
+
   const noteBlock = hasNotes ? (
     <Stack gap="xs" align="center" style={{ width: '100%', maxWidth: 620 }}>
       <Button
@@ -982,6 +1189,23 @@ export const QuizPanel = memo(function QuizPanel({
   return (
     <Card ref={quizPanelRef} className="glass-panel" radius="lg" padding="md" p={{ base: 'md', sm: 'xl' }}>
       <Stack gap="xl">
+        {/* Help Modal */}
+        <Modal
+          opened={showHelpModal}
+          onClose={() => setShowHelpModal(false)}
+          title={
+            <Group gap="xs">
+              <IconHelp size={18} color="#6366f1" />
+              <Text fw={700} size="md">Keyboard Shortcuts</Text>
+            </Group>
+          }
+          centered
+          radius="lg"
+          padding="lg"
+          size="sm"
+        >
+          {helpModalContent}
+        </Modal>
         {totalCount > 0 && (
           <Stack gap="xs">
             <Group justify="space-between">
@@ -1340,6 +1564,42 @@ export const QuizPanel = memo(function QuizPanel({
           </motion.div>
         </div>
 
+        {/* Keyboard Legend */}
+        <Group justify="center" gap="md" style={{ opacity: 0.55 }} wrap="wrap">
+          <Text size="xs" fw={700}>
+            <Text span fw={900} c="grape.4">Space</Text>{' '}Reveal
+          </Text>
+          {!srsMode && (
+            <Text size="xs" fw={700}>
+              <Text span fw={900} c="indigo.4">Enter / →</Text>{' '}Next
+            </Text>
+          )}
+          <Text size="xs" fw={700}>
+            <Text span fw={900} c="violet.4">P</Text>{' '}Speak
+          </Text>
+          {!srsMode && (
+            <Text size="xs" fw={700}>
+              <Text span fw={900} c="orange.4">M</Text>{' '}Missed
+            </Text>
+          )}
+          {canUndo && (
+            <Text size="xs" fw={700}>
+              <Text span fw={900} c="pink.4">Z / U</Text>{' '}Undo
+            </Text>
+          )}
+          <Tooltip label="Show all keyboard shortcuts" withArrow>
+            <Text
+              size="xs"
+              fw={700}
+              c="indigo"
+              style={{ cursor: 'pointer', textDecoration: 'underline dotted' }}
+              onClick={() => setShowHelpModal(true)}
+            >
+              <Text span fw={900} c="indigo.4">H / ?</Text>{' '}Help
+            </Text>
+          </Tooltip>
+        </Group>
+
         <Group justify="space-between" mt="sm">
           <Button
             variant="subtle"
@@ -1351,6 +1611,11 @@ export const QuizPanel = memo(function QuizPanel({
             disabled={!hasPrevious}
             radius="md"
             leftSection={<IconChevronLeft size={18} />}
+            rightSection={
+              hasPrevious ? (
+                <Kbd size="xs" style={{ opacity: 0.7, fontSize: '0.62rem', padding: '1px 4px' }}>←</Kbd>
+              ) : undefined
+            }
           >
             Back
           </Button>

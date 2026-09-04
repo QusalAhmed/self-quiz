@@ -1,4 +1,4 @@
-import { Button, Card, Group, RollingNumber, Stack, Text, Title } from '@mantine/core';
+import { Button, Card, Group, Kbd, RollingNumber, Stack, Text, Title, Tooltip } from '@mantine/core';
 import {
   IconArrowBackUp,
   IconArrowLeft,
@@ -34,6 +34,7 @@ export function FsrsCompletionState({
         return;
       }
 
+      // Undo: Z / U
       if (
         canUndo &&
         onUndo &&
@@ -42,11 +43,26 @@ export function FsrsCompletionState({
         event.preventDefault();
         onUndo();
       }
+
+      // Restart: R or Enter
+      if (event.key === 'r' || event.key === 'R' || event.key === 'Enter') {
+        event.preventDefault();
+        onRestartSession();
+      }
+
+      // Back to library: Escape or Backspace
+      if (
+        onReturnToLibrary &&
+        (event.key === 'Escape' || event.key === 'Backspace')
+      ) {
+        event.preventDefault();
+        onReturnToLibrary();
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [canUndo, onUndo]);
+  }, [canUndo, onUndo, onRestartSession, onReturnToLibrary]);
 
   return (
     <Card
@@ -179,6 +195,11 @@ export function FsrsCompletionState({
             variant="gradient"
             gradient={{ from: 'violet', to: 'grape', deg: 135 }}
             leftSection={<IconRotateClockwise size={20} />}
+            rightSection={
+              <Tooltip label="Press R or Enter" withArrow>
+                <Kbd size="xs" style={{ fontSize: '0.65rem', opacity: 0.8 }}>R / Enter</Kbd>
+              </Tooltip>
+            }
             onClick={onRestartSession}
             style={{
               fontWeight: 800,
@@ -195,6 +216,11 @@ export function FsrsCompletionState({
               radius="xl"
               variant="default"
               leftSection={<IconArrowLeft size={20} />}
+              rightSection={
+                <Tooltip label="Press Escape or Backspace" withArrow>
+                  <Kbd size="xs" style={{ fontSize: '0.65rem', opacity: 0.8 }}>Esc</Kbd>
+                </Tooltip>
+              }
               onClick={onReturnToLibrary}
               style={{ fontWeight: 700 }}
             >
@@ -202,6 +228,15 @@ export function FsrsCompletionState({
             </Button>
           )}
         </Group>
+
+        {/* Keyboard hint */}
+        <Text size="xs" c="dimmed" fw={500} style={{ opacity: 0.6 }}>
+          <Kbd size="xs" style={{ fontSize: '0.65rem' }}>R</Kbd> Restart ·{' '}
+          {onReturnToLibrary && (
+            <><Kbd size="xs" style={{ fontSize: '0.65rem' }}>Esc</Kbd> Back · </>
+          )}
+          <Kbd size="xs" style={{ fontSize: '0.65rem' }}>Z / U</Kbd> Undo
+        </Text>
       </Stack>
     </Card>
   );
