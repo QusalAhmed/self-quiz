@@ -241,12 +241,10 @@ export function QuranVerseModal({
       styles={{
         root: {
           maxWidth: '100vw',
-          overflow: 'hidden',
         },
         inner: {
           padding: 'clamp(4px, 2vw, 16px)',
           maxWidth: '100vw',
-          overflow: 'hidden',
         },
         content: {
           maxWidth: '100%',

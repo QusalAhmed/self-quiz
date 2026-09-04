@@ -312,18 +312,17 @@ export function AddQuranVerseModal({
       styles={{
         root: {
           maxWidth: '100vw',
-          overflow: 'hidden',
         },
         inner: {
           padding: 'clamp(4px, 2vw, 16px)',
           maxWidth: '100vw',
-          overflow: 'hidden',
         },
         content: {
           maxWidth: '100%',
           width: '100%',
           maxHeight: 'calc(100dvh - 16px)',
-          overflow: 'hidden',
+          overflowY: 'auto',
+          overflowX: 'hidden',
         },
         body: {
           maxWidth: '100%',
