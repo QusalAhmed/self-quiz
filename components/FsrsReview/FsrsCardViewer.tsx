@@ -230,7 +230,16 @@ export const FsrsCardViewer = memo(function FsrsCardViewer({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [canUndo, onUndo, isRevealed, onReveal, onRate, positionReviewSection, onPronounce, card.word]);
+  }, [
+    canUndo,
+    onUndo,
+    isRevealed,
+    onReveal,
+    onRate,
+    positionReviewSection,
+    onPronounce,
+    card.word,
+  ]);
 
   // Keyboard shortcuts help content
   const helpModalContent = (
@@ -248,7 +257,9 @@ export const FsrsCardViewer = memo(function FsrsCardViewer({
             ['H / ?', 'Toggle this help'],
           ].map(([key, action]) => (
             <Table.Tr key={key}>
-              <Table.Td><Kbd size="xs">{key}</Kbd></Table.Td>
+              <Table.Td>
+                <Kbd size="xs">{key}</Kbd>
+              </Table.Td>
               <Table.Td>{action}</Table.Td>
             </Table.Tr>
           ))}
@@ -266,7 +277,9 @@ export const FsrsCardViewer = memo(function FsrsCardViewer({
             ['4', 'Easy — Instantly recalled'],
           ].map(([key, action]) => (
             <Table.Tr key={key}>
-              <Table.Td><Kbd size="xs">{key}</Kbd></Table.Td>
+              <Table.Td>
+                <Kbd size="xs">{key}</Kbd>
+              </Table.Td>
               <Table.Td>{action}</Table.Td>
             </Table.Tr>
           ))}
@@ -556,7 +569,10 @@ export const FsrsCardViewer = memo(function FsrsCardViewer({
                       fontFamily: 'var(--font-title)',
                     }}
                   >
-                    Show Answer (Space)
+                    Show Answer{' '}
+                    <Text span visibleFrom="sm" className="kbd-hint" inherit>
+                      (Space)
+                    </Text>
                   </Button>
                 </Stack>
               </Stack>
@@ -675,7 +691,14 @@ export const FsrsCardViewer = memo(function FsrsCardViewer({
         </div>
 
         {/* Bottom Keyboard Legend */}
-        <Group justify="center" gap="lg" style={{ opacity: 0.65 }} wrap="wrap">
+        <Group
+          justify="center"
+          gap="lg"
+          style={{ opacity: 0.65 }}
+          wrap="wrap"
+          visibleFrom="sm"
+          className="kbd-hint"
+        >
           {canUndo && (
             <Text size="xs" fw={700}>
               <Text span fw={900} c="pink.4">
@@ -736,7 +759,10 @@ export const FsrsCardViewer = memo(function FsrsCardViewer({
               style={{ cursor: 'pointer', textDecoration: 'underline dotted' }}
               onClick={() => setShowHelpModal(true)}
             >
-              <Text span fw={900} c="indigo.4">H / ?</Text>{' '}Help
+              <Text span fw={900} c="indigo.4">
+                H / ?
+              </Text>{' '}
+              Help
             </Text>
           </Tooltip>
         </Group>
@@ -748,7 +774,9 @@ export const FsrsCardViewer = memo(function FsrsCardViewer({
           title={
             <Group gap="xs">
               <IconHelp size={18} color="#a855f7" />
-              <Text fw={700} size="md">Keyboard Shortcuts</Text>
+              <Text fw={700} size="md">
+                Keyboard Shortcuts
+              </Text>
             </Group>
           }
           centered

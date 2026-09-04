@@ -210,4 +210,29 @@ describe('QuizPanel component', () => {
     // Phonetic should now be displayed in the menu
     expect(screen.getByText(/i-ˈfe-m\(ə-\)rəl/)).toBeInTheDocument();
   });
+
+  it('applies responsive mobile hiding to shortcut hints in QuizPanel', () => {
+    const { container } = render(
+      <QuizPanel
+        item={mockItem}
+        quizDirection="wordToMeaning"
+        revealed={false}
+        onReveal={jest.fn()}
+        onMarkMissed={jest.fn()}
+        isMarkedMissed={false}
+        onNext={jest.fn()}
+        onPrevious={jest.fn()}
+        completed={false}
+        hasPrevious
+        currentIndex={1}
+        totalCount={5}
+      />
+    );
+
+    const hintElements = container.querySelectorAll('.kbd-hint');
+    expect(hintElements.length).toBeGreaterThan(0);
+    hintElements.forEach((el) => {
+      expect(el.className).toContain('mantine-visible-from-sm');
+    });
+  });
 });

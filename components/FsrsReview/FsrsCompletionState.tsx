@@ -1,4 +1,15 @@
-import { Button, Card, Group, Kbd, RollingNumber, Stack, Text, Title, Tooltip } from '@mantine/core';
+import {
+  Box,
+  Button,
+  Card,
+  Group,
+  Kbd,
+  RollingNumber,
+  Stack,
+  Text,
+  Title,
+  Tooltip,
+} from '@mantine/core';
 import {
   IconArrowBackUp,
   IconArrowLeft,
@@ -51,10 +62,7 @@ export function FsrsCompletionState({
       }
 
       // Back to library: Escape or Backspace
-      if (
-        onReturnToLibrary &&
-        (event.key === 'Escape' || event.key === 'Backspace')
-      ) {
+      if (onReturnToLibrary && (event.key === 'Escape' || event.key === 'Backspace')) {
         event.preventDefault();
         onReturnToLibrary();
       }
@@ -196,9 +204,13 @@ export function FsrsCompletionState({
             gradient={{ from: 'violet', to: 'grape', deg: 135 }}
             leftSection={<IconRotateClockwise size={20} />}
             rightSection={
-              <Tooltip label="Press R or Enter" withArrow>
-                <Kbd size="xs" style={{ fontSize: '0.65rem', opacity: 0.8 }}>R / Enter</Kbd>
-              </Tooltip>
+              <Box visibleFrom="sm" className="kbd-hint">
+                <Tooltip label="Press R or Enter" withArrow>
+                  <Kbd size="xs" style={{ fontSize: '0.65rem', opacity: 0.8 }}>
+                    R / Enter
+                  </Kbd>
+                </Tooltip>
+              </Box>
             }
             onClick={onRestartSession}
             style={{
@@ -217,9 +229,13 @@ export function FsrsCompletionState({
               variant="default"
               leftSection={<IconArrowLeft size={20} />}
               rightSection={
-                <Tooltip label="Press Escape or Backspace" withArrow>
-                  <Kbd size="xs" style={{ fontSize: '0.65rem', opacity: 0.8 }}>Esc</Kbd>
-                </Tooltip>
+                <Box visibleFrom="sm" className="kbd-hint">
+                  <Tooltip label="Press Escape or Backspace" withArrow>
+                    <Kbd size="xs" style={{ fontSize: '0.65rem', opacity: 0.8 }}>
+                      Esc
+                    </Kbd>
+                  </Tooltip>
+                </Box>
               }
               onClick={onReturnToLibrary}
               style={{ fontWeight: 700 }}
@@ -230,12 +246,30 @@ export function FsrsCompletionState({
         </Group>
 
         {/* Keyboard hint */}
-        <Text size="xs" c="dimmed" fw={500} style={{ opacity: 0.6 }}>
-          <Kbd size="xs" style={{ fontSize: '0.65rem' }}>R</Kbd> Restart ·{' '}
+        <Text
+          size="xs"
+          c="dimmed"
+          fw={500}
+          visibleFrom="sm"
+          className="kbd-hint"
+          style={{ opacity: 0.6 }}
+        >
+          <Kbd size="xs" style={{ fontSize: '0.65rem' }}>
+            R
+          </Kbd>{' '}
+          Restart ·{' '}
           {onReturnToLibrary && (
-            <><Kbd size="xs" style={{ fontSize: '0.65rem' }}>Esc</Kbd> Back · </>
+            <>
+              <Kbd size="xs" style={{ fontSize: '0.65rem' }}>
+                Esc
+              </Kbd>{' '}
+              Back ·{' '}
+            </>
           )}
-          <Kbd size="xs" style={{ fontSize: '0.65rem' }}>Z / U</Kbd> Undo
+          <Kbd size="xs" style={{ fontSize: '0.65rem' }}>
+            Z / U
+          </Kbd>{' '}
+          Undo
         </Text>
       </Stack>
     </Card>

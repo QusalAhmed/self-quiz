@@ -63,4 +63,20 @@ describe('FsrsCompletionState component', () => {
     fireEvent.keyDown(window, { key: 'u' });
     expect(handleUndo).toHaveBeenCalledTimes(2);
   });
+
+  it('applies responsive mobile hiding to shortcut hints', () => {
+    const { container } = render(
+      <FsrsCompletionState
+        reviewedCount={5}
+        onRestartSession={jest.fn()}
+        onReturnToLibrary={jest.fn()}
+      />
+    );
+
+    const hintElements = container.querySelectorAll('.kbd-hint');
+    expect(hintElements.length).toBeGreaterThan(0);
+    hintElements.forEach((el) => {
+      expect(el.className).toContain('mantine-visible-from-sm');
+    });
+  });
 });

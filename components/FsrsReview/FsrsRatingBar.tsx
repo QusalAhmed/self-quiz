@@ -110,6 +110,8 @@ export function FsrsRatingBar({ intervals, onRate, disabled = false }: FsrsRatin
                 >
                   <Kbd
                     size="xs"
+                    visibleFrom="sm"
+                    className="kbd-hint"
                     style={{
                       position: 'absolute',
                       top: 5,

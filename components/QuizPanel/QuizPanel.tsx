@@ -714,7 +714,16 @@ export const QuizPanel = memo(function QuizPanel({
                   size="md"
                   radius="md"
                   leftSection={<IconRotateClockwise size={18} />}
-                  rightSection={<Kbd size="xs" style={{ opacity: 0.75, fontSize: '0.62rem' }}>R</Kbd>}
+                  rightSection={
+                    <Kbd
+                      size="xs"
+                      visibleFrom="sm"
+                      className="kbd-hint"
+                      style={{ opacity: 0.75, fontSize: '0.62rem' }}
+                    >
+                      R
+                    </Kbd>
+                  }
                 >
                   {hasAddedWords ? 'Refresh Session' : 'Restart Session'}
                 </Button>
@@ -722,9 +731,19 @@ export const QuizPanel = memo(function QuizPanel({
             )}
           </Group>
 
-          <Text size="xs" c="dimmed" fw={500} style={{ opacity: 0.6 }}>
+          <Text
+            size="xs"
+            c="dimmed"
+            fw={500}
+            visibleFrom="sm"
+            className="kbd-hint"
+            style={{ opacity: 0.6 }}
+          >
             Press{' '}
-            <Kbd size="xs" style={{ fontSize: '0.65rem' }}>H</Kbd> for keyboard shortcuts
+            <Kbd size="xs" style={{ fontSize: '0.65rem' }}>
+              H
+            </Kbd>{' '}
+            for keyboard shortcuts
           </Text>
         </Stack>
 
@@ -735,7 +754,9 @@ export const QuizPanel = memo(function QuizPanel({
           title={
             <Group gap="xs">
               <IconHelp size={18} color="#6366f1" />
-              <Text fw={700} size="md">Keyboard Shortcuts</Text>
+              <Text fw={700} size="md">
+                Keyboard Shortcuts
+              </Text>
             </Group>
           }
           centered
@@ -881,6 +902,8 @@ export const QuizPanel = memo(function QuizPanel({
                   >
                     <Kbd
                       size="xs"
+                      visibleFrom="sm"
+                      className="kbd-hint"
                       style={{
                         position: 'absolute',
                         top: 5,
@@ -1153,7 +1176,12 @@ export const QuizPanel = memo(function QuizPanel({
       className="btn-pulse"
       disabled={!isWordToMeaning && definitions.length === 0}
       rightSection={
-        <Kbd size="xs" style={{ opacity: 0.85, fontSize: '0.68rem', padding: '2px 6px' }}>
+        <Kbd
+          size="xs"
+          visibleFrom="sm"
+          className="kbd-hint"
+          style={{ opacity: 0.85, fontSize: '0.68rem', padding: '2px 6px' }}
+        >
           Space
         </Kbd>
       }
@@ -1187,7 +1215,13 @@ export const QuizPanel = memo(function QuizPanel({
   // );
 
   return (
-    <Card ref={quizPanelRef} className="glass-panel" radius="lg" padding="md" p={{ base: 'md', sm: 'xl' }}>
+    <Card
+      ref={quizPanelRef}
+      className="glass-panel"
+      radius="lg"
+      padding="md"
+      p={{ base: 'md', sm: 'xl' }}
+    >
       <Stack gap="xl">
         {/* Help Modal */}
         <Modal
@@ -1196,7 +1230,9 @@ export const QuizPanel = memo(function QuizPanel({
           title={
             <Group gap="xs">
               <IconHelp size={18} color="#6366f1" />
-              <Text fw={700} size="md">Keyboard Shortcuts</Text>
+              <Text fw={700} size="md">
+                Keyboard Shortcuts
+              </Text>
             </Group>
           }
           centered
@@ -1565,26 +1601,48 @@ export const QuizPanel = memo(function QuizPanel({
         </div>
 
         {/* Keyboard Legend */}
-        <Group justify="center" gap="md" style={{ opacity: 0.55 }} wrap="wrap">
+        <Group
+          justify="center"
+          gap="md"
+          style={{ opacity: 0.55 }}
+          wrap="wrap"
+          visibleFrom="sm"
+          className="kbd-hint"
+        >
           <Text size="xs" fw={700}>
-            <Text span fw={900} c="grape.4">Space</Text>{' '}Reveal
+            <Text span fw={900} c="grape.4">
+              Space
+            </Text>{' '}
+            Reveal
           </Text>
           {!srsMode && (
             <Text size="xs" fw={700}>
-              <Text span fw={900} c="indigo.4">Enter / →</Text>{' '}Next
+              <Text span fw={900} c="indigo.4">
+                Enter / →
+              </Text>{' '}
+              Next
             </Text>
           )}
           <Text size="xs" fw={700}>
-            <Text span fw={900} c="violet.4">P</Text>{' '}Speak
+            <Text span fw={900} c="violet.4">
+              P
+            </Text>{' '}
+            Speak
           </Text>
           {!srsMode && (
             <Text size="xs" fw={700}>
-              <Text span fw={900} c="orange.4">M</Text>{' '}Missed
+              <Text span fw={900} c="orange.4">
+                M
+              </Text>{' '}
+              Missed
             </Text>
           )}
           {canUndo && (
             <Text size="xs" fw={700}>
-              <Text span fw={900} c="pink.4">Z / U</Text>{' '}Undo
+              <Text span fw={900} c="pink.4">
+                Z / U
+              </Text>{' '}
+              Undo
             </Text>
           )}
           <Tooltip label="Show all keyboard shortcuts" withArrow>
@@ -1595,7 +1653,10 @@ export const QuizPanel = memo(function QuizPanel({
               style={{ cursor: 'pointer', textDecoration: 'underline dotted' }}
               onClick={() => setShowHelpModal(true)}
             >
-              <Text span fw={900} c="indigo.4">H / ?</Text>{' '}Help
+              <Text span fw={900} c="indigo.4">
+                H / ?
+              </Text>{' '}
+              Help
             </Text>
           </Tooltip>
         </Group>
@@ -1613,7 +1674,14 @@ export const QuizPanel = memo(function QuizPanel({
             leftSection={<IconChevronLeft size={18} />}
             rightSection={
               hasPrevious ? (
-                <Kbd size="xs" style={{ opacity: 0.7, fontSize: '0.62rem', padding: '1px 4px' }}>←</Kbd>
+                <Kbd
+                  size="xs"
+                  visibleFrom="sm"
+                  className="kbd-hint"
+                  style={{ opacity: 0.7, fontSize: '0.62rem', padding: '1px 4px' }}
+                >
+                  ←
+                </Kbd>
               ) : undefined
             }
           >
