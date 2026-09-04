@@ -4,6 +4,7 @@ import '@mantine/nprogress/styles.css';
 import './global.css';
 import { ColorSchemeScript, mantineHtmlProps, MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
+import type { Metadata, Viewport } from 'next';
 import { Amiri, Inter, JetBrains_Mono, Plus_Jakarta_Sans } from 'next/font/google';
 import React from 'react';
 import { AppShellLayout } from '@/components/Layout/AppShellLayout';
@@ -40,9 +41,13 @@ const amiri = Amiri({
   display: 'swap',
 });
 
-export const metadata = {
-  title: 'English Word Memorizer',
+export const metadata: Metadata = {
+  title: 'Self Quiz - English Word Memorizer',
   description: 'Local-first English word memorization with quiz practice.',
+};
+
+export const viewport: Viewport = {
+  themeColor: '#F8F7FF',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -59,12 +64,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="shortcut icon" href="/favicon.svg" />
         <link rel="apple-touch-icon" href="/icon.svg" />
         <link rel="manifest" href="/manifest.webmanifest" />
-        <meta name="theme-color" content="#4f46e5" />
-        <meta
-          name="viewport"
-          content="minimum-scale=1, initial-scale=1, width=device-width, user-scalable=no"
-        />
-        <title>Self Quiz - English Word Memorizer</title>
       </head>
       <body
         className={`${inter.variable} ${plusJakartaSans.variable} ${jetbrainsMono.variable} ${amiri.variable}`}
