@@ -1,7 +1,12 @@
 .editorWrapper {
   border-radius: 12px;
-  border: 1px solid var(--mantine-color-default-border);
-  background: var(--mantine-color-body);
+  border: 1.5px solid var(--glass-input-border);
+  background: var(--glass-input-bg);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.04),
+    var(--glass-specular);
   transition:
     border-color 0.2s ease,
     box-shadow 0.2s ease;
@@ -11,9 +16,13 @@
   overflow: hidden;
 }
 
+.editorWrapper:hover {
+  border-color: var(--glass-input-border-hover);
+}
+
 .editorWrapper:focus-within {
   border-color: var(--mantine-color-indigo-5);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
 }
 
 .toolbarHeader {
@@ -22,7 +31,7 @@
   justify-content: space-between;
   padding: 6px 12px;
   background: rgba(99, 102, 241, 0.03);
-  border-bottom: 1px solid var(--mantine-color-default-border);
+  border-bottom: 1px solid var(--card-border-subtle);
   gap: 8px;
   flex-wrap: wrap;
 }
@@ -46,7 +55,7 @@
   gap: 6px;
   padding: 8px 10px;
   background: var(--mantine-color-default-hover);
-  border-bottom: 1px solid var(--mantine-color-default-border);
+  border-bottom: 1px solid var(--card-border-subtle);
   align-items: center;
 }
 
@@ -56,8 +65,8 @@
   font-size: 12px;
   font-weight: 500;
   border-radius: 6px;
-  border: 1px solid var(--mantine-color-default-border);
-  background: var(--mantine-color-body);
+  border: 1px solid var(--card-border-subtle);
+  background: var(--card-bg-subtle);
   color: var(--mantine-color-text);
   display: inline-flex;
   align-items: center;
@@ -101,7 +110,7 @@
   justify-content: space-between;
   padding: 6px 12px;
   background: rgba(0, 0, 0, 0.02);
-  border-top: 1px solid var(--mantine-color-default-border);
+  border-top: 1px solid var(--card-border-subtle);
   font-size: 11px;
   color: var(--mantine-color-dimmed);
   flex-wrap: wrap;
@@ -125,7 +134,7 @@
   width: 26px;
   height: 26px;
   border-radius: 6px;
-  border: 1px solid rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--card-border-subtle);
   cursor: pointer;
   transition:
     transform 0.12s ease,
@@ -152,8 +161,8 @@
 .symbolBtn {
   height: 32px;
   border-radius: 6px;
-  border: 1px solid var(--mantine-color-default-border);
-  background: var(--mantine-color-body);
+  border: 1px solid var(--card-border-subtle);
+  background: var(--card-bg-subtle);
   font-size: 15px;
   font-family: inherit;
   cursor: pointer;

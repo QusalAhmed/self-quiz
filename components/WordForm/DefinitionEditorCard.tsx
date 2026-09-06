@@ -55,7 +55,7 @@ export function DefinitionEditorCard({
       radius="md"
       padding="sm"
       className="glass-panel"
-      style={{ background: 'var(--card-bg-subtle)', border: '1px solid var(--card-border)' }}
+      style={{ background: 'var(--card-bg-subtle)', border: '1.5px solid var(--card-border)' }}
     >
       <Stack gap={8}>
         <Group justify="space-between" align="center" gap="xs" wrap="nowrap">

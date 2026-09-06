@@ -24,12 +24,12 @@
   --accent-gradient-hover: linear-gradient(135deg, #4f46e5 0%, #9333ea 100%);
 
   /* Frosted Glass Surface Tokens - Light Mode */
-  --card-bg: rgba(255, 255, 255, 0.72);
-  --card-bg-subtle: rgba(255, 255, 255, 0.45);
-  --card-bg-elevated: rgba(255, 255, 255, 0.82);
-  --card-border: rgba(255, 255, 255, 0.75);
-  --card-border-subtle: rgba(255, 255, 255, 0.45);
-  --card-border-glow: rgba(99, 102, 241, 0.35);
+  --card-bg: rgba(255, 255, 255, 0.76);
+  --card-bg-subtle: rgba(255, 255, 255, 0.52);
+  --card-bg-elevated: rgba(255, 255, 255, 0.92);
+  --card-border: rgba(203, 213, 225, 0.85);
+  --card-border-subtle: rgba(226, 232, 240, 0.85);
+  --card-border-glow: rgba(99, 102, 241, 0.45);
 
   /* Specular Light Reflection & Inner Highlight */
   --glass-specular:
@@ -39,9 +39,11 @@
 
   --glass-blur: blur(16px) saturate(180%);
   --glass-blur-heavy: blur(24px) saturate(190%);
-  --glass-modal-bg: rgba(255, 255, 255, 0.84);
-  --glass-input-bg: rgba(255, 255, 255, 0.58);
-  --glass-input-border: rgba(255, 255, 255, 0.7);
+  --glass-modal-bg: rgba(255, 255, 255, 0.88);
+  --glass-input-bg: rgba(255, 255, 255, 0.72);
+  --glass-input-border: rgba(203, 213, 225, 0.95);
+  --glass-input-border-hover: rgba(99, 102, 241, 0.5);
+  --glass-dropdown-bg: rgba(255, 255, 255, 0.97);
 
   --text-primary: #0f172a;
   --text-secondary: #334155;
@@ -62,12 +64,12 @@
   --accent-gradient-hover: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
 
   /* Frosted Glass Surface Tokens - Dark Mode */
-  --card-bg: rgba(18, 22, 38, 0.65);
-  --card-bg-subtle: rgba(22, 27, 46, 0.42);
-  --card-bg-elevated: rgba(25, 31, 52, 0.78);
-  --card-border: rgba(255, 255, 255, 0.12);
-  --card-border-subtle: rgba(255, 255, 255, 0.07);
-  --card-border-glow: rgba(168, 85, 247, 0.4);
+  --card-bg: rgba(18, 22, 38, 0.7);
+  --card-bg-subtle: rgba(22, 27, 46, 0.55);
+  --card-bg-elevated: rgba(28, 34, 58, 0.88);
+  --card-border: rgba(255, 255, 255, 0.18);
+  --card-border-subtle: rgba(255, 255, 255, 0.11);
+  --card-border-glow: rgba(168, 85, 247, 0.45);
 
   /* Specular Light Reflection & Inner Highlight */
   --glass-specular:
@@ -77,9 +79,11 @@
 
   --glass-blur: blur(18px) saturate(190%);
   --glass-blur-heavy: blur(28px) saturate(210%);
-  --glass-modal-bg: rgba(16, 20, 36, 0.82);
-  --glass-input-bg: rgba(12, 16, 30, 0.58);
-  --glass-input-border: rgba(255, 255, 255, 0.12);
+  --glass-modal-bg: rgba(16, 20, 36, 0.86);
+  --glass-input-bg: rgba(15, 20, 38, 0.75);
+  --glass-input-border: rgba(255, 255, 255, 0.2);
+  --glass-input-border-hover: rgba(165, 180, 252, 0.5);
+  --glass-dropdown-bg: rgba(18, 23, 42, 0.96);
 
   --text-primary: #f8fafc;
   --text-secondary: #e2e8f0;
@@ -481,14 +485,18 @@ pre {
 }
 
 /* Inputs Frosted Glass Styling */
+.mantine-Input-input,
 .mantine-TextInput-input,
 .mantine-Textarea-input,
-.mantine-Select-input {
+.mantine-Select-input,
+.mantine-MultiSelect-input,
+.mantine-PillsInput-input,
+.mantine-NumberInput-input {
   font-family: var(--font-body) !important;
   background-color: var(--glass-input-bg) !important;
   backdrop-filter: blur(10px) !important;
   -webkit-backdrop-filter: blur(10px) !important;
-  border: 1px solid var(--glass-input-border) !important;
+  border: 1.5px solid var(--glass-input-border) !important;
   box-shadow:
     inset 0 1px 2px rgba(0, 0, 0, 0.04),
     var(--glass-specular) !important;
@@ -496,9 +504,24 @@ pre {
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
+.mantine-Input-input:hover,
+.mantine-TextInput-input:hover,
+.mantine-Textarea-input:hover,
+.mantine-Select-input:hover,
+.mantine-MultiSelect-input:hover,
+.mantine-PillsInput-input:hover,
+.mantine-NumberInput-input:hover {
+  border-color: var(--glass-input-border-hover) !important;
+}
+
+.mantine-Input-input:focus,
 .mantine-TextInput-input:focus,
 .mantine-Textarea-input:focus,
-.mantine-Select-input:focus {
+.mantine-Select-input:focus,
+.mantine-MultiSelect-input:focus,
+.mantine-PillsInput-input:focus,
+.mantine-NumberInput-input:focus,
+.mantine-PillsInput-input:focus-within {
   border-color: #6366f1 !important;
   background-color: var(--card-bg-elevated) !important;
   box-shadow:
@@ -507,20 +530,39 @@ pre {
 }
 
 /* Dark mode overrides for inputs inside mantine */
+[data-mantine-color-scheme='dark'] .mantine-Input-input,
 [data-mantine-color-scheme='dark'] .mantine-TextInput-input,
 [data-mantine-color-scheme='dark'] .mantine-Textarea-input,
-[data-mantine-color-scheme='dark'] .mantine-Select-input {
+[data-mantine-color-scheme='dark'] .mantine-Select-input,
+[data-mantine-color-scheme='dark'] .mantine-MultiSelect-input,
+[data-mantine-color-scheme='dark'] .mantine-PillsInput-input,
+[data-mantine-color-scheme='dark'] .mantine-NumberInput-input {
   background-color: var(--glass-input-bg) !important;
-  border-color: var(--glass-input-border) !important;
+  border: 1.5px solid var(--glass-input-border) !important;
   color: #f8fafc !important;
   box-shadow:
     inset 0 1px 3px rgba(0, 0, 0, 0.35),
     var(--glass-specular) !important;
 }
 
+[data-mantine-color-scheme='dark'] .mantine-Input-input:hover,
+[data-mantine-color-scheme='dark'] .mantine-TextInput-input:hover,
+[data-mantine-color-scheme='dark'] .mantine-Textarea-input:hover,
+[data-mantine-color-scheme='dark'] .mantine-Select-input:hover,
+[data-mantine-color-scheme='dark'] .mantine-MultiSelect-input:hover,
+[data-mantine-color-scheme='dark'] .mantine-PillsInput-input:hover,
+[data-mantine-color-scheme='dark'] .mantine-NumberInput-input:hover {
+  border-color: var(--glass-input-border-hover) !important;
+}
+
+[data-mantine-color-scheme='dark'] .mantine-Input-input:focus,
 [data-mantine-color-scheme='dark'] .mantine-TextInput-input:focus,
 [data-mantine-color-scheme='dark'] .mantine-Textarea-input:focus,
-[data-mantine-color-scheme='dark'] .mantine-Select-input:focus {
+[data-mantine-color-scheme='dark'] .mantine-Select-input:focus,
+[data-mantine-color-scheme='dark'] .mantine-MultiSelect-input:focus,
+[data-mantine-color-scheme='dark'] .mantine-PillsInput-input:focus,
+[data-mantine-color-scheme='dark'] .mantine-NumberInput-input:focus,
+[data-mantine-color-scheme='dark'] .mantine-PillsInput-input:focus-within {
   border-color: #818cf8 !important;
   box-shadow:
     0 0 0 3px rgba(129, 140, 248, 0.25),
@@ -1468,25 +1510,77 @@ li[data-type='taskItem'] > div {
   background: transparent !important;
 }
 
-/* Menus & Popover Dropdowns with frosted glass */
+/* Menus & Popover Dropdowns with frosted glass (low transparency / high opacity) */
 .mantine-Menu-dropdown,
-.mantine-Popover-dropdown {
-  background: var(--card-bg-elevated) !important;
-  backdrop-filter: var(--glass-blur-heavy) !important;
-  -webkit-backdrop-filter: var(--glass-blur-heavy) !important;
+.mantine-Popover-dropdown,
+.mantine-Combobox-dropdown,
+.mantine-Select-dropdown,
+.mantine-MultiSelect-dropdown,
+.mantine-Autocomplete-dropdown,
+.mantine-TagsInput-dropdown {
+  background: var(--glass-dropdown-bg) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
   border: 1px solid var(--card-border) !important;
-  box-shadow: var(--card-shadow-hover), var(--glass-specular) !important;
+  box-shadow:
+    0 14px 40px -4px rgba(15, 23, 42, 0.18),
+    0 6px 16px -2px rgba(15, 23, 42, 0.1),
+    var(--glass-specular) !important;
   border-radius: 14px !important;
   padding: 6px !important;
+  z-index: 1000 !important;
 }
 
-.mantine-Menu-item {
+[data-mantine-color-scheme='dark'] .mantine-Menu-dropdown,
+[data-mantine-color-scheme='dark'] .mantine-Popover-dropdown,
+[data-mantine-color-scheme='dark'] .mantine-Combobox-dropdown,
+[data-mantine-color-scheme='dark'] .mantine-Select-dropdown,
+[data-mantine-color-scheme='dark'] .mantine-MultiSelect-dropdown,
+[data-mantine-color-scheme='dark'] .mantine-Autocomplete-dropdown,
+[data-mantine-color-scheme='dark'] .mantine-TagsInput-dropdown {
+  background: var(--glass-dropdown-bg) !important;
+  border: 1px solid var(--card-border) !important;
+  box-shadow:
+    0 18px 48px -4px rgba(0, 0, 0, 0.65),
+    0 8px 20px -2px rgba(0, 0, 0, 0.45),
+    var(--glass-specular) !important;
+}
+
+.mantine-Menu-item,
+.mantine-Combobox-option {
   border-radius: 8px !important;
   transition: all 0.15s ease !important;
 }
 
-.mantine-Menu-item:hover {
+.mantine-Menu-item:hover,
+.mantine-Combobox-option:hover:not([data-combobox-selected]) {
   background: rgba(99, 102, 241, 0.1) !important;
+}
+
+.mantine-Combobox-option[data-combobox-selected] {
+  background: rgba(99, 102, 241, 0.16) !important;
+  color: var(--mantine-color-indigo-6) !important;
+  font-weight: 600 !important;
+}
+
+[data-mantine-color-scheme='dark'] .mantine-Menu-item:hover,
+[data-mantine-color-scheme='dark'] .mantine-Combobox-option:hover:not([data-combobox-selected]) {
+  background: rgba(129, 140, 248, 0.12) !important;
+}
+
+[data-mantine-color-scheme='dark'] .mantine-Combobox-option[data-combobox-selected] {
+  background: rgba(129, 140, 248, 0.25) !important;
+  color: #a5b4fc !important;
+}
+
+/* Mantine Divider in glassmorphic cards */
+.mantine-Divider-root {
+  border-color: var(--card-border-subtle) !important;
+}
+
+.mantine-Divider-label {
+  color: var(--text-muted) !important;
+  font-weight: 600 !important;
 }
 
 /* Tooltips with refined frosted capsule */
