@@ -6,6 +6,7 @@ import React from 'react';
 import { AppIcon } from '@/components/Logo/AppIcon';
 
 export type AppLogoProps = {
+  id?: string;
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
   showSubtitle?: boolean;
   subtitleText?: string;
@@ -25,6 +26,7 @@ const SIZES = {
 } as const;
 
 export function AppLogo({
+  id,
   size = 'md',
   showSubtitle = true,
   subtitleText = 'Vocabulary Companion',
@@ -45,7 +47,7 @@ export function AppLogo({
       className={className}
       style={style}
     >
-      <AppIcon size={config.iconSize} radius={config.iconRadius} withGlow={withGlow} />
+      <AppIcon id={id} size={config.iconSize} radius={config.iconRadius} withGlow={withGlow} />
       <Stack gap={0} style={{ minWidth: 0 }}>
         <Title
           order={4}

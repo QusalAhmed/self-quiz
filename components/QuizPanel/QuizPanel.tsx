@@ -462,7 +462,8 @@ export const QuizPanel = memo(function QuizPanel({
     const shouldAutoSpeak =
       (quizDirection === 'spelling' && !revealed) ||
       (autoPronounceWord &&
-        (quizDirection === 'wordToMeaning' || (quizDirection === 'meaningToWord' && revealed)));
+        ((quizDirection === 'wordToMeaning' && !revealed) ||
+          (quizDirection === 'meaningToWord' && revealed)));
 
     if (!shouldAutoSpeak) {
       return;

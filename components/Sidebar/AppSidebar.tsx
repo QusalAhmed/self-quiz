@@ -169,12 +169,13 @@ export function AppSidebar({
     setMobileOpened(false);
   };
 
-  const renderNavContent = () => (
+  const renderNavContent = (instanceId?: string) => (
     <ScrollArea style={{ height: '100%' }} type="auto" offsetScrollbars>
       <Stack justify="space-between" style={{ minHeight: '100%', padding: '16px 12px 36px 12px' }}>
         {/* Top Branding Section */}
         <Stack gap="sm">
           <AppLogo
+            id={instanceId ? `${instanceId}-logo` : undefined}
             size="md"
             withGlow
             onClick={() => setMobileOpened(false)}
@@ -433,7 +434,7 @@ export function AppSidebar({
     <>
       {/* Permanent Desktop Sidebar */}
       <Box component="aside" className="desktop-sidebar glass-panel" id="app-desktop-sidebar">
-        {renderNavContent()}
+        {renderNavContent('desktop')}
       </Box>
 
       {/* Draggable Floating Action Button on Mobile (hidden when drawer is open) */}
@@ -491,7 +492,7 @@ export function AppSidebar({
           },
         }}
       >
-        {renderNavContent()}
+        {renderNavContent('mobile-drawer')}
       </Drawer>
     </>
   );

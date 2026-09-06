@@ -1,8 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useId } from 'react';
 
 export type AppIconProps = {
+  id?: string;
   size?: number | string;
   radius?: number | string;
   withGlow?: boolean;
@@ -12,6 +13,7 @@ export type AppIconProps = {
 };
 
 export function AppIcon({
+  id: customId,
   size = 36,
   radius = 10,
   withGlow = true,
@@ -19,6 +21,15 @@ export function AppIcon({
   className,
   style,
 }: AppIconProps) {
+  const generatedId = useId();
+  const rawId = customId || generatedId;
+  const safeId = rawId.replace(/[^a-zA-Z0-9_-]/g, '_');
+
+  const bgGradId = `logoBgGrad_${safeId}`;
+  const accentGradId = `logoAccentGrad_${safeId}`;
+  const glowFilterId = `logoGlow_${safeId}`;
+  const shadowFilterId = `logoShadow_${safeId}`;
+
   const widthValue = typeof size === 'number' ? `${size}px` : size;
   const heightValue = typeof size === 'number' ? `${size}px` : size;
   const radiusValue = typeof radius === 'number' ? `${radius}px` : radius;
@@ -54,27 +65,27 @@ export function AppIcon({
       >
         <defs>
           {/* Background Gradient */}
-          <linearGradient id="logoBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <linearGradient id={bgGradId} x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="#4f46e5" />
             <stop offset="50%" stopColor="#7c3aed" />
             <stop offset="100%" stopColor="#9333ea" />
           </linearGradient>
 
           {/* Accent Gradient */}
-          <linearGradient id="logoAccentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <linearGradient id={accentGradId} x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="#38bdf8" />
             <stop offset="50%" stopColor="#818cf8" />
             <stop offset="100%" stopColor="#c084fc" />
           </linearGradient>
 
           {/* Glow Filter */}
-          <filter id="logoGlow" x="-20%" y="-20%" width="140%" height="140%">
+          <filter id={glowFilterId} x="-20%" y="-20%" width="140%" height="140%">
             <feGaussianBlur stdDeviation="8" result="blur" />
             <feComposite in="SourceGraphic" in2="blur" operator="over" />
           </filter>
 
           {/* Shadow */}
-          <filter id="logoShadow" x="-10%" y="-10%" width="120%" height="130%">
+          <filter id={shadowFilterId} x="-10%" y="-10%" width="120%" height="130%">
             <feDropShadow
               dx="0"
               dy="10"
@@ -86,7 +97,7 @@ export function AppIcon({
         </defs>
 
         {/* Base Rounded Squircle */}
-        <rect width="512" height="512" rx="128" fill="url(#logoBgGrad)" />
+        <rect width="512" height="512" rx="128" fill={`url(#${bgGradId})`} />
 
         {/* Inner Border Highlight */}
         <rect
@@ -107,7 +118,7 @@ export function AppIcon({
         />
 
         {/* Main Symbol Group with Shadow */}
-        <g filter="url(#logoShadow)">
+        <g filter={`url(#${shadowFilterId})`}>
           {/* Open Book / Card Left Page */}
           <path
             d="M256 376 C220 348, 140 336, 92 344 C82 346, 74 338, 74 328 L74 172 C74 162, 84 154, 94 152 C146 142, 224 156, 256 186 Z"
@@ -168,14 +179,14 @@ export function AppIcon({
           {/* Neural Memory Constellation / Rising Spark */}
           <path
             d="M256 160 L216 112 M256 160 L296 112 M256 130 L256 72"
-            stroke="url(#logoAccentGrad)"
+            stroke={`url(#${accentGradId})`}
             strokeWidth="6"
             strokeLinecap="round"
-            filter="url(#logoGlow)"
+            filter={`url(#${glowFilterId})`}
           />
 
           {/* Neural Nodes */}
-          <circle cx="256" cy="68" r="22" fill="#38bdf8" filter="url(#logoGlow)" />
+          <circle cx="256" cy="68" r="22" fill="#38bdf8" filter={`url(#${glowFilterId})`} />
           <circle cx="256" cy="68" r="12" fill="#ffffff" />
 
           <circle cx="206" cy="106" r="16" fill="#818cf8" />

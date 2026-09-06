@@ -1,5 +1,4 @@
-import React from 'react';
-import { fireEvent, render, screen } from '@/test-utils';
+import { act, fireEvent, render, screen } from '@/test-utils';
 import { QuizPanel, type QuizItem } from './QuizPanel';
 
 const mockItem: QuizItem = {
@@ -233,6 +232,175 @@ describe('QuizPanel component', () => {
     expect(hintElements.length).toBeGreaterThan(0);
     hintElements.forEach((el) => {
       expect(el.className).toContain('mantine-visible-from-sm');
+    });
+  });
+
+  describe('auto-pronounce behavior', () => {
+    let speakMock: jest.Mock;
+    let cancelMock: jest.Mock;
+
+    beforeEach(() => {
+      jest.useFakeTimers();
+      speakMock = jest.fn();
+      cancelMock = jest.fn();
+      Object.defineProperty(window, 'speechSynthesis', {
+        value: {
+          speak: speakMock,
+          cancel: cancelMock,
+        },
+        writable: true,
+        configurable: true,
+      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (global as any).SpeechSynthesisUtterance = jest.fn().mockImplementation((text) => ({
+        text,
+        lang: '',
+        rate: 1,
+        pitch: 1,
+      }));
+    });
+
+    afterEach(() => {
+      jest.runOnlyPendingTimers();
+      jest.useRealTimers();
+    });
+
+    it('auto-pronounces word on presentation when autoPronounceWord is true, but does NOT pronounce on Show Definition reveal', () => {
+      const handleReveal = jest.fn();
+      const { rerender } = render(
+        <QuizPanel
+          item={mockItem}
+          quizDirection="wordToMeaning"
+          revealed={false}
+          autoPronounceWord
+          onReveal={handleReveal}
+          onMarkMissed={jest.fn()}
+          isMarkedMissed={false}
+          onNext={jest.fn()}
+          onPrevious={jest.fn()}
+          completed={false}
+          hasPrevious={false}
+          currentIndex={0}
+          totalCount={5}
+        />
+      );
+
+      // Advance timer for the auto-pronounce delay (300ms)
+      act(() => {
+        jest.advanceTimersByTime(350);
+      });
+
+      // It should have spoken once on initial card presentation
+      expect(speakMock).toHaveBeenCalledTimes(1);
+
+      // Verify "Show Definition" button is visible and click it
+      const showDefButton = screen.getByRole('button', { name: /show definition/i });
+      expect(showDefButton).toBeInTheDocument();
+      fireEvent.click(showDefButton);
+      expect(handleReveal).toHaveBeenCalledTimes(1);
+
+      // Rerender as revealed (simulating parent state update after onReveal)
+      rerender(
+        <QuizPanel
+          item={mockItem}
+          quizDirection="wordToMeaning"
+          revealed={true}
+          autoPronounceWord
+          onReveal={handleReveal}
+          onMarkMissed={jest.fn()}
+          isMarkedMissed={false}
+          onNext={jest.fn()}
+          onPrevious={jest.fn()}
+          completed={false}
+          hasPrevious={false}
+          currentIndex={0}
+          totalCount={5}
+        />
+      );
+
+      // Advance timers again
+      act(() => {
+        jest.advanceTimersByTime(500);
+      });
+
+      // Still should only have spoken 1 time, NOT again upon reveal
+      expect(speakMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not auto-pronounce when autoPronounceWord is false in wordToMeaning mode', () => {
+      render(
+        <QuizPanel
+          item={mockItem}
+          quizDirection="wordToMeaning"
+          revealed={false}
+          autoPronounceWord={false}
+          onReveal={jest.fn()}
+          onMarkMissed={jest.fn()}
+          isMarkedMissed={false}
+          onNext={jest.fn()}
+          onPrevious={jest.fn()}
+          completed={false}
+          hasPrevious={false}
+          currentIndex={0}
+          totalCount={5}
+        />
+      );
+
+      act(() => {
+        jest.advanceTimersByTime(500);
+      });
+
+      expect(speakMock).not.toHaveBeenCalled();
+    });
+
+    it('auto-pronounces on reveal when in meaningToWord mode with autoPronounceWord', () => {
+      const { rerender } = render(
+        <QuizPanel
+          item={mockItem}
+          quizDirection="meaningToWord"
+          revealed={false}
+          autoPronounceWord
+          onReveal={jest.fn()}
+          onMarkMissed={jest.fn()}
+          isMarkedMissed={false}
+          onNext={jest.fn()}
+          onPrevious={jest.fn()}
+          completed={false}
+          hasPrevious={false}
+          currentIndex={0}
+          totalCount={5}
+        />
+      );
+
+      // While hidden in meaningToWord, word should NOT be spoken
+      act(() => {
+        jest.advanceTimersByTime(500);
+      });
+      expect(speakMock).not.toHaveBeenCalled();
+
+      // When revealed, word SHOULD be auto-pronounced
+      rerender(
+        <QuizPanel
+          item={mockItem}
+          quizDirection="meaningToWord"
+          revealed={true}
+          autoPronounceWord
+          onReveal={jest.fn()}
+          onMarkMissed={jest.fn()}
+          isMarkedMissed={false}
+          onNext={jest.fn()}
+          onPrevious={jest.fn()}
+          completed={false}
+          hasPrevious={false}
+          currentIndex={0}
+          totalCount={5}
+        />
+      );
+
+      act(() => {
+        jest.advanceTimersByTime(350);
+      });
+      expect(speakMock).toHaveBeenCalledTimes(1);
     });
   });
 });
