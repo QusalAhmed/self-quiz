@@ -476,7 +476,7 @@ export const WordDetailCard = React.memo(function WordDetailCard({
       </Group>
 
       {/* ── Definitions Breakdown (Oxford / Cambridge Dictionary style) ── */}
-      <Stack gap="sm" mt="md">
+      <Stack gap="sm" mt="xs">
         {definitions.length === 0 && (
           <Text size="sm" c="dimmed" fs="italic">
             {word.meaning || 'No definition available. Fetching or add one...'}
@@ -490,14 +490,12 @@ export const WordDetailCard = React.memo(function WordDetailCard({
           const isExpanded = Boolean(examplesExpanded[index]);
 
           return (
-            <Paper
+            <Box
               key={`def-${index}`}
-              p="sm"
-              radius="md"
-              className="glass-panel"
+              p={0}
+              m={0}
               style={{
-                background: 'var(--card-bg-subtle)',
-                border: '1px solid var(--card-border-subtle)',
+                background: 'transparent',
               }}
             >
               <Stack gap={6}>
@@ -658,7 +656,7 @@ export const WordDetailCard = React.memo(function WordDetailCard({
                   </Stack>
                 )}
               </Stack>
-            </Paper>
+            </Box>
           );
         })}
         {isGeneratingExamples && (
