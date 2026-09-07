@@ -1,9 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
+import { ALGORITHM_VERSION } from '../lib/similar-words/config.js';
+import { SimilarWordsEngine } from '../lib/similar-words/engine.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { SimilarWordsEngine } from '../lib/similar-words/engine.js';
-import { ALGORITHM_VERSION } from '../lib/similar-words/config.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const envPath = path.resolve(__dirname, '../.env');
@@ -106,7 +106,10 @@ async function batchUpsertSimilarities(records, batchSize = 250) {
       .upsert(batch, { onConflict: 'source_word_id,target_word_id,algorithm_version' });
 
     if (error) {
-      console.warn(`Warning: Batch ${Math.floor(i / batchSize) + 1} upsert encountered error:`, error.message);
+      console.warn(
+        `Warning: Batch ${Math.floor(i / batchSize) + 1} upsert encountered error:`,
+        error.message
+      );
     } else {
       savedCount += batch.length;
       process.stdout.write(`\rProgress: ${savedCount} / ${records.length} relationships stored.`);

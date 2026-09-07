@@ -33,7 +33,9 @@ if (!supabaseUrl || !supabaseAnonKey) {
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 async function migrateDatabase() {
-  console.log('Running database migration for audio_url, phonetic, and audio_source in Supabase...');
+  console.log(
+    'Running database migration for audio_url, phonetic, and audio_source in Supabase...'
+  );
 
   const sqlPath = path.resolve(__dirname, 'migrate-word-pronunciation.sql');
   const sqlStatements = fs.readFileSync(sqlPath, 'utf8');
@@ -56,9 +58,13 @@ async function migrateDatabase() {
           .limit(1);
 
         if (!testError) {
-          console.log('✅ The "audio_url", "phonetic", and "audio_source" columns are already accessible in Supabase!');
+          console.log(
+            '✅ The "audio_url", "phonetic", and "audio_source" columns are already accessible in Supabase!'
+          );
         } else {
-          console.warn('Note: You can run scripts/migrate-word-pronunciation.sql in your Supabase SQL Editor to enable these columns.');
+          console.warn(
+            'Note: You can run scripts/migrate-word-pronunciation.sql in your Supabase SQL Editor to enable these columns.'
+          );
         }
 
         process.exit(0);

@@ -458,9 +458,7 @@ export function StoryReader({
               radius="md"
               className="glass-panel"
               style={{
-                background: isClozeMode
-                  ? 'rgba(99, 102, 241, 0.1)'
-                  : 'var(--card-bg-subtle)',
+                background: isClozeMode ? 'rgba(99, 102, 241, 0.1)' : 'var(--card-bg-subtle)',
                 borderColor: isClozeMode ? 'var(--card-border-glow)' : 'var(--card-border-subtle)',
               }}
             >

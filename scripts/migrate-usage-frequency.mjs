@@ -33,7 +33,9 @@ if (!supabaseUrl || !supabaseAnonKey) {
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 async function migrateDatabase() {
-  console.log('Running database migration for usage_frequency and generator_ai_details in Supabase...');
+  console.log(
+    'Running database migration for usage_frequency and generator_ai_details in Supabase...'
+  );
 
   const sqlPath = path.resolve(__dirname, 'migrate-usage-frequency.sql');
   const sqlStatements = fs.readFileSync(sqlPath, 'utf8');
@@ -56,9 +58,13 @@ async function migrateDatabase() {
           .limit(1);
 
         if (!testError) {
-          console.log('✅ The "usage_frequency" and "generator_ai_details" columns are already accessible in Supabase!');
+          console.log(
+            '✅ The "usage_frequency" and "generator_ai_details" columns are already accessible in Supabase!'
+          );
         } else {
-          console.warn('Note: You can run scripts/migrate-usage-frequency.sql in your Supabase SQL Editor to enable these columns.');
+          console.warn(
+            'Note: You can run scripts/migrate-usage-frequency.sql in your Supabase SQL Editor to enable these columns.'
+          );
         }
 
         process.exit(0);

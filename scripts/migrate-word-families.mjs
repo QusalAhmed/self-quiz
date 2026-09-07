@@ -51,7 +51,9 @@ async function migrateDatabase() {
         // Let's test if table already exists or if we can query it
         const { error: testError } = await supabase.from('word_families').select('id').limit(1);
         if (!testError) {
-          console.log('✅ The "word_families" table is already created and accessible in Supabase!');
+          console.log(
+            '✅ The "word_families" table is already created and accessible in Supabase!'
+          );
         } else {
           console.warn('⚠️ Table test query returned:', testError.message);
         }

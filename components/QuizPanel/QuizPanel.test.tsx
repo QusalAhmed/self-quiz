@@ -304,7 +304,7 @@ describe('QuizPanel component', () => {
         <QuizPanel
           item={mockItem}
           quizDirection="wordToMeaning"
-          revealed={true}
+          revealed
           autoPronounceWord
           onReveal={handleReveal}
           onMarkMissed={jest.fn()}
@@ -383,7 +383,7 @@ describe('QuizPanel component', () => {
         <QuizPanel
           item={mockItem}
           quizDirection="meaningToWord"
-          revealed={true}
+          revealed
           autoPronounceWord
           onReveal={jest.fn()}
           onMarkMissed={jest.fn()}
@@ -401,6 +401,86 @@ describe('QuizPanel component', () => {
         jest.advanceTimersByTime(350);
       });
       expect(speakMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('hotkey button visual press effects', () => {
+    it('applies is-pressed class to reveal button when Space is pressed', () => {
+      const handleReveal = jest.fn();
+      render(
+        <QuizPanel
+          item={mockItem}
+          quizDirection="wordToMeaning"
+          revealed={false}
+          onReveal={handleReveal}
+          onMarkMissed={jest.fn()}
+          isMarkedMissed={false}
+          onNext={jest.fn()}
+          onPrevious={jest.fn()}
+          completed={false}
+          hasPrevious={false}
+          currentIndex={0}
+          totalCount={5}
+        />
+      );
+
+      const revealBtn = screen.getByRole('button', { name: /show definition/i });
+      expect(revealBtn.className).not.toContain('is-pressed');
+
+      fireEvent.keyDown(window, { key: ' ', code: 'Space' });
+      expect(revealBtn.className).toContain('is-pressed');
+    });
+
+    it('applies is-pressed class to next button when ArrowRight is pressed while revealed', () => {
+      const handleNext = jest.fn();
+      render(
+        <QuizPanel
+          item={mockItem}
+          quizDirection="wordToMeaning"
+          revealed
+          onReveal={jest.fn()}
+          onMarkMissed={jest.fn()}
+          isMarkedMissed={false}
+          onNext={handleNext}
+          onPrevious={jest.fn()}
+          completed={false}
+          hasPrevious={false}
+          currentIndex={0}
+          totalCount={5}
+        />
+      );
+
+      const nextBtn = screen.getByRole('button', { name: /next word/i });
+      expect(nextBtn.className).not.toContain('is-pressed');
+
+      fireEvent.keyDown(window, { key: 'ArrowRight' });
+      expect(nextBtn.className).toContain('is-pressed');
+    });
+
+    it('applies is-pressed class to back button when ArrowLeft is pressed', () => {
+      const handlePrev = jest.fn();
+      render(
+        <QuizPanel
+          item={mockItem}
+          quizDirection="wordToMeaning"
+          revealed={false}
+          onReveal={jest.fn()}
+          onMarkMissed={jest.fn()}
+          isMarkedMissed={false}
+          onNext={jest.fn()}
+          onPrevious={handlePrev}
+          completed={false}
+          hasPrevious
+          currentIndex={1}
+          totalCount={5}
+        />
+      );
+
+      const backBtn = screen.getByRole('button', { name: /back/i });
+      expect(backBtn.className).not.toContain('is-pressed');
+
+      fireEvent.keyDown(window, { key: 'ArrowLeft' });
+      expect(backBtn.className).toContain('is-pressed');
     });
   });
 });

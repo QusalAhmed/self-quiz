@@ -157,6 +157,3 @@ try {
 } catch (e) {
   // Ignored if next/server cannot be loaded in setup
 }
-
-
-

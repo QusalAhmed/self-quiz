@@ -143,6 +143,8 @@ export const FsrsCardViewer = memo(function FsrsCardViewer({
 
   // State for help modal
   const [showHelpModal, setShowHelpModal] = useState(false);
+  const [pressedRating, setPressedRating] = useState<FsrsRating | null>(null);
+  const [pressedReveal, setPressedReveal] = useState(false);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -188,8 +190,12 @@ export const FsrsCardViewer = memo(function FsrsCardViewer({
       if (event.key === ' ' || event.code === 'Space') {
         if (!isRevealed) {
           event.preventDefault();
-          onReveal();
-          positionReviewSection();
+          setPressedReveal(true);
+          setTimeout(() => {
+            onReveal();
+            setPressedReveal(false);
+            positionReviewSection();
+          }, 110);
           return;
         }
       }
@@ -203,32 +209,22 @@ export const FsrsCardViewer = memo(function FsrsCardViewer({
       }
 
       if (isRevealed) {
-        if (event.key === '1') {
+        const ratingMap: Record<string, FsrsRating> = {
+          '1': 'again',
+          '2': 'hard',
+          '3': 'good',
+          '4': 'easy',
+        };
+        const rating = ratingMap[event.key];
+        if (rating) {
           event.preventDefault();
-          playReviewSound('again');
-          onRate('again');
-          positionReviewSection();
-          return;
-        }
-        if (event.key === '2') {
-          event.preventDefault();
-          playReviewSound('hard');
-          onRate('hard');
-          positionReviewSection();
-          return;
-        }
-        if (event.key === '3') {
-          event.preventDefault();
-          playReviewSound('good');
-          onRate('good');
-          positionReviewSection();
-          return;
-        }
-        if (event.key === '4') {
-          event.preventDefault();
-          playReviewSound('easy');
-          onRate('easy');
-          positionReviewSection();
+          playReviewSound(rating);
+          setPressedRating(rating);
+          setTimeout(() => {
+            onRate(rating);
+            setPressedRating(null);
+            positionReviewSection();
+          }, 130);
         }
       }
     };
@@ -564,7 +560,15 @@ export const FsrsCardViewer = memo(function FsrsCardViewer({
                     variant="gradient"
                     gradient={{ from: 'violet', to: 'grape', deg: 135 }}
                     leftSection={<IconEye size={22} />}
-                    onClick={onReveal}
+                    onClick={() => {
+                      setPressedReveal(true);
+                      onReveal();
+                      positionReviewSection();
+                      setTimeout(() => {
+                        setPressedReveal(false);
+                      }, 150);
+                    }}
+                    className={`review-reveal-btn ${pressedReveal ? 'is-pressed review-btn-pop' : ''}`}
                     style={{
                       width: '100%',
                       maxWidth: 320,
@@ -572,8 +576,22 @@ export const FsrsCardViewer = memo(function FsrsCardViewer({
                       fontSize: '1.05rem',
                       boxShadow: '0 6px 20px rgba(168, 85, 247, 0.35)',
                       fontFamily: 'var(--font-title)',
+                      position: 'relative',
+                      overflow: 'hidden',
                     }}
                   >
+                    {pressedReveal && (
+                      <span
+                        className="review-tap-ripple"
+                        style={{
+                          left: '50%',
+                          top: '50%',
+                          width: 220,
+                          height: 220,
+                          backgroundColor: 'rgba(255, 255, 255, 0.35)',
+                        }}
+                      />
+                    )}
                     Show Answer{' '}
                     <Text span visibleFrom="sm" className="kbd-hint" inherit>
                       (Space)
@@ -689,7 +707,11 @@ export const FsrsCardViewer = memo(function FsrsCardViewer({
                   onDeleteMember={onDeleteWordFamilyMember}
                 />
 
-                <FsrsRatingBar intervals={intervals} onRate={onRate} />
+                <FsrsRatingBar
+                  intervals={intervals}
+                  onRate={onRate}
+                  pressedRating={pressedRating}
+                />
               </Stack>
             </div>
           </motion.div>

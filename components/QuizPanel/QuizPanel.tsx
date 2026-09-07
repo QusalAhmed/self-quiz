@@ -13,7 +13,6 @@ import {
   RingProgress,
   RollingNumber,
   ScrollArea,
-  SimpleGrid,
   Stack,
   Table,
   Text,
@@ -24,7 +23,6 @@ import {
 import {
   IconArrowBackUp,
   IconAward,
-  IconBrain,
   IconChevronDown,
   IconChevronLeft,
   IconChevronRight,
@@ -39,7 +37,7 @@ import { motion } from 'framer-motion';
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { quizDirections } from '@/app/home/constants';
 import { DefinitionsDisplay } from '@/components/DefinitionsDisplay/DefinitionsDisplay';
-import { RATING_BUTTON_INFO } from '@/components/FsrsReview';
+import { FsrsRatingBar } from '@/components/FsrsReview';
 import { RichNoteViewer } from '@/components/RichNoteViewer/RichNoteViewer';
 import { WordActionIcon, WordActionMenu } from '@/components/WordActions';
 import { WordFamilySection } from '@/components/WordFamily/WordFamilySection';
@@ -138,6 +136,12 @@ export const QuizPanel = memo(function QuizPanel({
   const [showNotes, setShowNotes] = useState(false);
   const [confirmDeleteFsrsOpened, setConfirmDeleteFsrsOpened] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
+  const [pressedRating, setPressedRating] = useState<SrsRating | null>(null);
+  const [pressedReveal, setPressedReveal] = useState(false);
+  const [pressedNext, setPressedNext] = useState(false);
+  const [pressedPrevious, setPressedPrevious] = useState(false);
+  const [pressedUndo, setPressedUndo] = useState(false);
+  const [pressedRestart, setPressedRestart] = useState(false);
   const quizPanelRef = useRef<HTMLDivElement>(null);
 
   const completionNotifiedRef = useRef(false);
@@ -199,6 +203,33 @@ export const QuizPanel = memo(function QuizPanel({
       }
     });
   }, []);
+
+  const handleSrsRate = useCallback(
+    (rating: SrsRating, fromHotkey = false) => {
+      if (!onSrsRate) {
+        return;
+      }
+      playReviewSound(rating);
+      setPressedRating(rating);
+      if (fromHotkey) {
+        setTimeout(() => {
+          onSrsRate(rating);
+          setPressedRating(null);
+          positionQuizSection();
+        }, 130);
+      } else {
+        onSrsRate(rating);
+        positionQuizSection();
+        setTimeout(() => {
+          setPressedRating(null);
+        }, 150);
+      }
+    },
+    [onSrsRate, positionQuizSection]
+  );
+
+  const handleSrsRateRef = useRef(handleSrsRate);
+  handleSrsRateRef.current = handleSrsRate;
 
   /**
    * Ref that always holds the latest values needed by the keyboard shortcut handler.
@@ -286,24 +317,30 @@ export const QuizPanel = memo(function QuizPanel({
         event.preventDefault();
         setShowHelpModal((prev) => !prev);
         return;
-      }
-
-      // Undo shortcut: Z / U
+      } // Undo shortcut: Z / U
       if (
         _canUndo &&
         _onUndo &&
         (event.key === 'z' || event.key === 'Z' || event.key === 'u' || event.key === 'U')
       ) {
         event.preventDefault();
+        setPressedUndo(true);
         _onUndo();
         positionQuizSection();
+        setTimeout(() => {
+          setPressedUndo(false);
+        }, 150);
         return;
       }
 
       // Restart shortcut on completion screen: R
       if (_completed && _onRestart && (event.key === 'r' || event.key === 'R')) {
         event.preventDefault();
-        _onRestart();
+        setPressedRestart(true);
+        setTimeout(() => {
+          _onRestart();
+          setPressedRestart(false);
+        }, 110);
         return;
       }
 
@@ -322,13 +359,21 @@ export const QuizPanel = memo(function QuizPanel({
       if (event.key === ' ' || event.code === 'Space') {
         if (!_revealed) {
           event.preventDefault();
-          _onReveal();
-          positionQuizSection();
+          setPressedReveal(true);
+          setTimeout(() => {
+            _onReveal();
+            setPressedReveal(false);
+            positionQuizSection();
+          }, 110);
           return;
         } else if (!_srsMode) {
           event.preventDefault();
-          _onNext();
-          positionQuizSection();
+          setPressedNext(true);
+          setTimeout(() => {
+            _onNext();
+            setPressedNext(false);
+            positionQuizSection();
+          }, 110);
           return;
         }
       }
@@ -336,8 +381,12 @@ export const QuizPanel = memo(function QuizPanel({
       // Enter: Next card (alternative to Space) — only after reveal in standard mode
       if (event.key === 'Enter' && _revealed && !_srsMode) {
         event.preventDefault();
-        _onNext();
-        positionQuizSection();
+        setPressedNext(true);
+        setTimeout(() => {
+          _onNext();
+          setPressedNext(false);
+          positionQuizSection();
+        }, 110);
         return;
       }
 
@@ -375,32 +424,16 @@ export const QuizPanel = memo(function QuizPanel({
 
       // SRS Rating shortcuts: 1, 2, 3, 4
       if (_srsMode && _revealed && _onSrsRate) {
-        if (event.key === '1') {
+        const ratingMap: Record<string, SrsRating> = {
+          '1': 'again',
+          '2': 'hard',
+          '3': 'good',
+          '4': 'easy',
+        };
+        const rating = ratingMap[event.key];
+        if (rating) {
           event.preventDefault();
-          playReviewSound('again');
-          _onSrsRate('again');
-          positionQuizSection();
-          return;
-        }
-        if (event.key === '2') {
-          event.preventDefault();
-          playReviewSound('hard');
-          _onSrsRate('hard');
-          positionQuizSection();
-          return;
-        }
-        if (event.key === '3') {
-          event.preventDefault();
-          playReviewSound('good');
-          _onSrsRate('good');
-          positionQuizSection();
-          return;
-        }
-        if (event.key === '4') {
-          event.preventDefault();
-          playReviewSound('easy');
-          _onSrsRate('easy');
-          positionQuizSection();
+          handleSrsRateRef.current(rating, true);
           return;
         }
       }
@@ -408,14 +441,22 @@ export const QuizPanel = memo(function QuizPanel({
       // Navigation shortcuts
       if (event.key === 'ArrowRight' && _revealed && !_srsMode) {
         event.preventDefault();
-        _onNext();
-        positionQuizSection();
+        setPressedNext(true);
+        setTimeout(() => {
+          _onNext();
+          setPressedNext(false);
+          positionQuizSection();
+        }, 110);
         return;
       }
       if (event.key === 'ArrowLeft' && _hasPrevious) {
         event.preventDefault();
-        _onPrevious();
-        positionQuizSection();
+        setPressedPrevious(true);
+        setTimeout(() => {
+          _onPrevious();
+          setPressedPrevious(false);
+          positionQuizSection();
+        }, 110);
       }
     };
 
@@ -688,10 +729,13 @@ export const QuizPanel = memo(function QuizPanel({
                 color="grape"
                 size="md"
                 radius="md"
+                className={`btn-hotkey-target ${pressedUndo ? 'is-pressed review-btn-pop' : ''}`}
                 leftSection={<IconArrowBackUp size={18} />}
                 onClick={() => {
+                  setPressedUndo(true);
                   onUndo();
                   positionQuizSection();
+                  setTimeout(() => setPressedUndo(false), 150);
                 }}
                 style={{ fontWeight: 800 }}
               >
@@ -714,8 +758,12 @@ export const QuizPanel = memo(function QuizPanel({
                 }}
               >
                 <Button
-                  onClick={onRestart}
-                  className="btn-premium btn-pulse"
+                  onClick={() => {
+                    setPressedRestart(true);
+                    onRestart();
+                    setTimeout(() => setPressedRestart(false), 150);
+                  }}
+                  className={`btn-premium btn-pulse btn-hotkey-target ${pressedRestart ? 'is-pressed review-btn-pop' : ''}`}
                   size="md"
                   radius="md"
                   leftSection={<IconRotateClockwise size={18} />}
@@ -847,107 +895,12 @@ export const QuizPanel = memo(function QuizPanel({
   // Review rating bar — shown after reveal in review mode (Anki + RemNote inspired)
   const srsRatingButtons =
     srsMode && revealed && onSrsRate ? (
-      <Stack gap="xs" align="center" style={{ width: '100%' }}>
-        <Group gap={6} align="center" mb={2}>
-          <IconBrain size={15} style={{ color: '#a855f7' }} />
-          <Text size="xs" fw={700} c="dimmed" style={{ letterSpacing: '0.06em' }}>
-            HOW WELL DID YOU RECALL THIS?
-          </Text>
-        </Group>
-        <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="xs" style={{ width: '100%' }}>
-          {RATING_BUTTON_INFO.map(
-            ({ rating, label, shortcut, color, className, situation, description }) => {
-              const intervalText = srsIntervals?.[rating];
-
-              return (
-                <Tooltip
-                  key={rating}
-                  label={
-                    <Stack gap={2} p={2} style={{ maxWidth: 220 }}>
-                      <Text size="xs" fw={700}>
-                        {label} [{shortcut}] — {situation}
-                      </Text>
-                      <Text size="xs" style={{ opacity: 0.9 }}>
-                        {description}
-                      </Text>
-                      {intervalText && (
-                        <Text size="xs" c="dimmed" style={{ fontSize: '0.72rem', marginTop: 2 }}>
-                          Next review in: {intervalText}
-                        </Text>
-                      )}
-                    </Stack>
-                  }
-                  withArrow
-                  multiline
-                  w={220}
-                  transitionProps={{ duration: 150 }}
-                >
-                  <Button
-                    size="md"
-                    radius="lg"
-                    variant="light"
-                    color={color}
-                    onClick={() => {
-                      playReviewSound(rating);
-                      onSrsRate(rating);
-                      positionQuizSection();
-                    }}
-                    className={className}
-                    style={{
-                      fontWeight: 800,
-                      width: '100%',
-                      height: 'auto',
-                      paddingTop: 8,
-                      paddingBottom: 8,
-                      paddingLeft: 6,
-                      paddingRight: 6,
-                      border: '1px solid rgba(255, 255, 255, 0.08)',
-                      position: 'relative',
-                    }}
-                  >
-                    <Kbd
-                      size="xs"
-                      visibleFrom="sm"
-                      className="kbd-hint"
-                      style={{
-                        position: 'absolute',
-                        top: 5,
-                        right: 6,
-                        fontSize: '0.62rem',
-                        padding: '1px 4px',
-                        lineHeight: 1,
-                        opacity: 0.8,
-                        pointerEvents: 'none',
-                      }}
-                    >
-                      {shortcut}
-                    </Kbd>
-                    <Stack gap={2} align="center">
-                      {/* Next Review Time Interval (Anki style) */}
-                      <Text
-                        size="xs"
-                        fw={900}
-                        style={{
-                          fontSize: '0.78rem',
-                          lineHeight: 1,
-                          letterSpacing: '0.02em',
-                        }}
-                      >
-                        {intervalText || (rating === 'again' ? '<1m' : label)}
-                      </Text>
-
-                      {/* Rating Label */}
-                      <Text size="sm" fw={800} style={{ lineHeight: 1.15 }}>
-                        {label}
-                      </Text>
-                    </Stack>
-                  </Button>
-                </Tooltip>
-              );
-            }
-          )}
-        </SimpleGrid>
-      </Stack>
+      <FsrsRatingBar
+        intervals={srsIntervals}
+        onRate={handleSrsRate}
+        pressedRating={pressedRating}
+        promptTitle="HOW WELL DID YOU RECALL THIS?"
+      />
     ) : null;
 
   const fsrsRecord =
@@ -1023,10 +976,13 @@ export const QuizPanel = memo(function QuizPanel({
             color="grape"
             size="xs"
             radius="md"
+            className={`btn-hotkey-target ${pressedUndo ? 'is-pressed review-btn-pop' : ''}`}
             leftSection={<IconArrowBackUp size={14} />}
             onClick={() => {
+              setPressedUndo(true);
               onUndo();
               positionQuizSection();
+              setTimeout(() => setPressedUndo(false), 150);
             }}
             style={{ fontWeight: 800, height: 22, paddingLeft: 8, paddingRight: 8 }}
           >
@@ -1172,13 +1128,17 @@ export const QuizPanel = memo(function QuizPanel({
       variant="light"
       color="indigo"
       onClick={() => {
+        setPressedReveal(true);
         onReveal();
         positionQuizSection();
         setShowUserExamples(() => false);
+        setTimeout(() => {
+          setPressedReveal(false);
+        }, 150);
       }}
       size="lg"
       radius="md"
-      className="btn-pulse"
+      className={`btn-pulse review-reveal-btn ${pressedReveal ? 'is-pressed review-btn-pop' : ''}`}
       disabled={!isWordToMeaning && definitions.length === 0}
       rightSection={
         <Kbd
@@ -1195,8 +1155,22 @@ export const QuizPanel = memo(function QuizPanel({
         fontSize: '1rem',
         fontWeight: 600,
         transition: 'all 0.2s ease',
+        position: 'relative',
+        overflow: 'hidden',
       }}
     >
+      {pressedReveal && (
+        <span
+          className="review-tap-ripple"
+          style={{
+            left: '50%',
+            top: '50%',
+            width: 220,
+            height: 220,
+            backgroundColor: 'rgba(99, 102, 241, 0.45)',
+          }}
+        />
+      )}
       {isWordToMeaning ? 'Show Definition' : 'Show Word'}
     </Button>
   );
@@ -1671,11 +1645,14 @@ export const QuizPanel = memo(function QuizPanel({
             variant="subtle"
             color="gray"
             onClick={() => {
+              setPressedPrevious(true);
               onPrevious();
               positionQuizSection();
+              setTimeout(() => setPressedPrevious(false), 150);
             }}
             disabled={!hasPrevious}
             radius="md"
+            className={`btn-hotkey-target ${pressedPrevious ? 'is-pressed review-btn-pop' : ''}`}
             leftSection={<IconChevronLeft size={18} />}
             rightSection={
               hasPrevious ? (
@@ -1695,10 +1672,12 @@ export const QuizPanel = memo(function QuizPanel({
 
           <Button
             onClick={() => {
+              setPressedNext(true);
               onNext();
               positionQuizSection();
+              setTimeout(() => setPressedNext(false), 150);
             }}
-            className="btn-premium"
+            className={`btn-premium btn-hotkey-target ${pressedNext ? 'is-pressed review-btn-pop' : ''}`}
             radius="md"
             rightSection={<IconChevronRight size={18} />}
           >

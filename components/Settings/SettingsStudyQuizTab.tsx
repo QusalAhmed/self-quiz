@@ -1,9 +1,12 @@
 'use client';
 
 import {
+  Badge,
+  Button,
   Card,
   Divider,
   Group,
+  Kbd,
   Paper,
   Radio,
   RollingNumber,
@@ -21,11 +24,15 @@ import {
   IconKeyboard,
   IconListNumbers,
   IconPlayerTrackNext,
+  IconSparkles,
   IconVolume,
 } from '@tabler/icons-react';
-import React from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import type { QuizDirectionKey, QuizRangeKey } from '@/app/home/constants';
+import { FsrsRatingBar } from '@/components/FsrsReview';
+import type { FsrsRating } from '@/lib/fsrs';
 import type { AppStudyQuizSettings } from '@/lib/settings';
+import { playReviewSound } from '@/lib/sound';
 
 export interface SettingsStudyQuizTabProps {
   settings: AppStudyQuizSettings;
@@ -51,6 +58,63 @@ const QUIZ_DIRECTIONS: Array<{ key: QuizDirectionKey; label: string; description
 ];
 
 export function SettingsStudyQuizTab({ settings, onChange }: SettingsStudyQuizTabProps) {
+  const [testRevealPressed, setTestRevealPressed] = useState(false);
+  const [testRevealed, setTestRevealed] = useState(false);
+  const [testRatingPressed, setTestRatingPressed] = useState<FsrsRating | null>(null);
+  const [lastAction, setLastAction] = useState<string | null>(null);
+
+  const handleTestRating = useCallback((rating: FsrsRating) => {
+    playReviewSound(rating);
+    setTestRatingPressed(rating);
+    setLastAction(`Rated "${rating.toUpperCase()}" with tap/press ripple effect`);
+    setTimeout(() => {
+      setTestRatingPressed(null);
+    }, 150);
+  }, []);
+
+  const handleTestReveal = useCallback(() => {
+    setTestRevealPressed(true);
+    setTimeout(() => {
+      setTestRevealed((prev) => !prev);
+      setTestRevealPressed(false);
+      setLastAction(testRevealed ? 'Card hidden' : 'Answer revealed with Space / tap effect');
+    }, 110);
+  }, [testRevealed]);
+
+  // Enable hotkeys (Space, 1, 2, 3, 4) in the interactive review playground
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeTag = document.activeElement?.tagName.toLowerCase();
+      if (
+        activeTag === 'input' ||
+        activeTag === 'textarea' ||
+        document.activeElement?.hasAttribute('contenteditable')
+      ) {
+        return;
+      }
+
+      if (e.key === ' ' || e.code === 'Space') {
+        e.preventDefault();
+        handleTestReveal();
+        return;
+      }
+
+      const ratingMap: Record<string, FsrsRating> = {
+        '1': 'again',
+        '2': 'hard',
+        '3': 'good',
+        '4': 'easy',
+      };
+      const rating = ratingMap[e.key];
+      if (rating) {
+        e.preventDefault();
+        handleTestRating(rating);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleTestReveal, handleTestRating]);
   return (
     <Stack gap="lg">
       {/* Default Quiz Direction */}
@@ -396,6 +460,135 @@ export function SettingsStudyQuizTab({ settings, onChange }: SettingsStudyQuizTa
             />
           </Group>
         </Stack>
+      </Card>
+
+      {/* Review Button Press & Tap Effects Interactive Section */}
+      <Card
+        withBorder
+        radius="md"
+        p={{ base: 'md', sm: 'lg' }}
+        style={{
+          background: 'var(--card-bg)',
+          border: '1px solid var(--card-border)',
+          boxShadow: 'var(--card-shadow)',
+        }}
+      >
+        <Group gap="sm" mb="md">
+          <ThemeIcon size="lg" radius="md" color="grape" variant="light">
+            <IconSparkles size={20} />
+          </ThemeIcon>
+          <div>
+            <Text fw={700} size="md">
+              Review Button Press & Tap Effects
+            </Text>
+            <Text size="xs" c="dimmed">
+              Tactile depression, glowing colored ripple bursts, and instant visual feedback on
+              touch, mouse, and keyboard
+            </Text>
+          </div>
+        </Group>
+
+        <Paper
+          p="md"
+          radius="lg"
+          style={{
+            background: 'rgba(168, 85, 247, 0.04)',
+            border: '1px solid rgba(168, 85, 247, 0.18)',
+          }}
+        >
+          <Stack gap="md" align="center">
+            <Text size="xs" fw={700} c="dimmed" tt="uppercase" lts={1}>
+              Interactive Button Press & Tap Playground
+            </Text>
+
+            {/* Simulated Review Card */}
+            <Paper
+              p="md"
+              radius="md"
+              style={{
+                width: '100%',
+                maxWidth: 420,
+                textAlign: 'center',
+                background: 'var(--card-bg)',
+                border: '1px solid var(--card-border)',
+                boxShadow: '0 2px 10px rgba(0, 0, 0, 0.04)',
+              }}
+            >
+              <Text size="xs" fw={700} c="indigo" tt="uppercase" lts={1} mb={4}>
+                Sample Vocabulary Card
+              </Text>
+              <Text size="lg" fw={800} mb="xs">
+                Serendipity
+              </Text>
+              {testRevealed ? (
+                <Text size="sm" c="dimmed" style={{ lineHeight: 1.4 }}>
+                  The occurrence and development of events by chance in a happy or beneficial way.
+                </Text>
+              ) : (
+                <Text size="xs" c="dimmed" fs="italic">
+                  Definition hidden — click or tap below to reveal
+                </Text>
+              )}
+            </Paper>
+
+            <Group justify="center" gap="sm" wrap="wrap">
+              <Button
+                size="md"
+                radius="lg"
+                variant="light"
+                color="indigo"
+                className={`review-reveal-btn ${testRevealPressed ? 'is-pressed review-btn-pop' : ''}`}
+                onClick={handleTestReveal}
+                rightSection={
+                  <Kbd size="xs" className="kbd-hint" style={{ fontSize: '0.62rem' }}>
+                    Space
+                  </Kbd>
+                }
+                style={{
+                  minWidth: 170,
+                  fontWeight: 800,
+                  position: 'relative',
+                  overflow: 'hidden',
+                }}
+              >
+                {testRevealPressed && (
+                  <span
+                    className="review-tap-ripple"
+                    style={{
+                      left: '50%',
+                      top: '50%',
+                      width: 180,
+                      height: 180,
+                      backgroundColor: 'rgba(99, 102, 241, 0.45)',
+                    }}
+                  />
+                )}
+                {testRevealed ? 'Hide Definition' : 'Show Definition'}
+              </Button>
+            </Group>
+
+            {/* Live FSRS Review Rating Bar with active press/tap effect */}
+            <div style={{ width: '100%', maxWidth: 540 }}>
+              <FsrsRatingBar
+                intervals={{ again: '<1m', hard: '10m', good: '1d', easy: '4d' }}
+                onRate={handleTestRating}
+                pressedRating={testRatingPressed}
+                promptTitle="TEST YOUR RECALL TAP / PRESS"
+              />
+            </div>
+
+            {lastAction ? (
+              <Badge color="violet" variant="light" size="sm" radius="md">
+                {lastAction}
+              </Badge>
+            ) : (
+              <Text size="xs" c="dimmed">
+                Tap or click any button above (or press 1, 2, 3, 4, Space) to test the tactile press
+                and ripple animation.
+              </Text>
+            )}
+          </Stack>
+        </Paper>
       </Card>
     </Stack>
   );

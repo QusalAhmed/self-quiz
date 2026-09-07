@@ -73,7 +73,6 @@ self.addEventListener('notificationclose', (event) => {
   // Gracefully handle notification dismissals
 });
 
-
 function isNavigationRequest(request) {
   return (
     request.mode === 'navigate' ||
@@ -103,11 +102,12 @@ self.addEventListener('fetch', (event) => {
   // because the app code already checks navigator.onLine before calling them.
   if (isApiRequest(url)) {
     event.respondWith(
-      fetch(event.request).catch(() =>
-        new Response(JSON.stringify({ error: 'offline' }), {
-          status: 503,
-          headers: { 'Content-Type': 'application/json' },
-        })
+      fetch(event.request).catch(
+        () =>
+          new Response(JSON.stringify({ error: 'offline' }), {
+            status: 503,
+            headers: { 'Content-Type': 'application/json' },
+          })
       )
     );
     return;
@@ -118,9 +118,7 @@ self.addEventListener('fetch', (event) => {
   // Serve directly from network, falling back to full cached response if offline.
   if (event.request.headers.has('range')) {
     event.respondWith(
-      fetch(event.request).catch(() =>
-        caches.match(event.request, { ignoreSearch: true })
-      )
+      fetch(event.request).catch(() => caches.match(event.request, { ignoreSearch: true }))
     );
     return;
   }

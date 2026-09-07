@@ -48,10 +48,7 @@ async function migrateDatabase() {
         console.warn(
           'Please manually copy the contents of "scripts/migrate-word-similarities.sql" and run them in your Supabase SQL Editor.'
         );
-        const { error: testError } = await supabase
-          .from('word_similarities')
-          .select('id')
-          .limit(1);
+        const { error: testError } = await supabase.from('word_similarities').select('id').limit(1);
         if (!testError) {
           console.log(
             '✅ The "word_similarities" table is already created and accessible in Supabase!'

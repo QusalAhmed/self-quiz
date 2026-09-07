@@ -204,4 +204,3 @@ self.addEventListener('fetch', (event) => {
 const outputPath = path.join(rootDir, '../public/sw.js');
 fs.writeFileSync(outputPath, swContent);
 console.log('Generated service worker with cache version:', buildId);
-
