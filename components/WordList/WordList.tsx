@@ -1,5 +1,6 @@
 import { Badge, Button, Card, Group, Modal, Stack, Text, Tooltip } from '@mantine/core';
 import {
+  IconAlertTriangle,
   IconChartBar,
   IconEdit,
   IconHierarchy,
@@ -12,11 +13,13 @@ import { RichNoteViewer } from '@/components/RichNoteViewer/RichNoteViewer';
 import { PronounceButton, WordActionIcon } from '@/components/WordActions';
 import { WordFamilySection } from '@/components/WordFamily/WordFamilySection';
 import { WordForm } from '@/components/WordForm/WordForm';
+import { WordVerificationWarningCard } from '@/components/WordVerification/WordVerificationWarningCard';
 import { formatDate, formatRelativeShort } from '@/lib/dateUtils';
 import type { WordDefinition, WordFamilyMemberRecord, WordRecord } from '@/lib/db';
 import { getWordDefinitions } from '@/lib/definitions';
 import { getWordGroups } from '@/lib/groups';
 import { getUsageFrequencyBadgeProps } from '@/lib/word-family';
+import { getWordVerificationIssue } from '@/lib/word-verification';
 
 type WordListProps = {
   words: WordRecord[];
@@ -35,6 +38,20 @@ type WordListProps = {
   onRefreshExamples: (id: string) => Promise<void> | void;
   onRefreshWordFamily?: (wordId: string, word: string) => Promise<void> | void;
   onDeleteWordFamilyMember?: (memberId: string) => Promise<void> | void;
+  onFixSpelling?: (wordId: string, correctedWord: string) => Promise<void> | void;
+  onFixDefinition?: (
+    wordId: string,
+    defIndex: number,
+    newMeaning?: string,
+    newPartOfSpeech?: string
+  ) => Promise<void> | void;
+  onAddSuggestedDefinition?: (
+    wordId: string,
+    newDef: { meaning: string; partOfSpeech: string }
+  ) => Promise<void> | void;
+  onDismissVerification?: (wordId: string) => Promise<void> | void;
+  onReverify?: (wordId: string) => Promise<void> | void;
+  reverifyingWordIds?: Record<string, boolean>;
   customGroups: string[];
   onAddCustomGroup?: (group: string) => void;
   generatingExampleWordIds?: Record<string, boolean>;
@@ -49,6 +66,12 @@ export function WordList({
   onRefreshExamples,
   onRefreshWordFamily,
   onDeleteWordFamilyMember,
+  onFixSpelling,
+  onFixDefinition,
+  onAddSuggestedDefinition,
+  onDismissVerification,
+  onReverify,
+  reverifyingWordIds = {},
   customGroups,
   onAddCustomGroup,
   generatingExampleWordIds = {},
@@ -142,6 +165,7 @@ export function WordList({
           const definitions = getWordDefinitions(item);
           const hasMeaning = definitions.length > 0;
           const isGeneratingExamples = generatingExampleWordIds[item.id];
+          const verificationIssue = getWordVerificationIssue(item);
           const freqBadge = item.usageFrequency
             ? getUsageFrequencyBadgeProps(item.usageFrequency)
             : null;
@@ -220,6 +244,31 @@ export function WordList({
                     </Tooltip>
                   )}
 
+                  {/* AI Verification Warning Badge */}
+                  {verificationIssue && (
+                    <Tooltip
+                      label={
+                        verificationIssue.wordSpellingSuggestion
+                          ? `Spelling Suggestion: "${verificationIssue.wordSpellingSuggestion}"`
+                          : verificationIssue.wordFeedback || 'AI verification issue detected'
+                      }
+                      withArrow
+                    >
+                      <Badge
+                        variant="light"
+                        color={verificationIssue.overallStatus === 'invalid' ? 'red' : 'yellow'}
+                        size="xs"
+                        radius="sm"
+                        leftSection={<IconAlertTriangle size={11} />}
+                        style={{ fontSize: '11px', fontWeight: 700, textTransform: 'none' }}
+                      >
+                        {verificationIssue.overallStatus === 'invalid'
+                          ? 'AI: Invalid Word'
+                          : 'AI Verification Warning'}
+                      </Badge>
+                    </Tooltip>
+                  )}
+
                   <Tooltip label={formatDate(item.updatedAt)} withArrow arrowSize={8}>
                     <Badge
                       variant="filled"
@@ -293,9 +342,33 @@ export function WordList({
                 </Group>
               </Group>
 
-              {/* Definitions (always visible), each shown separately with its own examples */}
+              {/* Definitions and AI Verification Warning */}
               {!isEditing && (
                 <div style={{ marginTop: 6 }}>
+                  {verificationIssue && (
+                    <WordVerificationWarningCard
+                      word={item}
+                      issue={verificationIssue}
+                      onFixSpelling={onFixSpelling ? (s) => onFixSpelling(item.id, s) : undefined}
+                      onFixDefinition={
+                        onFixDefinition
+                          ? (defIndex, newMeaning, newPos) =>
+                              onFixDefinition(item.id, defIndex, newMeaning, newPos)
+                          : undefined
+                      }
+                      onAddSuggestedDefinition={
+                        onAddSuggestedDefinition
+                          ? (def) => onAddSuggestedDefinition(item.id, def)
+                          : undefined
+                      }
+                      onDismiss={
+                        onDismissVerification ? () => onDismissVerification(item.id) : undefined
+                      }
+                      onReverify={onReverify ? () => onReverify(item.id) : undefined}
+                      isReverifying={reverifyingWordIds[item.id]}
+                    />
+                  )}
+
                   {item.notes ? (
                     <div style={{ marginBottom: 8 }}>
                       <RichNoteViewer content={item.notes} />

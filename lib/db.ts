@@ -57,6 +57,7 @@ export type WordRecord = {
   audioUrl?: string;
   phonetic?: string;
   audioSource?: string;
+  verificationIssue?: string;
 };
 
 export type WordDefinition = {
@@ -227,7 +228,7 @@ export type AppDatabase = RxDatabase<{
 
 const wordSchema: RxJsonSchema<WordRecord> = {
   title: 'word schema',
-  version: 11,
+  version: 12,
   description: 'English word memorization entries',
   primaryKey: 'id',
   type: 'object',
@@ -271,6 +272,7 @@ const wordSchema: RxJsonSchema<WordRecord> = {
     audioUrl: { type: 'string', default: '' },
     phonetic: { type: 'string', default: '' },
     audioSource: { type: 'string', default: '' },
+    verificationIssue: { type: 'string', default: '' },
   },
   required: [
     'id',
@@ -921,6 +923,10 @@ async function createDatabase(): Promise<AppDatabase> {
           phonetic: oldDoc.phonetic || '',
           audioSource: oldDoc.audioSource || '',
         }),
+        12: (oldDoc) => ({
+          ...oldDoc,
+          verificationIssue: oldDoc.verificationIssue || '',
+        }),
       },
     },
     groups: {
@@ -1038,7 +1044,7 @@ async function repairLegacyWordAudioUrls(database: AppDatabase): Promise<void> {
       const currentUrl = doc.audioUrl;
       const normalized = normalizeMerriamWebsterAudioUrl(currentUrl);
       if (normalized && normalized !== currentUrl) {
-        await doc.patch({
+        await safePatchDoc(doc, {
           audioUrl: normalized,
           updatedAt: new Date().toISOString(),
         });
@@ -1047,6 +1053,50 @@ async function repairLegacyWordAudioUrls(database: AppDatabase): Promise<void> {
   } catch {
     // Non-blocking background repair
   }
+}
+
+/**
+ * Safely patches an RxDocument with incremental update and conflict retry.
+ * Prevents RxError (CONFLICT) when documents are modified concurrently
+ * by background jobs, audio fetching, meaning generation, or replication sync.
+ */
+export async function safePatchDoc<T = any>(doc: any, patchData: Partial<T>): Promise<any> {
+  if (!doc) {
+    return null;
+  }
+
+  let currentDoc = doc;
+  const maxRetries = 3;
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      if (typeof currentDoc.incrementalPatch === 'function') {
+        return await currentDoc.incrementalPatch(patchData);
+      }
+      if (typeof currentDoc.patch === 'function') {
+        return await currentDoc.patch(patchData);
+      }
+      return currentDoc;
+    } catch (err: any) {
+      const isConflict =
+        err?.code === 'CONFLICT' ||
+        err?.status === 409 ||
+        (typeof err?.message === 'string' && err.message.includes('CONFLICT'));
+
+      if (isConflict && attempt < maxRetries - 1 && currentDoc.collection) {
+        const docId =
+          currentDoc.id || (currentDoc.primaryPath ? currentDoc[currentDoc.primaryPath] : null);
+        if (docId) {
+          const freshDoc = await currentDoc.collection.findOne(docId).exec();
+          if (freshDoc) {
+            currentDoc = freshDoc;
+            continue;
+          }
+        }
+      }
+      throw err;
+    }
+  }
+  return currentDoc;
 }
 
 export function getDatabase(): Promise<AppDatabase> {

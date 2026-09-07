@@ -43,6 +43,7 @@ import { PronounceButton } from '@/components/WordActions/PronounceButton';
 import { WordActionIcon } from '@/components/WordActions/WordActionIcon';
 import { SimilarWordsSection } from '@/components/WordExplorer/SimilarWordsSection';
 import { WordFamilySection } from '@/components/WordFamily/WordFamilySection';
+import { WordVerificationWarningCard } from '@/components/WordVerification/WordVerificationWarningCard';
 import { formatDate, formatRelativeShort } from '@/lib/dateUtils';
 import type { FsrsRecord, MissedWordRecord, WordFamilyMemberRecord, WordRecord } from '@/lib/db';
 import { getWordDefinitions } from '@/lib/definitions';
@@ -50,6 +51,7 @@ import { formatInterval } from '@/lib/fsrs';
 import { getWordGroups } from '@/lib/groups';
 import type { WordSimilarityResult } from '@/lib/similar-words/types';
 import { getUsageFrequencyBadgeProps } from '@/lib/word-family';
+import { getWordVerificationIssue } from '@/lib/word-verification';
 
 export type WordViewDensity = 'detailed' | 'compact' | 'card';
 
@@ -77,6 +79,20 @@ export type WordDetailCardProps = {
   onFetchAudio?: (wordId: string, word: string) => Promise<void> | void;
   onNavigateWord?: (wordText: string) => void;
   onRefreshSimilarWords?: (wordId: string, word: string) => Promise<void> | void;
+  onFixSpelling?: (wordId: string, correctedWord: string) => Promise<void> | void;
+  onFixDefinition?: (
+    wordId: string,
+    defIndex: number,
+    newMeaning?: string,
+    newPartOfSpeech?: string
+  ) => Promise<void> | void;
+  onAddSuggestedDefinition?: (
+    wordId: string,
+    newDef: { meaning: string; partOfSpeech: string }
+  ) => Promise<void> | void;
+  onDismissVerification?: (wordId: string) => Promise<void> | void;
+  onReverify?: (wordId: string) => Promise<void> | void;
+  isReverifying?: boolean;
 };
 
 const POS_COLORS: Record<string, string> = {
@@ -127,6 +143,12 @@ export const WordDetailCard = React.memo(function WordDetailCard({
   onFetchAudio,
   onNavigateWord,
   onRefreshSimilarWords,
+  onFixSpelling,
+  onFixDefinition,
+  onAddSuggestedDefinition,
+  onDismissVerification,
+  onReverify,
+  isReverifying = false,
 }: WordDetailCardProps) {
   const [examplesExpanded, setExamplesExpanded] = useState<Record<number, boolean>>({});
   const [notesExpanded, setNotesExpanded] = useState(true);
@@ -134,6 +156,7 @@ export const WordDetailCard = React.memo(function WordDetailCard({
 
   const definitions = useMemo(() => getWordDefinitions(word), [word]);
   const groups = useMemo(() => getWordGroups(word), [word]);
+  const verificationIssue = useMemo(() => getWordVerificationIssue(word), [word]);
 
   // Spaced Repetition (FSRS) metrics for this word
   const primaryFsrs = useMemo(() => {
@@ -326,6 +349,31 @@ export const WordDetailCard = React.memo(function WordDetailCard({
               </Tooltip>
             )}
 
+            {/* AI Verification Issue Badge */}
+            {verificationIssue && (
+              <Tooltip
+                label={
+                  verificationIssue.wordSpellingSuggestion
+                    ? `Spelling Suggestion: "${verificationIssue.wordSpellingSuggestion}"`
+                    : verificationIssue.wordFeedback || 'AI verification issue detected'
+                }
+                withArrow
+              >
+                <Badge
+                  variant="light"
+                  color={verificationIssue.overallStatus === 'invalid' ? 'red' : 'yellow'}
+                  size="xs"
+                  radius="sm"
+                  leftSection={<IconAlertTriangle size={12} />}
+                  style={{ fontWeight: 700, textTransform: 'none' }}
+                >
+                  {verificationIssue.overallStatus === 'invalid'
+                    ? 'AI: Invalid Word'
+                    : 'AI Verification Warning'}
+                </Badge>
+              </Tooltip>
+            )}
+
             {/* Missed Indicator Badge */}
             {isMissed && (
               <Badge
@@ -474,6 +522,28 @@ export const WordDetailCard = React.memo(function WordDetailCard({
           </WordActionIcon>
         </Group>
       </Group>
+
+      {/* ── AI Verification Warning Card ── */}
+      {verificationIssue && (
+        <WordVerificationWarningCard
+          word={word}
+          issue={verificationIssue}
+          compact={density === 'compact'}
+          onFixSpelling={onFixSpelling ? (s) => onFixSpelling(word.id, s) : undefined}
+          onFixDefinition={
+            onFixDefinition
+              ? (defIndex, newMeaning, newPos) =>
+                  onFixDefinition(word.id, defIndex, newMeaning, newPos)
+              : undefined
+          }
+          onAddSuggestedDefinition={
+            onAddSuggestedDefinition ? (def) => onAddSuggestedDefinition(word.id, def) : undefined
+          }
+          onDismiss={onDismissVerification ? () => onDismissVerification(word.id) : undefined}
+          onReverify={onReverify ? () => onReverify(word.id) : undefined}
+          isReverifying={isReverifying}
+        />
+      )}
 
       {/* ── Definitions Breakdown (Oxford / Cambridge Dictionary style) ── */}
       <Stack gap="sm" mt="xs">

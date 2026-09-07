@@ -8,9 +8,14 @@ CREATE TABLE IF NOT EXISTS public.words (
   notes TEXT DEFAULT '',
   examples JSONB,
   user_examples JSONB DEFAULT '[]'::jsonb,
+  custom_group TEXT DEFAULT '',
+  custom_groups JSONB DEFAULT '[]'::jsonb,
+  usage_frequency TEXT DEFAULT '',
+  generator_ai_details TEXT DEFAULT '',
   audio_url TEXT DEFAULT '',
   phonetic TEXT DEFAULT '',
   audio_source TEXT DEFAULT '',
+  verification_issue TEXT DEFAULT '',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   deleted BOOLEAN DEFAULT FALSE
@@ -22,6 +27,8 @@ CREATE INDEX IF NOT EXISTS idx_words_deleted ON public.words(deleted);
 CREATE INDEX IF NOT EXISTS idx_words_created_at ON public.words(created_at);
 CREATE INDEX IF NOT EXISTS idx_words_updated_at ON public.words(updated_at);
 CREATE INDEX IF NOT EXISTS idx_words_audio_url ON public.words(audio_url);
+CREATE INDEX IF NOT EXISTS idx_words_usage_frequency ON public.words(usage_frequency);
+CREATE INDEX IF NOT EXISTS idx_words_custom_groups ON public.words USING gin (custom_groups);
 
 -- Enable RLS (Row Level Security)
 ALTER TABLE public.words ENABLE ROW LEVEL SECURITY;
@@ -58,8 +65,10 @@ ALTER TABLE public.words ADD COLUMN IF NOT EXISTS generator_ai_details TEXT DEFA
 ALTER TABLE public.words ADD COLUMN IF NOT EXISTS audio_url TEXT DEFAULT '';
 ALTER TABLE public.words ADD COLUMN IF NOT EXISTS phonetic TEXT DEFAULT '';
 ALTER TABLE public.words ADD COLUMN IF NOT EXISTS audio_source TEXT DEFAULT '';
+ALTER TABLE public.words ADD COLUMN IF NOT EXISTS verification_issue TEXT DEFAULT '';
 CREATE INDEX IF NOT EXISTS idx_words_usage_frequency ON public.words(usage_frequency);
 CREATE INDEX IF NOT EXISTS idx_words_audio_url ON public.words(audio_url);
+CREATE INDEX IF NOT EXISTS idx_words_custom_groups ON public.words USING gin (custom_groups);
 
 -- Create the groups table
 CREATE TABLE IF NOT EXISTS public.groups (

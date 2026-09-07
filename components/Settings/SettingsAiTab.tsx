@@ -281,6 +281,30 @@ export function SettingsAiTab({ settings, onChange }: SettingsAiTabProps) {
               ]}
             />
           </div>
+
+          <Divider />
+
+          {/* Auto-verify Word & Definitions Switch */}
+          <div>
+            <Group justify="space-between" align="center">
+              <div>
+                <Text size="sm" fw={600}>
+                  Auto-verify Word & Definitions
+                </Text>
+                <Text size="xs" c="dimmed">
+                  Automatically verify spelling, definition accuracy, and part of speech with AI as
+                  you type or change words
+                </Text>
+              </div>
+              <Switch
+                checked={settings.autoVerifyWords}
+                onChange={(e) => onChange({ autoVerifyWords: e.currentTarget.checked })}
+                color="indigo"
+                size="sm"
+                aria-label="Auto-verify Word & Definitions"
+              />
+            </Group>
+          </div>
         </Stack>
       </Card>
 

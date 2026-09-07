@@ -26,6 +26,7 @@ import {
   getDatabase,
   type GroupRecord,
   type MissedWordRecord,
+  safePatchDoc,
   type WordDefinition,
   type WordFamilyMemberRecord,
   type WordRecord,
@@ -46,6 +47,13 @@ import { getAppSettings } from '@/lib/settings';
 import { notifyFsrsWordAdded, notifyWordSaved } from '@/lib/system-notifications';
 import { buildWordFamilyId, isWordFamilyId } from '@/lib/word-family';
 import { filterAndSortWords } from '@/lib/word-search';
+import {
+  applyAddSuggestedDefinition,
+  applyDefinitionFix,
+  applyWordSpellingFix,
+  dismissWordVerificationIssue,
+  verifyAndStoreWord,
+} from '@/lib/word-verification-store';
 
 export default function WordsPage() {
   const [database, setDatabase] = useState<AppDatabase | null>(null);
@@ -61,6 +69,7 @@ export default function WordsPage() {
     Record<string, boolean>
   >({});
   const [fetchingAudioWordIds, setFetchingAudioWordIds] = useState<Record<string, boolean>>({});
+  const [reverifyingWordIds, setReverifyingWordIds] = useState<Record<string, boolean>>({});
 
   // Search, Filters & Sorting
   const [searchQuery, setSearchQuery] = useState('');
@@ -394,7 +403,7 @@ export default function WordsPage() {
           if (meaning) {
             const wordDoc = await database.words.findOne(wordId).exec();
             if (wordDoc) {
-              await wordDoc.patch({
+              await safePatchDoc(wordDoc, {
                 meaning,
                 definitions,
                 updatedAt: new Date().toISOString(),
@@ -425,7 +434,7 @@ export default function WordsPage() {
 
         const wordDoc = await database.words.findOne(wordId).exec();
         if (wordDoc) {
-          await wordDoc.patch({
+          await safePatchDoc(wordDoc, {
             meaning: definitionsToMeaning(updatedDefinitions),
             definitions: updatedDefinitions,
             updatedAt: new Date().toISOString(),
@@ -479,7 +488,7 @@ export default function WordsPage() {
           try {
             const wordDoc = await database.words.findOne(wordId).exec();
             if (wordDoc) {
-              await wordDoc.patch({
+              await safePatchDoc(wordDoc, {
                 ...(rootUsageFrequency ? { usageFrequency: rootUsageFrequency } : {}),
                 ...(generatorAiDetails ? { generatorAiDetails } : {}),
                 updatedAt: new Date().toISOString(),
@@ -555,7 +564,7 @@ export default function WordsPage() {
         if (data.audioUrl) {
           const doc = await database.words.findOne(wordId).exec();
           if (doc) {
-            await doc.patch({
+            await safePatchDoc(doc, {
               audioUrl: data.audioUrl,
               phonetic: data.phonetic || '',
               audioSource: data.audioSource || 'merriam-webster',
@@ -655,6 +664,11 @@ export default function WordsPage() {
         console.error('Error generating word family after add:', error);
       });
 
+      // Background AI verification after word add
+      void verifyAndStoreWord(database, record.id).catch((error) => {
+        console.error('Error verifying word in background after add:', error);
+      });
+
       if (normalizedDefinitions.length > 0) {
         void ensureMissingAiExamples(record.id).catch((error) => {
           console.error('Error generating AI examples after add:', error);
@@ -713,7 +727,7 @@ export default function WordsPage() {
             }
 
             const updatedAt = new Date().toISOString();
-            await doc.patch({
+            await safePatchDoc(doc, {
               meaning: aiMeaning,
               definitions: aiDefinitions,
               updatedAt,
@@ -736,6 +750,14 @@ export default function WordsPage() {
 
             // Now generate AI examples for the freshly fetched definitions
             await ensureMissingAiExamples(record.id);
+
+            // Re-verify in background with the newly fetched definitions
+            void verifyAndStoreWord(database, record.id, { showNotification: true }).catch(
+              (error) => {
+                console.error('Error verifying word after fetching meaning:', error);
+              }
+            );
+
             console.log('Definition and examples updated for word:', record.word, '-', aiMeaning);
           } catch (error) {
             console.error('Error fetching definition:', error);
@@ -818,6 +840,11 @@ export default function WordsPage() {
       if (normalizedDefinitions.length > 0) {
         void ensureMissingAiExamples(id);
       }
+
+      // Background AI verification after word edit
+      void verifyAndStoreWord(database, updated.id).catch((error) => {
+        console.error('Error verifying word in background after edit:', error);
+      });
     },
     [database, ensureGroupExists, ensureMissingAiExamples]
   );
@@ -1072,6 +1099,64 @@ export default function WordsPage() {
   const handleOpenGroupManager = useCallback(() => setGroupManagerOpen(true), []);
   const handleOpenBatchWordFamilyModal = useCallback(() => setBatchWordFamilyModalOpen(true), []);
 
+  const handleFixSpelling = useCallback(
+    async (wordId: string, correctedWord: string) => {
+      if (!database) {
+        return;
+      }
+      await applyWordSpellingFix(database, wordId, correctedWord);
+    },
+    [database]
+  );
+
+  const handleFixDefinition = useCallback(
+    async (wordId: string, defIndex: number, newMeaning?: string, newPartOfSpeech?: string) => {
+      if (!database) {
+        return;
+      }
+      await applyDefinitionFix(database, wordId, defIndex, newMeaning, newPartOfSpeech);
+    },
+    [database]
+  );
+
+  const handleAddSuggestedDefinition = useCallback(
+    async (wordId: string, newDef: { meaning: string; partOfSpeech: string }) => {
+      if (!database) {
+        return;
+      }
+      await applyAddSuggestedDefinition(database, wordId, newDef);
+    },
+    [database]
+  );
+
+  const handleDismissVerification = useCallback(
+    async (wordId: string) => {
+      if (!database) {
+        return;
+      }
+      await dismissWordVerificationIssue(database, wordId);
+    },
+    [database]
+  );
+
+  const handleReverifyWord = useCallback(
+    async (wordId: string) => {
+      if (!database) {
+        return;
+      }
+      setReverifyingWordIds((prev) => ({ ...prev, [wordId]: true }));
+      try {
+        await verifyAndStoreWord(database, wordId, { showNotification: true });
+      } finally {
+        setReverifyingWordIds((prev) => {
+          const { [wordId]: _removed, ...rest } = prev;
+          return rest;
+        });
+      }
+    },
+    [database]
+  );
+
   return (
     <Container size="md" pt={0} pb={{ base: 'md', sm: 'xl' }} px={{ base: 'xs', sm: 'md' }}>
       <Stack gap="xl">
@@ -1125,6 +1210,12 @@ export default function WordsPage() {
           onFetchAudio={fetchAndStoreWordAudio}
           onResetFilters={handleResetFilters}
           onOpenAddModal={handleOpenAddModal}
+          onFixSpelling={handleFixSpelling}
+          onFixDefinition={handleFixDefinition}
+          onAddSuggestedDefinition={handleAddSuggestedDefinition}
+          onDismissVerification={handleDismissVerification}
+          onReverify={handleReverifyWord}
+          reverifyingWordIds={reverifyingWordIds}
           onNavigateWord={(targetWord) => {
             setSearchQuery(targetWord);
             setSelectedLetter('ALL');

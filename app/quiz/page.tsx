@@ -31,6 +31,7 @@ import {
   getDatabase,
   type GroupRecord,
   type MissedWordRecord,
+  safePatchDoc,
   type WordDefinition,
   type WordFamilyMemberRecord,
   type WordRecord,
@@ -1398,7 +1399,7 @@ export default function QuizPage() {
         const timestamp = new Date().toISOString();
 
         if (doc) {
-          await doc.patch({
+          await safePatchDoc(doc, {
             isDeleted: true,
             updatedAt: timestamp,
           });
@@ -1533,7 +1534,7 @@ export default function QuizPage() {
           try {
             const wordDoc = await database.words.findOne(wordId).exec();
             if (wordDoc) {
-              await wordDoc.patch({
+              await safePatchDoc(wordDoc, {
                 ...(rootUsageFrequency ? { usageFrequency: rootUsageFrequency } : {}),
                 ...(generatorAiDetails ? { generatorAiDetails } : {}),
                 updatedAt: new Date().toISOString(),
@@ -1599,7 +1600,7 @@ export default function QuizPage() {
       try {
         const doc = await database.wordFamilies.findOne(memberId).exec();
         if (doc) {
-          await doc.patch({
+          await safePatchDoc(doc, {
             isDeleted: true,
             updatedAt: new Date().toISOString(),
           });
@@ -1654,7 +1655,7 @@ export default function QuizPage() {
         if (meaning) {
           const wordDoc = await database.words.findOne(id).exec();
           if (wordDoc) {
-            await wordDoc.patch({
+            await safePatchDoc(wordDoc, {
               meaning,
               definitions,
               updatedAt: new Date().toISOString(),
@@ -1685,7 +1686,7 @@ export default function QuizPage() {
 
       const wordDoc = await database.words.findOne(id).exec();
       if (wordDoc) {
-        await wordDoc.patch({
+        await safePatchDoc(wordDoc, {
           meaning: definitionsToMeaning(updatedDefinitions),
           definitions: updatedDefinitions,
           updatedAt: new Date().toISOString(),

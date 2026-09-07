@@ -15,6 +15,8 @@ import type { WordDefinition, WordRecord } from '@/lib/db';
 import { definitionsToMeaning, normalizeDefinitions, sanitizeMeaning } from '@/lib/definitions';
 import { DEFAULT_AI_EXAMPLE_COUNT, normalizeAiExampleCount } from '@/lib/examples';
 import { getUsageFrequencyColor, normalizeUsageFrequency } from '@/lib/word-family';
+import type { WordVerificationResult } from '@/lib/word-verification';
+import { WordVerificationBadge } from './WordVerificationBadge';
 
 export type { WordFormEditValues } from '@/components/WordForm/types';
 
@@ -85,6 +87,10 @@ export function WordForm({
   const [newGroupName, setNewGroupName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [editModalRecord, setEditModalRecord] = useState<WordRecord | null>(null);
+  const [verificationResult, setVerificationResult] = useState<WordVerificationResult | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationError, setVerificationError] = useState<string | null>(null);
+  const verificationAbortControllerRef = useRef<AbortController | null>(null);
   const wordInputRef = useRef<HTMLInputElement>(null);
 
   const resetForm = useCallback(() => {
@@ -97,6 +103,9 @@ export function WordForm({
     setGeneratorAiDetails('');
     setIsAddingNewGroup(false);
     setNewGroupName('');
+    setVerificationResult(null);
+    setVerificationError(null);
+    setIsVerifying(false);
   }, []);
 
   const findExistingWord = useCallback(
@@ -285,6 +294,109 @@ export function WordForm({
     );
   };
 
+  const runVerification = useCallback(
+    async (targetWord: string, targetDefs: DefinitionFormValue[]) => {
+      const trimmed = targetWord.trim();
+      if (!trimmed || trimmed.length < 2) {
+        setVerificationResult(null);
+        setVerificationError(null);
+        setIsVerifying(false);
+        return;
+      }
+
+      if (verificationAbortControllerRef.current) {
+        verificationAbortControllerRef.current.abort();
+      }
+      const controller = new AbortController();
+      verificationAbortControllerRef.current = controller;
+
+      setIsVerifying(true);
+      setVerificationError(null);
+
+      try {
+        const payload = {
+          word: trimmed,
+          definitions: targetDefs.map((d) => ({
+            meaning: d.meaning.trim(),
+            partOfSpeech: d.partOfSpeech.trim(),
+          })),
+        };
+
+        const res = await fetch('/api/verify-word', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+
+        const data: WordVerificationResult = await res.json();
+        setVerificationResult(data);
+        if (data.generatorAiDetails && !generatorAiDetails) {
+          setGeneratorAiDetails(data.generatorAiDetails);
+        }
+      } catch (err: any) {
+        if (err.name === 'AbortError') {
+          return;
+        }
+        console.warn('Word verification error:', err);
+        setVerificationError(err?.message || 'Verification unavailable');
+      } finally {
+        setIsVerifying(false);
+      }
+    },
+    [generatorAiDetails]
+  );
+
+  const handleApplySpellingSuggestion = useCallback(
+    (suggestedWord: string) => {
+      setWord(suggestedWord);
+      void runVerification(suggestedWord, definitions);
+    },
+    [definitions, runVerification]
+  );
+
+  const handleApplyNewDefinition = useCallback(
+    (suggested: { meaning: string; partOfSpeech: string }) => {
+      setDefinitions((prev) => {
+        const first = prev[0];
+        if (!first || !first.meaning.trim()) {
+          return [
+            {
+              ...createEmptyDefinitionFormValue(),
+              meaning: suggested.meaning,
+              partOfSpeech: suggested.partOfSpeech,
+            },
+            ...prev.slice(1),
+          ];
+        }
+        return [
+          ...prev,
+          {
+            ...createEmptyDefinitionFormValue(),
+            meaning: suggested.meaning,
+            partOfSpeech: suggested.partOfSpeech,
+          },
+        ];
+      });
+    },
+    []
+  );
+
+  const handleApplySuggestedDefinition = useCallback(
+    (defIndex: number, suggestedMeaning: string) => {
+      updateDefinition(defIndex, { meaning: suggestedMeaning });
+    },
+    []
+  );
+
+  const handleApplySuggestedPartOfSpeech = useCallback((defIndex: number, suggestedPos: string) => {
+    updateDefinition(defIndex, { partOfSpeech: suggestedPos });
+  }, []);
+
   const formContent = (
     <form onSubmit={handleSubmit}>
       <Stack gap={variant === 'embedded' ? 'md' : 'lg'}>
@@ -326,10 +438,36 @@ export function WordForm({
           }
         />
 
+        {/* ── AI Word & Definition Verification Feedback ── */}
+        <WordVerificationBadge
+          result={verificationResult}
+          isVerifying={isVerifying}
+          error={verificationError}
+          onApplySpellingSuggestion={handleApplySpellingSuggestion}
+          onApplyNewDefinition={handleApplyNewDefinition}
+          onReverify={() => void runVerification(word, definitions)}
+          hasEmptyDefinitions={definitions.every((d) => !d.meaning.trim())}
+        />
+
         <Stack gap="md">
-          <Text size="xs" fw={600} c="dimmed">
-            Definitions (optional) — add one entry per meaning
-          </Text>
+          <Group justify="space-between" align="center">
+            <Text size="xs" fw={600} c="dimmed">
+              Definitions (optional) — add one entry per meaning
+            </Text>
+            <Button
+              variant="subtle"
+              color="indigo"
+              size="xs"
+              leftSection={<IconSparkles size={13} />}
+              onClick={() => void runVerification(word, definitions)}
+              loading={isVerifying}
+              disabled={!word.trim() || disabled || isSaving}
+              type="button"
+              data-testid="verify-with-ai-btn"
+            >
+              Verify with AI
+            </Button>
+          </Group>
           {definitions.map((definition, index) => (
             <DefinitionEditorCard
               key={`definition-${index}`}
@@ -339,11 +477,14 @@ export function WordForm({
               disabled={disabled}
               isSaving={isSaving}
               definitionCount={definitions.length}
+              verification={verificationResult?.definitions?.[index]}
               onUpdateDefinition={updateDefinition}
               onRemoveDefinition={removeDefinitionField}
               onUpdateExample={updateDefinitionExample}
               onAddExample={addDefinitionExampleField}
               onRemoveExample={removeDefinitionExampleField}
+              onApplySuggestedDefinition={handleApplySuggestedDefinition}
+              onApplySuggestedPartOfSpeech={handleApplySuggestedPartOfSpeech}
               onDefinitionKeyDown={handleDefinitionKeyDown}
               onExampleKeyDown={handleExampleKeyDown}
             />

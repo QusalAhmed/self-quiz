@@ -27,6 +27,20 @@ export type WordExplorerVirtualListProps = {
   onResetFilters?: () => void;
   onOpenAddModal?: () => void;
   onNavigateWord?: (wordText: string) => void;
+  onFixSpelling?: (wordId: string, correctedWord: string) => Promise<void> | void;
+  onFixDefinition?: (
+    wordId: string,
+    defIndex: number,
+    newMeaning?: string,
+    newPartOfSpeech?: string
+  ) => Promise<void> | void;
+  onAddSuggestedDefinition?: (
+    wordId: string,
+    newDef: { meaning: string; partOfSpeech: string }
+  ) => Promise<void> | void;
+  onDismissVerification?: (wordId: string) => Promise<void> | void;
+  onReverify?: (wordId: string) => Promise<void> | void;
+  reverifyingWordIds?: Record<string, boolean>;
 };
 
 const EMPTY_MEMBERS: WordFamilyMemberRecord[] = [];
@@ -51,6 +65,12 @@ export const WordExplorerVirtualList = React.memo(function WordExplorerVirtualLi
   onResetFilters,
   onOpenAddModal,
   onNavigateWord,
+  onFixSpelling,
+  onFixDefinition,
+  onAddSuggestedDefinition,
+  onDismissVerification,
+  onReverify,
+  reverifyingWordIds = {},
 }: WordExplorerVirtualListProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const [scrollMargin, setScrollMargin] = useState(0);
@@ -253,6 +273,12 @@ export const WordExplorerVirtualList = React.memo(function WordExplorerVirtualLi
                 onGroupClick={onGroupClick}
                 onFetchAudio={onFetchAudio}
                 onNavigateWord={onNavigateWord}
+                onFixSpelling={onFixSpelling}
+                onFixDefinition={onFixDefinition}
+                onAddSuggestedDefinition={onAddSuggestedDefinition}
+                onDismissVerification={onDismissVerification}
+                onReverify={onReverify}
+                isReverifying={reverifyingWordIds[item.id]}
               />
             </div>
           );

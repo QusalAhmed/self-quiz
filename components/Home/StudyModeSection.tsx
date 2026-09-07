@@ -78,6 +78,20 @@ type StudyModeSectionProps = {
   onRefreshExamples: (id: string) => Promise<void> | void;
   onRefreshWordFamily?: (wordId: string, word: string) => Promise<void> | void;
   onDeleteWordFamilyMember?: (memberId: string) => Promise<void> | void;
+  onFixSpelling?: (wordId: string, correctedWord: string) => Promise<void> | void;
+  onFixDefinition?: (
+    wordId: string,
+    defIndex: number,
+    newMeaning?: string,
+    newPartOfSpeech?: string
+  ) => Promise<void> | void;
+  onAddSuggestedDefinition?: (
+    wordId: string,
+    newDef: { meaning: string; partOfSpeech: string }
+  ) => Promise<void> | void;
+  onDismissVerification?: (wordId: string) => Promise<void> | void;
+  onReverify?: (wordId: string) => Promise<void> | void;
+  reverifyingWordIds?: Record<string, boolean>;
   onCreateGroup: (name: string) => Promise<void> | void;
   onRenameGroup: (id: string, newName: string) => Promise<void> | void;
   onDeleteGroup: (id: string) => Promise<void> | void;
@@ -115,6 +129,12 @@ export function StudyModeSection({
   onRefreshExamples,
   onRefreshWordFamily,
   onDeleteWordFamilyMember,
+  onFixSpelling,
+  onFixDefinition,
+  onAddSuggestedDefinition,
+  onDismissVerification,
+  onReverify,
+  reverifyingWordIds = {},
   onCreateGroup,
   onRenameGroup,
   onDeleteGroup,
@@ -348,6 +368,12 @@ export function StudyModeSection({
         onRefreshExamples={onRefreshExamples}
         onRefreshWordFamily={onRefreshWordFamily}
         onDeleteWordFamilyMember={onDeleteWordFamilyMember}
+        onFixSpelling={onFixSpelling}
+        onFixDefinition={onFixDefinition}
+        onAddSuggestedDefinition={onAddSuggestedDefinition}
+        onDismissVerification={onDismissVerification}
+        onReverify={onReverify}
+        reverifyingWordIds={reverifyingWordIds}
         customGroups={customGroups}
         onAddCustomGroup={onAddCustomGroup}
         generatingExampleWordIds={generatingExampleWordIds}

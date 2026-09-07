@@ -518,7 +518,7 @@ function BatchAudioRepairButton() {
     setIsRepairing(true);
     setRepairStatus(null);
     try {
-      const { getDatabase } = await import('@/lib/db');
+      const { getDatabase, safePatchDoc } = await import('@/lib/db');
       const { normalizeMerriamWebsterAudioUrl } = await import('@/lib/pronounce');
       const db = await getDatabase();
       const docs = await db.words.find({ selector: { isDeleted: { $ne: true } } }).exec();
@@ -528,7 +528,7 @@ function BatchAudioRepairButton() {
         if (doc.audioUrl) {
           const normalized = normalizeMerriamWebsterAudioUrl(doc.audioUrl);
           if (normalized && normalized !== doc.audioUrl) {
-            await doc.patch({
+            await safePatchDoc(doc, {
               audioUrl: normalized,
               updatedAt: new Date().toISOString(),
             });

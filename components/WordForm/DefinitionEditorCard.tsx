@@ -1,5 +1,6 @@
 import {
   ActionIcon,
+  Badge,
   Button,
   Card,
   Divider,
@@ -11,9 +12,10 @@ import {
   Textarea,
   Tooltip,
 } from '@mantine/core';
-import { IconPlus, IconX } from '@tabler/icons-react';
+import { IconAlertTriangle, IconCheck, IconPlus, IconWand, IconX } from '@tabler/icons-react';
 import type { KeyboardEvent } from 'react';
 import { PARTS_OF_SPEECH } from '@/lib/definitions';
+import type { SingleDefinitionVerification } from '@/lib/word-verification';
 import type { DefinitionFormValue } from './types';
 
 type DefinitionEditorCardProps = {
@@ -23,6 +25,7 @@ type DefinitionEditorCardProps = {
   disabled?: boolean;
   isSaving?: boolean;
   definitionCount: number;
+  verification?: SingleDefinitionVerification | null;
   onUpdateDefinition: (
     index: number,
     value: Partial<Pick<DefinitionFormValue, 'meaning' | 'partOfSpeech'>>
@@ -31,6 +34,8 @@ type DefinitionEditorCardProps = {
   onUpdateExample: (definitionIndex: number, exampleIndex: number, value: string) => void;
   onAddExample: (definitionIndex: number) => void;
   onRemoveExample: (definitionIndex: number, exampleIndex: number) => void;
+  onApplySuggestedDefinition?: (index: number, suggestedMeaning: string) => void;
+  onApplySuggestedPartOfSpeech?: (index: number, suggestedPos: string) => void;
   onDefinitionKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
   onExampleKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
 };
@@ -42,11 +47,14 @@ export function DefinitionEditorCard({
   disabled,
   isSaving,
   definitionCount,
+  verification,
   onUpdateDefinition,
   onRemoveDefinition,
   onUpdateExample,
   onAddExample,
   onRemoveExample,
+  onApplySuggestedDefinition,
+  onApplySuggestedPartOfSpeech,
   onDefinitionKeyDown,
   onExampleKeyDown,
 }: DefinitionEditorCardProps) {
@@ -59,15 +67,39 @@ export function DefinitionEditorCard({
     >
       <Stack gap={8}>
         <Group justify="space-between" align="center" gap="xs" wrap="nowrap">
-          <Text
-            component="div"
-            size="sm"
-            fw={700}
-            c="indigo"
-            style={{ lineHeight: 1.4, display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-          >
-            Definition <RollingNumber value={index + 1} />
-          </Text>
+          <Group gap="xs" align="center">
+            <Text
+              component="div"
+              size="sm"
+              fw={700}
+              c="indigo"
+              style={{ lineHeight: 1.4, display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+            >
+              Definition <RollingNumber value={index + 1} />
+            </Text>
+            {verification && verification.isAccurate && verification.partOfSpeechMatches && (
+              <Badge
+                size="xs"
+                variant="light"
+                color="teal"
+                leftSection={<IconCheck size={10} />}
+                data-testid={`def-${index}-accurate-badge`}
+              >
+                Accurate
+              </Badge>
+            )}
+            {verification && (!verification.isAccurate || !verification.partOfSpeechMatches) && (
+              <Badge
+                size="xs"
+                variant="light"
+                color="yellow"
+                leftSection={<IconAlertTriangle size={10} />}
+                data-testid={`def-${index}-review-badge`}
+              >
+                Review
+              </Badge>
+            )}
+          </Group>
           <Tooltip label="Remove definition" withArrow>
             <ActionIcon
               variant="light"
@@ -124,6 +156,57 @@ export function DefinitionEditorCard({
             style={{ flex: 1, minWidth: 200 }}
           />
         </Group>
+
+        {/* ── AI Definition Verification Feedback & Suggestions ── */}
+        {verification && (!verification.isAccurate || !verification.partOfSpeechMatches) && (
+          <Card
+            padding="xs"
+            radius="sm"
+            style={{
+              background: 'rgba(234, 179, 8, 0.08)',
+              border: '1px solid rgba(234, 179, 8, 0.25)',
+            }}
+            data-testid={`def-${index}-verification-warning`}
+          >
+            <Stack gap={4}>
+              <Text size="xs" c="yellow.8" fw={500}>
+                {verification.feedback}
+              </Text>
+              <Group gap="xs" wrap="wrap">
+                {verification.suggestedDefinition && onApplySuggestedDefinition && (
+                  <Button
+                    size="compact-xs"
+                    variant="light"
+                    color="yellow"
+                    leftSection={<IconWand size={11} />}
+                    onClick={() =>
+                      onApplySuggestedDefinition(index, verification.suggestedDefinition!)
+                    }
+                    data-testid={`def-${index}-apply-suggested-def`}
+                  >
+                    Apply suggested: &ldquo;{verification.suggestedDefinition}&rdquo;
+                  </Button>
+                )}
+                {!verification.partOfSpeechMatches &&
+                  verification.suggestedPartOfSpeech &&
+                  onApplySuggestedPartOfSpeech && (
+                    <Button
+                      size="compact-xs"
+                      variant="subtle"
+                      color="indigo"
+                      leftSection={<IconWand size={11} />}
+                      onClick={() =>
+                        onApplySuggestedPartOfSpeech(index, verification.suggestedPartOfSpeech!)
+                      }
+                      data-testid={`def-${index}-apply-suggested-pos`}
+                    >
+                      Set part of speech: {verification.suggestedPartOfSpeech}
+                    </Button>
+                  )}
+              </Group>
+            </Stack>
+          </Card>
+        )}
 
         <Divider label="Your examples for this definition" labelPosition="left" />
 

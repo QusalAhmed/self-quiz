@@ -145,6 +145,7 @@ export function pullWordModifier(row: any): WithDeleted<WordRecord> {
     audioUrl: normalizeMerriamWebsterAudioUrl(row.audio_url || row.audioUrl || ''),
     phonetic: row.phonetic || '',
     audioSource: row.audio_source || row.audioSource || '',
+    verificationIssue: row.verification_issue || row.verificationIssue || '',
   };
 }
 
@@ -161,6 +162,7 @@ export function pushWordModifier(doc: WordRecord): any {
     audio_url: normalizeMerriamWebsterAudioUrl(doc.audioUrl || ''),
     phonetic: doc.phonetic || '',
     audio_source: doc.audioSource || '',
+    verification_issue: doc.verificationIssue || '',
     custom_groups: doc.customGroups || [],
     created_at: doc.createdAt,
     updated_at: doc.updatedAt,

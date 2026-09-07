@@ -108,6 +108,7 @@ export interface AppAiSettings {
   customCloudflareApiToken?: string;
   customCloudflareAccountId?: string;
   useCustomApiKeys: boolean;
+  autoVerifyWords?: boolean;
 }
 
 export interface AppDataSettings {
@@ -186,6 +187,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     customCloudflareApiToken: '',
     customCloudflareAccountId: '',
     useCustomApiKeys: false,
+    autoVerifyWords: true,
   },
   notifications: DEFAULT_NOTIFICATION_SETTINGS,
   data: {
@@ -352,6 +354,10 @@ export function normalizeAppSettings(raw: Partial<AppSettings> | null | undefine
     customCloudflareApiToken: raw.ai?.customCloudflareApiToken ?? '',
     customCloudflareAccountId: raw.ai?.customCloudflareAccountId ?? '',
     useCustomApiKeys: raw.ai?.useCustomApiKeys ?? false,
+    autoVerifyWords:
+      typeof raw.ai?.autoVerifyWords === 'boolean'
+        ? raw.ai.autoVerifyWords
+        : DEFAULT_APP_SETTINGS.ai.autoVerifyWords,
   };
 
   const notifications = raw.notifications ? raw.notifications : DEFAULT_NOTIFICATION_SETTINGS;

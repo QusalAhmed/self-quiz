@@ -91,6 +91,7 @@ describe('lib/settings.ts', () => {
     expect(normalized.fsrs.enableFuzz).toBe(true);
     expect(normalized.ai.preferredProvider).toBe('gemini');
     expect(normalized.ai.exampleCount).toBe(5);
+    expect(normalized.ai.autoVerifyWords).toBe(true);
     expect(normalized.quranVerse.recurringIntervalMinutes).toBe(1440);
     expect(normalized.quranVerse.preferredEnglishTranslationId).toBe(85);
     expect(normalized.quranVerse.preferredBanglaTranslationId).toBe(161);

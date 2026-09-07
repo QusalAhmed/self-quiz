@@ -59,6 +59,7 @@ describe('Supabase Replication Modifiers', () => {
       );
       expect(record.phonetic).toBe('\\ə-ˈbāt\\');
       expect(record.audioSource).toBe('merriam-webster');
+      expect(record.verificationIssue).toBe('');
     });
 
     it('correctly maps local WordRecord to remote Supabase row for push', () => {
@@ -76,6 +77,7 @@ describe('Supabase Replication Modifiers', () => {
         audioUrl: 'https://media.merriam-webster.com/audio/prons/en/us/mp3/a/abate001.mp3',
         phonetic: '\\ə-ˈbāt\\',
         audioSource: 'merriam-webster',
+        verificationIssue: '{"overallStatus":"valid"}',
         customGroups: ['GRE'],
         createdAt: '2026-08-17T00:00:00.000Z',
         updatedAt: '2026-08-17T01:00:00.000Z',
@@ -94,6 +96,7 @@ describe('Supabase Replication Modifiers', () => {
       );
       expect(row.phonetic).toBe('\\ə-ˈbāt\\');
       expect(row.audio_source).toBe('merriam-webster');
+      expect(row.verification_issue).toBe('{"overallStatus":"valid"}');
       expect(row.deleted).toBe(true);
       expect(row.created_at).toBe('2026-08-17T00:00:00.000Z');
       expect(row.updated_at).toBe('2026-08-17T01:00:00.000Z');

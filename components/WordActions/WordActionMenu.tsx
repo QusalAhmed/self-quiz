@@ -150,7 +150,7 @@ export const WordActionMenu = memo(function WordActionMenu({
 
         // 2. Persist to RxDB if wordId or word is available
         try {
-          const { getDatabase } = await import('@/lib/db');
+          const { getDatabase, safePatchDoc } = await import('@/lib/db');
           const db = await getDatabase();
           let doc = null;
           if (wordId) {
@@ -161,7 +161,7 @@ export const WordActionMenu = memo(function WordActionMenu({
             doc = await db.words.findOne({ selector: { word: cleanWord.toLowerCase() } }).exec();
           }
           if (doc) {
-            await doc.patch({
+            await safePatchDoc(doc, {
               audioUrl: data.audioUrl,
               ...(data.phonetic ? { phonetic: data.phonetic } : {}),
               updatedAt: new Date().toISOString(),
