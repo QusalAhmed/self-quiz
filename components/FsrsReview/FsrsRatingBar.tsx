@@ -66,7 +66,7 @@ interface Ripple {
   color: string;
 }
 
-export function FsrsRatingBar({
+export const FsrsRatingBar = React.memo(function FsrsRatingBar({
   intervals,
   onRate,
   disabled = false,
@@ -304,4 +304,4 @@ export function FsrsRatingBar({
       </SimpleGrid>
     </Stack>
   );
-}
+});

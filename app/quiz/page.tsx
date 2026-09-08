@@ -247,6 +247,26 @@ export default function QuizPage() {
 
   // Compute all similar clusters for the database words (with cached fallback)
   const allSimilarClusters = useMemo(() => {
+    // Only compute when quizSource is similarGroups to prevent freezing the UI on other modes (like FSRS review)
+    if (quizSource !== 'similarGroups') {
+      return [];
+    }
+
+    // Try cached clusters in localStorage first to avoid blocking main thread
+    if (typeof window !== 'undefined') {
+      try {
+        const cachedRaw = localStorage.getItem(SIMILAR_CLUSTERS_CACHE_KEY);
+        if (cachedRaw) {
+          const cached = JSON.parse(cachedRaw);
+          if (Array.isArray(cached) && cached.length > 0) {
+            return cached;
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+
     const wordItems = words.map((w) => ({ id: w.id, word: w.word }));
     let recordsToCluster: any[] = similarityRecords;
     if (recordsToCluster.length === 0 && wordItems.length > 1) {
@@ -266,23 +286,8 @@ export default function QuizPage() {
       return computed;
     }
 
-    // Fallback to cached clusters in localStorage
-    if (typeof window !== 'undefined') {
-      try {
-        const cachedRaw = localStorage.getItem(SIMILAR_CLUSTERS_CACHE_KEY);
-        if (cachedRaw) {
-          const cached = JSON.parse(cachedRaw);
-          if (Array.isArray(cached) && cached.length > 0) {
-            return cached;
-          }
-        }
-      } catch {
-        // ignore
-      }
-    }
-
     return [];
-  }, [words, similarityRecords]);
+  }, [quizSource, words, similarityRecords]);
 
   // Synchronize targetWordIds and clusterContext with computed clusters
   useEffect(() => {
@@ -953,7 +958,7 @@ export default function QuizPage() {
       return;
     }
     let hasChanges = false;
-    const updatedQueue = quizQueue.map((item) => {
+    const updatedQueue = quizQueue.map((item, index) => {
       const freshWord = wordsById.get(item.id);
       if (!freshWord) {
         return item;
@@ -973,11 +978,14 @@ export default function QuizPage() {
       const notesChanged = (item.notes || '') !== freshNotes;
       const wordChanged = item.word !== freshWord.word;
       const audioChanged = item.audioUrl !== freshAudioUrl || item.phonetic !== freshPhonetic;
+      // Only check FSRS record changes for cards that haven't been reviewed yet (index >= quizIndex)
+      // Cards that were already rated in this session must not trigger a redundant Redux queue sync loop
       const fsrsChanged =
-        item.fsrsRecord?.dueAt !== freshFsrs?.dueAt ||
-        item.fsrsRecord?.stability !== freshFsrs?.stability ||
-        item.fsrsRecord?.difficulty !== freshFsrs?.difficulty ||
-        item.fsrsRecord?.state !== freshFsrs?.state;
+        index >= quizIndex &&
+        (item.fsrsRecord?.dueAt !== freshFsrs?.dueAt ||
+          item.fsrsRecord?.stability !== freshFsrs?.stability ||
+          item.fsrsRecord?.difficulty !== freshFsrs?.difficulty ||
+          item.fsrsRecord?.state !== freshFsrs?.state);
 
       if (
         definitionsChanged ||
@@ -1007,7 +1015,15 @@ export default function QuizPage() {
     if (hasChanges) {
       dispatch(syncQueueItems(updatedQueue));
     }
-  }, [words.length, wordsById, quizQueue, getFsrsRecordForWord, quizDirection, dispatch]);
+  }, [
+    words.length,
+    wordsById,
+    quizQueue,
+    quizIndex,
+    getFsrsRecordForWord,
+    quizDirection,
+    dispatch,
+  ]);
 
   // Manage queue initialization / refill
   useEffect(() => {

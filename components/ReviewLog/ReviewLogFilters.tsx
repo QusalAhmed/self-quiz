@@ -47,7 +47,7 @@ export type ReviewLogFiltersProps = {
   filteredLogsCount: number;
 };
 
-export function ReviewLogFilters({
+export const ReviewLogFilters = React.memo(function ReviewLogFilters({
   filters,
   onFiltersChange,
   availableGroups,
@@ -55,8 +55,25 @@ export function ReviewLogFilters({
   filteredLogsCount,
 }: ReviewLogFiltersProps) {
   const [expanded, setExpanded] = useState(false);
+  const [localSearch, setLocalSearch] = useState(filters.searchQuery);
+
+  // Sync when filters.searchQuery changes externally (e.g. on reset)
+  React.useEffect(() => {
+    setLocalSearch(filters.searchQuery);
+  }, [filters.searchQuery]);
+
+  // Debounce search filtering by 180ms to avoid freezing UI while typing
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      if (localSearch !== filters.searchQuery) {
+        onFiltersChange({ ...filters, searchQuery: localSearch });
+      }
+    }, 180);
+    return () => clearTimeout(timer);
+  }, [localSearch, filters, onFiltersChange]);
 
   const handleReset = () => {
+    setLocalSearch('');
     onFiltersChange({
       searchQuery: '',
       ratingFilter: 'all',
@@ -101,19 +118,22 @@ export function ReviewLogFilters({
             placeholder="Search word or meaning in review log..."
             leftSection={<IconSearch size={16} />}
             rightSection={
-              filters.searchQuery ? (
+              localSearch ? (
                 <ActionIcon
                   size="xs"
                   variant="subtle"
                   color="gray"
-                  onClick={() => onFiltersChange({ ...filters, searchQuery: '' })}
+                  onClick={() => {
+                    setLocalSearch('');
+                    onFiltersChange({ ...filters, searchQuery: '' });
+                  }}
                 >
                   <IconX size={12} />
                 </ActionIcon>
               ) : null
             }
-            value={filters.searchQuery}
-            onChange={(e) => onFiltersChange({ ...filters, searchQuery: e.currentTarget.value })}
+            value={localSearch}
+            onChange={(e) => setLocalSearch(e.currentTarget.value)}
             style={{ flex: 1, minWidth: 220 }}
             radius="md"
             size="sm"
@@ -325,4 +345,4 @@ export function ReviewLogFilters({
       </Stack>
     </Card>
   );
-}
+});

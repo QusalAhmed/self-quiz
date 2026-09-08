@@ -17,7 +17,7 @@ import {
   IconConfetti,
   IconRotateClockwise,
 } from '@tabler/icons-react';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { getAppSettings } from '@/lib/settings';
 
 export type FsrsCompletionStateProps = {
@@ -35,6 +35,10 @@ export function FsrsCompletionState({
   canUndo,
   onUndo,
 }: FsrsCompletionStateProps) {
+  const [pressedUndo, setPressedUndo] = useState(false);
+  const [pressedRestart, setPressedRestart] = useState(false);
+  const [pressedReturn, setPressedReturn] = useState(false);
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       const activeTag = document.activeElement?.tagName.toLowerCase();
@@ -57,19 +61,31 @@ export function FsrsCompletionState({
         (event.key === 'z' || event.key === 'Z' || event.key === 'u' || event.key === 'U')
       ) {
         event.preventDefault();
+        setPressedUndo(true);
         onUndo();
+        setTimeout(() => {
+          setPressedUndo(false);
+        }, 150);
       }
 
       // Restart: R or Enter
       if (event.key === 'r' || event.key === 'R' || event.key === 'Enter') {
         event.preventDefault();
-        onRestartSession();
+        setPressedRestart(true);
+        setTimeout(() => {
+          onRestartSession();
+          setPressedRestart(false);
+        }, 110);
       }
 
       // Back to library: Escape or Backspace
       if (onReturnToLibrary && (event.key === 'Escape' || event.key === 'Backspace')) {
         event.preventDefault();
-        onReturnToLibrary();
+        setPressedReturn(true);
+        setTimeout(() => {
+          onReturnToLibrary();
+          setPressedReturn(false);
+        }, 110);
       }
     };
 
@@ -196,6 +212,7 @@ export function FsrsCompletionState({
               color="grape"
               leftSection={<IconArrowBackUp size={20} />}
               onClick={onUndo}
+              className={`btn-hotkey-target ${pressedUndo ? 'is-pressed review-btn-pop' : ''}`}
               style={{ fontWeight: 700 }}
             >
               Undo Rating
@@ -218,6 +235,7 @@ export function FsrsCompletionState({
               </Box>
             }
             onClick={onRestartSession}
+            className={`btn-premium btn-hotkey-target ${pressedRestart ? 'is-pressed review-btn-pop' : ''}`}
             style={{
               fontWeight: 800,
               fontFamily: 'var(--font-title)',
@@ -243,6 +261,7 @@ export function FsrsCompletionState({
                 </Box>
               }
               onClick={onReturnToLibrary}
+              className={`btn-hotkey-target ${pressedReturn ? 'is-pressed review-btn-pop' : ''}`}
               style={{ fontWeight: 700 }}
             >
               Back to Library

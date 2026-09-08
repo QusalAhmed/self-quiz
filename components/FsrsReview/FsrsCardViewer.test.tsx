@@ -148,4 +148,76 @@ describe('FsrsCardViewer component', () => {
     fireEvent.click(goodBtn);
     expect(handleRate).toHaveBeenCalledWith('good');
   });
+
+  describe('hotkey button visual animations', () => {
+    it('applies is-pressed and review-btn-pop to Show Answer button when Space is pressed', () => {
+      render(
+        <FsrsCardViewer
+          card={mockCard}
+          isRevealed={false}
+          intervals={mockIntervals}
+          newCount={1}
+          learningCount={0}
+          reviewCount={5}
+          onReveal={jest.fn()}
+          onRate={jest.fn()}
+        />
+      );
+
+      const showAnswerBtn = screen.getByRole('button', { name: /show answer/i });
+      expect(showAnswerBtn.className).not.toContain('is-pressed');
+
+      fireEvent.keyDown(window, { key: ' ', code: 'Space' });
+      expect(showAnswerBtn.className).toContain('is-pressed');
+      expect(showAnswerBtn.className).toContain('review-btn-pop');
+    });
+
+    it('applies is-pressed and review-btn-pop to rating button when 1/2/3/4 is pressed on revealed card', () => {
+      render(
+        <FsrsCardViewer
+          card={mockCard}
+          isRevealed
+          intervals={mockIntervals}
+          newCount={1}
+          learningCount={0}
+          reviewCount={5}
+          wordFamilyMembers={[]}
+          onReveal={jest.fn()}
+          onRate={jest.fn()}
+        />
+      );
+
+      const goodBtn = screen.getByRole('button', { name: /good/i });
+      expect(goodBtn.className).not.toContain('is-pressed');
+
+      fireEvent.keyDown(window, { key: '3' });
+      expect(goodBtn.className).toContain('is-pressed');
+      expect(goodBtn.className).toContain('review-btn-pop');
+    });
+
+    it('applies is-pressed class to Undo button when Z is pressed and canUndo is true', () => {
+      render(
+        <FsrsCardViewer
+          card={mockCard}
+          isRevealed
+          intervals={mockIntervals}
+          newCount={1}
+          learningCount={0}
+          reviewCount={5}
+          wordFamilyMembers={[]}
+          onReveal={jest.fn()}
+          onRate={jest.fn()}
+          canUndo
+          onUndo={jest.fn()}
+        />
+      );
+
+      const undoBtn = screen.getByRole('button', { name: /undo/i });
+      expect(undoBtn.className).not.toContain('is-pressed');
+
+      fireEvent.keyDown(window, { key: 'z' });
+      expect(undoBtn.className).toContain('is-pressed');
+      expect(undoBtn.className).toContain('review-btn-pop');
+    });
+  });
 });

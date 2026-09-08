@@ -95,10 +95,10 @@ export const FsrsCardViewer = memo(function FsrsCardViewer({
 
   /**
    * Positions the review card:
-   * - Vertically centered if it fits within the viewport.
-   * - At the top of the screen if it is taller than the viewport.
+   * - Only adjusts scroll if the review card is off-screen.
+   * - Avoids screen jumping / bouncing when card height changes during flip.
    */
-  const positionReviewSection = useCallback((behavior: ScrollBehavior = 'smooth') => {
+  const positionReviewSection = useCallback((_behavior: ScrollBehavior = 'auto') => {
     if (typeof window === 'undefined') {
       return;
     }
@@ -110,16 +110,21 @@ export const FsrsCardViewer = memo(function FsrsCardViewer({
       }
 
       const rect = element.getBoundingClientRect();
-      const elementHeight = rect.height;
       const viewportHeight = window.innerHeight;
+
+      // Only adjust scroll if the review card is off-screen
+      const isCardInView = rect.top >= 0 && rect.bottom <= viewportHeight + 80;
+      if (isCardInView) {
+        return;
+      }
+
       const currentScrollY = window.pageYOffset || document.documentElement.scrollTop;
       const elementAbsoluteTop = rect.top + currentScrollY;
-
       const TOP_PADDING = 20;
-      let targetScrollY: number;
 
-      if (elementHeight + TOP_PADDING * 2 <= viewportHeight) {
-        const verticalCenterMargin = (viewportHeight - elementHeight) / 2;
+      let targetScrollY: number;
+      if (rect.height + TOP_PADDING * 2 <= viewportHeight) {
+        const verticalCenterMargin = (viewportHeight - rect.height) / 2;
         targetScrollY = elementAbsoluteTop - verticalCenterMargin;
       } else {
         targetScrollY = elementAbsoluteTop - TOP_PADDING;
@@ -127,8 +132,8 @@ export const FsrsCardViewer = memo(function FsrsCardViewer({
 
       targetScrollY = Math.max(0, targetScrollY);
 
-      if (Math.abs(currentScrollY - targetScrollY) > 5) {
-        window.scrollTo({ top: targetScrollY, behavior });
+      if (Math.abs(currentScrollY - targetScrollY) > 40) {
+        window.scrollTo({ top: targetScrollY, behavior: 'auto' });
       }
     });
   }, []);
@@ -146,6 +151,7 @@ export const FsrsCardViewer = memo(function FsrsCardViewer({
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [pressedRating, setPressedRating] = useState<FsrsRating | null>(null);
   const [pressedReveal, setPressedReveal] = useState(false);
+  const [pressedUndo, setPressedUndo] = useState(false);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -169,8 +175,12 @@ export const FsrsCardViewer = memo(function FsrsCardViewer({
         (event.key === 'z' || event.key === 'Z' || event.key === 'u' || event.key === 'U')
       ) {
         event.preventDefault();
-        onUndo();
-        positionReviewSection();
+        setPressedUndo(true);
+        setTimeout(() => {
+          onUndo();
+          setPressedUndo(false);
+          positionReviewSection();
+        }, 110);
         return;
       }
 
@@ -225,7 +235,7 @@ export const FsrsCardViewer = memo(function FsrsCardViewer({
             onRate(rating);
             setPressedRating(null);
             positionReviewSection();
-          }, 130);
+          }, 125);
         }
       }
     };
@@ -471,6 +481,7 @@ export const FsrsCardViewer = memo(function FsrsCardViewer({
                         radius="md"
                         leftSection={<IconArrowBackUp size={14} />}
                         onClick={onUndo}
+                        className={`btn-hotkey-target ${pressedUndo ? 'is-pressed review-btn-pop' : ''}`}
                         style={{ fontWeight: 800, height: 22, paddingLeft: 8, paddingRight: 8 }}
                       >
                         Undo
