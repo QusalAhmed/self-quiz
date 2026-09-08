@@ -36,22 +36,11 @@ export type ReviewLogTableProps = {
   onSelectWord?: (wordId: string) => void;
 };
 
-export const ReviewLogTable = React.memo(function ReviewLogTable({
-  logs,
-  onInspectLog,
-  onSelectWord,
-}: ReviewLogTableProps) {
+export function ReviewLogTable({ logs, onInspectLog, onSelectWord }: ReviewLogTableProps) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(20);
 
   const totalPages = Math.ceil(logs.length / pageSize);
-
-  React.useEffect(() => {
-    if (page > totalPages && totalPages > 0) {
-      setPage(1);
-    }
-  }, [totalPages, page]);
-
   const paginatedLogs = useMemo(() => {
     const start = (page - 1) * pageSize;
     return logs.slice(start, start + pageSize);
@@ -69,8 +58,8 @@ export const ReviewLogTable = React.memo(function ReviewLogTable({
 
   const formatRelativeTime = (isoString: string) => {
     const d = new Date(isoString);
-    const now = Date.now();
-    const diffSec = Math.floor((now - d.getTime()) / 1000);
+    const now = new Date();
+    const diffSec = Math.floor((now.getTime() - d.getTime()) / 1000);
 
     if (diffSec < 60) {
       return 'Just now';
@@ -286,11 +275,14 @@ export const ReviewLogTable = React.memo(function ReviewLogTable({
                     <Table.Td style={{ whiteSpace: 'nowrap' }}>
                       <Group gap="xs">
                         <Text component="div" size="xs" fw={700} c="indigo">
-                          {log.scheduledDays > 0 ? `${log.scheduledDays}d` : '<1d'}
+                          {log.scheduledDays > 0 ? (
+                            <RollingNumber value={log.scheduledDays} suffix="d" />
+                          ) : (
+                            '<1d'
+                          )}
                         </Text>
                         <Text component="div" size="xs" c="dimmed">
-                          (S: {typeof log.stability === 'number' ? log.stability.toFixed(1) : '0.0'}
-                          d)
+                          (S: <RollingNumber value={log.stability} decimalScale={1} suffix="d" />)
                         </Text>
                       </Group>
                     </Table.Td>
@@ -302,7 +294,15 @@ export const ReviewLogTable = React.memo(function ReviewLogTable({
                         size="xs"
                         c={log.durationMs > 5000 ? 'orange.6' : 'dimmed'}
                       >
-                        {log.durationMs > 0 ? `${(log.durationMs / 1000).toFixed(1)}s` : '<0.1s'}
+                        {log.durationMs > 0 ? (
+                          <RollingNumber
+                            value={Number((log.durationMs / 1000).toFixed(1))}
+                            decimalScale={1}
+                            suffix="s"
+                          />
+                        ) : (
+                          '<0.1s'
+                        )}
                       </Text>
                     </Table.Td>
 
@@ -375,4 +375,4 @@ export const ReviewLogTable = React.memo(function ReviewLogTable({
       </Stack>
     </Card>
   );
-});
+}

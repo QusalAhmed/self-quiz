@@ -162,10 +162,10 @@ export const QuizPanel = memo(function QuizPanel({
 
   /**
    * Positions the quiz section:
-   * - Only adjusts scroll if the quiz section is scrolled out of view.
-   * - Avoids screen jumping / bouncing when card height changes during flip.
+   * - Vertically centered in the viewport if it fits on screen.
+   * - At the top of the viewport if it is taller than the screen.
    */
-  const positionQuizSection = useCallback((_behavior: ScrollBehavior = 'auto') => {
+  const positionQuizSection = useCallback((behavior: ScrollBehavior = 'smooth') => {
     if (typeof window === 'undefined') {
       return;
     }
@@ -177,30 +177,30 @@ export const QuizPanel = memo(function QuizPanel({
       }
 
       const rect = element.getBoundingClientRect();
+      const elementHeight = rect.height;
       const viewportHeight = window.innerHeight;
-
-      // Only adjust scroll if the quiz card is scrolled off-screen
-      const isCardInView = rect.top >= 0 && rect.bottom <= viewportHeight + 80;
-      if (isCardInView) {
-        return;
-      }
-
       const currentScrollY = window.pageYOffset || document.documentElement.scrollTop;
       const elementAbsoluteTop = rect.top + currentScrollY;
+
+      // Top margin buffer for comfort
       const TOP_PADDING = 20;
 
       let targetScrollY: number;
-      if (rect.height + TOP_PADDING * 2 <= viewportHeight) {
-        const verticalCenterMargin = (viewportHeight - rect.height) / 2;
+
+      // If the quiz section fits vertically within the screen
+      if (elementHeight + TOP_PADDING * 2 <= viewportHeight) {
+        // Center the quiz section vertically in the viewport
+        const verticalCenterMargin = (viewportHeight - elementHeight) / 2;
         targetScrollY = elementAbsoluteTop - verticalCenterMargin;
       } else {
+        // Does not fit on screen -> align to the top of the viewport
         targetScrollY = elementAbsoluteTop - TOP_PADDING;
       }
 
       targetScrollY = Math.max(0, targetScrollY);
 
-      if (Math.abs(currentScrollY - targetScrollY) > 40) {
-        window.scrollTo({ top: targetScrollY, behavior: 'auto' });
+      if (Math.abs(currentScrollY - targetScrollY) > 5) {
+        window.scrollTo({ top: targetScrollY, behavior });
       }
     });
   }, []);
@@ -217,7 +217,7 @@ export const QuizPanel = memo(function QuizPanel({
           onSrsRate(rating);
           setPressedRating(null);
           positionQuizSection();
-        }, 125);
+        }, 130);
       } else {
         onSrsRate(rating);
         positionQuizSection();
@@ -1067,12 +1067,8 @@ export const QuizPanel = memo(function QuizPanel({
   // In meaningToWord mode the definition is shown as the *question*, before the word is
   // revealed — examples must stay hidden then since they'd give the word away. Everywhere
   // else the word is already visible, so examples can be shown alongside the definitions.
-  // CRITICAL OPTIMIZATION: Only render the block that is currently visible to prevent duplicate component overhead.
-  const definitionsBlock = revealed ? renderDefinitionsBlock(true) : null;
-  const definitionsBlockNoSpoilers =
-    !revealed && (quizDirection === 'meaningToWord' || quizDirection === 'spelling')
-      ? renderDefinitionsBlock(false)
-      : null;
+  const definitionsBlock = renderDefinitionsBlock(true);
+  const definitionsBlockNoSpoilers = renderDefinitionsBlock(false);
 
   const hasNotes = Boolean(
     item?.notes &&

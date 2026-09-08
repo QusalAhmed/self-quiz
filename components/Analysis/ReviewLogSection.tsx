@@ -48,113 +48,107 @@ export function ReviewLogSection({
   const activeLogs = useMemo(() => reviewLogs.filter((l) => !l.isDeleted), [reviewLogs]);
 
   const filteredLogs = useMemo(() => {
-    const q = filters.searchQuery.trim().toLowerCase();
-    const hasSearch = q.length > 0;
-    const ratingFilter = filters.ratingFilter;
-    const stateFilter = filters.stateFilter;
-    const modeFilter = filters.modeFilter;
-    const groupFilter = filters.groupFilter;
-    const datePreset = filters.datePreset;
-
-    let dateCutoffStart: number | null = null;
-    let dateCutoffEnd: number | null = null;
-
-    if (datePreset !== 'all') {
-      const now = new Date();
-      if (datePreset === 'today') {
-        const todayStart = new Date(now);
-        todayStart.setHours(0, 0, 0, 0);
-        dateCutoffStart = todayStart.getTime();
-      } else if (datePreset === '7d') {
-        dateCutoffStart = now.getTime() - 7 * 86400 * 1000;
-      } else if (datePreset === '30d') {
-        dateCutoffStart = now.getTime() - 30 * 86400 * 1000;
-      } else if (datePreset === 'custom') {
-        if (filters.customStartDate) {
-          const start = new Date(filters.customStartDate);
-          start.setHours(0, 0, 0, 0);
-          dateCutoffStart = start.getTime();
-        }
-        if (filters.customEndDate) {
-          const end = new Date(filters.customEndDate);
-          end.setHours(23, 59, 59, 999);
-          dateCutoffEnd = end.getTime();
-        }
-      }
-    }
-
-    const filtered = activeLogs.filter((log) => {
-      // Search Query Filter
-      if (hasSearch) {
-        const matchWord = log.word?.toLowerCase().includes(q);
-        const matchMeaning = log.meaning?.toLowerCase().includes(q);
-        if (!matchWord && !matchMeaning) {
-          return false;
-        }
-      }
-
-      // Rating Filter
-      if (ratingFilter !== 'all' && log.rating !== ratingFilter) {
-        return false;
-      }
-
-      // State Filter
-      if (stateFilter !== 'all' && log.stateAfter !== stateFilter) {
-        return false;
-      }
-
-      // Mode Filter
-      if (modeFilter !== 'all' && log.quizMode !== modeFilter) {
-        return false;
-      }
-
-      // Group Filter
-      if (groupFilter !== 'all') {
-        const parentWord = wordsById.get(log.wordId);
-        if (!parentWord) {
-          return false;
-        }
-        if (groupFilter === 'none') {
-          if (parentWord.customGroups && parentWord.customGroups.length > 0) {
+    return activeLogs
+      .filter((log) => {
+        // Search Query Filter
+        if (filters.searchQuery.trim()) {
+          const q = filters.searchQuery.toLowerCase();
+          const matchWord = log.word?.toLowerCase().includes(q);
+          const matchMeaning = log.meaning?.toLowerCase().includes(q);
+          if (!matchWord && !matchMeaning) {
             return false;
           }
-        } else if (!parentWord.customGroups?.includes(groupFilter)) {
+        }
+
+        // Rating Filter
+        if (filters.ratingFilter !== 'all' && log.rating !== filters.ratingFilter) {
           return false;
         }
-      }
 
-      // Date Preset Filter (using precomputed cutoff timestamps)
-      if (dateCutoffStart !== null || dateCutoffEnd !== null) {
-        const logTime = new Date(log.reviewedAt).getTime();
-        if (dateCutoffStart !== null && logTime < dateCutoffStart) {
+        // State Filter
+        if (filters.stateFilter !== 'all' && log.stateAfter !== filters.stateFilter) {
           return false;
         }
-        if (dateCutoffEnd !== null && logTime > dateCutoffEnd) {
+
+        // Mode Filter
+        if (filters.modeFilter !== 'all' && log.quizMode !== filters.modeFilter) {
           return false;
         }
-      }
 
-      return true;
-    });
+        // Group Filter
+        if (filters.groupFilter !== 'all') {
+          const parentWord = wordsById.get(log.wordId);
+          if (!parentWord) {
+            return false;
+          }
+          if (filters.groupFilter === 'none') {
+            if (parentWord.customGroups && parentWord.customGroups.length > 0) {
+              return false;
+            }
+          } else if (!parentWord.customGroups?.includes(filters.groupFilter)) {
+            return false;
+          }
+        }
 
-    // Sort with zero allocations for ISO string timestamps
-    const sortBy = filters.sortBy;
-    if (sortBy === 'newest') {
-      return filtered.sort((a, b) => b.reviewedAt.localeCompare(a.reviewedAt));
-    }
-    if (sortBy === 'oldest') {
-      return filtered.sort((a, b) => a.reviewedAt.localeCompare(b.reviewedAt));
-    }
-    if (sortBy === 'duration') {
-      return filtered.sort((a, b) => (b.durationMs || 0) - (a.durationMs || 0));
-    }
-    if (sortBy === 'difficulty') {
-      return filtered.sort((a, b) => (b.difficulty || 0) - (a.difficulty || 0));
-    }
-    if (sortBy === 'retrievability') {
-      return filtered.sort((a, b) => (a.retrievability || 0) - (b.retrievability || 0));
-    }
-    return filtered;
+        // Date Preset Filter
+        if (filters.datePreset !== 'all') {
+          const logDate = new Date(log.reviewedAt);
+          const now = new Date();
+
+          if (filters.datePreset === 'today') {
+            const todayStart = new Date();
+            todayStart.setHours(0, 0, 0, 0);
+            if (logDate < todayStart) {
+              return false;
+            }
+          } else if (filters.datePreset === '7d') {
+            const cutoff = new Date(now.getTime() - 7 * 86400 * 1000);
+            if (logDate < cutoff) {
+              return false;
+            }
+          } else if (filters.datePreset === '30d') {
+            const cutoff = new Date(now.getTime() - 30 * 86400 * 1000);
+            if (logDate < cutoff) {
+              return false;
+            }
+          } else if (filters.datePreset === 'custom') {
+            if (filters.customStartDate) {
+              const start = new Date(filters.customStartDate);
+              start.setHours(0, 0, 0, 0);
+              if (logDate < start) {
+                return false;
+              }
+            }
+            if (filters.customEndDate) {
+              const end = new Date(filters.customEndDate);
+              end.setHours(23, 59, 59, 999);
+              if (logDate > end) {
+                return false;
+              }
+            }
+          }
+        }
+
+        return true;
+      })
+      .sort((a, b) => {
+        if (filters.sortBy === 'newest') {
+          return new Date(b.reviewedAt).getTime() - new Date(a.reviewedAt).getTime();
+        }
+        if (filters.sortBy === 'oldest') {
+          return new Date(a.reviewedAt).getTime() - new Date(b.reviewedAt).getTime();
+        }
+        if (filters.sortBy === 'duration') {
+          return (b.durationMs || 0) - (a.durationMs || 0);
+        }
+        if (filters.sortBy === 'difficulty') {
+          return (b.difficulty || 0) - (a.difficulty || 0);
+        }
+        if (filters.sortBy === 'retrievability') {
+          return (a.retrievability || 0) - (b.retrievability || 0);
+        }
+        return 0;
+      });
   }, [activeLogs, filters, wordsById]);
 
   return (

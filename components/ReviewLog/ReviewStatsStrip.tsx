@@ -9,44 +9,32 @@ export type ReviewStatsStripProps = {
   reviewLogs: ReviewLogRecord[];
 };
 
-export const ReviewStatsStrip = React.memo(function ReviewStatsStrip({
-  reviewLogs,
-}: ReviewStatsStripProps) {
-  const { totalReviews, againCount, hardCount, goodCount, easyCount, recallRate, avgDurationSec } =
-    React.useMemo(() => {
-      const total = reviewLogs.length;
-      let again = 0;
-      let hard = 0;
-      let good = 0;
-      let easy = 0;
-      let duration = 0;
+export function ReviewStatsStrip({ reviewLogs }: ReviewStatsStripProps) {
+  const totalReviews = reviewLogs.length;
 
-      for (const log of reviewLogs) {
-        if (log.rating === 'again') {
-          again += 1;
-        } else if (log.rating === 'hard') {
-          hard += 1;
-        } else if (log.rating === 'good') {
-          good += 1;
-        } else if (log.rating === 'easy') {
-          easy += 1;
-        }
-        duration += log.durationMs || 0;
-      }
+  let againCount = 0;
+  let hardCount = 0;
+  let goodCount = 0;
+  let easyCount = 0;
+  let totalDurationMs = 0;
 
-      const recall = total > 0 ? Math.round(((good + easy) / total) * 100) : 0;
-      const avgSec = total > 0 ? Number((duration / total / 1000).toFixed(1)) : 0;
+  for (const log of reviewLogs) {
+    if (log.rating === 'again') {
+      againCount += 1;
+    } else if (log.rating === 'hard') {
+      hardCount += 1;
+    } else if (log.rating === 'good') {
+      goodCount += 1;
+    } else if (log.rating === 'easy') {
+      easyCount += 1;
+    }
+    totalDurationMs += log.durationMs || 0;
+  }
 
-      return {
-        totalReviews: total,
-        againCount: again,
-        hardCount: hard,
-        goodCount: good,
-        easyCount: easy,
-        recallRate: recall,
-        avgDurationSec: avgSec,
-      };
-    }, [reviewLogs]);
+  const recallRate =
+    totalReviews > 0 ? Math.round(((goodCount + easyCount) / totalReviews) * 100) : 0;
+  const avgDurationSec =
+    totalReviews > 0 ? Number((totalDurationMs / totalReviews / 1000).toFixed(1)) : 0;
 
   return (
     <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="sm">
@@ -136,20 +124,20 @@ export const ReviewStatsStrip = React.memo(function ReviewStatsStrip({
             </Text>
             <Group gap={4} mt={4}>
               <Badge size="xs" color="teal" variant="light">
-                {easyCount} Easy
+                <RollingNumber value={easyCount} /> Easy
               </Badge>
               <Badge size="xs" color="indigo" variant="light">
-                {goodCount} Good
+                <RollingNumber value={goodCount} /> Good
               </Badge>
               <Badge size="xs" color="yellow" variant="light">
-                {hardCount} Hard
+                <RollingNumber value={hardCount} /> Hard
               </Badge>
               <Badge size="xs" color="red" variant="light">
-                {againCount} Again
+                <RollingNumber value={againCount} /> Again
               </Badge>
             </Group>
-            <Text size="xs" c="dimmed" mt={4}>
-              {againCount} {againCount === 1 ? 'lapse' : 'lapses'} recorded
+            <Text component="div" size="xs" c="dimmed" mt={4}>
+              <RollingNumber value={againCount} /> lapses recorded
             </Text>
           </div>
           <ThemeIcon size="lg" radius="md" variant="light" color="teal">
@@ -191,4 +179,4 @@ export const ReviewStatsStrip = React.memo(function ReviewStatsStrip({
       </Paper>
     </SimpleGrid>
   );
-});
+}
