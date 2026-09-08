@@ -482,5 +482,46 @@ describe('QuizPanel component', () => {
       fireEvent.keyDown(window, { key: 'ArrowLeft' });
       expect(backBtn.className).toContain('is-pressed');
     });
+
+    it('renders Mantine Spoiler wrapping word family list in review state when revealed', () => {
+      render(
+        <QuizPanel
+          item={mockItem}
+          quizDirection="wordToMeaning"
+          revealed
+          onReveal={jest.fn()}
+          onMarkMissed={jest.fn()}
+          isMarkedMissed={false}
+          onNext={jest.fn()}
+          onPrevious={jest.fn()}
+          completed={false}
+          hasPrevious={false}
+          currentIndex={0}
+          totalCount={5}
+          wordFamilyMembers={[
+            {
+              id: 'word-1_ephemerally',
+              wordId: 'word-1',
+              word: 'ephemerally',
+              partOfSpeech: 'adverb',
+              banglaDefinition: 'ক্ষণস্থায়ীভাবে',
+              englishDefinition: 'in an ephemeral manner',
+              examples: [],
+              usageFrequency: 'common',
+              generatorAiDetails: 'Gemini 2.5 Flash',
+              isDeleted: false,
+              createdAt: '2026-01-01T00:00:00.000Z',
+              updatedAt: '2026-01-01T00:00:00.000Z',
+              lastSyncedAt: '',
+            },
+          ]}
+        />
+      );
+
+      const spoiler = screen.getByTestId('word-family-spoiler');
+      expect(spoiler).toBeInTheDocument();
+      expect(screen.getByText(/Word Family/i)).toBeInTheDocument();
+      expect(screen.getAllByText('ephemerally').length).toBeGreaterThan(0);
+    });
   });
 });

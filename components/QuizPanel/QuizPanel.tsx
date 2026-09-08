@@ -13,6 +13,7 @@ import {
   RingProgress,
   RollingNumber,
   ScrollArea,
+  Spoiler,
   Stack,
   Table,
   Text,
@@ -1110,18 +1111,39 @@ export const QuizPanel = memo(function QuizPanel({
     </Stack>
   ) : null;
 
-  const familyWordsBlock = item ? (
-    <div style={{ width: '100%', maxWidth: 620 }}>
-      <WordFamilySection
-        wordId={item.id}
-        word={item.word}
-        members={wordFamilyMembers}
-        isLoading={isGeneratingWordFamily}
-        onRefresh={onRefreshWordFamily}
-        onDeleteMember={onDeleteWordFamilyMember}
-      />
-    </div>
-  ) : null;
+  const familyWordsBlock =
+    item && (wordFamilyMembers.length > 0 || onRefreshWordFamily || isGeneratingWordFamily) ? (
+      <div style={{ width: '100%', maxWidth: 620 }}>
+        <Spoiler
+          data-testid="word-family-spoiler"
+          maxHeight={110}
+          showLabel="Show more"
+          hideLabel="Hide"
+          showAriaLabel="Show more family words"
+          hideAriaLabel="Hide family words"
+          styles={{
+            control: {
+              fontSize: '11px',
+              fontWeight: 700,
+              color: 'var(--mantine-color-indigo-4, #6366f1)',
+              marginTop: 4,
+            },
+          }}
+          onExpandedChange={() => {
+            positionQuizSection();
+          }}
+        >
+          <WordFamilySection
+            wordId={item.id}
+            word={item.word}
+            members={wordFamilyMembers}
+            isLoading={isGeneratingWordFamily}
+            onRefresh={onRefreshWordFamily}
+            onDeleteMember={onDeleteWordFamilyMember}
+          />
+        </Spoiler>
+      </div>
+    ) : null;
 
   const revealButton = (
     <Button

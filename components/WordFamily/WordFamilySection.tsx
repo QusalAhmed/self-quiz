@@ -7,6 +7,7 @@ import {
   Modal,
   Paper,
   RollingNumber,
+  Spoiler,
   Stack,
   Text,
   ThemeIcon,
@@ -39,6 +40,9 @@ export type WordFamilySectionProps = {
   className?: string;
   onRefresh?: (wordId: string, word: string) => Promise<void> | void;
   onDeleteMember?: (memberId: string) => Promise<void> | void;
+  useSpoiler?: boolean;
+  spoilerMaxHeight?: number;
+  onSpoilerExpandedChange?: (expanded: boolean) => void;
 };
 
 const POS_COLORS: Record<string, string> = {
@@ -73,6 +77,9 @@ export const WordFamilySection = React.memo(function WordFamilySection({
   className,
   onRefresh,
   onDeleteMember,
+  useSpoiler = false,
+  spoilerMaxHeight = 90,
+  onSpoilerExpandedChange,
 }: WordFamilySectionProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
@@ -176,75 +183,8 @@ export const WordFamilySection = React.memo(function WordFamilySection({
     }
   };
 
-  return (
-    <div className={className} style={style}>
-      <Group justify="space-between" align="center" wrap="nowrap">
-        <UnstyledButton
-          onClick={() => setIsExpanded((prev) => !prev)}
-          style={{ flex: 1, display: 'flex', alignItems: 'center' }}
-          aria-expanded={isExpanded}
-          aria-label={`${isExpanded ? 'Collapse' : 'Expand'} word family for ${word}`}
-        >
-          <Group gap={6} align="center">
-            <ThemeIcon size="xs" variant="light" color="indigo" radius="xl">
-              <IconHierarchy size={12} />
-            </ThemeIcon>
-            <Text
-              component="div"
-              size="xs"
-              fw={700}
-              c="indigo"
-              style={{ display: 'inline-flex', alignItems: 'center' }}
-            >
-              Word Family{' '}
-              {validMembers.length > 0 ? (
-                <>
-                  (<RollingNumber value={validMembers.length} />)
-                </>
-              ) : (
-                ''
-              )}
-            </Text>
-            {isLoading && validMembers.length === 0 && (
-              <Badge size="xs" variant="light" color="indigo">
-                Generating...
-              </Badge>
-            )}
-            {aiModel && (
-              <Badge
-                size="xs"
-                variant="subtle"
-                color="indigo"
-                leftSection={<IconSparkles size={10} />}
-              >
-                {aiModel}
-              </Badge>
-            )}
-            {validMembers.length > 0 &&
-              (isExpanded ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />)}
-          </Group>
-        </UnstyledButton>
-
-        {onRefresh && (
-          <Tooltip label="Regenerate word family" withArrow position="top">
-            <ActionIcon
-              size="sm"
-              variant="subtle"
-              color="indigo"
-              loading={isLoading}
-              disabled={isLoading}
-              onClick={(e) => {
-                e.stopPropagation();
-                void onRefresh(wordId, word);
-              }}
-              aria-label={`Regenerate word family for ${word}`}
-            >
-              <IconRotateClockwise size={15} />
-            </ActionIcon>
-          </Tooltip>
-        )}
-      </Group>
-
+  const membersList = (
+    <>
       {/* Summary chips row when collapsed or expanded */}
       <Group gap={8} mt={8} wrap="wrap">
         {validMembers.map((m) => {
@@ -440,6 +380,101 @@ export const WordFamilySection = React.memo(function WordFamilySection({
           })}
         </Stack>
       </Collapse>
+    </>
+  );
+
+  return (
+    <div className={className} style={style}>
+      <Group justify="space-between" align="center" wrap="nowrap">
+        <UnstyledButton
+          onClick={() => setIsExpanded((prev) => !prev)}
+          style={{ flex: 1, display: 'flex', alignItems: 'center' }}
+          aria-expanded={isExpanded}
+          aria-label={`${isExpanded ? 'Collapse' : 'Expand'} word family for ${word}`}
+        >
+          <Group gap={6} align="center">
+            <ThemeIcon size="xs" variant="light" color="indigo" radius="xl">
+              <IconHierarchy size={12} />
+            </ThemeIcon>
+            <Text
+              component="div"
+              size="xs"
+              fw={700}
+              c="indigo"
+              style={{ display: 'inline-flex', alignItems: 'center' }}
+            >
+              Word Family{' '}
+              {validMembers.length > 0 ? (
+                <>
+                  (<RollingNumber value={validMembers.length} />)
+                </>
+              ) : (
+                ''
+              )}
+            </Text>
+            {isLoading && validMembers.length === 0 && (
+              <Badge size="xs" variant="light" color="indigo">
+                Generating...
+              </Badge>
+            )}
+            {aiModel && (
+              <Badge
+                size="xs"
+                variant="subtle"
+                color="indigo"
+                leftSection={<IconSparkles size={10} />}
+              >
+                {aiModel}
+              </Badge>
+            )}
+            {validMembers.length > 0 &&
+              (isExpanded ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />)}
+          </Group>
+        </UnstyledButton>
+
+        {onRefresh && (
+          <Tooltip label="Regenerate word family" withArrow position="top">
+            <ActionIcon
+              size="sm"
+              variant="subtle"
+              color="indigo"
+              loading={isLoading}
+              disabled={isLoading}
+              onClick={(e) => {
+                e.stopPropagation();
+                void onRefresh(wordId, word);
+              }}
+              aria-label={`Regenerate word family for ${word}`}
+            >
+              <IconRotateClockwise size={15} />
+            </ActionIcon>
+          </Tooltip>
+        )}
+      </Group>
+
+      {useSpoiler ? (
+        <Spoiler
+          data-testid="word-family-inner-spoiler"
+          maxHeight={spoilerMaxHeight}
+          showLabel="Show more"
+          hideLabel="Hide"
+          showAriaLabel="Show more family words"
+          hideAriaLabel="Hide family words"
+          styles={{
+            control: {
+              fontSize: '11px',
+              fontWeight: 700,
+              color: 'var(--mantine-color-indigo-4, #6366f1)',
+              marginTop: 4,
+            },
+          }}
+          onExpandedChange={onSpoilerExpandedChange}
+        >
+          {membersList}
+        </Spoiler>
+      ) : (
+        membersList
+      )}
 
       {/* Delete Member Confirmation Modal */}
       <Modal

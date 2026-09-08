@@ -167,4 +167,23 @@ describe('WordFamilySection component', () => {
     expect(cancelMock).toHaveBeenCalled();
     expect(speakMock).toHaveBeenCalled();
   });
+
+  it('renders Mantine Spoiler when useSpoiler is true', () => {
+    const onSpoilerExpandedChange = jest.fn();
+    render(
+      <WordFamilySection
+        wordId="w1"
+        word="decide"
+        members={mockMembers}
+        useSpoiler
+        spoilerMaxHeight={85}
+        onSpoilerExpandedChange={onSpoilerExpandedChange}
+      />
+    );
+
+    const spoiler = screen.getByTestId('word-family-inner-spoiler');
+    expect(spoiler).toBeInTheDocument();
+    expect(screen.getAllByText('decision').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('decisive').length).toBeGreaterThan(0);
+  });
 });

@@ -12,6 +12,7 @@ import {
   Modal,
   Progress,
   RollingNumber,
+  Spoiler,
   Stack,
   Table,
   Text,
@@ -698,14 +699,38 @@ export const FsrsCardViewer = memo(function FsrsCardViewer({
                   </Text>
                 </Card>
 
-                <WordFamilySection
-                  wordId={card.wordId}
-                  word={card.word}
-                  members={wordFamilyMembers}
-                  isLoading={isGeneratingWordFamily}
-                  onRefresh={onRefreshWordFamily}
-                  onDeleteMember={onDeleteWordFamilyMember}
-                />
+                {(wordFamilyMembers.length > 0 ||
+                  onRefreshWordFamily ||
+                  isGeneratingWordFamily) && (
+                  <Spoiler
+                    data-testid="word-family-spoiler"
+                    maxHeight={110}
+                    showLabel="Show more"
+                    hideLabel="Hide"
+                    showAriaLabel="Show more family words"
+                    hideAriaLabel="Hide family words"
+                    styles={{
+                      control: {
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        color: 'var(--mantine-color-violet-4, #a855f7)',
+                        marginTop: 4,
+                      },
+                    }}
+                    onExpandedChange={() => {
+                      positionReviewSection();
+                    }}
+                  >
+                    <WordFamilySection
+                      wordId={card.wordId}
+                      word={card.word}
+                      members={wordFamilyMembers}
+                      isLoading={isGeneratingWordFamily}
+                      onRefresh={onRefreshWordFamily}
+                      onDeleteMember={onDeleteWordFamilyMember}
+                    />
+                  </Spoiler>
+                )}
 
                 <FsrsRatingBar
                   intervals={intervals}
