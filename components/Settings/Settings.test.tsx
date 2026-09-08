@@ -179,7 +179,7 @@ describe('Settings Components', () => {
       expect(screen.getByText('Local Storage & Database Metrics')).toBeInTheDocument();
       expect(screen.getByText('Data Export & Offline Backups')).toBeInTheDocument();
       expect(screen.getByText('Export Full Backup (.JSON)')).toBeInTheDocument();
-      expect(screen.getByText('Danger Zone & Data Purging')).toBeInTheDocument();
+      expect(screen.queryByText('Danger Zone & Data Purging')).not.toBeInTheDocument();
     });
   });
 

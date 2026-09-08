@@ -330,6 +330,7 @@ function SettingsContent() {
                 fsrsCount={fsrsRecords.length}
                 reviewLogsCount={reviewLogsCount}
                 onRefreshData={loadDatabaseCounts}
+                onlineStatus={onlineStatus}
               />
             </Tabs.Panel>
 
