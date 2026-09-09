@@ -115,9 +115,12 @@ export async function pushSettingsToSupabase(settings: AppSettings): Promise<voi
 }
 
 /**
- * Directly fetches settings from Supabase app_settings table (with API route fallback)
+ * Directly fetches settings with metadata (such as updatedAt) from Supabase app_settings table
  */
-export async function fetchSettingsFromSupabase(): Promise<AppSettings | null> {
+export async function fetchSettingsWithMetaFromSupabase(): Promise<{
+  settings: AppSettings;
+  updatedAt: string;
+} | null> {
   if (typeof window === 'undefined' || !navigator.onLine) {
     return null;
   }
@@ -142,8 +145,10 @@ export async function fetchSettingsFromSupabase(): Promise<AppSettings | null> {
           quranVerse: data.quran_verse ?? data.quranVerse,
         });
 
-        saveAppSettings(normalized, false);
-        return normalized;
+        return {
+          settings: normalized,
+          updatedAt: data.updated_at || new Date().toISOString(),
+        };
       }
     }
 
@@ -159,8 +164,10 @@ export async function fetchSettingsFromSupabase(): Promise<AppSettings | null> {
         const json = await response.json();
         if (json?.settings) {
           const normalized = normalizeAppSettings(json.settings);
-          saveAppSettings(normalized, false);
-          return normalized;
+          return {
+            settings: normalized,
+            updatedAt: json.updatedAt || json.settings?.updatedAt || new Date().toISOString(),
+          };
         }
       }
     }
@@ -170,6 +177,18 @@ export async function fetchSettingsFromSupabase(): Promise<AppSettings | null> {
     console.warn('Error fetching settings from Supabase / server:', err);
     return null;
   }
+}
+
+/**
+ * Directly fetches settings from Supabase app_settings table (with API route fallback)
+ */
+export async function fetchSettingsFromSupabase(): Promise<AppSettings | null> {
+  const result = await fetchSettingsWithMetaFromSupabase();
+  if (result) {
+    saveAppSettings(result.settings, false);
+    return result.settings;
+  }
+  return null;
 }
 
 /**
@@ -235,31 +254,52 @@ export async function syncSettingsWithRxDB(dbInstance?: AppDatabase): Promise<vo
   try {
     const db = dbInstance || (await getDatabase());
 
-    // 1. Try pulling fresh settings from Supabase/Server if online
-    const remoteSupabaseSettings = await fetchSettingsFromSupabase();
-
-    // 2. Check RxDB doc
+    // 1. Check existing local RxDB doc first
     const existingDoc = await db.settings.findOne('default').exec();
 
-    if (remoteSupabaseSettings) {
-      // Supabase had settings; update RxDB and localStorage
-      const now = new Date().toISOString();
-      await db.settings.upsert({
-        id: 'default',
-        appearance: remoteSupabaseSettings.appearance,
-        studyQuiz: remoteSupabaseSettings.studyQuiz,
-        audio: remoteSupabaseSettings.audio,
-        fsrs: remoteSupabaseSettings.fsrs,
-        ai: remoteSupabaseSettings.ai,
-        notifications: remoteSupabaseSettings.notifications,
-        data: remoteSupabaseSettings.data,
-        quranVerse: remoteSupabaseSettings.quranVerse,
-        createdAt: existingDoc?.createdAt || now,
-        updatedAt: now,
-        isDeleted: false,
-        lastSyncedAt: now,
-      });
-      saveAppSettings(remoteSupabaseSettings, false);
+    // 2. Try pulling fresh settings with timestamp from Supabase/Server if online
+    const remoteResult = await fetchSettingsWithMetaFromSupabase();
+
+    if (remoteResult) {
+      const localTime = existingDoc?.updatedAt ? Date.parse(existingDoc.updatedAt) || 0 : 0;
+      const remoteTime = Date.parse(remoteResult.updatedAt) || 0;
+
+      if (existingDoc && localTime > remoteTime) {
+        // Local doc is newer than remote! Do not overwrite local with stale remote settings.
+        // Instead, push local settings to Supabase to bring server up to date.
+        const localSettings: AppSettings = {
+          appearance: existingDoc.appearance,
+          studyQuiz: existingDoc.studyQuiz,
+          audio: existingDoc.audio,
+          fsrs: existingDoc.fsrs,
+          ai: existingDoc.ai,
+          notifications: existingDoc.notifications,
+          data: existingDoc.data,
+          quranVerse: existingDoc.quranVerse || DEFAULT_APP_SETTINGS.quranVerse,
+        };
+        saveAppSettings(localSettings, false);
+        void pushSettingsToSupabase(localSettings);
+      } else {
+        // Remote is newer or equal (or no local doc exists); update RxDB and localStorage
+        const remoteSettings = remoteResult.settings;
+        const now = remoteResult.updatedAt || new Date().toISOString();
+        await db.settings.upsert({
+          id: 'default',
+          appearance: remoteSettings.appearance,
+          studyQuiz: remoteSettings.studyQuiz,
+          audio: remoteSettings.audio,
+          fsrs: remoteSettings.fsrs,
+          ai: remoteSettings.ai,
+          notifications: remoteSettings.notifications,
+          data: remoteSettings.data,
+          quranVerse: remoteSettings.quranVerse,
+          createdAt: existingDoc?.createdAt || now,
+          updatedAt: now,
+          isDeleted: false,
+          lastSyncedAt: now,
+        });
+        saveAppSettings(remoteSettings, false);
+      }
     } else if (!existingDoc) {
       // Seed RxDB and Supabase with current localStorage/default settings
       const current = getAppSettings();
@@ -310,20 +350,25 @@ export async function syncSettingsWithRxDB(dbInstance?: AppDatabase): Promise<vo
           .on(
             'postgres_changes',
             { event: '*', schema: 'public', table: 'app_settings' },
-            (payload) => {
+            async (payload) => {
               const row = payload.new as any;
               if (row && !row.deleted && row.id === 'default') {
-                const normalized = normalizeAppSettings({
-                  appearance: row.appearance,
-                  studyQuiz: row.study_quiz ?? row.studyQuiz,
-                  audio: row.audio,
-                  fsrs: row.fsrs,
-                  ai: row.ai,
-                  notifications: row.notifications,
-                  data: row.data,
-                  quranVerse: row.quran_verse ?? row.quranVerse,
-                });
-                saveAppSettings(normalized, false);
+                const currentDoc = await db.settings.findOne('default').exec();
+                const localTime = currentDoc?.updatedAt ? Date.parse(currentDoc.updatedAt) || 0 : 0;
+                const remoteTime = row.updated_at ? Date.parse(row.updated_at) || 0 : 0;
+                if (!currentDoc || remoteTime >= localTime) {
+                  const normalized = normalizeAppSettings({
+                    appearance: row.appearance,
+                    studyQuiz: row.study_quiz ?? row.studyQuiz,
+                    audio: row.audio,
+                    fsrs: row.fsrs,
+                    ai: row.ai,
+                    notifications: row.notifications,
+                    data: row.data,
+                    quranVerse: row.quran_verse ?? row.quranVerse,
+                  });
+                  saveAppSettings(normalized, false);
+                }
               }
             }
           )

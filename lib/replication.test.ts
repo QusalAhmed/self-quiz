@@ -1,4 +1,7 @@
 import {
+  createLastWriteWinsConflictHandler,
+  deepEqual,
+  isNetworkError,
   pullDailyUsageModifier,
   pullFsrsModifier,
   pullGroupModifier,
@@ -17,6 +20,8 @@ import {
   pushSettingsModifier,
   pushWordFamilyModifier,
   pushWordModifier,
+  sanitizeIsoTimestamp,
+  sanitizeNullableIsoTimestamp,
   type SyncCollectionKey,
 } from './replication';
 
@@ -440,6 +445,214 @@ describe('Supabase Replication Modifiers', () => {
       expect(pushed.verse_end).toBeNull();
       expect(pushed.created_at).toBe('2026-08-26T00:00:00.000Z');
       expect(pushed.updated_at).toBe('2026-08-26T00:00:00.000Z');
+    });
+  });
+
+  describe('Timestamp Sanitization (PostgreSQL 22007 Prevention)', () => {
+    it('sanitizes valid and invalid ISO strings correctly', () => {
+      const valid = '2026-09-09T10:00:00.000Z';
+      expect(sanitizeIsoTimestamp(valid)).toBe(valid);
+
+      const fallback = '2026-01-01T00:00:00.000Z';
+      expect(sanitizeIsoTimestamp('', fallback)).toBe(fallback);
+      expect(sanitizeIsoTimestamp('   ', fallback)).toBe(fallback);
+      expect(sanitizeIsoTimestamp('not-a-date', fallback)).toBe(fallback);
+      expect(sanitizeIsoTimestamp(null, fallback)).toBe(fallback);
+      expect(sanitizeIsoTimestamp(undefined, fallback)).toBe(fallback);
+
+      const dateObj = new Date('2026-05-15T12:00:00.000Z');
+      expect(sanitizeIsoTimestamp(dateObj)).toBe('2026-05-15T12:00:00.000Z');
+    });
+
+    it('sanitizes nullable timestamps to null when empty or invalid', () => {
+      const valid = '2026-09-09T10:00:00.000Z';
+      expect(sanitizeNullableIsoTimestamp(valid)).toBe(valid);
+      expect(sanitizeNullableIsoTimestamp('')).toBeNull();
+      expect(sanitizeNullableIsoTimestamp('   ')).toBeNull();
+      expect(sanitizeNullableIsoTimestamp(null)).toBeNull();
+      expect(sanitizeNullableIsoTimestamp(undefined)).toBeNull();
+      expect(sanitizeNullableIsoTimestamp('invalid-date')).toBeNull();
+    });
+
+    it('prevents Postgres 22007 error by converting empty lastReviewedAt to valid ISO string in pushFsrsModifier', () => {
+      const fsrsDoc = {
+        id: 'w1:fsrs:wordToMeaning',
+        wordId: 'w1',
+        quizMode: 'wordToMeaning' as const,
+        word: 'abate',
+        meaning: 'become less intense',
+        dueAt: '2026-09-09T10:00:00.000Z',
+        stability: 2.5,
+        difficulty: 3.0,
+        elapsedDays: 0,
+        scheduledDays: 1,
+        learningSteps: 0,
+        reps: 1,
+        lapses: 0,
+        state: 'Review' as const,
+        lastReviewedAt: '', // empty string in local DB!
+        updatedAt: '2026-09-09T10:00:00.000Z',
+        lastSyncedAt: '',
+        isDeleted: false,
+      };
+
+      const pushed = pushFsrsModifier(fsrsDoc);
+      // Must NOT be empty string! Must be a valid ISO string to avoid 22007 invalid input syntax for timestamp
+      expect(pushed.last_reviewed_at).not.toBe('');
+      expect(Date.parse(pushed.last_reviewed_at)).not.toBeNaN();
+      expect(pushed.last_reviewed_at).toBe('2026-09-09T10:00:00.000Z');
+    });
+
+    it('prevents Postgres 22007 error by converting empty previousDueAt to null in pushReviewLogModifier', () => {
+      const reviewLog = {
+        id: 'rl-123',
+        wordId: 'w1',
+        cardId: 'w1:fsrs:wordToMeaning',
+        quizMode: 'wordToMeaning' as const,
+        word: 'abate',
+        meaning: 'become less intense',
+        rating: 'good' as const,
+        stateBefore: 'New' as const,
+        stateAfter: 'Learning' as const,
+        reviewedAt: '',
+        durationMs: 1200,
+        stability: 1.0,
+        difficulty: 5.0,
+        elapsedDays: 0,
+        scheduledDays: 1,
+        dueAt: '',
+        previousDueAt: '', // empty string!
+        lapses: 0,
+        reps: 1,
+        createdAt: '',
+        updatedAt: '2026-09-09T10:00:00.000Z',
+        isDeleted: false,
+        lastSyncedAt: '',
+      };
+
+      const pushed = pushReviewLogModifier(reviewLog);
+      expect(pushed.previous_due_at).toBeNull();
+      expect(pushed.reviewed_at).not.toBe('');
+      expect(Date.parse(pushed.reviewed_at)).not.toBeNaN();
+      expect(pushed.due_at).not.toBe('');
+      expect(Date.parse(pushed.due_at)).not.toBeNaN();
+    });
+  });
+
+  describe('Deep Equality & Conflict Resolution', () => {
+    it('deepEqual correctly compares objects regardless of key order', () => {
+      expect(deepEqual({ a: 1, b: 2 }, { b: 2, a: 1 })).toBe(true);
+      expect(deepEqual({ a: [1, 2], b: { c: 'hello' } }, { b: { c: 'hello' }, a: [1, 2] })).toBe(
+        true
+      );
+      expect(deepEqual({ a: 1 }, { a: 2 })).toBe(false);
+      expect(deepEqual([1, 2, 3], [1, 2, 3])).toBe(true);
+      expect(deepEqual([1, 2], [1, 2, 3])).toBe(false);
+      expect(deepEqual(null, null)).toBe(true);
+      expect(deepEqual(null, {})).toBe(false);
+    });
+
+    it('Last-Write-Wins conflict handler ignores volatile metadata in isEqual', () => {
+      const handler = createLastWriteWinsConflictHandler<any>();
+      const docA = {
+        id: 'w1',
+        word: 'apple',
+        lastSyncedAt: '2026-09-01T00:00:00.000Z',
+        _meta: { lwt: 123 },
+        _rev: '1-abc',
+      };
+      const docB = {
+        id: 'w1',
+        word: 'apple',
+        lastSyncedAt: '2026-09-09T10:00:00.000Z',
+        _meta: { lwt: 456 },
+        _rev: '2-def',
+      };
+
+      expect(handler.isEqual(docA, docB, 'test')).toBe(true);
+    });
+
+    it('Last-Write-Wins conflict handler retains local edit when local timestamp is newer or equal', async () => {
+      const handler = createLastWriteWinsConflictHandler<any>();
+      const localDoc = {
+        id: 'w1',
+        word: 'abate',
+        meaning: 'brand new local edit',
+        updatedAt: '2026-09-09T12:00:00.000Z',
+      };
+      const masterDoc = {
+        id: 'w1',
+        word: 'abate',
+        meaning: 'stale remote master',
+        updatedAt: '2026-09-09T10:00:00.000Z',
+      };
+
+      const resolved = await handler.resolve(
+        {
+          newDocumentState: localDoc,
+          realMasterState: masterDoc,
+        },
+        'test'
+      );
+      // MUST choose localDoc to prevent local edits from staying stuck or getting wiped out!
+      expect(resolved).toBe(localDoc);
+      expect((resolved as any).meaning).toBe('brand new local edit');
+    });
+
+    it('Last-Write-Wins conflict handler retains master when master is strictly newer', async () => {
+      const handler = createLastWriteWinsConflictHandler<any>();
+      const localDoc = {
+        id: 'w1',
+        word: 'abate',
+        meaning: 'older local edit',
+        updatedAt: '2026-09-09T10:00:00.000Z',
+      };
+      const masterDoc = {
+        id: 'w1',
+        word: 'abate',
+        meaning: 'fresher master from another device',
+        updatedAt: '2026-09-09T12:00:00.000Z',
+      };
+
+      const resolved = await handler.resolve(
+        {
+          newDocumentState: localDoc,
+          realMasterState: masterDoc,
+        },
+        'test'
+      );
+      expect(resolved).toBe(masterDoc);
+      expect((resolved as any).meaning).toBe('fresher master from another device');
+    });
+  });
+
+  describe('Network Error Detection', () => {
+    it('distinguishes transient network errors from permanent Postgres schema errors', () => {
+      expect(isNetworkError(new Error('Failed to fetch'))).toBe(true);
+      expect(isNetworkError(new Error('network connection lost'))).toBe(true);
+      expect(isNetworkError(new Error('Gateway timeout'))).toBe(true);
+      expect(isNetworkError(new Error('connection refused'))).toBe(true);
+
+      // Postgres constraint or syntax error should NOT be classified as network error
+      // (because retrying forever freezes the replication queue!)
+      expect(
+        isNetworkError({
+          code: '22007',
+          message: 'invalid input syntax for type timestamp with time zone: ""',
+        })
+      ).toBe(false);
+      expect(
+        isNetworkError({
+          code: '23505',
+          message: 'duplicate key value violates unique constraint',
+        })
+      ).toBe(false);
+      expect(
+        isNetworkError({
+          code: 'PGRST204',
+          message: "Could not find the column 'verse_end'",
+        })
+      ).toBe(false);
     });
   });
 

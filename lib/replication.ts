@@ -1,4 +1,4 @@
-import type { RxCollection, WithDeleted } from 'rxdb';
+import type { RxCollection, RxConflictHandler, WithDeleted } from 'rxdb';
 import { replicateRxCollection, type RxReplicationState } from 'rxdb/plugins/replication';
 import { Subject } from 'rxjs';
 import type {
@@ -110,6 +110,142 @@ export type ReplicationsHolder = {
 };
 
 // ---------------------------------------------------------------------------
+// Helpers for Data Normalization & Conflict Resolution
+// ---------------------------------------------------------------------------
+export function deepEqual(a: any, b: any): boolean {
+  if (a === b) {
+    return true;
+  }
+  if (a === null || b === null || typeof a !== 'object' || typeof b !== 'object') {
+    return false;
+  }
+  if (Array.isArray(a) !== Array.isArray(b)) {
+    return false;
+  }
+  if (Array.isArray(a)) {
+    if (a.length !== b.length) {
+      return false;
+    }
+    for (let i = 0; i < a.length; i++) {
+      if (!deepEqual(a[i], b[i])) {
+        return false;
+      }
+    }
+    return true;
+  }
+  const keysA = Object.keys(a);
+  const keysB = Object.keys(b);
+  if (keysA.length !== keysB.length) {
+    return false;
+  }
+  for (const key of keysA) {
+    if (!Object.hasOwn(b, key)) {
+      return false;
+    }
+    if (!deepEqual(a[key], b[key])) {
+      return false;
+    }
+  }
+  return true;
+}
+
+export function sanitizeIsoTimestamp(value: unknown, fallback?: string): string {
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const trimmed = value.trim();
+    const parsed = Date.parse(trimmed);
+    if (!isNaN(parsed)) {
+      return new Date(parsed).toISOString();
+    }
+  }
+  if (value instanceof Date && !isNaN(value.getTime())) {
+    return value.toISOString();
+  }
+  return fallback || new Date().toISOString();
+}
+
+export function sanitizeNullableIsoTimestamp(value: unknown): string | null {
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const trimmed = value.trim();
+    const parsed = Date.parse(trimmed);
+    if (!isNaN(parsed)) {
+      return new Date(parsed).toISOString();
+    }
+  }
+  if (value instanceof Date && !isNaN(value.getTime())) {
+    return value.toISOString();
+  }
+  return null;
+}
+
+export function createLastWriteWinsConflictHandler<T>(): RxConflictHandler<T> {
+  return {
+    isEqual(a: any, b: any, _context?: string) {
+      if (!a || !b) {
+        return false;
+      }
+      const cleanA = { ...a };
+      const cleanB = { ...b };
+      delete cleanA.lastSyncedAt;
+      delete cleanB.lastSyncedAt;
+      delete cleanA._meta;
+      delete cleanB._meta;
+      delete cleanA._rev;
+      delete cleanB._rev;
+      delete cleanA._attachments;
+      delete cleanB._attachments;
+      return deepEqual(cleanA, cleanB);
+    },
+    async resolve(input: { newDocumentState: any; realMasterState: any }, _context?: string) {
+      const local = input.newDocumentState;
+      const master = input.realMasterState;
+      const localTime =
+        Date.parse(
+          local?.updatedAt || local?.lastReviewedAt || local?.updated_at || local?.createdAt || ''
+        ) || 0;
+      const masterTime =
+        Date.parse(
+          master?.updatedAt ||
+            master?.lastReviewedAt ||
+            master?.updated_at ||
+            master?.created_at ||
+            ''
+        ) || 0;
+
+      // Last-Write-Wins: Always retain the local mutation if it is newer or equal!
+      if (localTime >= masterTime) {
+        return local;
+      }
+      return master;
+    },
+  };
+}
+
+export function isNetworkError(error: any): boolean {
+  if (!error) {
+    return false;
+  }
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    return true;
+  }
+  const msg = typeof error.message === 'string' ? error.message.toLowerCase() : '';
+  if (
+    msg.includes('network') ||
+    msg.includes('failed to fetch') ||
+    msg.includes('fetch failed') ||
+    msg.includes('timeout') ||
+    msg.includes('connection refused') ||
+    msg.includes('gateway')
+  ) {
+    return true;
+  }
+  const status = error.status || error.statusCode;
+  if (status === 502 || status === 503 || status === 504 || status === 408) {
+    return true;
+  }
+  return false;
+}
+
+// ---------------------------------------------------------------------------
 // Word Modifiers
 // ---------------------------------------------------------------------------
 export function pullWordModifier(row: any): WithDeleted<WordRecord> {
@@ -148,12 +284,17 @@ export function pullWordModifier(row: any): WithDeleted<WordRecord> {
 }
 
 export function pushWordModifier(doc: WordRecord): any {
+  const fallback = new Date().toISOString();
+  const updatedAt = sanitizeIsoTimestamp(doc.updatedAt, fallback);
+  const createdAt = sanitizeIsoTimestamp(doc.createdAt, updatedAt);
+
   return {
     id: doc.id,
-    word: doc.word,
-    meaning: doc.meaning,
-    definitions: doc.definitions,
-    ai_example_count: doc.aiExampleCount,
+    word: (doc.word || '').trim() || 'Untitled',
+    meaning: doc.meaning || '',
+    definitions: Array.isArray(doc.definitions) ? doc.definitions : [],
+    ai_example_count:
+      typeof doc.aiExampleCount === 'number' && !isNaN(doc.aiExampleCount) ? doc.aiExampleCount : 5,
     notes: doc.notes || '',
     usage_frequency: doc.usageFrequency || '',
     generator_ai_details: doc.generatorAiDetails || '',
@@ -161,10 +302,10 @@ export function pushWordModifier(doc: WordRecord): any {
     phonetic: doc.phonetic || '',
     audio_source: doc.audioSource || '',
     verification_issue: doc.verificationIssue || '',
-    custom_groups: doc.customGroups || [],
-    created_at: doc.createdAt,
-    updated_at: doc.updatedAt,
-    deleted: doc.isDeleted,
+    custom_groups: Array.isArray(doc.customGroups) ? doc.customGroups : [],
+    created_at: createdAt,
+    updated_at: updatedAt,
+    deleted: Boolean(doc.isDeleted),
   };
 }
 
@@ -185,12 +326,16 @@ export function pullGroupModifier(row: any): WithDeleted<GroupRecord> {
 }
 
 export function pushGroupModifier(doc: GroupRecord): any {
+  const fallback = new Date().toISOString();
+  const updatedAt = sanitizeIsoTimestamp(doc.updatedAt, fallback);
+  const createdAt = sanitizeIsoTimestamp(doc.createdAt, updatedAt);
+
   return {
     id: doc.id,
-    name: doc.name,
-    created_at: doc.createdAt,
-    updated_at: doc.updatedAt,
-    deleted: doc.isDeleted,
+    name: (doc.name || '').trim() || 'Unnamed Group',
+    created_at: createdAt,
+    updated_at: updatedAt,
+    deleted: Boolean(doc.isDeleted),
   };
 }
 
@@ -218,16 +363,21 @@ export function pullMissedWordModifier(row: any): WithDeleted<MissedWordRecord> 
 }
 
 export function pushMissedWordModifier(doc: MissedWordRecord): any {
+  const fallback = new Date().toISOString();
+  const updatedAt = sanitizeIsoTimestamp(doc.updatedAt, fallback);
+  const missedAt = sanitizeIsoTimestamp(doc.missedAt, updatedAt);
+
   return {
     id: doc.id,
     word_id: doc.wordId,
-    quiz_mode: doc.quizMode,
-    word: doc.word,
-    meaning: doc.meaning,
-    missed_at: doc.missedAt,
-    missed_count: doc.missedCount,
-    updated_at: doc.updatedAt,
-    deleted: doc.isDeleted,
+    quiz_mode: doc.quizMode || 'wordToMeaning',
+    word: doc.word || '',
+    meaning: doc.meaning || '',
+    missed_at: missedAt,
+    missed_count:
+      typeof doc.missedCount === 'number' && !isNaN(doc.missedCount) ? doc.missedCount : 1,
+    updated_at: updatedAt,
+    deleted: Boolean(doc.isDeleted),
   };
 }
 
@@ -259,19 +409,23 @@ export function pullWordFamilyModifier(row: any): WithDeleted<WordFamilyMemberRe
 }
 
 export function pushWordFamilyModifier(doc: WordFamilyMemberRecord): any {
+  const fallback = new Date().toISOString();
+  const updatedAt = sanitizeIsoTimestamp(doc.updatedAt, fallback);
+  const createdAt = sanitizeIsoTimestamp(doc.createdAt, updatedAt);
+
   return {
     id: doc.id,
     word_id: doc.wordId,
-    word: doc.word,
-    part_of_speech: doc.partOfSpeech,
-    bangla_definition: doc.banglaDefinition,
-    english_definition: doc.englishDefinition,
-    examples: doc.examples || [],
+    word: (doc.word || '').trim() || 'Untitled',
+    part_of_speech: doc.partOfSpeech || '',
+    bangla_definition: doc.banglaDefinition || '',
+    english_definition: doc.englishDefinition || '',
+    examples: Array.isArray(doc.examples) ? doc.examples : [],
     usage_frequency: doc.usageFrequency || '',
     generator_ai_details: doc.generatorAiDetails || '',
-    created_at: doc.createdAt,
-    updated_at: doc.updatedAt,
-    deleted: doc.isDeleted,
+    created_at: createdAt,
+    updated_at: updatedAt,
+    deleted: Boolean(doc.isDeleted),
   };
 }
 
@@ -305,24 +459,32 @@ export function pullFsrsModifier(row: any): WithDeleted<FsrsRecord> {
 }
 
 export function pushFsrsModifier(doc: FsrsRecord): any {
+  const fallback = new Date().toISOString();
+  const updatedAt = sanitizeIsoTimestamp(doc.updatedAt, fallback);
+  const dueAt = sanitizeIsoTimestamp(doc.dueAt, updatedAt);
+  const lastReviewedAt = sanitizeIsoTimestamp(doc.lastReviewedAt, updatedAt);
+
   return {
     id: doc.id,
     word_id: doc.wordId,
-    quiz_mode: doc.quizMode,
-    word: doc.word,
+    quiz_mode: doc.quizMode || 'wordToMeaning',
+    word: doc.word || '',
     meaning: doc.meaning || '',
-    due_at: doc.dueAt,
-    stability: doc.stability,
-    difficulty: doc.difficulty,
-    elapsed_days: doc.elapsedDays,
-    scheduled_days: doc.scheduledDays,
-    learning_steps: doc.learningSteps,
-    reps: doc.reps,
-    lapses: doc.lapses,
-    state: doc.state,
-    last_reviewed_at: doc.lastReviewedAt,
-    updated_at: doc.updatedAt,
-    deleted: doc.isDeleted,
+    due_at: dueAt,
+    stability: typeof doc.stability === 'number' && !isNaN(doc.stability) ? doc.stability : 0,
+    difficulty: typeof doc.difficulty === 'number' && !isNaN(doc.difficulty) ? doc.difficulty : 0,
+    elapsed_days:
+      typeof doc.elapsedDays === 'number' && !isNaN(doc.elapsedDays) ? doc.elapsedDays : 0,
+    scheduled_days:
+      typeof doc.scheduledDays === 'number' && !isNaN(doc.scheduledDays) ? doc.scheduledDays : 0,
+    learning_steps:
+      typeof doc.learningSteps === 'number' && !isNaN(doc.learningSteps) ? doc.learningSteps : 0,
+    reps: typeof doc.reps === 'number' && !isNaN(doc.reps) ? doc.reps : 0,
+    lapses: typeof doc.lapses === 'number' && !isNaN(doc.lapses) ? doc.lapses : 0,
+    state: doc.state || 'New',
+    last_reviewed_at: lastReviewedAt,
+    updated_at: updatedAt,
+    deleted: Boolean(doc.isDeleted),
     last_rating: doc.lastRating || '',
   };
 }
@@ -345,13 +507,15 @@ export function pullDailyUsageModifier(row: any): WithDeleted<DailyUsageRecord> 
 }
 
 export function pushDailyUsageModifier(doc: DailyUsageRecord): any {
+  const updatedAt = sanitizeIsoTimestamp(doc.updatedAt);
+
   return {
     id: doc.id,
     date: doc.date,
     device_id: doc.deviceId,
-    seconds: doc.seconds,
-    updated_at: doc.updatedAt,
-    deleted: doc.isDeleted,
+    seconds: typeof doc.seconds === 'number' && !isNaN(doc.seconds) ? doc.seconds : 0,
+    updated_at: updatedAt,
+    deleted: Boolean(doc.isDeleted),
   };
 }
 
@@ -390,30 +554,40 @@ export function pullReviewLogModifier(row: any): WithDeleted<ReviewLogRecord> {
 }
 
 export function pushReviewLogModifier(doc: ReviewLogRecord): any {
+  const fallback = new Date().toISOString();
+  const updatedAt = sanitizeIsoTimestamp(doc.updatedAt, fallback);
+  const createdAt = sanitizeIsoTimestamp(doc.createdAt, updatedAt);
+  const reviewedAt = sanitizeIsoTimestamp(doc.reviewedAt, createdAt);
+  const dueAt = sanitizeIsoTimestamp(doc.dueAt, updatedAt);
+  const previousDueAt = sanitizeNullableIsoTimestamp(doc.previousDueAt);
+
   return {
     id: doc.id,
     word_id: doc.wordId,
     card_id: doc.cardId,
-    quiz_mode: doc.quizMode,
-    word: doc.word,
-    meaning: doc.meaning,
+    quiz_mode: doc.quizMode || 'wordToMeaning',
+    word: doc.word || '',
+    meaning: doc.meaning || '',
     rating: doc.rating,
-    state_before: doc.stateBefore,
-    state_after: doc.stateAfter,
-    reviewed_at: doc.reviewedAt,
-    duration_ms: doc.durationMs,
-    stability: doc.stability,
-    difficulty: doc.difficulty,
-    elapsed_days: doc.elapsedDays,
-    scheduled_days: doc.scheduledDays,
-    due_at: doc.dueAt,
-    previous_due_at: doc.previousDueAt || null,
-    lapses: doc.lapses,
-    reps: doc.reps,
-    retrievability: doc.retrievability ?? 0,
-    created_at: doc.createdAt,
-    updated_at: doc.updatedAt,
-    deleted: doc.isDeleted,
+    state_before: doc.stateBefore || 'New',
+    state_after: doc.stateAfter || 'New',
+    reviewed_at: reviewedAt,
+    duration_ms: Math.max(0, Math.round(Number(doc.durationMs) || 0)),
+    stability: typeof doc.stability === 'number' && !isNaN(doc.stability) ? doc.stability : 0,
+    difficulty: typeof doc.difficulty === 'number' && !isNaN(doc.difficulty) ? doc.difficulty : 0,
+    elapsed_days:
+      typeof doc.elapsedDays === 'number' && !isNaN(doc.elapsedDays) ? doc.elapsedDays : 0,
+    scheduled_days:
+      typeof doc.scheduledDays === 'number' && !isNaN(doc.scheduledDays) ? doc.scheduledDays : 0,
+    due_at: dueAt,
+    previous_due_at: previousDueAt,
+    lapses: typeof doc.lapses === 'number' && !isNaN(doc.lapses) ? doc.lapses : 0,
+    reps: typeof doc.reps === 'number' && !isNaN(doc.reps) ? doc.reps : 0,
+    retrievability:
+      typeof doc.retrievability === 'number' && !isNaN(doc.retrievability) ? doc.retrievability : 0,
+    created_at: createdAt,
+    updated_at: updatedAt,
+    deleted: Boolean(doc.isDeleted),
   };
 }
 
@@ -452,6 +626,10 @@ export function pullSettingsModifier(row: any): WithDeleted<SettingsRecord> {
 }
 
 export function pushSettingsModifier(doc: SettingsRecord): any {
+  const fallback = new Date().toISOString();
+  const updatedAt = sanitizeIsoTimestamp(doc.updatedAt, fallback);
+  const createdAt = sanitizeIsoTimestamp(doc.createdAt, updatedAt);
+
   return {
     id: doc.id || 'default',
     appearance: doc.appearance,
@@ -462,9 +640,9 @@ export function pushSettingsModifier(doc: SettingsRecord): any {
     notifications: doc.notifications,
     data: doc.data,
     quran_verse: doc.quranVerse,
-    created_at: doc.createdAt,
-    updated_at: doc.updatedAt,
-    deleted: doc.isDeleted,
+    created_at: createdAt,
+    updated_at: updatedAt,
+    deleted: Boolean(doc.isDeleted),
   };
 }
 
@@ -503,32 +681,26 @@ export function pullQuranVerseModifier(row: any): WithDeleted<QuranVerseRecord> 
 }
 
 export function pushQuranVerseModifier(doc: QuranVerseRecord): any {
-  const lastViewedAt =
-    typeof doc.lastViewedAt === 'string' && doc.lastViewedAt.trim() !== ''
-      ? doc.lastViewedAt.trim()
-      : null;
+  const fallback = new Date().toISOString();
+  const updatedAt = sanitizeIsoTimestamp(doc.updatedAt, fallback);
+  const createdAt = sanitizeIsoTimestamp(doc.createdAt, updatedAt);
+  const lastViewedAt = sanitizeNullableIsoTimestamp(doc.lastViewedAt);
   const lastError =
     typeof doc.lastError === 'string' && doc.lastError.trim() !== '' ? doc.lastError.trim() : null;
 
   return {
     id: doc.id,
-    chapter: Number(doc.chapter),
-    verse: Number(doc.verse),
+    chapter: Number(doc.chapter) || 1,
+    verse: Number(doc.verse) || 1,
     verse_end: doc.verseEnd ? Number(doc.verseEnd) : null,
     category: doc.category || 'Inspirational',
     notes: doc.notes || '',
     status: doc.status || 'active',
-    view_count: Number(doc.viewCount || 0),
+    view_count: Number(doc.viewCount) || 0,
     last_viewed_at: lastViewedAt,
     last_error: lastError,
-    created_at:
-      typeof doc.createdAt === 'string' && doc.createdAt.trim() !== ''
-        ? doc.createdAt.trim()
-        : new Date().toISOString(),
-    updated_at:
-      typeof doc.updatedAt === 'string' && doc.updatedAt.trim() !== ''
-        ? doc.updatedAt.trim()
-        : new Date().toISOString(),
+    created_at: createdAt,
+    updated_at: updatedAt,
     deleted: Boolean(doc.isDeleted),
   };
 }
@@ -554,6 +726,11 @@ export function createSupabaseCollectionReplication<T>({
     checkpoint: SupabaseCheckpoint;
   }>();
 
+  // Attach Last-Write-Wins conflict handler to prevent dropping fresher local edits
+  if (collection) {
+    collection.conflictHandler = createLastWriteWinsConflictHandler<T>();
+  }
+
   // Listen to Supabase Realtime events for live sync
   if (typeof window !== 'undefined') {
     const channelName = `rxdb-${tableName}`;
@@ -574,14 +751,19 @@ export function createSupabaseCollectionReplication<T>({
         const row = (
           payload.new && Object.keys(payload.new).length > 0 ? payload.new : payload.old
         ) as any;
-        if (row && row.id && row.updated_at) {
+        if (row && row.id) {
+          const updated_at = row.updated_at || new Date().toISOString();
           pullStream$.next({
             documents: [pullModifier(row)],
-            checkpoint: { id: row.id, updated_at: row.updated_at },
+            checkpoint: { id: row.id, updated_at },
           });
         }
       })
-      .subscribe();
+      .subscribe((status: string) => {
+        if (status === 'SUBSCRIBED') {
+          pullStream$.next('RESYNC' as any);
+        }
+      });
   }
 
   return replicateRxCollection<T, SupabaseCheckpoint>({
@@ -645,40 +827,92 @@ export function createSupabaseCollectionReplication<T>({
         if (!rows || rows.length === 0) {
           return [];
         }
+
+        const isOnline = typeof navigator === 'undefined' || navigator.onLine;
+        if (!isOnline) {
+          throw new Error(`Device offline: postponing cloud sync for '${tableName}'`);
+        }
+
         const payloads = rows.map((row) => pushModifier(row.newDocumentState));
+
+        // 1. Try fast batch upsert
         const { error } = await supabase.from(tableName).upsert(payloads, { onConflict: 'id' });
-        if (error) {
-          if (
-            error.code === 'PGRST205' ||
-            error.code === '42P01' ||
-            (typeof error.message === 'string' &&
-              error.message.includes('Could not find the table'))
-          ) {
-            console.warn(
-              `[Replication] Table '${tableName}' not found in Supabase schema cache (${error.code || 'missing'}). Skipping push.`
-            );
+        if (!error) {
+          return [];
+        }
+
+        // Table not found in schema cache
+        if (
+          error.code === 'PGRST205' ||
+          error.code === '42P01' ||
+          (typeof error.message === 'string' && error.message.includes('Could not find the table'))
+        ) {
+          console.warn(
+            `[Replication] Table '${tableName}' not found in Supabase schema cache (${error.code || 'missing'}). Skipping push.`
+          );
+          return [];
+        }
+
+        // Special handling for quran_verses without verse_end column
+        if (
+          tableName === 'quran_verses' &&
+          (error.code === 'PGRST204' ||
+            (typeof error.message === 'string' && error.message.includes("'verse_end'")))
+        ) {
+          const fallbackPayloads = payloads.map((p) => {
+            const copy = { ...p };
+            delete copy.verse_end;
+            return copy;
+          });
+          const { error: fallbackError } = await supabase
+            .from(tableName)
+            .upsert(fallbackPayloads, { onConflict: 'id' });
+          if (!fallbackError) {
             return [];
           }
-          if (
-            tableName === 'quran_verses' &&
-            (error.code === 'PGRST204' ||
-              (typeof error.message === 'string' && error.message.includes("'verse_end'")))
-          ) {
-            const fallbackPayloads = payloads.map((p) => {
-              const copy = { ...p };
-              delete copy.verse_end;
-              return copy;
-            });
-            const { error: fallbackError } = await supabase
-              .from(tableName)
-              .upsert(fallbackPayloads, { onConflict: 'id' });
-            if (fallbackError) {
-              throw fallbackError;
-            }
-            return [];
-          }
+        }
+
+        // If true network failure, throw so RxDB can retry when connectivity is restored
+        if (isNetworkError(error)) {
           throw error;
         }
+
+        // 2. Batch failed due to Postgres constraint or data issue.
+        // Fall back to row-by-row upserts to isolate and push all valid rows,
+        // preventing a single bad row from freezing the entire replication queue.
+        console.warn(
+          `[Replication] Batch upsert on '${tableName}' failed (${error.code || error.message}). Falling back to individual item upsert.`
+        );
+
+        for (let i = 0; i < payloads.length; i++) {
+          const payload = { ...payloads[i] };
+          let { error: singleError } = await supabase
+            .from(tableName)
+            .upsert(payload, { onConflict: 'id' });
+
+          if (
+            singleError &&
+            tableName === 'quran_verses' &&
+            (singleError.code === 'PGRST204' ||
+              (typeof singleError.message === 'string' &&
+                singleError.message.includes("'verse_end'")))
+          ) {
+            delete payload.verse_end;
+            const res = await supabase.from(tableName).upsert(payload, { onConflict: 'id' });
+            singleError = res.error;
+          }
+
+          if (singleError) {
+            if (isNetworkError(singleError)) {
+              throw singleError;
+            }
+            console.error(
+              `[Replication] Skipping permanently rejected row in '${tableName}' (id: ${payload.id}, code: ${singleError.code}):`,
+              singleError.message
+            );
+          }
+        }
+
         return [];
       },
     },
