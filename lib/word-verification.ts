@@ -1,6 +1,9 @@
 import { formatCloudflareModelDetails } from './cloudflare';
 import { formatGoogleModelDetails } from './google';
 import { ALLOWED_GROQ_MODELS, formatGroqModelDetails } from './groq';
+import { resolveWordsApiKey, verifyWordWithWordsApi } from './words-api';
+
+export { verifyWordWithWordsApi } from './words-api';
 
 export type WordValidationStatus = 'valid' | 'warning' | 'invalid';
 
@@ -103,11 +106,12 @@ export type WordVerificationDefinitionInput = {
 export type VerifyWordParams = {
   word: string;
   definitions?: WordVerificationDefinitionInput[];
-  preferredProvider?: 'gemini' | 'cloudflare' | 'groq' | 'auto';
+  preferredProvider?: 'gemini' | 'cloudflare' | 'groq' | 'wordsapi' | 'auto';
   customGoogleApiKey?: string;
   customGroqApiKey?: string;
   customCloudflareApiToken?: string;
   customCloudflareAccountId?: string;
+  customWordsApiKey?: string;
   groqModel?: string;
 };
 
@@ -601,6 +605,7 @@ export async function verifyWordAndDefinitions(
     customGroqApiKey,
     customCloudflareApiToken,
     customCloudflareAccountId,
+    customWordsApiKey,
     groqModel,
   } = params;
 
@@ -613,16 +618,37 @@ export async function verifyWordAndDefinitions(
     partOfSpeech: d.partOfSpeech || '',
   }));
 
-  // Define execution order based on preference
-  const order: Array<'gemini' | 'cloudflare' | 'groq'> =
-    preferredProvider === 'groq'
-      ? ['groq', 'gemini', 'cloudflare']
-      : preferredProvider === 'cloudflare'
-        ? ['cloudflare', 'gemini', 'groq']
-        : ['gemini', 'cloudflare', 'groq'];
+  type ProviderKey = 'wordsapi' | 'gemini' | 'cloudflare' | 'groq';
+  const hasWordsApiKey = Boolean(resolveWordsApiKey(customWordsApiKey));
+
+  // Define execution order based on preference and available credentials
+  let order: ProviderKey[];
+  if (preferredProvider === 'wordsapi') {
+    order = ['wordsapi', 'gemini', 'cloudflare', 'groq'];
+  } else if (preferredProvider === 'groq') {
+    order = hasWordsApiKey
+      ? ['groq', 'wordsapi', 'gemini', 'cloudflare']
+      : ['groq', 'gemini', 'cloudflare'];
+  } else if (preferredProvider === 'cloudflare') {
+    order = hasWordsApiKey
+      ? ['cloudflare', 'wordsapi', 'gemini', 'groq']
+      : ['cloudflare', 'gemini', 'groq'];
+  } else if (preferredProvider === 'auto') {
+    order = hasWordsApiKey
+      ? ['wordsapi', 'gemini', 'cloudflare', 'groq']
+      : ['gemini', 'cloudflare', 'groq'];
+  } else {
+    // gemini or default
+    order = hasWordsApiKey
+      ? ['gemini', 'wordsapi', 'cloudflare', 'groq']
+      : ['gemini', 'cloudflare', 'groq'];
+  }
 
   for (const provider of order) {
     try {
+      if (provider === 'wordsapi') {
+        return await verifyWordWithWordsApi(word, cleanDefinitions, customWordsApiKey);
+      }
       if (provider === 'gemini') {
         return await verifyWordWithGoogle(word, cleanDefinitions, customGoogleApiKey);
       }
@@ -639,13 +665,13 @@ export async function verifyWordAndDefinitions(
       }
     } catch (err: any) {
       console.warn(
-        `AI verification provider "${provider}" failed, trying next candidate:`,
+        `Word verification provider "${provider}" failed, trying next candidate:`,
         err?.message || err
       );
     }
   }
 
-  // Fallback to Free Dictionary API if all AI providers fail
-  console.warn('All AI providers failed for word verification, falling back to Dictionary API');
+  // Fallback to Free Dictionary API if all configured providers fail
+  console.warn('All word verification providers failed, falling back to Dictionary API');
   return await verifyWordWithDictionary(word, cleanDefinitions);
 }

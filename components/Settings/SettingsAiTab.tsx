@@ -2,6 +2,7 @@
 
 import {
   Alert,
+  Anchor,
   Badge,
   Button,
   Card,
@@ -19,7 +20,15 @@ import {
   TextInput,
   ThemeIcon,
 } from '@mantine/core';
-import { IconBrain, IconCheck, IconCpu, IconKey, IconTestPipe, IconX } from '@tabler/icons-react';
+import {
+  IconBook,
+  IconBrain,
+  IconCheck,
+  IconCpu,
+  IconKey,
+  IconTestPipe,
+  IconX,
+} from '@tabler/icons-react';
 import React, { useState } from 'react';
 import { formatGroqModelDetails } from '@/lib/groq';
 import type { AiProviderKey, AppAiSettings } from '@/lib/settings';
@@ -70,6 +79,13 @@ export function SettingsAiTab({ settings, onChange }: SettingsAiTabProps) {
     latencyMs?: number;
   } | null>(null);
 
+  const [isTestingWordsApi, setIsTestingWordsApi] = useState(false);
+  const [wordsApiTestResult, setWordsApiTestResult] = useState<{
+    success: boolean;
+    message: string;
+    latencyMs?: number;
+  } | null>(null);
+
   const handleTestConnection = async () => {
     setIsTesting(true);
     setTestResult(null);
@@ -113,6 +129,54 @@ export function SettingsAiTab({ settings, onChange }: SettingsAiTabProps) {
       });
     } finally {
       setIsTesting(false);
+    }
+  };
+
+  const handleTestWordsApi = async () => {
+    setIsTestingWordsApi(true);
+    setWordsApiTestResult(null);
+    const start = Date.now();
+
+    try {
+      const response = await fetch('/api/verify-word', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          word: 'soliloquy',
+          definitions: [
+            {
+              meaning: 'speech you make to yourself',
+              partOfSpeech: 'noun',
+            },
+          ],
+          provider: 'wordsapi',
+        }),
+      });
+
+      const latency = Date.now() - start;
+      if (response.ok) {
+        const data = await response.json();
+        setWordsApiTestResult({
+          success: true,
+          message: `WordsAPI verified "soliloquy" in ${latency}ms! Status: "${data.overallStatus}". Provider: ${data.generatorAiDetails}.`,
+          latencyMs: latency,
+        });
+      } else {
+        const errData = await response.json().catch(() => ({}));
+        setWordsApiTestResult({
+          success: false,
+          message: `WordsAPI error (HTTP ${response.status}): ${errData.error || 'Verification failed'}`,
+          latencyMs: latency,
+        });
+      }
+    } catch (err: any) {
+      setWordsApiTestResult({
+        success: false,
+        message: `WordsAPI connection failed: ${err?.message || 'Network error'}`,
+        latencyMs: Date.now() - start,
+      });
+    } finally {
+      setIsTestingWordsApi(false);
     }
   };
 
@@ -286,14 +350,18 @@ export function SettingsAiTab({ settings, onChange }: SettingsAiTabProps) {
 
           {/* Auto-verify Word & Definitions Switch */}
           <div>
-            <Group justify="space-between" align="center">
+            <Group
+              justify="space-between"
+              align="center"
+              mb={settings.autoVerifyWords ? 'xs' : undefined}
+            >
               <div>
                 <Text size="sm" fw={600}>
                   Auto-verify Word & Definitions
                 </Text>
                 <Text size="xs" c="dimmed">
-                  Automatically verify spelling, definition accuracy, and part of speech with AI as
-                  you type or change words
+                  Automatically verify spelling, definition accuracy, and part of speech as you type
+                  or change words
                 </Text>
               </div>
               <Switch
@@ -304,6 +372,51 @@ export function SettingsAiTab({ settings, onChange }: SettingsAiTabProps) {
                 aria-label="Auto-verify Word & Definitions"
               />
             </Group>
+
+            {settings.autoVerifyWords && (
+              <Stack gap="xs" mt="xs">
+                <Group justify="space-between" align="center">
+                  <div>
+                    <Text size="xs" fw={600}>
+                      Preferred Verification Engine
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      Choose WordsAPI (wordsapi.com) for official dictionary verification or LLMs
+                    </Text>
+                  </div>
+                  <Badge size="sm" variant="light" color="cyan">
+                    {settings.verificationProvider === 'wordsapi'
+                      ? 'WordsAPI (Authoritative)'
+                      : settings.verificationProvider === 'auto'
+                        ? 'Auto (Cascade)'
+                        : settings.verificationProvider?.toUpperCase() || 'WordsAPI'}
+                  </Badge>
+                </Group>
+                <Select
+                  data={[
+                    {
+                      value: 'wordsapi',
+                      label: 'WordsAPI (https://www.wordsapi.com/ - Authoritative Dictionary)',
+                    },
+                    {
+                      value: 'auto',
+                      label: 'Auto Cascade (WordsAPI → Gemma → Cloudflare → Groq)',
+                    },
+                    { value: 'gemini', label: 'Google Gemma (Verification)' },
+                    { value: 'cloudflare', label: 'Cloudflare Workers (Verification)' },
+                    { value: 'groq', label: 'Groq Cloud (Verification)' },
+                  ]}
+                  value={settings.verificationProvider || 'wordsapi'}
+                  onChange={(val) =>
+                    onChange({
+                      verificationProvider: (val as any) || 'wordsapi',
+                    })
+                  }
+                  size="xs"
+                  radius="md"
+                />
+              </Stack>
+            )}
           </div>
         </Stack>
       </Card>
@@ -334,17 +447,30 @@ export function SettingsAiTab({ settings, onChange }: SettingsAiTabProps) {
             </div>
           </Group>
 
-          <Button
-            variant="light"
-            color="teal"
-            size="xs"
-            radius="md"
-            loading={isTesting}
-            onClick={handleTestConnection}
-            leftSection={<IconTestPipe size={14} />}
-          >
-            Test AI Connection
-          </Button>
+          <Group gap="xs" wrap="wrap">
+            <Button
+              variant="light"
+              color="cyan"
+              size="xs"
+              radius="md"
+              loading={isTestingWordsApi}
+              onClick={handleTestWordsApi}
+              leftSection={<IconBook size={14} />}
+            >
+              Test WordsAPI
+            </Button>
+            <Button
+              variant="light"
+              color="teal"
+              size="xs"
+              radius="md"
+              loading={isTesting}
+              onClick={handleTestConnection}
+              leftSection={<IconTestPipe size={14} />}
+            >
+              Test AI Connection
+            </Button>
+          </Group>
         </Group>
 
         <Stack gap="md">
@@ -366,6 +492,38 @@ export function SettingsAiTab({ settings, onChange }: SettingsAiTabProps) {
 
           {settings.useCustomApiKeys && (
             <Stack gap="sm" mt="xs">
+              <PasswordInput
+                label="Custom WordsAPI / RapidAPI Key"
+                description={
+                  <Text size="xs" c="dimmed">
+                    From{' '}
+                    <Anchor
+                      href="https://www.wordsapi.com/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      size="xs"
+                    >
+                      wordsapi.com
+                    </Anchor>{' '}
+                    or{' '}
+                    <Anchor
+                      href="https://rapidapi.com/dpventures/api/wordsapi"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      size="xs"
+                    >
+                      RapidAPI WordsAPI
+                    </Anchor>{' '}
+                    (Free tier includes 2,500 requests/day)
+                  </Text>
+                }
+                placeholder="e.g. 5a1b2c3d4e..."
+                value={settings.customWordsApiKey || ''}
+                onChange={(e) => onChange({ customWordsApiKey: e.currentTarget.value })}
+                size="xs"
+                radius="md"
+              />
+
               <PasswordInput
                 label="Custom Groq API Key"
                 placeholder="gsk_..."
@@ -404,6 +562,24 @@ export function SettingsAiTab({ settings, onChange }: SettingsAiTabProps) {
                 />
               </SimpleGrid>
             </Stack>
+          )}
+
+          {wordsApiTestResult && (
+            <Alert
+              icon={wordsApiTestResult.success ? <IconCheck size={16} /> : <IconX size={16} />}
+              color={wordsApiTestResult.success ? 'cyan' : 'red'}
+              title={
+                wordsApiTestResult.success ? 'WordsAPI Test Successful' : 'WordsAPI Test Failed'
+              }
+              radius="md"
+            >
+              <Text size="xs">{wordsApiTestResult.message}</Text>
+              {wordsApiTestResult.latencyMs && (
+                <Text size="xs" c="dimmed" mt={2}>
+                  Latency: {wordsApiTestResult.latencyMs}ms
+                </Text>
+              )}
+            </Alert>
           )}
 
           {testResult && (

@@ -79,6 +79,37 @@ describe('POST /api/verify-word', () => {
     expect(data.definitions[0].isAccurate).toBe(true);
   });
 
+  it('passes wordsapi provider parameter to verifyWordAndDefinitions', async () => {
+    const mockResult = {
+      word: 'soliloquy',
+      isWordValid: true,
+      wordFeedback: 'Valid English word (verified via WordsAPI).',
+      overallStatus: 'valid' as const,
+      definitions: [],
+      generatorAiDetails: 'WordsAPI (wordsapi.com)',
+    };
+
+    (verifyWordAndDefinitions as jest.Mock).mockResolvedValue(mockResult);
+
+    const request = new Request('http://localhost:3000/api/verify-word', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        word: 'soliloquy',
+        provider: 'wordsapi',
+      }),
+    });
+
+    const response = await POST(request);
+    expect(response.status).toBe(200);
+    expect(verifyWordAndDefinitions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        word: 'soliloquy',
+        preferredProvider: 'wordsapi',
+      })
+    );
+  });
+
   it('returns 500 when verification fails unexpectedly', async () => {
     (verifyWordAndDefinitions as jest.Mock).mockRejectedValue(new Error('Fatal API crash'));
 

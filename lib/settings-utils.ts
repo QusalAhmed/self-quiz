@@ -107,8 +107,10 @@ export interface AppAiSettings {
   customGeminiApiKey?: string;
   customCloudflareApiToken?: string;
   customCloudflareAccountId?: string;
+  customWordsApiKey?: string;
   useCustomApiKeys: boolean;
   autoVerifyWords?: boolean;
+  verificationProvider?: 'auto' | 'wordsapi' | 'gemini' | 'cloudflare' | 'groq';
 }
 
 export interface AppDataSettings {
@@ -186,8 +188,10 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     customGeminiApiKey: '',
     customCloudflareApiToken: '',
     customCloudflareAccountId: '',
+    customWordsApiKey: '',
     useCustomApiKeys: false,
     autoVerifyWords: true,
+    verificationProvider: 'wordsapi',
   },
   notifications: DEFAULT_NOTIFICATION_SETTINGS,
   data: {
@@ -353,11 +357,20 @@ export function normalizeAppSettings(raw: Partial<AppSettings> | null | undefine
     customGeminiApiKey: raw.ai?.customGeminiApiKey ?? '',
     customCloudflareApiToken: raw.ai?.customCloudflareApiToken ?? '',
     customCloudflareAccountId: raw.ai?.customCloudflareAccountId ?? '',
+    customWordsApiKey: raw.ai?.customWordsApiKey ?? '',
     useCustomApiKeys: raw.ai?.useCustomApiKeys ?? false,
     autoVerifyWords:
       typeof raw.ai?.autoVerifyWords === 'boolean'
         ? raw.ai.autoVerifyWords
         : DEFAULT_APP_SETTINGS.ai.autoVerifyWords,
+    verificationProvider:
+      raw.ai?.verificationProvider === 'wordsapi' ||
+      raw.ai?.verificationProvider === 'gemini' ||
+      raw.ai?.verificationProvider === 'cloudflare' ||
+      raw.ai?.verificationProvider === 'groq' ||
+      raw.ai?.verificationProvider === 'auto'
+        ? raw.ai.verificationProvider
+        : DEFAULT_APP_SETTINGS.ai.verificationProvider,
   };
 
   const notifications = raw.notifications ? raw.notifications : DEFAULT_NOTIFICATION_SETTINGS;

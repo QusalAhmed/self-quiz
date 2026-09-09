@@ -8,7 +8,7 @@ import {
 type VerifyWordPayload = {
   word?: string;
   definitions?: WordVerificationDefinitionInput[];
-  provider?: 'gemini' | 'cloudflare' | 'groq' | 'auto';
+  provider?: 'gemini' | 'cloudflare' | 'groq' | 'wordsapi' | 'auto';
 };
 
 export async function POST(request: Request) {
@@ -35,7 +35,9 @@ export async function POST(request: Request) {
     const preferredProvider =
       body?.provider && body.provider !== 'auto'
         ? body.provider
-        : serverSettings.ai?.preferredProvider || 'gemini';
+        : serverSettings.ai?.verificationProvider ||
+          (serverSettings.ai?.preferredProvider as any) ||
+          'wordsapi';
 
     const customGoogleApiKey = serverSettings.ai?.useCustomApiKeys
       ? serverSettings.ai?.customGeminiApiKey
@@ -49,6 +51,9 @@ export async function POST(request: Request) {
     const customCloudflareAccountId = serverSettings.ai?.useCustomApiKeys
       ? serverSettings.ai?.customCloudflareAccountId
       : undefined;
+    const customWordsApiKey = serverSettings.ai?.useCustomApiKeys
+      ? serverSettings.ai?.customWordsApiKey
+      : undefined;
     const groqModel = serverSettings.ai?.groqModel;
 
     const result = await verifyWordAndDefinitions({
@@ -59,6 +64,7 @@ export async function POST(request: Request) {
       customGroqApiKey,
       customCloudflareApiToken,
       customCloudflareAccountId,
+      customWordsApiKey,
       groqModel,
     });
 

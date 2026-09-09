@@ -363,5 +363,78 @@ describe('word-verification', () => {
       expect(result.isWordValid).toBe(true);
       expect(result.generatorAiDetails).toContain('Dictionary Fallback');
     });
+
+    it('verifies word with WordsAPI when preferredProvider is wordsapi', async () => {
+      const mockWordsApiResponse = {
+        word: 'serendipity',
+        results: [
+          {
+            definition: 'good luck in finding valuable or agreeable things unexpectedly',
+            partOfSpeech: 'noun',
+          },
+        ],
+      };
+
+      global.fetch = jest.fn().mockResolvedValue({
+        status: 200,
+        ok: true,
+        json: async () => mockWordsApiResponse,
+      } as any);
+
+      const result = await verifyWordAndDefinitions({
+        word: 'serendipity',
+        definitions: [
+          {
+            meaning: 'good luck in finding valuable things',
+            partOfSpeech: 'noun',
+          },
+        ],
+        preferredProvider: 'wordsapi',
+        customWordsApiKey: 'test-words-key',
+      });
+
+      expect(result.isWordValid).toBe(true);
+      expect(result.generatorAiDetails).toBe('WordsAPI (wordsapi.com)');
+      expect(result.definitions[0].isAccurate).toBe(true);
+    });
+
+    it('falls back to subsequent provider when WordsAPI fails', async () => {
+      delete process.env.GEMINI_API_KEY;
+      delete process.env.GOOGLE_API_KEY;
+      delete process.env.GROQ_API_KEY;
+      delete process.env.CLOUDFLARE_API_TOKEN;
+
+      // 1. WordsAPI fails (e.g. 500 or 401)
+      // 2. Falls back to Free Dictionary API
+      global.fetch = jest
+        .fn()
+        .mockResolvedValueOnce({
+          status: 401,
+          ok: false,
+        } as any)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => [
+            {
+              word: 'serendipity',
+              meanings: [
+                {
+                  partOfSpeech: 'noun',
+                  definitions: [{ definition: 'finding valuable things unexpectedly' }],
+                },
+              ],
+            },
+          ],
+        } as any);
+
+      const result = await verifyWordAndDefinitions({
+        word: 'serendipity',
+        preferredProvider: 'wordsapi',
+        customWordsApiKey: 'bad-key',
+      });
+
+      expect(result.isWordValid).toBe(true);
+      expect(result.generatorAiDetails).toContain('Dictionary Fallback');
+    });
   });
 });
