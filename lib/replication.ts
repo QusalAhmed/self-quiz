@@ -11,7 +11,6 @@ import type {
   QuizMode,
   ReviewLogRecord,
   SettingsRecord,
-  SrsPracticeRecord,
   WordFamilyMemberRecord,
   WordRecord,
 } from './db';
@@ -32,7 +31,6 @@ export type SyncCollectionKey =
   | 'missedWords'
   | 'wordFamilies'
   | 'fsrsRecords'
-  | 'srsPracticeWords'
   | 'dailyUsage'
   | 'reviewLogs'
   | 'settings'
@@ -92,7 +90,6 @@ export type ReplicationsHolder = {
   missedWords: RxReplicationState<MissedWordRecord, SupabaseCheckpoint>;
   wordFamilies: RxReplicationState<WordFamilyMemberRecord, SupabaseCheckpoint>;
   fsrsRecords: RxReplicationState<FsrsRecord, SupabaseCheckpoint>;
-  srsPracticeWords: RxReplicationState<SrsPracticeRecord, SupabaseCheckpoint>;
   dailyUsage: RxReplicationState<DailyUsageRecord, SupabaseCheckpoint>;
   reviewLogs: RxReplicationState<ReviewLogRecord, SupabaseCheckpoint>;
   settings: RxReplicationState<SettingsRecord, SupabaseCheckpoint>;
@@ -327,40 +324,6 @@ export function pushFsrsModifier(doc: FsrsRecord): any {
     updated_at: doc.updatedAt,
     deleted: doc.isDeleted,
     last_rating: doc.lastRating || '',
-  };
-}
-
-// ---------------------------------------------------------------------------
-// SRS Practice Modifiers
-// ---------------------------------------------------------------------------
-export function pullSrsPracticeModifier(row: any): WithDeleted<SrsPracticeRecord> {
-  const isDeleted = typeof row.deleted === 'boolean' ? row.deleted : (row._deleted ?? false);
-  return {
-    id: row.id,
-    wordId: row.word_id || row.wordId,
-    quizMode: (row.quiz_mode || row.quizMode || 'wordToMeaning') as QuizMode,
-    word: row.word,
-    meaning: row.meaning ?? '',
-    difficulty: row.difficulty ?? 'good',
-    practicedAt: row.practiced_at || row.practicedAt || new Date().toISOString(),
-    updatedAt: row.updated_at || row.updatedAt || new Date().toISOString(),
-    lastSyncedAt: row.updated_at || row.updatedAt || new Date().toISOString(),
-    isDeleted,
-    _deleted: isDeleted,
-  };
-}
-
-export function pushSrsPracticeModifier(doc: SrsPracticeRecord): any {
-  return {
-    id: doc.id,
-    word_id: doc.wordId,
-    quiz_mode: doc.quizMode,
-    word: doc.word,
-    meaning: doc.meaning || '',
-    difficulty: doc.difficulty,
-    practiced_at: doc.practicedAt,
-    updated_at: doc.updatedAt,
-    deleted: doc.isDeleted,
   };
 }
 
@@ -772,14 +735,6 @@ export function setupSupabaseReplication(db: AppDatabase): ReplicationsHolder {
     pushModifier: pushFsrsModifier,
   });
 
-  const srsPracticeWords = createSupabaseCollectionReplication<SrsPracticeRecord>({
-    replicationIdentifier: 'supabase-sync-srs-practice-words',
-    collection: db.srsPracticeWords,
-    tableName: 'srs_practice_words',
-    pullModifier: pullSrsPracticeModifier,
-    pushModifier: pushSrsPracticeModifier,
-  });
-
   const dailyUsage = createSupabaseCollectionReplication<DailyUsageRecord>({
     replicationIdentifier: 'supabase-sync-daily-usage',
     collection: db.dailyUsage,
@@ -818,7 +773,6 @@ export function setupSupabaseReplication(db: AppDatabase): ReplicationsHolder {
     missedWords,
     wordFamilies,
     fsrsRecords,
-    srsPracticeWords,
     dailyUsage,
     reviewLogs,
     settings,
@@ -831,7 +785,6 @@ export function setupSupabaseReplication(db: AppDatabase): ReplicationsHolder {
     missedWords: { label: 'Missed Words', tableName: 'missed_words' },
     wordFamilies: { label: 'Word Families', tableName: 'word_families' },
     fsrsRecords: { label: 'FSRS Records', tableName: 'fsrs_records' },
-    srsPracticeWords: { label: 'SRS Practice Words', tableName: 'srs_practice_words' },
     dailyUsage: { label: 'Daily Usage', tableName: 'daily_usage' },
     reviewLogs: { label: 'Review Logs', tableName: 'review_logs' },
     settings: { label: 'Settings', tableName: 'app_settings' },
@@ -846,7 +799,6 @@ export function setupSupabaseReplication(db: AppDatabase): ReplicationsHolder {
     missedWords: db.missedWords,
     wordFamilies: db.wordFamilies,
     fsrsRecords: db.fsrsRecords,
-    srsPracticeWords: db.srsPracticeWords,
     dailyUsage: db.dailyUsage,
     reviewLogs: db.reviewLogs,
     settings: db.settings,
@@ -917,18 +869,6 @@ export function setupSupabaseReplication(db: AppDatabase): ReplicationsHolder {
         key: 'fsrsRecords',
         label: 'FSRS Records',
         tableName: 'fsrs_records',
-        isActive: false,
-        isPaused: false,
-        error: null,
-        lastSyncedAt: null,
-        sentCount: 0,
-        receivedCount: 0,
-        pendingCount: 0,
-      },
-      srsPracticeWords: {
-        key: 'srsPracticeWords',
-        label: 'SRS Practice Words',
-        tableName: 'srs_practice_words',
         isActive: false,
         isPaused: false,
         error: null,
@@ -1159,7 +1099,6 @@ export function setupSupabaseReplication(db: AppDatabase): ReplicationsHolder {
         'rxdb-missed_words',
         'rxdb-word_families',
         'rxdb-fsrs_records',
-        'rxdb-srs_practice_words',
         'rxdb-daily_usage',
         'rxdb-review_logs',
         'rxdb-app_settings',
@@ -1297,7 +1236,6 @@ export function setupSupabaseReplication(db: AppDatabase): ReplicationsHolder {
     missedWords,
     wordFamilies,
     fsrsRecords,
-    srsPracticeWords,
     dailyUsage,
     reviewLogs,
     settings,

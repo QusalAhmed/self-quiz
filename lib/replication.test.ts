@@ -6,7 +6,6 @@ import {
   pullQuranVerseModifier,
   pullReviewLogModifier,
   pullSettingsModifier,
-  pullSrsPracticeModifier,
   pullWordFamilyModifier,
   pullWordModifier,
   pushDailyUsageModifier,
@@ -16,7 +15,6 @@ import {
   pushQuranVerseModifier,
   pushReviewLogModifier,
   pushSettingsModifier,
-  pushSrsPracticeModifier,
   pushWordFamilyModifier,
   pushWordModifier,
   type SyncCollectionKey,
@@ -218,28 +216,6 @@ describe('Supabase Replication Modifiers', () => {
       expect(pushed.id).toBe('w1:fsrs:wordToMeaning');
       expect(pushed.stability).toBe(4.5);
       expect(pushed.last_rating).toBe('good');
-    });
-  });
-
-  describe('SRS Practice Words', () => {
-    it('correctly pulls and pushes SRS practice records', () => {
-      const remote = {
-        id: 'w1:srs_practice:wordToMeaning',
-        word_id: 'w1',
-        quiz_mode: 'wordToMeaning',
-        word: 'abate',
-        meaning: 'less intense',
-        difficulty: 'easy',
-        practiced_at: '2026-08-17T00:00:00.000Z',
-        updated_at: '2026-08-17T01:00:00.000Z',
-        deleted: false,
-      };
-      const pulled = pullSrsPracticeModifier(remote);
-      expect(pulled.id).toBe('w1:srs_practice:wordToMeaning');
-      expect(pulled.difficulty).toBe('easy');
-
-      const pushed = pushSrsPracticeModifier(pulled);
-      expect(pushed.difficulty).toBe('easy');
     });
   });
 
@@ -468,26 +444,24 @@ describe('Supabase Replication Modifiers', () => {
   });
 
   describe('RxDB Sync State Structures', () => {
-    it('defines the 10 required sync collection keys correctly', () => {
+    it('defines the 9 required sync collection keys correctly', () => {
       const keys: SyncCollectionKey[] = [
         'words',
         'groups',
         'missedWords',
         'wordFamilies',
         'fsrsRecords',
-        'srsPracticeWords',
         'dailyUsage',
         'reviewLogs',
         'settings',
         'quranVerses',
       ];
-      expect(keys.length).toBe(10);
+      expect(keys.length).toBe(9);
       expect(keys).toContain('words');
       expect(keys).toContain('groups');
       expect(keys).toContain('missedWords');
       expect(keys).toContain('wordFamilies');
       expect(keys).toContain('fsrsRecords');
-      expect(keys).toContain('srsPracticeWords');
       expect(keys).toContain('dailyUsage');
       expect(keys).toContain('reviewLogs');
       expect(keys).toContain('settings');

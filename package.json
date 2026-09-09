@@ -17,7 +17,6 @@
     "format:test": "oxfmt --check \"**/*.{ts,tsx,css}\"",
     "format:write": "oxfmt --write \"**/*.{ts,tsx,css}\"",
     "backfill:srs": "node scripts/backfill-srs.mjs",
-    "migrate:srs-practice": "node scripts/migrate-srs-practice.mjs",
     "migrate:fsrs": "node scripts/migrate-fsrs.mjs",
     "migrate:daily-usage": "node scripts/migrate-daily-usage.mjs",
     "migrate:definitions": "node scripts/migrate-definitions.mjs",

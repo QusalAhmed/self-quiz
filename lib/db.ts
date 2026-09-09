@@ -21,7 +21,6 @@ import type {
   AppStudyQuizSettings,
 } from './settings';
 import type { SrsRecord } from './srs';
-import type { SrsPracticeRecord } from './srs-practice';
 import type { NotificationSettings } from './system-notifications';
 
 export type SettingsRecord = {
@@ -82,7 +81,6 @@ export type QuizMode = 'wordToMeaning' | 'meaningToWord' | 'spelling';
 
 export type { SrsRecord };
 export type { FsrsRecord };
-export type { SrsPracticeRecord };
 
 export type ReviewLogRecord = {
   id: string;
@@ -201,7 +199,6 @@ export type GroupCollection = RxCollection<GroupRecord>;
 export type WordFamilyCollection = RxCollection<WordFamilyMemberRecord>;
 export type SrsCollection = RxCollection<SrsRecord>;
 export type FsrsCollection = RxCollection<FsrsRecord>;
-export type SrsPracticeCollection = RxCollection<SrsPracticeRecord>;
 export type DailyUsageCollection = RxCollection<DailyUsageRecord>;
 export type ReviewLogCollection = RxCollection<ReviewLogRecord>;
 export type SettingsCollection = RxCollection<SettingsRecord>;
@@ -217,7 +214,6 @@ export type AppDatabase = RxDatabase<{
   wordFamilies: WordFamilyCollection;
   srsRecords: SrsCollection;
   fsrsRecords: FsrsCollection;
-  srsPracticeWords: SrsPracticeCollection;
   dailyUsage: DailyUsageCollection;
   reviewLogs: ReviewLogCollection;
   settings: SettingsCollection;
@@ -377,39 +373,6 @@ const srsSchema: RxJsonSchema<SrsRecord> = {
     'isDeleted',
   ],
   indexes: ['wordId', 'quizMode', 'nextReviewAt', 'updatedAt', 'isDeleted'],
-};
-
-const srsPracticeSchema: RxJsonSchema<SrsPracticeRecord> = {
-  title: 'srs practice words schema',
-  version: 1,
-  description: 'Recently practiced SRS words with the latest rating',
-  primaryKey: 'id',
-  type: 'object',
-  properties: {
-    id: { type: 'string', maxLength: 128 },
-    wordId: { type: 'string', maxLength: 64 },
-    quizMode: { type: 'string', maxLength: 16 },
-    word: { type: 'string', maxLength: 128 },
-    meaning: { type: 'string' },
-    difficulty: { type: 'string', maxLength: 8 },
-    practicedAt: { type: 'string', maxLength: 32 },
-    updatedAt: { type: 'string', maxLength: 32 },
-    lastSyncedAt: { type: 'string', default: '' },
-    isDeleted: { type: 'boolean', default: false },
-  },
-  required: [
-    'id',
-    'wordId',
-    'quizMode',
-    'word',
-    'meaning',
-    'difficulty',
-    'practicedAt',
-    'updatedAt',
-    'lastSyncedAt',
-    'isDeleted',
-  ],
-  indexes: ['wordId', 'quizMode', 'practicedAt', 'updatedAt', 'isDeleted'],
 };
 
 const fsrsSchema: RxJsonSchema<FsrsRecord> = {
@@ -964,12 +927,6 @@ async function createDatabase(): Promise<AppDatabase> {
       migrationStrategies: {
         1: (oldDoc) => ({ ...oldDoc }),
         2: (oldDoc) => ({ ...oldDoc, lastRating: oldDoc.lastRating || '' }),
-      },
-    },
-    srsPracticeWords: {
-      schema: srsPracticeSchema,
-      migrationStrategies: {
-        1: (oldDoc) => ({ ...oldDoc }),
       },
     },
     dailyUsage: {
