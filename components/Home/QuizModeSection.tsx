@@ -38,6 +38,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { memo, useMemo, useState, type ReactNode } from 'react';
 import {
+  type FsrsReviewDateFilterKey,
   practiceDisplayModes,
   quizDirections,
   quizRanges,
@@ -47,19 +48,16 @@ import {
   type QuizRangeKey,
   type QuizSourceKey,
 } from '@/app/home/constants';
+import { getTodayDateString, matchesFsrsReviewDateFilter } from '@/app/home/utils';
 import { ExportWordsModal } from '@/components/Home/ExportWordsModal';
+import { FsrsReviewDateCombobox } from '@/components/Practice/FsrsReviewDateCombobox';
 import {
   MissedWordVirtualList,
   type MissedOrForgettingWordItem,
 } from '@/components/Practice/MissedWordVirtualList';
 import { PracticeDisplayCombobox } from '@/components/Practice/PracticeDisplayCombobox';
 import { QuizPanel, type QuizDirection, type QuizItem } from '@/components/QuizPanel/QuizPanel';
-import type {
-  MissedWordRecord,
-  SrsPracticeRecord,
-  WordDefinition,
-  WordFamilyMemberRecord,
-} from '@/lib/db';
+import type { MissedWordRecord, WordDefinition, WordFamilyMemberRecord } from '@/lib/db';
 
 type QuizModeSectionProps = {
   quizRange: QuizRangeKey;
@@ -85,7 +83,13 @@ type QuizModeSectionProps = {
   fsrsForgettingWordsForMode?: Array<
     import('@/lib/db').FsrsRecord & { definitions?: WordDefinition[] }
   >;
-  recentSrsPracticeWords?: Array<SrsPracticeRecord & { definitions?: WordDefinition[] }>;
+  recentSrsPracticeWords?: Array<{
+    wordId: string;
+    word: string;
+    meaning: string;
+    quizMode: import('@/lib/db').QuizMode;
+    definitions?: WordDefinition[];
+  }>;
   missedWordIdSet: Set<string>;
   generatingExampleWordIds: Record<string, boolean>;
   autoPronounceQuizWord: boolean;
@@ -109,6 +113,10 @@ type QuizModeSectionProps = {
   srsIntervals?: Partial<Record<import('@/lib/fsrs').FsrsRating, string>>;
   onEditClick: (id: string) => void;
   onSetPracticeDisplayMode: (value: PracticeDisplayKey) => void;
+  fsrsReviewDateFilter?: FsrsReviewDateFilterKey;
+  customFsrsReviewDate?: string;
+  onSetFsrsReviewDateFilter?: (filter: FsrsReviewDateFilterKey) => void;
+  onSetCustomFsrsReviewDate?: (date: string) => void;
   onSetAutoPronounceQuizWord: (value: boolean) => void;
   onSetHideMissedMeanings: (value: boolean) => void;
   onSetHideSrsPracticeMeanings: (value: boolean) => void;
@@ -119,7 +127,12 @@ type QuizModeSectionProps = {
     value: Record<string, boolean> | ((prev: Record<string, boolean>) => Record<string, boolean>)
   ) => void;
   onUnmarkMissed: (id: string) => Promise<void> | void;
-  onTogglePracticeMissed: (word: SrsPracticeRecord) => void;
+  onTogglePracticeMissed: (word: {
+    wordId: string;
+    word: string;
+    meaning: string;
+    quizMode: import('@/lib/db').QuizMode;
+  }) => void;
   onOpenSrsPracticeQuiz: () => void;
   onStartForgettingQuiz?: () => void;
   onOpenClearAllMissed: () => void;
@@ -190,6 +203,10 @@ export const QuizModeSection = memo(function QuizModeSection({
   srsIntervals,
   onEditClick,
   onSetPracticeDisplayMode,
+  fsrsReviewDateFilter = 'current',
+  customFsrsReviewDate = getTodayDateString(),
+  onSetFsrsReviewDateFilter,
+  onSetCustomFsrsReviewDate,
   onSetAutoPronounceQuizWord,
   onSetHideMissedMeanings,
   onSetHideSrsPracticeMeanings: _onSetHideSrsPracticeMeanings,
@@ -217,7 +234,10 @@ export const QuizModeSection = memo(function QuizModeSection({
 }: QuizModeSectionProps) {
   const router = useRouter();
   const displayedMissedItems = useMemo(() => {
-    const fsrsWords = fsrsForgettingWordsForMode || [];
+    const rawFsrsWords = fsrsForgettingWordsForMode || [];
+    const fsrsWords = rawFsrsWords.filter((w) =>
+      matchesFsrsReviewDateFilter(w.dueAt, fsrsReviewDateFilter, customFsrsReviewDate)
+    );
     if (practiceDisplayMode === 'fsrsAgainHard') {
       return fsrsWords;
     }
@@ -275,7 +295,13 @@ export const QuizModeSection = memo(function QuizModeSection({
     });
 
     return combined;
-  }, [practiceDisplayMode, missedWordsForMode, fsrsForgettingWordsForMode]);
+  }, [
+    practiceDisplayMode,
+    missedWordsForMode,
+    fsrsForgettingWordsForMode,
+    fsrsReviewDateFilter,
+    customFsrsReviewDate,
+  ]);
 
   const [optionsExpanded, setOptionsExpanded] = useState(true);
   const [exportModalConfig, setExportModalConfig] = useState<{
@@ -856,6 +882,30 @@ export const QuizModeSection = memo(function QuizModeSection({
               value={practiceDisplayMode}
               onChange={onSetPracticeDisplayMode}
             />
+
+            {practiceDisplayMode !== 'missed' && onSetFsrsReviewDateFilter && (
+              <FsrsReviewDateCombobox
+                value={fsrsReviewDateFilter}
+                onChange={onSetFsrsReviewDateFilter}
+              />
+            )}
+
+            {practiceDisplayMode !== 'missed' &&
+              fsrsReviewDateFilter === 'custom' &&
+              onSetCustomFsrsReviewDate && (
+                <TextInput
+                  type="date"
+                  size="xs"
+                  value={customFsrsReviewDate}
+                  onChange={(e) => onSetCustomFsrsReviewDate(e.currentTarget.value)}
+                  styles={{
+                    input: {
+                      minWidth: 135,
+                      fontWeight: 600,
+                    },
+                  }}
+                />
+              )}
             <Tooltip
               label={hideMissedMeanings ? 'Show all meanings' : 'Hide all meanings'}
               withArrow

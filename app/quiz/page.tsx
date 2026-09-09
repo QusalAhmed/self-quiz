@@ -14,6 +14,7 @@ import {
   getMissingAiExampleDefinitionIndexes,
   getRangeEnd,
   getRangeStart,
+  matchesFsrsReviewDateFilter,
   mergeExamplesIntoDefinitions,
   requestExamples,
   requestExamplesForDefinitions,
@@ -69,6 +70,8 @@ import {
   setHideSrsPracticeMeanings,
   setMode,
   setPracticeDisplayMode,
+  setFsrsReviewDateFilter,
+  setCustomFsrsReviewDate,
   setQuizDirection,
   setQuizGroupFilter,
   setQuizQueue,
@@ -102,6 +105,8 @@ export default function QuizPage() {
     customStart,
     customEnd,
     practiceDisplayMode,
+    fsrsReviewDateFilter,
+    customFsrsReviewDate,
     autoPronounceQuizWord,
     hideMissedMeanings,
     hideSrsPracticeMeanings,
@@ -489,7 +494,15 @@ export default function QuizPage() {
         if (r.isDeleted || r.quizMode !== quizDirection) {
           return false;
         }
-        return r.lastRating === 'again' || r.lastRating === 'hard';
+        if (r.lastRating !== 'again' && r.lastRating !== 'hard') {
+          return false;
+        }
+        return matchesFsrsReviewDateFilter(
+          r.dueAt,
+          fsrsReviewDateFilter,
+          customFsrsReviewDate,
+          nowTicker
+        );
       })
       .map((record) => resolveWordTextFromMainTable(record, wordsById))
       .filter((record): record is WordWithDefinitions<FsrsRecord> => record !== null)
@@ -498,7 +511,14 @@ export default function QuizPage() {
           new Date(b.updatedAt || b.lastReviewedAt || 0).getTime() -
           new Date(a.updatedAt || a.lastReviewedAt || 0).getTime()
       );
-  }, [fsrsRecords, quizDirection, wordsById]);
+  }, [
+    fsrsRecords,
+    quizDirection,
+    wordsById,
+    fsrsReviewDateFilter,
+    customFsrsReviewDate,
+    nowTicker,
+  ]);
 
   const generatingExampleWordIds = useMemo(
     () => Object.fromEntries(Object.keys(exampleGenerationCounts).map((id) => [id, true])),
@@ -1985,6 +2005,10 @@ export default function QuizPage() {
           srsIntervals={srsIntervals}
           onEditClick={(id) => setEditingQuizWordId(id)}
           onSetPracticeDisplayMode={(value) => dispatch(setPracticeDisplayMode(value))}
+          fsrsReviewDateFilter={fsrsReviewDateFilter}
+          customFsrsReviewDate={customFsrsReviewDate}
+          onSetFsrsReviewDateFilter={(value) => dispatch(setFsrsReviewDateFilter(value))}
+          onSetCustomFsrsReviewDate={(value) => dispatch(setCustomFsrsReviewDate(value))}
           onSetAutoPronounceQuizWord={(value) => dispatch(setAutoPronounceQuizWord(value))}
           onSetHideMissedMeanings={(value) => dispatch(setHideMissedMeanings(value))}
           onSetHideSrsPracticeMeanings={(value) => dispatch(setHideSrsPracticeMeanings(value))}

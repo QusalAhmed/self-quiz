@@ -1,11 +1,12 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import type {
+  FsrsReviewDateFilterKey,
   PracticeDisplayKey,
   QuizDirectionKey,
   QuizRangeKey,
   QuizSourceKey,
 } from '@/app/home/constants';
-import { getInitialCustomEnd, getInitialCustomStart } from '@/app/home/utils';
+import { getInitialCustomEnd, getInitialCustomStart, getTodayDateString } from '@/app/home/utils';
 import type { FsrsRecord, SrsRecord, WordDefinition } from '@/lib/db';
 
 export interface QuizItem {
@@ -47,6 +48,8 @@ export interface QuizFilterState {
   customStart: string;
   customEnd: string;
   practiceDisplayMode: PracticeDisplayKey;
+  fsrsReviewDateFilter: FsrsReviewDateFilterKey;
+  customFsrsReviewDate: string;
   autoPronounceQuizWord: boolean;
   hideMissedMeanings: boolean;
   hideSrsPracticeMeanings: boolean;
@@ -75,6 +78,8 @@ export function computePoolSignature(filters: {
   customStart: string;
   customEnd: string;
   practiceDisplayMode?: PracticeDisplayKey;
+  fsrsReviewDateFilter?: FsrsReviewDateFilterKey;
+  customFsrsReviewDate?: string;
   targetWordIds?: string[] | null;
   selectedGroupId?: string | null;
   clusterContext?: GroupQuizClusterContext | null;
@@ -85,7 +90,9 @@ export function computePoolSignature(filters: {
     filters.quizDirection,
     filters.quizGroupFilter,
     filters.quizRange === 'custom' ? `${filters.customStart}_${filters.customEnd}` : '',
-    filters.quizSource === 'fsrsForgetting' ? (filters.practiceDisplayMode ?? '') : '',
+    filters.quizSource === 'fsrsForgetting'
+      ? `${filters.practiceDisplayMode ?? ''}_${filters.fsrsReviewDateFilter ?? 'current'}_${filters.customFsrsReviewDate ?? ''}`
+      : '',
   ];
 
   if (filters.selectedGroupId) {
@@ -103,6 +110,7 @@ export function computePoolSignature(filters: {
 
 const initialCustomStart = getInitialCustomStart();
 const initialCustomEnd = getInitialCustomEnd();
+const initialCustomFsrsReviewDate = getTodayDateString();
 
 const initialState: QuizSliceState = {
   mode: 'study',
@@ -113,6 +121,8 @@ const initialState: QuizSliceState = {
   customStart: initialCustomStart,
   customEnd: initialCustomEnd,
   practiceDisplayMode: 'allMissed',
+  fsrsReviewDateFilter: 'current',
+  customFsrsReviewDate: initialCustomFsrsReviewDate,
   autoPronounceQuizWord: false,
   hideMissedMeanings: false,
   hideSrsPracticeMeanings: false,
@@ -165,6 +175,14 @@ export const quizSlice = createSlice({
 
     setPracticeDisplayMode: (state, action: PayloadAction<PracticeDisplayKey>) => {
       state.practiceDisplayMode = action.payload;
+    },
+
+    setFsrsReviewDateFilter: (state, action: PayloadAction<FsrsReviewDateFilterKey>) => {
+      state.fsrsReviewDateFilter = action.payload;
+    },
+
+    setCustomFsrsReviewDate: (state, action: PayloadAction<string>) => {
+      state.customFsrsReviewDate = action.payload;
     },
 
     setAutoPronounceQuizWord: (state, action: PayloadAction<boolean>) => {
@@ -432,6 +450,8 @@ export const {
   setCustomStart,
   setCustomEnd,
   setPracticeDisplayMode,
+  setFsrsReviewDateFilter,
+  setCustomFsrsReviewDate,
   setAutoPronounceQuizWord,
   setHideMissedMeanings,
   setHideSrsPracticeMeanings,
@@ -476,6 +496,8 @@ export const selectQuizFilters = (state: { quiz: QuizSliceState }): QuizFilterSt
     customStart,
     customEnd,
     practiceDisplayMode,
+    fsrsReviewDateFilter,
+    customFsrsReviewDate,
     autoPronounceQuizWord,
     hideMissedMeanings,
     hideSrsPracticeMeanings,
@@ -492,6 +514,8 @@ export const selectQuizFilters = (state: { quiz: QuizSliceState }): QuizFilterSt
     customStart,
     customEnd,
     practiceDisplayMode,
+    fsrsReviewDateFilter,
+    customFsrsReviewDate,
     autoPronounceQuizWord,
     hideMissedMeanings,
     hideSrsPracticeMeanings,

@@ -21,6 +21,8 @@ import quizReducer, {
   selectQuizState,
   setMode,
   setPracticeDisplayMode,
+  setFsrsReviewDateFilter,
+  setCustomFsrsReviewDate,
   setQuizDirection,
   setQuizFilters,
   setQuizGroupFilter,
@@ -310,6 +312,17 @@ describe('quizSlice', () => {
     );
   });
 
+  it('handles setting fsrsReviewDateFilter and customFsrsReviewDate', () => {
+    const initialState = quizReducer(undefined, { type: '@@INIT' });
+    expect(initialState.fsrsReviewDateFilter).toBe('current');
+
+    const state1 = quizReducer(initialState, setFsrsReviewDateFilter('tomorrow'));
+    expect(state1.fsrsReviewDateFilter).toBe('tomorrow');
+
+    const state2 = quizReducer(state1, setCustomFsrsReviewDate('2026-09-15'));
+    expect(state2.customFsrsReviewDate).toBe('2026-09-15');
+  });
+
   it('works with selectors correctly', () => {
     const rawState: QuizSliceState = {
       mode: 'quiz',
@@ -320,6 +333,8 @@ describe('quizSlice', () => {
       customStart: '2026-01-01T00:00',
       customEnd: '2026-01-02T00:00',
       practiceDisplayMode: 'missed',
+      fsrsReviewDateFilter: 'current',
+      customFsrsReviewDate: '2026-09-09',
       autoPronounceQuizWord: true,
       hideMissedMeanings: false,
       hideSrsPracticeMeanings: false,
@@ -356,6 +371,8 @@ describe('quizSlice', () => {
       customStart: '2026-01-01T00:00',
       customEnd: '2026-01-02T00:00',
       practiceDisplayMode: 'missed',
+      fsrsReviewDateFilter: 'current',
+      customFsrsReviewDate: '2026-09-09',
       autoPronounceQuizWord: true,
       hideMissedMeanings: false,
       hideSrsPracticeMeanings: false,

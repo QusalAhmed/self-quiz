@@ -7,7 +7,7 @@ import {
   normalizeAiExamples,
 } from '@/lib/examples';
 import { getWordGroups } from '@/lib/groups';
-import type { QuizRangeKey } from './constants';
+import type { FsrsReviewDateFilterKey, QuizRangeKey } from './constants';
 
 export function shuffle<T>(items: T[]): T[] {
   const result = [...items];
@@ -191,4 +191,87 @@ export function getMissingAiExampleDefinitionIndexes(
         mergeAiExamples([], definition.examples ?? [], normalizedTarget).length < normalizedTarget
     )
     .map(({ index }) => index);
+}
+
+export function getTodayDateString(date = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+export function matchesFsrsReviewDateFilter(
+  dueAt: string | undefined,
+  filter: FsrsReviewDateFilterKey,
+  customDate?: string,
+  nowIso?: string
+): boolean {
+  if (filter === 'all') {
+    return true;
+  }
+  if (!dueAt) {
+    return false;
+  }
+  const dueTime = new Date(dueAt).getTime();
+  if (Number.isNaN(dueTime)) {
+    return false;
+  }
+
+  const now = nowIso ? new Date(nowIso) : new Date();
+  const todayEnd = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+    23,
+    59,
+    59,
+    999
+  ).getTime();
+
+  switch (filter) {
+    case 'current':
+      // Due on or before the end of today (includes overdue and today)
+      return dueTime <= todayEnd;
+    case 'tomorrow': {
+      const tomorrowEnd = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate() + 1,
+        23,
+        59,
+        59,
+        999
+      ).getTime();
+      return dueTime <= tomorrowEnd;
+    }
+    case 'week': {
+      const weekEnd = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate() + 7,
+        23,
+        59,
+        59,
+        999
+      ).getTime();
+      return dueTime <= weekEnd;
+    }
+    case 'custom': {
+      if (!customDate) {
+        return dueTime <= todayEnd;
+      }
+      const parts = customDate.split('-').map(Number);
+      if (
+        parts.length < 3 ||
+        Number.isNaN(parts[0]) ||
+        Number.isNaN(parts[1]) ||
+        Number.isNaN(parts[2])
+      ) {
+        return dueTime <= todayEnd;
+      }
+      const [y, m, d] = parts;
+      const customEnd = new Date(y, m - 1, d, 23, 59, 59, 999).getTime();
+      return dueTime <= customEnd;
+    }
+    default:
+      return true;
+  }
 }

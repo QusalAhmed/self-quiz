@@ -303,4 +303,102 @@ describe('QuizModeSection component', () => {
     expect(screen.getByText('FSRS Again')).toBeInTheDocument();
     expect(screen.getByText('ephemeral').closest('div')).toHaveTextContent(/missed/);
   });
+
+  it('filters FSRS words based on next review date (defaulting to due today)', () => {
+    const today = new Date();
+    const todayIso = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate(),
+      10,
+      0,
+      0
+    ).toISOString();
+    const futureIso = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate() + 5,
+      10,
+      0,
+      0
+    ).toISOString();
+
+    const fsrsTodayWord: any = {
+      id: 'w-today:fsrs:wordToMeaning',
+      wordId: 'w-today',
+      quizMode: 'wordToMeaning',
+      word: 'present-word',
+      meaning: 'due today',
+      dueAt: todayIso,
+      lastRating: 'again' as const,
+      updatedAt: todayIso,
+    };
+
+    const fsrsFutureWord: any = {
+      id: 'w-future:fsrs:wordToMeaning',
+      wordId: 'w-future',
+      quizMode: 'wordToMeaning',
+      word: 'future-word',
+      meaning: 'due in 5 days',
+      dueAt: futureIso,
+      lastRating: 'hard' as const,
+      updatedAt: todayIso,
+    };
+
+    // 1. With default "current" filter (due today), only the today word should be shown
+    const { rerender } = render(
+      <QuizModeSection
+        {...baseProps}
+        practiceDisplayMode="fsrsAgainHard"
+        fsrsReviewDateFilter="current"
+        missedWordsForMode={[]}
+        fsrsForgettingWordsForMode={[fsrsTodayWord, fsrsFutureWord]}
+      />
+    );
+
+    expect(screen.getByText('present-word')).toBeInTheDocument();
+    expect(screen.queryByText('future-word')).not.toBeInTheDocument();
+
+    // 2. When filter is "all", both words should appear
+    rerender(
+      <QuizModeSection
+        {...baseProps}
+        practiceDisplayMode="fsrsAgainHard"
+        fsrsReviewDateFilter="all"
+        missedWordsForMode={[]}
+        fsrsForgettingWordsForMode={[fsrsTodayWord, fsrsFutureWord]}
+      />
+    );
+
+    expect(screen.getByText('present-word')).toBeInTheDocument();
+    expect(screen.getByText('future-word')).toBeInTheDocument();
+  });
+
+  it('shows FsrsReviewDateCombobox for FSRS modes and hides it for missed words only mode', () => {
+    const handleSetFilter = jest.fn();
+
+    const { rerender } = render(
+      <QuizModeSection
+        {...baseProps}
+        practiceDisplayMode="allMissed"
+        fsrsReviewDateFilter="current"
+        onSetFsrsReviewDateFilter={handleSetFilter}
+      />
+    );
+
+    // Should show Due Today button
+    expect(screen.getByRole('button', { name: /^Due Today$/i })).toBeInTheDocument();
+
+    // In 'missed' mode, next review date filter is not applicable to manual missed words
+    rerender(
+      <QuizModeSection
+        {...baseProps}
+        practiceDisplayMode="missed"
+        fsrsReviewDateFilter="current"
+        onSetFsrsReviewDateFilter={handleSetFilter}
+      />
+    );
+
+    expect(screen.queryByRole('button', { name: /^Due Today$/i })).not.toBeInTheDocument();
+  });
 });
