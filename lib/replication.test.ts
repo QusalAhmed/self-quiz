@@ -468,24 +468,26 @@ describe('Supabase Replication Modifiers', () => {
   });
 
   describe('RxDB Sync State Structures', () => {
-    it('defines the 9 required sync collection keys correctly', () => {
+    it('defines the 10 required sync collection keys correctly', () => {
       const keys: SyncCollectionKey[] = [
         'words',
         'groups',
         'missedWords',
         'wordFamilies',
         'fsrsRecords',
+        'srsPracticeWords',
         'dailyUsage',
         'reviewLogs',
         'settings',
         'quranVerses',
       ];
-      expect(keys.length).toBe(9);
+      expect(keys.length).toBe(10);
       expect(keys).toContain('words');
       expect(keys).toContain('groups');
       expect(keys).toContain('missedWords');
       expect(keys).toContain('wordFamilies');
       expect(keys).toContain('fsrsRecords');
+      expect(keys).toContain('srsPracticeWords');
       expect(keys).toContain('dailyUsage');
       expect(keys).toContain('reviewLogs');
       expect(keys).toContain('settings');

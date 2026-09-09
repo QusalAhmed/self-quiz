@@ -39,6 +39,7 @@ import {
   IconListCheck,
   IconPlayerPause,
   IconPlayerPlay,
+  IconRepeat,
   IconRotateClockwise,
   IconTrash,
 } from '@tabler/icons-react';
@@ -69,6 +70,7 @@ export type CloudSyncCardProps = {
     missedWords?: number;
     wordFamilies?: number;
     fsrsRecords?: number;
+    srsPracticeWords?: number;
     dailyUsage?: number;
     reviewLogs?: number;
     settings?: number;
@@ -82,6 +84,7 @@ const collectionIcons: Record<SyncCollectionKey, React.ComponentType<{ size?: nu
   missedWords: IconListCheck,
   wordFamilies: IconHierarchy,
   fsrsRecords: IconBrain,
+  srsPracticeWords: IconRepeat,
   dailyUsage: IconClock,
   reviewLogs: IconHistory,
   settings: IconAdjustmentsHorizontal,
