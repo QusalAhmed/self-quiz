@@ -484,23 +484,21 @@ export default function QuizPage() {
   }, [fsrsRecords, quizDirection, wordsById, nowTicker]);
 
   const fsrsForgettingWordsForMode = useMemo(() => {
-    const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
-    const nowMs = new Date(nowTicker).getTime();
-
     return fsrsRecords
       .filter((r) => {
         if (r.isDeleted || r.quizMode !== quizDirection) {
           return false;
         }
-        if (r.lastRating !== 'again' && r.lastRating !== 'hard') {
-          return false;
-        }
-        const dueMs = new Date(r.dueAt).getTime();
-        return dueMs - nowMs > SIX_HOURS_MS;
+        return r.lastRating === 'again' || r.lastRating === 'hard';
       })
       .map((record) => resolveWordTextFromMainTable(record, wordsById))
-      .filter((record): record is WordWithDefinitions<FsrsRecord> => record !== null);
-  }, [fsrsRecords, quizDirection, wordsById, nowTicker]);
+      .filter((record): record is WordWithDefinitions<FsrsRecord> => record !== null)
+      .sort(
+        (a, b) =>
+          new Date(b.updatedAt || b.lastReviewedAt || 0).getTime() -
+          new Date(a.updatedAt || a.lastReviewedAt || 0).getTime()
+      );
+  }, [fsrsRecords, quizDirection, wordsById]);
 
   const generatingExampleWordIds = useMemo(
     () => Object.fromEntries(Object.keys(exampleGenerationCounts).map((id) => [id, true])),
@@ -512,8 +510,8 @@ export default function QuizPage() {
       if (quizSource === 'missed') {
         return (word as MissedWordRecord).wordId;
       }
-      if (quizSource === 'fsrs') {
-        return (word as FsrsRecord).wordId;
+      if (quizSource === 'fsrs' || quizSource === 'fsrsForgetting') {
+        return (word as FsrsRecord).wordId || (word as MissedWordRecord).wordId || word.id;
       }
       return word.id;
     },
@@ -659,9 +657,17 @@ export default function QuizPage() {
         candidates = fsrsForgettingWordsForMode.filter((w) => w.lastRating === 'hard');
       } else if (practiceDisplayMode === 'fsrsAgainHard') {
         candidates = fsrsForgettingWordsForMode;
-      } else {
-        // 'allMissed' or default: missed words
+      } else if (practiceDisplayMode === 'missed') {
         candidates = missedWordsForMode;
+      } else {
+        // 'allMissed' or default: combine manual missed and fsrs again/hard words
+        const manualWordIds = new Set(missedWordsForMode.map((w) => w.wordId));
+        candidates = [...missedWordsForMode];
+        for (const fWord of fsrsForgettingWordsForMode) {
+          if (!manualWordIds.has(fWord.wordId)) {
+            candidates.push(fWord);
+          }
+        }
       }
 
       if (quizGroupFilter !== 'all') {
@@ -1719,24 +1725,33 @@ export default function QuizPage() {
     if (!database) {
       return;
     }
-    const existing = await database.missedWords.findOne(id).exec();
-    if (existing) {
+    const baseWordId = id.includes(':') ? id.split(':')[0] : id;
+
+    // Remove from missedWords if present
+    const missedId = buildMissedWordId(baseWordId, quizDirection as import('@/lib/db').QuizMode);
+    const existing = await database.missedWords.findOne(missedId).exec();
+    if (existing && !existing.isDeleted) {
       await removeMissedWordRecord(existing.wordId, existing.quizMode);
-      return;
     }
-    const fsrsDoc = await database.fsrsRecords.findOne(id).exec();
+
+    // Reset lastRating on fsrsRecords if present
+    const fsrsId = buildFsrsId(baseWordId, quizDirection as import('@/lib/db').QuizMode);
+    const fsrsDoc = await database.fsrsRecords.findOne(fsrsId).exec();
     if (fsrsDoc) {
-      const updated = {
-        ...(fsrsDoc.toJSON() as FsrsRecord),
-        lastRating: undefined,
-        updatedAt: new Date().toISOString(),
-      };
-      await database.fsrsRecords.upsert(updated);
+      const current = fsrsDoc.toJSON() as FsrsRecord;
+      if (current.lastRating === 'again' || current.lastRating === 'hard') {
+        const updated = {
+          ...current,
+          lastRating: undefined,
+          updatedAt: new Date().toISOString(),
+        };
+        await database.fsrsRecords.upsert(updated);
+      }
     }
   };
 
   const handleUnmarkAllMissed = async () => {
-    if (!database || missedWordsForMode.length === 0) {
+    if (!database) {
       return;
     }
 
@@ -1749,6 +1764,18 @@ export default function QuizPage() {
         updatedAt: timestamp,
       };
       await database.missedWords.upsert(record);
+    }
+
+    for (const item of fsrsForgettingWordsForMode) {
+      const fsrsDoc = await database.fsrsRecords.findOne(item.id).exec();
+      if (fsrsDoc) {
+        const updated = {
+          ...(fsrsDoc.toJSON() as FsrsRecord),
+          lastRating: undefined,
+          updatedAt: timestamp,
+        };
+        await database.fsrsRecords.upsert(updated);
+      }
     }
   };
 
@@ -1876,7 +1903,20 @@ export default function QuizPage() {
     <Container size="md" pt={0} pb={{ base: 'md', sm: 'xl' }} px={{ base: 'xs', sm: 'md' }}>
       <ClearMissedWordsModal
         opened={confirmClearAllOpen}
-        count={missedWordsForMode.length}
+        count={
+          practiceDisplayMode === 'missed'
+            ? missedWordsForMode.length
+            : practiceDisplayMode === 'fsrsAgain'
+              ? fsrsForgettingWordsForMode.filter((w) => w.lastRating === 'again').length
+              : practiceDisplayMode === 'fsrsHard'
+                ? fsrsForgettingWordsForMode.filter((w) => w.lastRating === 'hard').length
+                : practiceDisplayMode === 'fsrsAgainHard'
+                  ? fsrsForgettingWordsForMode.length
+                  : new Set([
+                      ...missedWordsForMode.map((w) => w.wordId),
+                      ...fsrsForgettingWordsForMode.map((w) => w.wordId),
+                    ]).size
+        }
         quizDirectionLabel={quizDirections[quizDirection]}
         onClose={() => setConfirmClearAllOpen(false)}
         onConfirm={handleConfirmClearAll}

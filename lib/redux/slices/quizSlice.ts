@@ -112,7 +112,7 @@ const initialState: QuizSliceState = {
   quizGroupFilter: 'all',
   customStart: initialCustomStart,
   customEnd: initialCustomEnd,
-  practiceDisplayMode: 'missed',
+  practiceDisplayMode: 'allMissed',
   autoPronounceQuizWord: false,
   hideMissedMeanings: false,
   hideSrsPracticeMeanings: false,

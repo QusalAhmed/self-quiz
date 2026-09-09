@@ -201,6 +201,18 @@ async function dispatchOsNotification(payload: NotificationPayload): Promise<boo
       const registration = await navigator.serviceWorker.getRegistration();
       if (registration && registration.active) {
         await registration.showNotification(payload.title, options);
+        // Auto-close notification on phone/desktop after 6 seconds so it doesn't linger indefinitely
+        const tag = options.tag;
+        if (tag && typeof registration.getNotifications === 'function') {
+          setTimeout(async () => {
+            try {
+              const activeNotifs = await registration.getNotifications({ tag });
+              activeNotifs.forEach((n) => n.close());
+            } catch {
+              // Ignore if already closed or unsupported
+            }
+          }, 6000);
+        }
         return true;
       }
     }
@@ -216,6 +228,14 @@ async function dispatchOsNotification(payload: NotificationPayload): Promise<boo
         notification.close();
       };
     }
+    // Auto-close fallback notification after 6 seconds
+    setTimeout(() => {
+      try {
+        notification.close();
+      } catch {
+        // Ignore if already closed
+      }
+    }, 6000);
     return true;
   } catch (err) {
     console.warn('Could not dispatch OS notification:', err);

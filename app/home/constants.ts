@@ -12,16 +12,16 @@ export const quizSources = {
   words: 'Regular',
   missed: 'Missed Words',
   fsrs: 'FSRS Review',
-  fsrsForgetting: 'FSRS Missed (Again/Hard >6h)',
+  fsrsForgetting: 'FSRS Again & Hard Words',
   similarGroups: 'Similar Word Groups',
 } as const;
 
 export const practiceDisplayModes = {
-  allMissed: 'All Missed & Forgotten',
+  allMissed: 'All Missed & Again/Hard',
   missed: 'Manual Missed Words',
-  fsrsAgainHard: 'FSRS Again & Hard (>6h)',
-  fsrsAgain: 'FSRS Again Only (>6h)',
-  fsrsHard: 'FSRS Hard Only (>6h)',
+  fsrsAgainHard: 'FSRS Again & Hard',
+  fsrsAgain: 'FSRS Again Only',
+  fsrsHard: 'FSRS Hard Only',
 } as const;
 
 export const quizDirections = {

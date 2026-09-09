@@ -169,4 +169,138 @@ describe('QuizModeSection component', () => {
 
     expect(screen.getByText('QUIZ GROUP')).toBeInTheDocument();
   });
+
+  it('renders words whose last rating is again or hard below the review section together with missed words in allMissed mode', () => {
+    const missedWord = {
+      id: 'w1:wordToMeaning',
+      wordId: 'w1',
+      quizMode: 'wordToMeaning' as const,
+      word: 'ephemeral',
+      meaning: 'lasting for a very short time',
+      missedAt: '2026-09-08T10:00:00.000Z',
+      missedCount: 2,
+      updatedAt: '2026-09-08T10:00:00.000Z',
+      lastSyncedAt: '',
+      isDeleted: false,
+    };
+
+    const fsrsAgainWord: any = {
+      id: 'w2:fsrs:wordToMeaning',
+      wordId: 'w2',
+      quizMode: 'wordToMeaning',
+      word: 'ubiquitous',
+      meaning: 'present everywhere',
+      dueAt: '2026-09-09T10:30:00.000Z',
+      lastRating: 'again' as const,
+      updatedAt: '2026-09-09T10:00:00.000Z',
+    };
+
+    const fsrsHardWord: any = {
+      id: 'w3:fsrs:wordToMeaning',
+      wordId: 'w3',
+      quizMode: 'wordToMeaning',
+      word: 'esoteric',
+      meaning: 'understood by only a few',
+      dueAt: '2026-09-09T11:00:00.000Z',
+      lastRating: 'hard' as const,
+      updatedAt: '2026-09-09T10:15:00.000Z',
+    };
+
+    render(
+      <QuizModeSection
+        {...baseProps}
+        practiceDisplayMode="allMissed"
+        missedWordsForMode={[missedWord]}
+        fsrsForgettingWordsForMode={[fsrsAgainWord, fsrsHardWord]}
+      />
+    );
+
+    // All three words should be present in the practice section
+    expect(screen.getByText('ephemeral')).toBeInTheDocument();
+    expect(screen.getByText('ubiquitous')).toBeInTheDocument();
+    expect(screen.getByText('esoteric')).toBeInTheDocument();
+
+    // Badges
+    expect(screen.getByText('FSRS Again')).toBeInTheDocument();
+    expect(screen.getByText('FSRS Hard')).toBeInTheDocument();
+    expect(screen.getByText('ephemeral').closest('div')).toHaveTextContent(/missed/);
+  });
+
+  it('filters only FSRS again words when practiceDisplayMode is fsrsAgain', () => {
+    const fsrsAgainWord: any = {
+      id: 'w2:fsrs:wordToMeaning',
+      wordId: 'w2',
+      quizMode: 'wordToMeaning',
+      word: 'ubiquitous',
+      meaning: 'present everywhere',
+      dueAt: '2026-09-09T10:30:00.000Z',
+      lastRating: 'again' as const,
+      updatedAt: '2026-09-09T10:00:00.000Z',
+    };
+
+    const fsrsHardWord: any = {
+      id: 'w3:fsrs:wordToMeaning',
+      wordId: 'w3',
+      quizMode: 'wordToMeaning',
+      word: 'esoteric',
+      meaning: 'understood by only a few',
+      dueAt: '2026-09-09T11:00:00.000Z',
+      lastRating: 'hard' as const,
+      updatedAt: '2026-09-09T10:15:00.000Z',
+    };
+
+    render(
+      <QuizModeSection
+        {...baseProps}
+        practiceDisplayMode="fsrsAgain"
+        missedWordsForMode={[]}
+        fsrsForgettingWordsForMode={[fsrsAgainWord, fsrsHardWord]}
+      />
+    );
+
+    expect(screen.getByText('ubiquitous')).toBeInTheDocument();
+    expect(screen.getByText('FSRS Again')).toBeInTheDocument();
+    expect(screen.queryByText('esoteric')).not.toBeInTheDocument();
+  });
+
+  it('merges word metadata when a word is both in missedWords and rated again', () => {
+    const missedWord = {
+      id: 'w1:wordToMeaning',
+      wordId: 'w1',
+      quizMode: 'wordToMeaning' as const,
+      word: 'ephemeral',
+      meaning: 'lasting for a very short time',
+      missedAt: '2026-09-08T10:00:00.000Z',
+      missedCount: 3,
+      updatedAt: '2026-09-08T10:00:00.000Z',
+      lastSyncedAt: '',
+      isDeleted: false,
+    };
+
+    const fsrsAgainSameWord: any = {
+      id: 'w1:fsrs:wordToMeaning',
+      wordId: 'w1',
+      quizMode: 'wordToMeaning',
+      word: 'ephemeral',
+      meaning: 'lasting for a very short time',
+      dueAt: '2026-09-09T10:30:00.000Z',
+      lastRating: 'again' as const,
+      updatedAt: '2026-09-09T10:20:00.000Z',
+    };
+
+    render(
+      <QuizModeSection
+        {...baseProps}
+        practiceDisplayMode="allMissed"
+        missedWordsForMode={[missedWord]}
+        fsrsForgettingWordsForMode={[fsrsAgainSameWord]}
+      />
+    );
+
+    // Ephemeral should be rendered once
+    expect(screen.getByText('ephemeral')).toBeInTheDocument();
+    // It should have both the FSRS Again badge and the missed count badge
+    expect(screen.getByText('FSRS Again')).toBeInTheDocument();
+    expect(screen.getByText('ephemeral').closest('div')).toHaveTextContent(/missed/);
+  });
 });

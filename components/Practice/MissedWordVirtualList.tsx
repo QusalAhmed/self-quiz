@@ -16,6 +16,7 @@ export type MissedOrForgettingWordItem = {
   lastRating?: 'again' | 'hard' | 'good' | 'easy';
   dueAt?: string;
   definitions?: WordDefinition[];
+  updatedAt?: string;
 };
 
 type MissedWordVirtualListProps = {
@@ -200,7 +201,8 @@ export const MissedWordVirtualList = memo(function MissedWordVirtualList({
                           FSRS Hard
                         </Badge>
                       )}
-                      {!word.lastRating && (
+                      {(!word.lastRating ||
+                        (typeof word.missedCount === 'number' && word.missedCount > 0)) && (
                         <Badge
                           color={severity.badgeColor}
                           variant="light"

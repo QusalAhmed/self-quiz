@@ -48,7 +48,10 @@ import {
   type QuizSourceKey,
 } from '@/app/home/constants';
 import { ExportWordsModal } from '@/components/Home/ExportWordsModal';
-import { MissedWordVirtualList } from '@/components/Practice/MissedWordVirtualList';
+import {
+  MissedWordVirtualList,
+  type MissedOrForgettingWordItem,
+} from '@/components/Practice/MissedWordVirtualList';
 import { PracticeDisplayCombobox } from '@/components/Practice/PracticeDisplayCombobox';
 import { QuizPanel, type QuizDirection, type QuizItem } from '@/components/QuizPanel/QuizPanel';
 import type {
@@ -224,8 +227,54 @@ export const QuizModeSection = memo(function QuizModeSection({
     if (practiceDisplayMode === 'fsrsHard') {
       return fsrsWords.filter((w) => w.lastRating === 'hard');
     }
-    // 'allMissed' or 'missed' or default: manual missed words
-    return missedWordsForMode;
+    if (practiceDisplayMode === 'missed') {
+      return missedWordsForMode;
+    }
+
+    // 'allMissed' or default: combine manual missed words and words whose last rating was again or hard
+    const fsrsByWordId = new Map(fsrsWords.map((w) => [w.wordId, w]));
+    const combined: MissedOrForgettingWordItem[] = [];
+    const seenWordIds = new Set<string>();
+
+    for (const mWord of missedWordsForMode) {
+      seenWordIds.add(mWord.wordId);
+      const fsrsMatch = fsrsByWordId.get(mWord.wordId);
+      combined.push({
+        id: mWord.id,
+        wordId: mWord.wordId,
+        word: mWord.word,
+        meaning: mWord.meaning,
+        definitions: mWord.definitions,
+        missedCount: mWord.missedCount,
+        lastRating: fsrsMatch?.lastRating,
+        dueAt: fsrsMatch?.dueAt,
+        updatedAt: mWord.updatedAt || mWord.missedAt,
+      });
+    }
+
+    for (const fWord of fsrsWords) {
+      if (!seenWordIds.has(fWord.wordId)) {
+        seenWordIds.add(fWord.wordId);
+        combined.push({
+          id: fWord.id,
+          wordId: fWord.wordId,
+          word: fWord.word,
+          meaning: fWord.meaning,
+          definitions: fWord.definitions,
+          lastRating: fWord.lastRating,
+          dueAt: fWord.dueAt,
+          updatedAt: fWord.updatedAt || fWord.lastReviewedAt,
+        });
+      }
+    }
+
+    combined.sort((a, b) => {
+      const timeA = new Date(a.updatedAt || 0).getTime();
+      const timeB = new Date(b.updatedAt || 0).getTime();
+      return timeB - timeA;
+    });
+
+    return combined;
   }, [practiceDisplayMode, missedWordsForMode, fsrsForgettingWordsForMode]);
 
   const [optionsExpanded, setOptionsExpanded] = useState(true);
@@ -733,9 +782,11 @@ export const QuizModeSection = memo(function QuizModeSection({
           currentQuizItem ? Boolean(generatingExampleWordIds[currentQuizItem.id]) : false
         }
         autoPronounceWord={autoPronounceQuizWord}
-        srsMode={quizSource === 'fsrs'}
-        onSrsRate={quizSource === 'fsrs' ? onSrsRate : undefined}
-        srsIntervals={quizSource === 'fsrs' ? srsIntervals : undefined}
+        srsMode={quizSource === 'fsrs' || quizSource === 'fsrsForgetting'}
+        onSrsRate={quizSource === 'fsrs' || quizSource === 'fsrsForgetting' ? onSrsRate : undefined}
+        srsIntervals={
+          quizSource === 'fsrs' || quizSource === 'fsrsForgetting' ? srsIntervals : undefined
+        }
         onEditClick={onEditClick}
         onDeleteFsrsRecord={onDeleteFsrsRecord}
         canUndo={canUndo}
@@ -763,19 +814,19 @@ export const QuizModeSection = memo(function QuizModeSection({
                 height: 36,
                 borderRadius: 10,
                 background:
-                  practiceDisplayMode === 'missed'
+                  practiceDisplayMode === 'missed' || practiceDisplayMode === 'allMissed'
                     ? 'linear-gradient(135deg, #ef4444 0%, #f97316 100%)'
                     : 'linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 boxShadow:
-                  practiceDisplayMode === 'missed'
+                  practiceDisplayMode === 'missed' || practiceDisplayMode === 'allMissed'
                     ? '0 4px 12px rgba(239,68,68,0.35)'
                     : '0 4px 12px rgba(139,92,246,0.35)',
               }}
             >
-              {practiceDisplayMode === 'missed' ? (
+              {practiceDisplayMode === 'missed' || practiceDisplayMode === 'allMissed' ? (
                 <IconFlame size={18} color="white" />
               ) : (
                 <IconBrain size={18} color="white" />
@@ -859,19 +910,20 @@ export const QuizModeSection = memo(function QuizModeSection({
               Quiz
             </Button>
 
-            {practiceDisplayMode === 'missed' && missedWordsForMode.length > 0 && (
-              <Button
-                variant="subtle"
-                color="red"
-                size="xs"
-                radius="md"
-                leftSection={<IconBookmarkOff size={14} />}
-                onClick={onOpenClearAllMissed}
-                style={{ opacity: 0.8 }}
-              >
-                Clear All
-              </Button>
-            )}
+            {(practiceDisplayMode === 'missed' || practiceDisplayMode === 'allMissed') &&
+              displayedMissedItems.length > 0 && (
+                <Button
+                  variant="subtle"
+                  color="red"
+                  size="xs"
+                  radius="md"
+                  leftSection={<IconBookmarkOff size={14} />}
+                  onClick={onOpenClearAllMissed}
+                  style={{ opacity: 0.8 }}
+                >
+                  Clear All
+                </Button>
+              )}
           </Group>
         </Group>
 
@@ -885,11 +937,11 @@ export const QuizModeSection = memo(function QuizModeSection({
         {displayedMissedItems.length === 0 ? (
           <EmptyPracticeState
             icon={<IconTarget size={24} style={{ color: '#ef4444', opacity: 0.5 }} />}
-            title="No missed or forgotten words in this view"
+            title="No missed or Again/Hard words in this view"
             description={
               <>
-                Words rated Again or Hard during FSRS quiz (with next review &gt; 6h) or bookmarked
-                as missed in {quizDirections[quizDirection]} will appear here.
+                Words rated Again or Hard during FSRS review or bookmarked as missed in{' '}
+                {quizDirections[quizDirection]} will appear here.
               </>
             }
             borderColor="rgba(239,68,68,0.2)"

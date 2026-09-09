@@ -320,5 +320,58 @@ describe('System Notifications Service', () => {
         })
       );
     });
+
+    it('automatically closes ServiceWorker OS notification after timeout', async () => {
+      jest.useFakeTimers();
+      const mockClose = jest.fn();
+      const mockGetNotifications = jest.fn().mockResolvedValue([{ close: mockClose }]);
+
+      mockGetRegistration.mockResolvedValue({
+        active: true,
+        showNotification: mockShowNotification,
+        getNotifications: mockGetNotifications,
+      });
+
+      await dispatchSystemNotification('test_notification', {
+        title: 'SW Auto-Close Test',
+        body: 'Testing SW auto close on phone',
+        tag: 'sw-auto-close-tag',
+      });
+
+      expect(mockShowNotification).toHaveBeenCalled();
+
+      // Advance past 6000ms
+      await jest.advanceTimersByTimeAsync(6500);
+
+      expect(mockGetNotifications).toHaveBeenCalledWith({ tag: 'sw-auto-close-tag' });
+      expect(mockClose).toHaveBeenCalled();
+      jest.useRealTimers();
+    });
+
+    it('automatically closes fallback window.Notification after timeout', async () => {
+      jest.useFakeTimers();
+      mockGetRegistration.mockResolvedValue(null);
+
+      const mockClose = jest.fn();
+      (Notification as unknown as jest.Mock).mockImplementation((title, options) => ({
+        title,
+        options,
+        close: mockClose,
+      }));
+
+      await dispatchSystemNotification('test_notification', {
+        title: 'Fallback Auto-Close Test',
+        body: 'Testing fallback close on phone',
+      });
+
+      expect(Notification).toHaveBeenCalled();
+      expect(mockClose).not.toHaveBeenCalled();
+
+      // Advance past 6000ms
+      jest.advanceTimersByTime(6500);
+
+      expect(mockClose).toHaveBeenCalled();
+      jest.useRealTimers();
+    });
   });
 });

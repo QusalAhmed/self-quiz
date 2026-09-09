@@ -97,4 +97,84 @@ describe('Notifications helper', () => {
     appNotifications.hide('some-id');
     expect(notifications.hide).toHaveBeenCalledWith('some-id');
   });
+
+  describe('Watchdog auto-dismiss for mobile phones', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      appNotifications.clean();
+      jest.useRealTimers();
+    });
+
+    it('automatically calls notifications.hide via watchdog when autoClose duration expires', () => {
+      appNotifications.success({
+        id: 'watchdog-test-1',
+        title: 'Auto Dismiss Test',
+        message: 'Should close automatically on phone',
+        autoClose: 3000,
+      });
+
+      // Before timeout expires, hide should not have been called
+      expect(notifications.hide).not.toHaveBeenCalledWith('watchdog-test-1');
+
+      // Fast forward past autoClose (3000ms) + grace buffer (500ms) = 3500ms
+      jest.advanceTimersByTime(3600);
+
+      expect(notifications.hide).toHaveBeenCalledWith('watchdog-test-1');
+    });
+
+    it('cancels watchdog timer if appNotifications.hide is manually called before expiry', () => {
+      appNotifications.info({
+        id: 'watchdog-test-manual',
+        title: 'Manual Dismiss Test',
+        message: 'Closed manually before timeout',
+        autoClose: 4000,
+      });
+
+      appNotifications.hide('watchdog-test-manual');
+      expect(notifications.hide).toHaveBeenCalledWith('watchdog-test-manual');
+
+      (notifications.hide as jest.Mock).mockClear();
+
+      // Fast forward past the original timeout
+      jest.advanceTimersByTime(5000);
+
+      // Should not call hide again because watchdog was cancelled
+      expect(notifications.hide).not.toHaveBeenCalledWith('watchdog-test-manual');
+    });
+
+    it('cancels all active watchdogs on appNotifications.clean', () => {
+      appNotifications.show({
+        id: 'watchdog-test-clean-1',
+        message: 'Message 1',
+        autoClose: 3000,
+      });
+      appNotifications.show({
+        id: 'watchdog-test-clean-2',
+        message: 'Message 2',
+        autoClose: 4000,
+      });
+
+      appNotifications.clean();
+      expect(notifications.clean).toHaveBeenCalled();
+
+      (notifications.hide as jest.Mock).mockClear();
+
+      jest.advanceTimersByTime(5000);
+      expect(notifications.hide).not.toHaveBeenCalled();
+    });
+
+    it('does not schedule a watchdog timer when autoClose is false', () => {
+      appNotifications.show({
+        id: 'watchdog-test-persistent',
+        message: 'Persistent message',
+        autoClose: false,
+      });
+
+      jest.advanceTimersByTime(10000);
+      expect(notifications.hide).not.toHaveBeenCalled();
+    });
+  });
 });
