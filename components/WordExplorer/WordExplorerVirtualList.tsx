@@ -41,6 +41,7 @@ export type WordExplorerVirtualListProps = {
   onDismissVerification?: (wordId: string) => Promise<void> | void;
   onReverify?: (wordId: string) => Promise<void> | void;
   reverifyingWordIds?: Record<string, boolean>;
+  onFetchFrequency?: (wordId: string, word: string, meaning?: string) => Promise<void> | void;
 };
 
 const EMPTY_MEMBERS: WordFamilyMemberRecord[] = [];
@@ -71,6 +72,7 @@ export const WordExplorerVirtualList = React.memo(function WordExplorerVirtualLi
   onDismissVerification,
   onReverify,
   reverifyingWordIds = {},
+  onFetchFrequency,
 }: WordExplorerVirtualListProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const [scrollMargin, setScrollMargin] = useState(0);
@@ -279,6 +281,7 @@ export const WordExplorerVirtualList = React.memo(function WordExplorerVirtualLi
                 onDismissVerification={onDismissVerification}
                 onReverify={onReverify}
                 isReverifying={reverifyingWordIds[item.id]}
+                onFetchFrequency={onFetchFrequency}
               />
             </div>
           );

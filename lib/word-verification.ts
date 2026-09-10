@@ -1,6 +1,7 @@
 import { formatCloudflareModelDetails } from './cloudflare';
 import { formatGoogleModelDetails } from './google';
 import { ALLOWED_GROQ_MODELS, formatGroqModelDetails } from './groq';
+import { normalizeUsageFrequency } from './word-family';
 import { resolveWordsApiKey, verifyWordWithWordsApi } from './words-api';
 
 export { verifyWordWithWordsApi } from './words-api';
@@ -29,6 +30,7 @@ export type WordVerificationResult = {
     partOfSpeech: string;
   };
   generatorAiDetails: string;
+  usageFrequency?: string;
 };
 
 export type WordVerificationIssue = {
@@ -45,6 +47,7 @@ export type WordVerificationIssue = {
   };
   generatorAiDetails: string;
   verifiedAt: string;
+  usageFrequency?: string;
 };
 
 export function getWordVerificationIssue(
@@ -122,7 +125,8 @@ export const WORD_VERIFICATION_SYSTEM_INSTRUCTION =
   '1. Word Validity & Spelling: Is this a recognized English word, term, or idiom? If misspelled or slightly off, identify the correct spelling.\n' +
   '2. Definition Accuracy: For each provided definition, determine if it accurately describes the word. Check if the designated part of speech (noun, verb, adjective, adverb, etc.) matches the definition.\n' +
   '3. Suggestions: If a definition is inaccurate, ambiguous, or if no definitions were provided, provide a clear, concise, accurate definition and part of speech.\n' +
-  '4. Overall Status: Determine if the word and definitions are "valid" (word is real and definition is accurate), "warning" (minor typo or slight inaccuracy/part-of-speech mismatch), or "invalid" (nonsensical, made up, or completely incorrect definition).\n' +
+  '4. Usage Frequency: Estimate the word usage frequency tier in contemporary English corpus: "Top 500", "Top 1000", "Top 2000", "Top 3000", "Top 5000", "Top 10000", or "Rare".\n' +
+  '5. Overall Status: Determine if the word and definitions are "valid" (word is real and definition is accurate), "warning" (minor typo or slight inaccuracy/part-of-speech mismatch), or "invalid" (nonsensical, made up, or completely incorrect definition).\n' +
   'You must output ONLY valid, raw JSON matching the specified schema. Do not include markdown code fences, comments, or explanations outside the JSON.';
 
 export function buildWordVerificationUserPrompt(
@@ -148,6 +152,7 @@ export function buildWordVerificationUserPrompt(
     `  "isWordValid": true/false,\n` +
     `  "wordSpellingSuggestion": "corrected word if misspelled, or null",\n` +
     `  "wordFeedback": "concise feedback on word validity or spelling",\n` +
+    `  "usageFrequency": "Top 500 | Top 1000 | Top 2000 | Top 3000 | Top 5000 | Top 10000 | Rare",\n` +
     `  "overallStatus": "valid" | "warning" | "invalid",\n` +
     `  "definitions": [\n` +
     `    {\n` +
@@ -257,6 +262,10 @@ export function parseWordVerificationResponse(
     };
   }
 
+  const rawUsageFreq =
+    parsed?.usageFrequency ?? parsed?.frequency ?? parsed?.usage_frequency ?? parsed?.freq;
+  const usageFrequency = rawUsageFreq ? normalizeUsageFrequency(rawUsageFreq) : undefined;
+
   return {
     word: originalWord,
     isWordValid,
@@ -266,6 +275,7 @@ export function parseWordVerificationResponse(
     definitions: verifiedDefinitions,
     suggestedNewDefinition,
     generatorAiDetails,
+    usageFrequency: usageFrequency || undefined,
   };
 }
 

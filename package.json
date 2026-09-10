@@ -23,6 +23,8 @@
     "migrate:review-logs": "node scripts/migrate-review-logs.mjs",
     "migrate:similarities": "node scripts/migrate-word-similarities.mjs",
     "compute:similarities": "node scripts/compute-similarities.mjs",
+    "migrate:usage-frequency": "node scripts/migrate-usage-frequency.mjs",
+    "fetch:frequencies": "node scripts/fetch-word-frequencies.mjs",
     "test": "npx next typegen && npm run format:test && npm run lint && npm run typecheck && npm run jest",
     "storybook": "storybook dev -p 6006",
     "storybook:build": "storybook build"

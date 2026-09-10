@@ -10,6 +10,7 @@ import {
   Group,
   Paper,
   PasswordInput,
+  Progress,
   Radio,
   Select,
   SimpleGrid,
@@ -23,13 +24,18 @@ import {
 import {
   IconBook,
   IconBrain,
+  IconChartBar,
   IconCheck,
   IconCpu,
   IconKey,
+  IconPlayerStop,
+  IconRefresh,
+  IconSparkles,
   IconTestPipe,
   IconX,
 } from '@tabler/icons-react';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
+import { getDatabase, safePatchDoc, type WordRecord } from '@/lib/db';
 import { formatGroqModelDetails } from '@/lib/groq';
 import type { AiProviderKey, AppAiSettings } from '@/lib/settings';
 
@@ -85,6 +91,31 @@ export function SettingsAiTab({ settings, onChange }: SettingsAiTabProps) {
     message: string;
     latencyMs?: number;
   } | null>(null);
+
+  const [testFrequencyWord, setTestFrequencyWord] = useState('serendipity');
+  const [isTestingFrequency, setIsTestingFrequency] = useState(false);
+  const [frequencyTestResult, setFrequencyTestResult] = useState<{
+    success: boolean;
+    message: string;
+    tier?: string;
+    provider?: string;
+    metrics?: string;
+    latencyMs?: number;
+  } | null>(null);
+
+  const [isBackfilling, setIsBackfilling] = useState(false);
+  const [backfillProgress, setBackfillProgress] = useState<{
+    current: number;
+    total: number;
+    currentWord?: string;
+    updated: number;
+    failed: number;
+  } | null>(null);
+  const [backfillSummary, setBackfillSummary] = useState<{
+    type: 'success' | 'error' | 'info';
+    message: string;
+  } | null>(null);
+  const cancelBackfillRef = useRef(false);
 
   const handleTestConnection = async () => {
     setIsTesting(true);
@@ -177,6 +208,166 @@ export function SettingsAiTab({ settings, onChange }: SettingsAiTabProps) {
       });
     } finally {
       setIsTestingWordsApi(false);
+    }
+  };
+
+  const handleTestFrequency = async () => {
+    if (!testFrequencyWord.trim()) {
+      return;
+    }
+    setIsTestingFrequency(true);
+    setFrequencyTestResult(null);
+    const start = Date.now();
+
+    try {
+      const response = await fetch('/api/word-frequency', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          word: testFrequencyWord.trim(),
+          provider: settings.frequencyProvider || 'auto',
+        }),
+      });
+
+      const latency = Date.now() - start;
+      if (response.ok) {
+        const data = await response.json();
+        const freq = data.frequency;
+        const details = freq?.details;
+        let metricsStr = '';
+        if (details?.zipf) {
+          metricsStr = `Zipf: ${details.zipf}${details.perMillion ? `, ${details.perMillion}/million` : ''}`;
+        } else if (details?.rationale) {
+          metricsStr = details.rationale;
+        }
+
+        setFrequencyTestResult({
+          success: true,
+          message: `Detected frequency tier "${freq?.usageFrequency || 'Unknown'}" in ${latency}ms`,
+          tier: freq?.usageFrequency,
+          provider: freq?.generatorAiDetails || freq?.provider,
+          metrics: metricsStr,
+          latencyMs: latency,
+        });
+      } else {
+        const errData = await response.json().catch(() => ({}));
+        setFrequencyTestResult({
+          success: false,
+          message: `Failed to fetch frequency (HTTP ${response.status}): ${errData.error || 'Request failed'}`,
+          latencyMs: latency,
+        });
+      }
+    } catch (err: any) {
+      setFrequencyTestResult({
+        success: false,
+        message: `Connection error: ${err?.message || 'Network error'}`,
+        latencyMs: Date.now() - start,
+      });
+    } finally {
+      setIsTestingFrequency(false);
+    }
+  };
+
+  const handleCancelBackfill = () => {
+    cancelBackfillRef.current = true;
+  };
+
+  const handleBackfillFrequencies = async () => {
+    setIsBackfilling(true);
+    setBackfillSummary(null);
+    cancelBackfillRef.current = false;
+
+    try {
+      const db = await getDatabase();
+      const wordDocs = await db.words.find({ selector: { isDeleted: { $ne: true } } }).exec();
+      const missingDocs = wordDocs.filter((d) => {
+        const data = d.toJSON() as WordRecord;
+        return !data.usageFrequency || data.usageFrequency.trim() === '';
+      });
+
+      if (missingDocs.length === 0) {
+        setBackfillSummary({
+          type: 'info',
+          message: 'All words in your local database already have usage frequency assigned!',
+        });
+        setIsBackfilling(false);
+        return;
+      }
+
+      let updated = 0;
+      let failed = 0;
+
+      for (let i = 0; i < missingDocs.length; i++) {
+        if (cancelBackfillRef.current) {
+          setBackfillSummary({
+            type: 'info',
+            message: `Backfill stopped. Updated ${updated} words, skipped ${missingDocs.length - i} remaining.`,
+          });
+          break;
+        }
+
+        const doc = missingDocs[i];
+        const data = doc.toJSON() as WordRecord;
+        setBackfillProgress({
+          current: i + 1,
+          total: missingDocs.length,
+          currentWord: data.word,
+          updated,
+          failed,
+        });
+
+        try {
+          const res = await fetch('/api/word-frequency', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              word: data.word,
+              meaning: data.meaning || data.definitions?.[0]?.meaning,
+              provider: settings.frequencyProvider || 'auto',
+              wordId: data.id,
+              storeInDb: true,
+            }),
+          });
+
+          if (res.ok) {
+            const result = await res.json();
+            if (result.frequency?.usageFrequency) {
+              await safePatchDoc(doc, {
+                usageFrequency: result.frequency.usageFrequency,
+                generatorAiDetails: result.frequency.generatorAiDetails || undefined,
+                updatedAt: new Date().toISOString(),
+              });
+              updated++;
+            } else {
+              failed++;
+            }
+          } else {
+            failed++;
+          }
+        } catch (err) {
+          console.error(`Error backfilling word "${data.word}":`, err);
+          failed++;
+        }
+
+        if (i < missingDocs.length - 1 && !cancelBackfillRef.current) {
+          await new Promise((resolve) => setTimeout(resolve, 250));
+        }
+      }
+
+      if (!cancelBackfillRef.current) {
+        setBackfillSummary({
+          type: 'success',
+          message: `Backfill complete! Successfully populated frequency for ${updated} word${updated === 1 ? '' : 's'}.${failed > 0 ? ` (${failed} skipped/failed)` : ''}`,
+        });
+      }
+    } catch (err: any) {
+      setBackfillSummary({
+        type: 'error',
+        message: `Backfill encountered an error: ${err?.message || 'Database error'}`,
+      });
+    } finally {
+      setIsBackfilling(false);
+      setBackfillProgress(null);
     }
   };
 
@@ -418,6 +609,240 @@ export function SettingsAiTab({ settings, onChange }: SettingsAiTabProps) {
               </Stack>
             )}
           </div>
+        </Stack>
+      </Card>
+
+      {/* Word Usage Frequency Configuration */}
+      <Card
+        withBorder
+        radius="md"
+        p={{ base: 'md', sm: 'lg' }}
+        style={{
+          background: 'var(--card-bg)',
+          border: '1px solid var(--card-border)',
+          boxShadow: 'var(--card-shadow)',
+        }}
+      >
+        <Group justify="space-between" align="center" wrap="wrap" gap="sm" mb="md">
+          <Group gap="sm" style={{ flex: '1 1 200px' }}>
+            <ThemeIcon size="lg" radius="md" color="teal" variant="light">
+              <IconChartBar size={20} />
+            </ThemeIcon>
+            <div>
+              <Group gap="xs" align="center">
+                <Text fw={700} size="md">
+                  Word Usage Frequency
+                </Text>
+                <Badge size="xs" color="teal" variant="light">
+                  WordsAPI & Multi-AI
+                </Badge>
+              </Group>
+              <Text size="xs" c="dimmed">
+                Configure frequency tier detection (Top 500 – Rare) via WordsAPI and AI models
+              </Text>
+            </div>
+          </Group>
+        </Group>
+
+        <Stack gap="md">
+          <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+            <Select
+              label="Frequency Provider"
+              description="Engine used to retrieve corpus usage frequency"
+              data={[
+                { value: 'auto', label: 'Auto (WordsAPI first, fallback to AI)' },
+                { value: 'wordsapi', label: 'WordsAPI (RapidAPI Zipf scale)' },
+                { value: 'ai', label: 'AI Provider (Current active AI)' },
+                { value: 'gemini', label: 'Google Gemini (Frequency)' },
+                { value: 'groq', label: 'Groq Cloud (Frequency)' },
+                { value: 'cloudflare', label: 'Cloudflare Workers (Frequency)' },
+              ]}
+              value={settings.frequencyProvider || 'auto'}
+              onChange={(val) => onChange({ frequencyProvider: (val as any) || 'auto' })}
+              size="xs"
+              radius="md"
+            />
+
+            <Paper
+              withBorder
+              p="sm"
+              radius="md"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: 'var(--mantine-color-body)',
+              }}
+            >
+              <div>
+                <Text size="xs" fw={600}>
+                  Auto-fetch on Word Add
+                </Text>
+                <Text size="xs" c="dimmed">
+                  Fetch frequency tier automatically when adding a word
+                </Text>
+              </div>
+              <Switch
+                checked={settings.autoFetchUsageFrequencyOnAdd ?? true}
+                onChange={(e) =>
+                  onChange({ autoFetchUsageFrequencyOnAdd: e.currentTarget.checked })
+                }
+                color="teal"
+                size="sm"
+              />
+            </Paper>
+          </SimpleGrid>
+
+          <Divider label="Test Frequency Retrieval" labelPosition="left" />
+
+          {/* Quick Frequency Tester */}
+          <Group align="flex-end" gap="xs">
+            <TextInput
+              label="Test Word"
+              placeholder="e.g. serendipity, ubiquitous"
+              value={testFrequencyWord}
+              onChange={(e) => setTestFrequencyWord(e.currentTarget.value)}
+              size="xs"
+              radius="md"
+              style={{ flex: 1 }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleTestFrequency();
+                }
+              }}
+            />
+            <Button
+              variant="light"
+              color="teal"
+              size="xs"
+              radius="md"
+              loading={isTestingFrequency}
+              onClick={handleTestFrequency}
+              leftSection={<IconSparkles size={14} />}
+            >
+              Test Frequency
+            </Button>
+          </Group>
+
+          {frequencyTestResult && (
+            <Alert
+              icon={frequencyTestResult.success ? <IconCheck size={16} /> : <IconX size={16} />}
+              color={frequencyTestResult.success ? 'teal' : 'red'}
+              title={
+                frequencyTestResult.success ? 'Frequency Retrieved' : 'Frequency Retrieval Failed'
+              }
+              radius="md"
+            >
+              <Group gap="xs" align="center" mb={4}>
+                <Text size="xs" fw={600}>
+                  {frequencyTestResult.message}
+                </Text>
+                {frequencyTestResult.tier && (
+                  <Badge size="xs" color="teal" variant="filled">
+                    {frequencyTestResult.tier}
+                  </Badge>
+                )}
+              </Group>
+              {frequencyTestResult.provider && (
+                <Text size="xs" c="dimmed">
+                  Provider: {frequencyTestResult.provider}
+                  {frequencyTestResult.metrics ? ` • ${frequencyTestResult.metrics}` : ''}
+                </Text>
+              )}
+            </Alert>
+          )}
+
+          <Divider label="Database Frequency Backfill" labelPosition="left" />
+
+          {/* Backfill Existing Words */}
+          <Paper withBorder p="sm" radius="md" style={{ background: 'var(--mantine-color-body)' }}>
+            <Stack gap="xs">
+              <Group justify="space-between" align="center">
+                <div>
+                  <Text size="xs" fw={600}>
+                    Backfill Missing Word Frequencies
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    Scan your local library and fetch frequency tiers for words that don&apos;t have
+                    one
+                  </Text>
+                </div>
+                <Group gap="xs">
+                  {isBackfilling ? (
+                    <Button
+                      size="xs"
+                      color="red"
+                      variant="light"
+                      radius="md"
+                      onClick={handleCancelBackfill}
+                      leftSection={<IconPlayerStop size={14} />}
+                    >
+                      Stop
+                    </Button>
+                  ) : (
+                    <Button
+                      size="xs"
+                      color="indigo"
+                      variant="light"
+                      radius="md"
+                      onClick={handleBackfillFrequencies}
+                      leftSection={<IconRefresh size={14} />}
+                    >
+                      Start Backfill
+                    </Button>
+                  )}
+                </Group>
+              </Group>
+
+              {isBackfilling && backfillProgress && (
+                <Stack gap={4} mt="xs">
+                  <Group justify="space-between">
+                    <Text size="xs" c="dimmed">
+                      Processing: <strong>{backfillProgress.currentWord}</strong> (
+                      {backfillProgress.current} of {backfillProgress.total})
+                    </Text>
+                    <Text size="xs" c="teal" fw={600}>
+                      {Math.round((backfillProgress.current / backfillProgress.total) * 100)}%
+                    </Text>
+                  </Group>
+                  <Progress
+                    value={(backfillProgress.current / backfillProgress.total) * 100}
+                    color="teal"
+                    size="sm"
+                    radius="xl"
+                    animated
+                  />
+                  <Text size="xs" c="dimmed">
+                    Updated: {backfillProgress.updated} • Failed/Skipped: {backfillProgress.failed}
+                  </Text>
+                </Stack>
+              )}
+
+              {backfillSummary && (
+                <Alert
+                  color={
+                    backfillSummary.type === 'success'
+                      ? 'teal'
+                      : backfillSummary.type === 'error'
+                        ? 'red'
+                        : 'blue'
+                  }
+                  title={
+                    backfillSummary.type === 'success'
+                      ? 'Backfill Complete'
+                      : backfillSummary.type === 'error'
+                        ? 'Backfill Error'
+                        : 'Backfill Notice'
+                  }
+                  radius="md"
+                  mt="xs"
+                >
+                  <Text size="xs">{backfillSummary.message}</Text>
+                </Alert>
+              )}
+            </Stack>
+          </Paper>
         </Stack>
       </Card>
 

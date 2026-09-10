@@ -1,10 +1,14 @@
 import {
+  fetchWordsApiFrequency,
   fetchWordsApiWord,
+  getWordsApiUsageFrequency,
+  perMillionToUsageFrequency,
   resolveWordsApiKey,
   searchWordsApiSuggestions,
   verifyWordWithWordsApi,
   WORDS_API_BASE_URL,
   WORDS_API_HOST,
+  zipfToUsageFrequency,
 } from './words-api';
 
 describe('lib/words-api', () => {
@@ -279,6 +283,142 @@ describe('lib/words-api', () => {
       expect(result.isWordValid).toBe(false);
       expect(result.overallStatus).toBe('invalid');
       expect(result.wordFeedback).toContain('was not found in the WordsAPI dictionary');
+    });
+  });
+
+  describe('zipfToUsageFrequency', () => {
+    it('maps high zipf scores to Top 500 and Top 1000', () => {
+      expect(zipfToUsageFrequency(6.5)).toBe('Top 500');
+      expect(zipfToUsageFrequency(6.0)).toBe('Top 500');
+      expect(zipfToUsageFrequency(5.5)).toBe('Top 1000');
+      expect(zipfToUsageFrequency(5.0)).toBe('Top 1000');
+    });
+
+    it('maps intermediate zipf scores to Top 2000, Top 3000, and Top 5000', () => {
+      expect(zipfToUsageFrequency(4.6)).toBe('Top 2000');
+      expect(zipfToUsageFrequency(4.3)).toBe('Top 2000');
+      expect(zipfToUsageFrequency(4.0)).toBe('Top 3000');
+      expect(zipfToUsageFrequency(3.8)).toBe('Top 3000');
+      expect(zipfToUsageFrequency(3.4)).toBe('Top 5000');
+      expect(zipfToUsageFrequency(3.0)).toBe('Top 5000');
+    });
+
+    it('maps low zipf scores to Top 10000 and Rare', () => {
+      expect(zipfToUsageFrequency(2.5)).toBe('Top 10000');
+      expect(zipfToUsageFrequency(2.0)).toBe('Top 10000');
+      expect(zipfToUsageFrequency(1.8)).toBe('Rare');
+      expect(zipfToUsageFrequency(0)).toBe('Rare');
+      expect(zipfToUsageFrequency(-1)).toBe('Rare');
+      expect(zipfToUsageFrequency(NaN)).toBe('Rare');
+    });
+  });
+
+  describe('perMillionToUsageFrequency', () => {
+    it('maps perMillion values correctly across standard tiers', () => {
+      expect(perMillionToUsageFrequency(200)).toBe('Top 500');
+      expect(perMillionToUsageFrequency(50)).toBe('Top 1000');
+      expect(perMillionToUsageFrequency(15)).toBe('Top 2000');
+      expect(perMillionToUsageFrequency(5)).toBe('Top 3000');
+      expect(perMillionToUsageFrequency(1.2)).toBe('Top 5000');
+      expect(perMillionToUsageFrequency(0.3)).toBe('Top 10000');
+      expect(perMillionToUsageFrequency(0.05)).toBe('Rare');
+    });
+  });
+
+  describe('fetchWordsApiFrequency & getWordsApiUsageFrequency', () => {
+    it('throws error when word is empty or no API key is provided', async () => {
+      await expect(fetchWordsApiFrequency('', 'test-key')).rejects.toThrow(
+        'Word is required for WordsAPI lookup'
+      );
+      await expect(fetchWordsApiFrequency('hello')).rejects.toThrow('WordsAPI requires an API key');
+    });
+
+    it('fetches frequency successfully from the dedicated frequency endpoint', async () => {
+      const mockFreqData = {
+        word: 'eloquent',
+        frequency: {
+          zipf: 3.85,
+          perMillion: 7.1,
+          diversity: 0.42,
+        },
+      };
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        status: 200,
+        ok: true,
+        json: async () => mockFreqData,
+      });
+
+      const res = await fetchWordsApiFrequency('eloquent', 'test-key');
+      expect(res).toEqual(mockFreqData);
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        `${WORDS_API_BASE_URL}/words/eloquent/frequency`,
+        expect.objectContaining({
+          method: 'GET',
+          headers: expect.objectContaining({
+            'x-rapidapi-key': 'test-key',
+          }),
+        })
+      );
+    });
+
+    it('falls back to main word endpoint if /frequency endpoint returns non-200', async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        status: 400,
+        ok: false,
+      });
+
+      const mockWordData = {
+        word: 'pragmatic',
+        results: [{ definition: 'practical' }],
+        frequency: 4.15,
+      };
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        status: 200,
+        ok: true,
+        json: async () => mockWordData,
+      });
+
+      const res = await fetchWordsApiFrequency('pragmatic', 'test-key');
+      expect(res).toEqual({
+        word: 'pragmatic',
+        frequency: 4.15,
+      });
+    });
+
+    it('getWordsApiUsageFrequency converts zipf and perMillion into standard tier', async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        status: 200,
+        ok: true,
+        json: async () => ({
+          word: 'resilient',
+          frequency: {
+            zipf: 4.4,
+            perMillion: 25.3,
+            diversity: 0.35,
+          },
+        }),
+      });
+
+      const res = await getWordsApiUsageFrequency('resilient', 'test-key');
+      expect(res).not.toBeNull();
+      expect(res?.word).toBe('resilient');
+      expect(res?.usageFrequency).toBe('Top 2000');
+      expect(res?.zipf).toBe(4.4);
+      expect(res?.perMillion).toBe(25.3);
+      expect(res?.source).toBe('WordsAPI (wordsapi.com)');
+    });
+
+    it('returns null when word is not found (404)', async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        status: 404,
+        ok: false,
+      });
+
+      const res = await fetchWordsApiFrequency('nonexistentword123', 'test-key');
+      expect(res).toBeNull();
     });
   });
 });

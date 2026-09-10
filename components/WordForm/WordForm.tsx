@@ -83,6 +83,8 @@ export function WordForm({
   const [notes, setNotes] = useState('');
   const [usageFrequency, setUsageFrequency] = useState('');
   const [generatorAiDetails, setGeneratorAiDetails] = useState('');
+  const [isFetchingFrequency, setIsFetchingFrequency] = useState(false);
+  const [frequencyMessage, setFrequencyMessage] = useState<string | null>(null);
   const [isAddingNewGroup, setIsAddingNewGroup] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -101,6 +103,8 @@ export function WordForm({
     setNotes('');
     setUsageFrequency('');
     setGeneratorAiDetails('');
+    setIsFetchingFrequency(false);
+    setFrequencyMessage(null);
     setIsAddingNewGroup(false);
     setNewGroupName('');
     setVerificationResult(null);
@@ -338,6 +342,9 @@ export function WordForm({
         if (data.generatorAiDetails && !generatorAiDetails) {
           setGeneratorAiDetails(data.generatorAiDetails);
         }
+        if (data.usageFrequency && !usageFrequency) {
+          setUsageFrequency(data.usageFrequency);
+        }
       } catch (err: any) {
         if (err.name === 'AbortError') {
           return;
@@ -348,7 +355,54 @@ export function WordForm({
         setIsVerifying(false);
       }
     },
-    [generatorAiDetails]
+    [generatorAiDetails, usageFrequency]
+  );
+
+  const handleFetchFrequency = useCallback(
+    async (preferredProvider?: 'auto' | 'wordsapi' | 'ai') => {
+      const trimmed = word.trim();
+      if (!trimmed) {
+        return;
+      }
+      setIsFetchingFrequency(true);
+      setFrequencyMessage(null);
+      try {
+        const firstMeaning = definitions[0]?.meaning?.trim();
+        const res = await fetch('/api/word-frequency', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            word: trimmed,
+            meaning: firstMeaning,
+            provider: preferredProvider || 'auto',
+          }),
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData?.error || `HTTP ${res.status}`);
+        }
+
+        const data = await res.json();
+        if (data.usageFrequency) {
+          setUsageFrequency(data.usageFrequency);
+          if (data.generatorDetails) {
+            setGeneratorAiDetails(data.generatorDetails);
+          }
+          let msg = `${data.source === 'wordsapi' ? 'WordsAPI' : 'AI'}: ${data.usageFrequency}`;
+          if (data.zipf) {
+            msg += ` (Zipf ${Number(data.zipf).toFixed(2)})`;
+          }
+          setFrequencyMessage(msg);
+        }
+      } catch (err: any) {
+        console.warn('Error fetching frequency in WordForm:', err);
+        setFrequencyMessage(err?.message || 'Frequency lookup unavailable');
+      } finally {
+        setIsFetchingFrequency(false);
+      }
+    },
+    [word, definitions]
   );
 
   const handleApplySpellingSuggestion = useCallback(
@@ -506,23 +560,44 @@ export function WordForm({
 
         {/* ── Usage Frequency & AI Generator Info Section ── */}
         <Stack gap="xs">
-          <Group justify="space-between" align="center">
+          <Group justify="space-between" align="center" wrap="wrap" gap="xs">
             <Group gap={6}>
               <IconChartBar size={15} style={{ color: 'var(--mantine-color-indigo-4)' }} />
               <Text size="xs" fw={600} c="dimmed">
                 Usage Frequency Tier (optional)
               </Text>
             </Group>
-            {generatorAiDetails && (
-              <Badge
-                size="xs"
-                variant="light"
+            <Group gap="xs">
+              <Button
+                variant="subtle"
                 color="indigo"
-                leftSection={<IconSparkles size={11} />}
+                size="compact-xs"
+                radius="md"
+                leftSection={<IconSparkles size={12} />}
+                loading={isFetchingFrequency}
+                disabled={disabled || isSaving || !word.trim()}
+                onClick={() => void handleFetchFrequency('auto')}
+                type="button"
+                title="Fetch usage frequency from WordsAPI or AI"
               >
-                {generatorAiDetails}
-              </Badge>
-            )}
+                Fetch Frequency
+              </Button>
+              {frequencyMessage && (
+                <Badge size="xs" variant="light" color="teal">
+                  {frequencyMessage}
+                </Badge>
+              )}
+              {generatorAiDetails && !frequencyMessage && (
+                <Badge
+                  size="xs"
+                  variant="light"
+                  color="indigo"
+                  leftSection={<IconSparkles size={11} />}
+                >
+                  {generatorAiDetails}
+                </Badge>
+              )}
+            </Group>
           </Group>
 
           {/* Quick selection chips for standard frequency tiers */}

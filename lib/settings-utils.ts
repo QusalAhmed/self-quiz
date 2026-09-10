@@ -111,6 +111,8 @@ export interface AppAiSettings {
   useCustomApiKeys: boolean;
   autoVerifyWords?: boolean;
   verificationProvider?: 'auto' | 'wordsapi' | 'gemini' | 'cloudflare' | 'groq';
+  autoFetchUsageFrequencyOnAdd?: boolean;
+  frequencyProvider?: 'auto' | 'wordsapi' | 'ai' | 'gemini' | 'groq' | 'cloudflare';
 }
 
 export interface AppDataSettings {
@@ -192,6 +194,8 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     useCustomApiKeys: false,
     autoVerifyWords: true,
     verificationProvider: 'wordsapi',
+    autoFetchUsageFrequencyOnAdd: true,
+    frequencyProvider: 'auto',
   },
   notifications: DEFAULT_NOTIFICATION_SETTINGS,
   data: {
@@ -371,6 +375,19 @@ export function normalizeAppSettings(raw: Partial<AppSettings> | null | undefine
       raw.ai?.verificationProvider === 'auto'
         ? raw.ai.verificationProvider
         : DEFAULT_APP_SETTINGS.ai.verificationProvider,
+    autoFetchUsageFrequencyOnAdd:
+      typeof raw.ai?.autoFetchUsageFrequencyOnAdd === 'boolean'
+        ? raw.ai.autoFetchUsageFrequencyOnAdd
+        : DEFAULT_APP_SETTINGS.ai.autoFetchUsageFrequencyOnAdd,
+    frequencyProvider:
+      raw.ai?.frequencyProvider === 'wordsapi' ||
+      raw.ai?.frequencyProvider === 'ai' ||
+      raw.ai?.frequencyProvider === 'gemini' ||
+      raw.ai?.frequencyProvider === 'groq' ||
+      raw.ai?.frequencyProvider === 'cloudflare' ||
+      raw.ai?.frequencyProvider === 'auto'
+        ? raw.ai.frequencyProvider
+        : DEFAULT_APP_SETTINGS.ai.frequencyProvider,
   };
 
   const notifications = raw.notifications ? raw.notifications : DEFAULT_NOTIFICATION_SETTINGS;
