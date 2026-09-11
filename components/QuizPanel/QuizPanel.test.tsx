@@ -590,6 +590,80 @@ describe('QuizPanel component', () => {
 
       expect(handleReveal).toHaveBeenCalled();
     });
+
+    it('allows positioning pointer and editing in between words via Gboard', () => {
+      render(
+        <QuizPanel
+          item={{ ...mockItem, word: 'ice cream' }}
+          quizDirection="spelling"
+          revealed={false}
+          onReveal={jest.fn()}
+          onMarkMissed={jest.fn()}
+          isMarkedMissed={false}
+          onNext={jest.fn()}
+          onPrevious={jest.fn()}
+          completed={false}
+          hasPrevious={false}
+          currentIndex={0}
+          totalCount={5}
+        />
+      );
+
+      const input = screen.getByPlaceholderText(/Listen and type.../i) as HTMLInputElement;
+      expect(input).not.toHaveAttribute('readonly');
+
+      // Type initial text "ic crem"
+      const keyI = screen.getByTestId('gboard-key-i');
+      const keyC = screen.getByTestId('gboard-key-c');
+      const keySpace = screen.getByRole('button', { name: 'Space' });
+      const keyR = screen.getByTestId('gboard-key-r');
+      const keyE = screen.getByTestId('gboard-key-e');
+      const keyM = screen.getByTestId('gboard-key-m');
+
+      // Type "ic"
+      fireEvent.pointerDown(keyI);
+      fireEvent.pointerUp(keyI);
+      fireEvent.pointerDown(keyC);
+      fireEvent.pointerUp(keyC);
+      expect(input.value).toBe('ic');
+
+      // Move pointer in between words / insert "e" at index 2
+      const keyEChar = screen.getByTestId('gboard-key-e');
+      fireEvent.pointerDown(keyEChar);
+      fireEvent.pointerUp(keyEChar);
+      expect(input.value).toBe('ice');
+
+      // Type space and "crem"
+      fireEvent.pointerDown(keySpace);
+      fireEvent.pointerUp(keySpace);
+      fireEvent.pointerDown(keyC);
+      fireEvent.pointerUp(keyC);
+      fireEvent.pointerDown(keyR);
+      fireEvent.pointerUp(keyR);
+      fireEvent.pointerDown(keyE);
+      fireEvent.pointerUp(keyE);
+      fireEvent.pointerDown(keyM);
+      fireEvent.pointerUp(keyM);
+      expect(input.value).toBe('ice crem');
+
+      // Move cursor pointer between 'e' and 'm' in "crem" (position 7) to fix missing 'a'
+      input.setSelectionRange(7, 7);
+      fireEvent.select(input);
+
+      // Type 'a' at position 7
+      const keyA = screen.getByTestId('gboard-key-a');
+      fireEvent.pointerDown(keyA);
+      fireEvent.pointerUp(keyA);
+      expect(input.value).toBe('ice cream');
+
+      // Test backspace in between words: move pointer between "ice" and " cream" (index 3)
+      input.setSelectionRange(4, 4); // after space
+      fireEvent.select(input);
+      const backspace = screen.getByRole('button', { name: 'Backspace' });
+      fireEvent.pointerDown(backspace);
+      fireEvent.pointerUp(backspace);
+      expect(input.value).toBe('icecream');
+    });
   });
 
   describe('FSRS status section positioning', () => {

@@ -146,6 +146,16 @@ export const QuizPanel = memo(function QuizPanel({
   const [pressedUndo, setPressedUndo] = useState(false);
   const [pressedRestart, setPressedRestart] = useState(false);
   const quizPanelRef = useRef<HTMLDivElement>(null);
+  const spellingInputRef = useRef<HTMLInputElement>(null);
+  const selectionRangeRef = useRef<{ start: number; end: number }>({ start: 0, end: 0 });
+
+  const updateSelectionRange = useCallback(() => {
+    if (spellingInputRef.current) {
+      const start = spellingInputRef.current.selectionStart ?? 0;
+      const end = spellingInputRef.current.selectionEnd ?? 0;
+      selectionRangeRef.current = { start, end };
+    }
+  }, []);
 
   const completionNotifiedRef = useRef(false);
   useEffect(() => {
@@ -530,10 +540,28 @@ export const QuizPanel = memo(function QuizPanel({
   useEffect(() => {
     setSpellingState('idle');
     setTypedWord('');
+    selectionRangeRef.current = { start: 0, end: 0 };
     setShowUserExamples(false);
     setShowNotes(false);
     positionQuizSection();
   }, [item?.id, quizDirection, positionQuizSection]);
+
+  // Ensure pointer / caret is immediately active and focused in spelling mode
+  useEffect(() => {
+    if (quizDirection === 'spelling' && !revealed && !completed) {
+      const timer = setTimeout(() => {
+        if (spellingInputRef.current) {
+          spellingInputRef.current.focus({ preventScroll: true });
+          const len = spellingInputRef.current.value.length;
+          try {
+            spellingInputRef.current.setSelectionRange(len, len);
+          } catch {}
+          selectionRangeRef.current = { start: len, end: len };
+        }
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [quizDirection, revealed, completed, item?.id]);
 
   useEffect(() => {
     positionQuizSection();
@@ -557,17 +585,80 @@ export const QuizPanel = memo(function QuizPanel({
         return;
       }
 
+      const input = spellingInputRef.current;
+      let start: number;
+      let end: number;
+
+      if (
+        input &&
+        typeof input.selectionStart === 'number' &&
+        typeof input.selectionEnd === 'number'
+      ) {
+        start = input.selectionStart;
+        end = input.selectionEnd;
+      } else {
+        start = selectionRangeRef.current.start;
+        end = selectionRangeRef.current.end;
+      }
+
+      // Clamp indices within [0, typedWord.length]
+      start = Math.max(0, Math.min(start, typedWord.length));
+      end = Math.max(0, Math.min(end, typedWord.length));
+      if (start > end) {
+        const tmp = start;
+        start = end;
+        end = tmp;
+      }
+
+      const syncCaret = (pos: number) => {
+        selectionRangeRef.current = { start: pos, end: pos };
+        if (spellingInputRef.current) {
+          try {
+            spellingInputRef.current.focus({ preventScroll: true });
+            spellingInputRef.current.setSelectionRange(pos, pos);
+          } catch {}
+        }
+        requestAnimationFrame(() => {
+          if (spellingInputRef.current) {
+            try {
+              spellingInputRef.current.focus({ preventScroll: true });
+              spellingInputRef.current.setSelectionRange(pos, pos);
+            } catch {}
+          }
+        });
+      };
+
       if (key === 'Backspace') {
-        setTypedWord((prev) => prev.slice(0, -1));
+        if (start !== end) {
+          // Delete selected text slice
+          const next = `${typedWord.slice(0, start)}${typedWord.slice(end)}`;
+          setTypedWord(next);
+          syncCaret(start);
+        } else if (start > 0) {
+          // Delete character immediately before the pointer
+          const next = `${typedWord.slice(0, start - 1)}${typedWord.slice(start)}`;
+          const nextPos = start - 1;
+          setTypedWord(next);
+          syncCaret(nextPos);
+        }
       } else if (key === 'Clear') {
         setTypedWord('');
+        syncCaret(0);
       } else if (key === 'Space') {
-        setTypedWord((prev) => `${prev} `);
+        if (typedWord.length < 40) {
+          const next = `${typedWord.slice(0, start)} ${typedWord.slice(end)}`;
+          const nextPos = start + 1;
+          setTypedWord(next);
+          syncCaret(nextPos);
+        }
       } else if (key === 'Enter') {
         handleCheckSpelling();
       } else if (key.length === 1) {
         if (typedWord.length < 40) {
-          setTypedWord((prev) => prev + key);
+          const next = `${typedWord.slice(0, start)}${key}${typedWord.slice(end)}`;
+          const nextPos = start + 1;
+          setTypedWord(next);
+          syncCaret(nextPos);
         }
       }
     },
@@ -1311,12 +1402,34 @@ export const QuizPanel = memo(function QuizPanel({
                     {definitionsBlockNoSpoilers}
 
                     <TextInput
+                      ref={spellingInputRef}
                       value={typedWord}
-                      readOnly
+                      onChange={(e) => {
+                        const nextVal = e.currentTarget.value;
+                        setTypedWord(nextVal);
+                        const pos = e.currentTarget.selectionStart ?? nextVal.length;
+                        selectionRangeRef.current = { start: pos, end: pos };
+                      }}
+                      onSelect={updateSelectionRange}
+                      onClick={updateSelectionRange}
+                      onKeyUp={updateSelectionRange}
+                      onPointerUp={updateSelectionRange}
+                      onFocus={updateSelectionRange}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleCheckSpelling();
+                          positionQuizSection();
+                        }
+                      }}
+                      inputMode="none"
                       placeholder="Listen and type..."
                       size="lg"
                       radius="md"
-                      style={{ width: '100%', maxWidth: '300px' }}
+                      autoComplete="off"
+                      autoCorrect="off"
+                      spellCheck="false"
+                      style={{ width: '100%', maxWidth: '320px' }}
                       styles={{
                         input: {
                           textAlign: 'center',
@@ -1325,7 +1438,8 @@ export const QuizPanel = memo(function QuizPanel({
                           letterSpacing: '0.05em',
                           backgroundColor: 'rgba(0, 0, 0, 0.03)',
                           color: 'var(--text-primary)',
-                          cursor: 'default',
+                          cursor: 'text',
+                          caretColor: '#6366f1',
                           borderColor: '#6366f1',
                           borderStyle: 'dashed',
                         },
