@@ -1,5 +1,6 @@
 import {
   Badge,
+  Box,
   Button,
   Card,
   Collapse,
@@ -48,6 +49,7 @@ import type { FsrsRating as SrsRating } from '@/lib/fsrs';
 import { getAppSettings } from '@/lib/settings';
 import { playReviewSound, playWordAudio } from '@/lib/sound';
 import { notifyQuizCompleted } from '@/lib/system-notifications';
+import { GboardKeyboard } from './GboardKeyboard';
 
 export type QuizItem = {
   id: string;
@@ -563,61 +565,14 @@ export const QuizPanel = memo(function QuizPanel({
         setTypedWord((prev) => `${prev} `);
       } else if (key === 'Enter') {
         handleCheckSpelling();
-      } else if (key.length === 1 && /^[a-zA-Z]$/.test(key)) {
-        if (typedWord.length < 30) {
-          setTypedWord((prev) => prev + key.toLowerCase());
+      } else if (key.length === 1) {
+        if (typedWord.length < 40) {
+          setTypedWord((prev) => prev + key);
         }
       }
     },
     [revealed, completed, typedWord, handleCheckSpelling]
   );
-
-  // Keyboard listener for PC users
-  useEffect(() => {
-    if (quizDirection !== 'spelling' || revealed || completed) {
-      return;
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const activeEl = document.activeElement;
-      if (activeEl) {
-        const tagName = activeEl.tagName.toLowerCase();
-        if (
-          tagName === 'input' ||
-          tagName === 'textarea' ||
-          activeEl.hasAttribute('contenteditable')
-        ) {
-          return;
-        }
-      }
-
-      const key = event.key;
-      if (key === 'Backspace') {
-        event.preventDefault();
-        handleKeyPress('Backspace');
-      } else if (key === ' ') {
-        event.preventDefault();
-        handleKeyPress('Space');
-      } else if (key === 'Enter') {
-        event.preventDefault();
-        handleKeyPress('Enter');
-      } else if (/^[a-zA-Z]$/.test(key)) {
-        event.preventDefault();
-        handleKeyPress(key);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [quizDirection, revealed, completed, handleKeyPress]);
-
-  const KEYBOARD_ROWS = [
-    ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
-    ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'],
-    ['z', 'x', 'c', 'v', 'b', 'n', 'm'],
-  ];
 
   // Keyboard shortcut help content
   const helpModalContent = (
@@ -1377,87 +1332,6 @@ export const QuizPanel = memo(function QuizPanel({
                       }}
                     />
 
-                    <Text size="xs" c="dimmed" style={{ textAlign: 'center' }}>
-                      Type using physical keyboard or screen keys below.
-                    </Text>
-
-                    <Stack
-                      gap="xs"
-                      style={{ width: '100%', maxWidth: '500px', margin: '0 auto' }}
-                      mt="xs"
-                    >
-                      {KEYBOARD_ROWS.map((row, rowIndex) => (
-                        <Group key={rowIndex} gap="xs" justify="center" wrap="nowrap">
-                          {row.map((key) => (
-                            <Button
-                              key={key}
-                              variant="light"
-                              color="gray"
-                              onClick={() => handleKeyPress(key)}
-                              style={{
-                                flex: 1,
-                                minWidth: '24px',
-                                maxWidth: '40px',
-                                height: '40px',
-                                padding: 0,
-                                fontSize: '1.1rem',
-                                fontWeight: 600,
-                                textTransform: 'uppercase',
-                                borderRadius: '6px',
-                                border: '1px solid var(--card-border)',
-                                background: 'rgba(255, 255, 255, 0.05)',
-                                transition: 'all 0.1s ease',
-                              }}
-                              className="hover-lift"
-                            >
-                              {key}
-                            </Button>
-                          ))}
-                        </Group>
-                      ))}
-                      <Group gap="xs" justify="center" wrap="nowrap">
-                        <Button
-                          variant="light"
-                          color="red"
-                          onClick={() => handleKeyPress('Clear')}
-                          style={{
-                            height: '40px',
-                            fontSize: '0.85rem',
-                            fontWeight: 600,
-                            borderRadius: '6px',
-                          }}
-                        >
-                          Clear
-                        </Button>
-                        <Button
-                          variant="light"
-                          color="gray"
-                          onClick={() => handleKeyPress('Space')}
-                          style={{
-                            height: '40px',
-                            fontSize: '0.9rem',
-                            fontWeight: 600,
-                            borderRadius: '6px',
-                          }}
-                        >
-                          Space
-                        </Button>
-                        <Button
-                          variant="light"
-                          color="orange"
-                          onClick={() => handleKeyPress('Backspace')}
-                          style={{
-                            height: '40px',
-                            fontSize: '0.85rem',
-                            fontWeight: 600,
-                            borderRadius: '6px',
-                          }}
-                        >
-                          Delete
-                        </Button>
-                      </Group>
-                    </Stack>
-
                     <Button
                       variant="gradient"
                       gradient={{ from: 'indigo', to: 'purple' }}
@@ -1470,7 +1344,7 @@ export const QuizPanel = memo(function QuizPanel({
                       className="btn-pulse btn-premium"
                       disabled={typedWord.trim().length === 0}
                       style={{
-                        height: '50px',
+                        height: '46px',
                         fontSize: '1rem',
                         fontWeight: 600,
                         width: '100%',
@@ -1480,6 +1354,20 @@ export const QuizPanel = memo(function QuizPanel({
                     >
                       Check Spelling
                     </Button>
+
+                    <GboardKeyboard
+                      onKeyPress={handleKeyPress}
+                      onCheckSpelling={() => {
+                        handleCheckSpelling();
+                        positionQuizSection();
+                      }}
+                      typedWord={typedWord}
+                      disabled={revealed || completed}
+                      docked
+                    />
+
+                    {/* Mobile bottom spacer so content never gets covered by docked Gboard */}
+                    <Box hiddenFrom="sm" h={260} />
                   </Stack>
                 )}
               </Stack>

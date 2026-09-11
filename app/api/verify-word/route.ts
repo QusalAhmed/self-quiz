@@ -35,7 +35,8 @@ export async function POST(request: Request) {
     const preferredProvider =
       body?.provider && body.provider !== 'auto'
         ? body.provider
-        : serverSettings.ai?.verificationProvider && serverSettings.ai.verificationProvider !== 'auto'
+        : serverSettings.ai?.verificationProvider &&
+            serverSettings.ai.verificationProvider !== 'auto'
           ? serverSettings.ai.verificationProvider
           : serverSettings.ai?.preferredProvider || 'gemini';
 

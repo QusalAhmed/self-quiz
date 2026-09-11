@@ -345,8 +345,8 @@ export function SettingsAiTab({ settings, onChange }: SettingsAiTabProps) {
                   Auto-verify Word & Definitions
                 </Text>
                 <Text size="xs" c="dimmed">
-                  Automatically verify spelling, definition accuracy, and part of speech as you
-                  type or change words
+                  Automatically verify spelling, definition accuracy, and part of speech as you type
+                  or change words
                 </Text>
               </div>
               <Switch

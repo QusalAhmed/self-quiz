@@ -346,9 +346,7 @@ describe('word-verification', () => {
                 definition: 'Fluently persuasive and articulate.',
                 tags: [],
                 examples: ['an eloquent speaker'],
-                translations: [
-                  { language: { code: 'bn', name: 'Bengali' }, word: 'বাকপটু' },
-                ],
+                translations: [{ language: { code: 'bn', name: 'Bengali' }, word: 'বাকপটু' }],
               },
             ],
           },
@@ -385,9 +383,7 @@ describe('word-verification', () => {
             senses: [
               {
                 definition: 'A collection of sheets of paper bound together.',
-                translations: [
-                  { language: { code: 'bn', name: 'Bengali' }, word: 'বই' },
-                ],
+                translations: [{ language: { code: 'bn', name: 'Bengali' }, word: 'বই' }],
               },
             ],
           },

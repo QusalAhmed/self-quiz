@@ -648,7 +648,9 @@ export function parseFreeDictionaryResponse(
       }
       const translations = Array.isArray(sense.translations)
         ? sense.translations
-            .filter((t: any) => t.language?.code === 'bn' || t.language?.name?.toLowerCase() === 'bengali')
+            .filter(
+              (t: any) => t.language?.code === 'bn' || t.language?.name?.toLowerCase() === 'bengali'
+            )
             .map((t: any) => (typeof t.word === 'string' ? t.word.toLowerCase().trim() : ''))
             .filter(Boolean)
         : [];
@@ -694,7 +696,9 @@ export function parseFreeDictionaryResponse(
     e.senses?.some(
       (s: any) =>
         (Array.isArray(s.tags) &&
-          s.tags.some((t: string) => t.toLowerCase() === 'alt of' || t.toLowerCase() === 'alternative')) ||
+          s.tags.some(
+            (t: string) => t.toLowerCase() === 'alt of' || t.toLowerCase() === 'alternative'
+          )) ||
         /^(alternative|archaic|obsolete|dated)\s+(spelling|form)\s+of/i.test(s.definition || '')
     )
   );

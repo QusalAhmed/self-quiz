@@ -524,4 +524,71 @@ describe('QuizPanel component', () => {
       expect(screen.getAllByText('ephemerally').length).toBeGreaterThan(0);
     });
   });
+
+  describe('spelling quiz mode with Gboard keyboard', () => {
+    it('renders Gboard virtual keyboard and Listen to Word button when unrevealed', () => {
+      render(
+        <QuizPanel
+          item={mockItem}
+          quizDirection="spelling"
+          revealed={false}
+          onReveal={jest.fn()}
+          onMarkMissed={jest.fn()}
+          isMarkedMissed={false}
+          onNext={jest.fn()}
+          onPrevious={jest.fn()}
+          completed={false}
+          hasPrevious={false}
+          currentIndex={0}
+          totalCount={5}
+        />
+      );
+
+      expect(screen.getByTestId('gboard-keyboard')).toBeInTheDocument();
+      expect(screen.getByText(/Listen to Word/i)).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/Listen and type.../i)).toBeInTheDocument();
+      expect(screen.getAllByRole('button', { name: /Check Spelling/i }).length).toBeGreaterThan(0);
+    });
+
+    it('allows typing via Gboard keys and checking spelling', () => {
+      const handleReveal = jest.fn();
+      render(
+        <QuizPanel
+          item={{ ...mockItem, word: 'cat' }}
+          quizDirection="spelling"
+          revealed={false}
+          onReveal={handleReveal}
+          onMarkMissed={jest.fn()}
+          isMarkedMissed={false}
+          onNext={jest.fn()}
+          onPrevious={jest.fn()}
+          completed={false}
+          hasPrevious={false}
+          currentIndex={0}
+          totalCount={5}
+        />
+      );
+
+      const keyC = screen.getByTestId('gboard-key-c');
+      const keyA = screen.getByTestId('gboard-key-a');
+      const keyT = screen.getByTestId('gboard-key-t');
+
+      fireEvent.pointerDown(keyC);
+      fireEvent.pointerUp(keyC);
+      fireEvent.pointerDown(keyA);
+      fireEvent.pointerUp(keyA);
+      fireEvent.pointerDown(keyT);
+      fireEvent.pointerUp(keyT);
+
+      const input = screen.getByPlaceholderText(/Listen and type.../i) as HTMLInputElement;
+      expect(input.value).toBe('cat');
+
+      // Click the Gboard action enter key
+      const gboardEnter = screen.getByTestId('gboard-key-enter');
+      fireEvent.pointerDown(gboardEnter);
+      fireEvent.pointerUp(gboardEnter);
+
+      expect(handleReveal).toHaveBeenCalled();
+    });
+  });
 });
