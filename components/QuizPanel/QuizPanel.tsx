@@ -1577,12 +1577,6 @@ export const QuizPanel = memo(function QuizPanel({
                             {typedWord || '(empty)'}
                           </span>
                         </Text>
-                        <Text size="md" c="dimmed" style={{ textAlign: 'center' }}>
-                          Correct spelling:{' '}
-                          <span style={{ color: '#22c55e', fontWeight: 800, fontSize: '1.25rem' }}>
-                            {item.word}
-                          </span>
-                        </Text>
                       </Stack>
                     )}
 
