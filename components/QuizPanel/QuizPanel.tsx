@@ -45,6 +45,7 @@ import { WordFamilySection } from '@/components/WordFamily/WordFamilySection';
 import type { FsrsRecord, WordDefinition, WordFamilyMemberRecord } from '@/lib/db';
 import { normalizeDefinitions } from '@/lib/definitions';
 import type { FsrsRating as SrsRating } from '@/lib/fsrs';
+import { isValidAudioUrl } from '@/lib/pronounce';
 import { getAppSettings } from '@/lib/settings';
 import { playReviewSound, playWordAudio } from '@/lib/sound';
 import { notifyQuizCompleted } from '@/lib/system-notifications';
@@ -478,24 +479,47 @@ export const QuizPanel = memo(function QuizPanel({
   }, [positionQuizSection]);
 
   const handleSpeak = useCallback((text: string, audioUrl?: string) => {
+    if (typeof window === 'undefined' || !text.trim()) {
+      return;
+    }
+
     const settings = getAppSettings();
-    if (audioUrl && settings.audio.preferMwAudioOverTts !== false) {
+    const hasValidAudio = isValidAudioUrl(audioUrl);
+    const preferAudio = settings.audio.preferMwAudioOverTts !== false;
+
+    // 1. Play real Merriam-Webster audio recording if available
+    if (hasValidAudio && preferAudio) {
       setIsPlayingAudio(true);
-      playWordAudio(audioUrl, settings.audio.audioVolume ?? 1, () => {
+      void playWordAudio(audioUrl!.trim(), settings.audio.audioVolume, () => {
         setIsPlayingAudio(false);
       });
       return;
     }
 
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+    // 2. Fallback to browser SpeechSynthesis with user preferences
+    if (!('speechSynthesis' in window)) {
       return;
     }
 
+    const activeRate = settings.audio.ttsRate ?? 0.88;
+    const activePitch = settings.audio.ttsPitch ?? 1.0;
+    const activeVolume = settings.audio.ttsVolume ?? 1.0;
+
     window.speechSynthesis.cancel();
 
-    const utterance = new SpeechSynthesisUtterance(text);
+    const utterance = new SpeechSynthesisUtterance(text.trim());
     utterance.lang = 'en-US';
-    utterance.rate = 0.9;
+    utterance.rate = activeRate;
+    utterance.pitch = activePitch;
+    utterance.volume = activeVolume;
+
+    if (settings.audio.ttsVoiceUri && 'getVoices' in window.speechSynthesis) {
+      const voices = window.speechSynthesis.getVoices();
+      const match = voices.find((v) => v.voiceURI === settings.audio.ttsVoiceUri);
+      if (match) {
+        utterance.voice = match;
+      }
+    }
 
     utterance.onstart = () => setIsPlayingAudio(true);
     utterance.onend = () => setIsPlayingAudio(false);
@@ -1377,18 +1401,24 @@ export const QuizPanel = memo(function QuizPanel({
                       radius="md"
                       padding="xs"
                       style={{
-                        background: 'rgba(99, 102, 241, 0.05)',
-                        border: '1px solid rgba(99, 102, 241, 0.15)',
+                        background: isPlayingAudio
+                          ? 'rgba(99, 102, 241, 0.12)'
+                          : 'rgba(99, 102, 241, 0.05)',
+                        border: isPlayingAudio
+                          ? '1px solid rgba(99, 102, 241, 0.35)'
+                          : '1px solid rgba(99, 102, 241, 0.15)',
                         width: '100%',
                         maxWidth: '300px',
                         cursor: 'pointer',
+                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                        transform: isPlayingAudio ? 'scale(1.02)' : undefined,
                       }}
-                      onClick={() => handleSpeak(item.word)}
+                      onClick={() => handleSpeak(item.word, item.audioUrl)}
                       className="hover-lift"
                     >
                       <Group gap="sm" justify="center">
                         <WordActionIcon
-                          label="Speak pronunciation"
+                          label="Listen to pronunciation"
                           variant="gradient"
                           gradient={{ from: 'indigo', to: 'purple' }}
                           color={isPlayingAudio ? 'indigo' : 'gray'}
@@ -1398,7 +1428,11 @@ export const QuizPanel = memo(function QuizPanel({
                           <IconVolume size={20} />
                         </WordActionIcon>
                         <Text fw={600} size="sm" c="indigo">
-                          {isPlayingAudio ? 'Speaking...' : 'Listen to Word'}
+                          {isPlayingAudio
+                            ? item.audioUrl && isValidAudioUrl(item.audioUrl)
+                              ? 'Playing Audio...'
+                              : 'Speaking...'
+                            : 'Listen to Word'}
                         </Text>
                       </Group>
                     </Card>
