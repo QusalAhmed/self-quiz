@@ -27,6 +27,7 @@ import { useAppDispatch, useAppSelector } from '@/lib/redux/hooks';
 import {
   openAllWordsQuiz,
   openFsrsQuiz,
+  openFsrsSpellingQuiz,
   openTodayQuiz,
   selectQuizState,
   setMode,
@@ -45,7 +46,7 @@ export function AppShellLayout({ children }: { children: React.ReactNode }) {
   const dispatch = useAppDispatch();
   const router = useRouter();
   const pathname = usePathname();
-  const { mode, quizDirection } = useAppSelector(selectQuizState);
+  const { mode } = useAppSelector(selectQuizState);
   const { colorScheme, setColorScheme } = useMantineColorScheme();
   const { settings, updateSection } = useAppSettings();
 
@@ -385,22 +386,25 @@ export function AppShellLayout({ children }: { children: React.ReactNode }) {
     return words.filter((word) => new Date(word.createdAt) >= todayStart).length;
   }, [words]);
 
-  const fsrsDueRecords = useMemo(() => {
+  const fsrsMeaningDueRecords = useMemo(() => {
     return fsrsRecords
-      .filter((r) => !r.isDeleted && r.quizMode === quizDirection && r.dueAt <= nowTicker)
+      .filter((r) => !r.isDeleted && r.quizMode === 'wordToMeaning' && r.dueAt <= nowTicker)
       .map((record) => resolveWordTextFromMainTable(record, wordsById))
       .filter((record): record is WordWithDefinitions<FsrsRecord> => record !== null)
       .sort((a, b) => a.dueAt.localeCompare(b.dueAt));
-  }, [fsrsRecords, quizDirection, wordsById, nowTicker]);
+  }, [fsrsRecords, wordsById, nowTicker]);
 
-  const fsrsDueTodayCount = useMemo(() => fsrsDueRecords.length, [fsrsDueRecords]);
+  const fsrsMeaningDueTodayCount = useMemo(
+    () => fsrsMeaningDueRecords.length,
+    [fsrsMeaningDueRecords]
+  );
 
-  const fsrsNextDueText = useMemo(() => {
+  const fsrsMeaningNextDueText = useMemo(() => {
     const futureCards = fsrsRecords
-      .filter((r) => !r.isDeleted && r.quizMode === quizDirection && r.dueAt > nowTicker)
+      .filter((r) => !r.isDeleted && r.quizMode === 'wordToMeaning' && r.dueAt > nowTicker)
       .sort((a, b) => a.dueAt.localeCompare(b.dueAt));
 
-    if (fsrsDueTodayCount > 0) {
+    if (fsrsMeaningDueTodayCount > 0) {
       if (futureCards.length > 0) {
         const interval = formatInterval(futureCards[0].dueAt, new Date(nowTicker));
         return `Next in ${interval}`;
@@ -413,10 +417,46 @@ export function AppShellLayout({ children }: { children: React.ReactNode }) {
       return `Next due in ${interval}`;
     }
 
-    return fsrsRecords.some((r) => !r.isDeleted && r.quizMode === quizDirection)
+    return fsrsRecords.some((r) => !r.isDeleted && r.quizMode === 'wordToMeaning')
       ? 'All caught up'
       : '';
-  }, [fsrsRecords, quizDirection, nowTicker, fsrsDueTodayCount]);
+  }, [fsrsRecords, nowTicker, fsrsMeaningDueTodayCount]);
+
+  const fsrsSpellingDueRecords = useMemo(() => {
+    return fsrsRecords
+      .filter((r) => !r.isDeleted && r.quizMode === 'spelling' && r.dueAt <= nowTicker)
+      .map((record) => resolveWordTextFromMainTable(record, wordsById))
+      .filter((record): record is WordWithDefinitions<FsrsRecord> => record !== null)
+      .sort((a, b) => a.dueAt.localeCompare(b.dueAt));
+  }, [fsrsRecords, wordsById, nowTicker]);
+
+  const fsrsSpellingDueTodayCount = useMemo(
+    () => fsrsSpellingDueRecords.length,
+    [fsrsSpellingDueRecords]
+  );
+
+  const fsrsSpellingNextDueText = useMemo(() => {
+    const futureCards = fsrsRecords
+      .filter((r) => !r.isDeleted && r.quizMode === 'spelling' && r.dueAt > nowTicker)
+      .sort((a, b) => a.dueAt.localeCompare(b.dueAt));
+
+    if (fsrsSpellingDueTodayCount > 0) {
+      if (futureCards.length > 0) {
+        const interval = formatInterval(futureCards[0].dueAt, new Date(nowTicker));
+        return `Next in ${interval}`;
+      }
+      return 'All due now';
+    }
+
+    if (futureCards.length > 0) {
+      const interval = formatInterval(futureCards[0].dueAt, new Date(nowTicker));
+      return `Next due in ${interval}`;
+    }
+
+    return fsrsRecords.some((r) => !r.isDeleted && r.quizMode === 'spelling')
+      ? 'All caught up'
+      : '';
+  }, [fsrsRecords, nowTicker, fsrsSpellingDueTodayCount]);
 
   return (
     <Box style={{ display: 'flex', minHeight: '100vh', width: '100%', position: 'relative' }}>
@@ -451,8 +491,20 @@ export function AppShellLayout({ children }: { children: React.ReactNode }) {
             router.push('/quiz');
           }
         }}
+        onOpenFsrsMeaningQuiz={() => {
+          dispatch(openFsrsQuiz('wordToMeaning'));
+          if (pathname !== '/quiz') {
+            router.push('/quiz');
+          }
+        }}
+        onOpenFsrsSpellingQuiz={() => {
+          dispatch(openFsrsSpellingQuiz());
+          if (pathname !== '/quiz') {
+            router.push('/quiz');
+          }
+        }}
         onOpenFsrsQuiz={() => {
-          dispatch(openFsrsQuiz());
+          dispatch(openFsrsQuiz('wordToMeaning'));
           if (pathname !== '/quiz') {
             router.push('/quiz');
           }
@@ -460,7 +512,9 @@ export function AppShellLayout({ children }: { children: React.ReactNode }) {
         onOpenGroupManager={() => setGroupManagerOpen(true)}
         totalWords={words.length}
         todayCount={todayCount}
-        fsrsDueTodayCount={fsrsDueTodayCount}
+        fsrsMeaningDueTodayCount={fsrsMeaningDueTodayCount}
+        fsrsSpellingDueTodayCount={fsrsSpellingDueTodayCount}
+        fsrsDueTodayCount={fsrsMeaningDueTodayCount}
         colorScheme={colorScheme}
         onToggleTheme={() => {
           const nextScheme = colorScheme === 'dark' ? 'light' : 'dark';
@@ -493,8 +547,24 @@ export function AppShellLayout({ children }: { children: React.ReactNode }) {
           replicationsRef={replicationsRef}
           withSyncState={withSyncState}
           todayCount={todayCount}
-          fsrsDueTodayCount={fsrsDueTodayCount}
-          fsrsNextDueText={fsrsNextDueText}
+          fsrsMeaningDueTodayCount={fsrsMeaningDueTodayCount}
+          fsrsMeaningNextDueText={fsrsMeaningNextDueText}
+          onOpenFsrsMeaningQuiz={() => {
+            dispatch(openFsrsQuiz('wordToMeaning'));
+            if (pathname !== '/quiz') {
+              router.push('/quiz');
+            }
+          }}
+          fsrsSpellingDueTodayCount={fsrsSpellingDueTodayCount}
+          fsrsSpellingNextDueText={fsrsSpellingNextDueText}
+          onOpenFsrsSpellingQuiz={() => {
+            dispatch(openFsrsSpellingQuiz());
+            if (pathname !== '/quiz') {
+              router.push('/quiz');
+            }
+          }}
+          fsrsDueTodayCount={fsrsMeaningDueTodayCount}
+          fsrsNextDueText={fsrsMeaningNextDueText}
         />
 
         {/* Page Content Body */}

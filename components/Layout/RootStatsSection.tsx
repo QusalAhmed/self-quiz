@@ -16,12 +16,12 @@ import {
   type WordRecord,
 } from '@/lib/db';
 import { formatInterval } from '@/lib/fsrs';
-import { useAppDispatch, useAppSelector } from '@/lib/redux/hooks';
+import { useAppDispatch } from '@/lib/redux/hooks';
 import {
   openAllWordsQuiz,
   openFsrsQuiz,
+  openFsrsSpellingQuiz,
   openTodayQuiz,
-  selectQuizState,
 } from '@/lib/redux/slices/quizSlice';
 import {
   setupSupabaseReplication,
@@ -46,8 +46,22 @@ export type RootStatsSectionProps = {
   replicationsRef?: React.MutableRefObject<ReplicationsHolder | null>;
   withSyncState?: (task: () => Promise<void>) => Promise<void>;
   todayCount?: number;
+
+  // Meaning FSRS
+  fsrsMeaningDueTodayCount?: number;
+  fsrsMeaningNextDueText?: string;
+  onOpenFsrsMeaningQuiz?: () => void;
+
+  // Spelling FSRS
+  fsrsSpellingDueTodayCount?: number;
+  fsrsSpellingNextDueText?: string;
+  onOpenFsrsSpellingQuiz?: () => void;
+
+  // Legacy FSRS props for compatibility
   fsrsDueTodayCount?: number;
   fsrsNextDueText?: string;
+  onOpenFsrsQuiz?: () => void;
+
   size?: 'md' | 'xl';
 };
 
@@ -55,7 +69,6 @@ export function RootStatsSection(props: RootStatsSectionProps) {
   const dispatch = useAppDispatch();
   const router = useRouter();
   const pathname = usePathname();
-  const { quizDirection } = useAppSelector(selectQuizState);
 
   // Fallback internal states if props are not provided
   const [internalWords, setInternalWords] = useState<WordRecord[]>([]);
@@ -345,24 +358,32 @@ export function RootStatsSection(props: RootStatsSectionProps) {
 
   const todayCount = props.todayCount !== undefined ? props.todayCount : computedTodayCount;
 
-  const fsrsDueRecords = useMemo(() => {
+  // Meaning FSRS metrics
+  const fsrsMeaningDueRecords = useMemo(() => {
     return fsrsRecords
-      .filter((r) => !r.isDeleted && r.quizMode === quizDirection && r.dueAt <= nowTicker)
+      .filter((r) => !r.isDeleted && r.quizMode === 'wordToMeaning' && r.dueAt <= nowTicker)
       .map((record) => resolveWordTextFromMainTable(record, wordsById))
       .filter((record): record is WordWithDefinitions<FsrsRecord> => record !== null)
       .sort((a, b) => a.dueAt.localeCompare(b.dueAt));
-  }, [fsrsRecords, quizDirection, wordsById, nowTicker]);
+  }, [fsrsRecords, wordsById, nowTicker]);
 
-  const computedFsrsDueTodayCount = useMemo(() => fsrsDueRecords.length, [fsrsDueRecords]);
-  const fsrsDueTodayCount =
-    props.fsrsDueTodayCount !== undefined ? props.fsrsDueTodayCount : computedFsrsDueTodayCount;
+  const computedFsrsMeaningDueTodayCount = useMemo(
+    () => fsrsMeaningDueRecords.length,
+    [fsrsMeaningDueRecords]
+  );
+  const fsrsMeaningDueTodayCount =
+    props.fsrsMeaningDueTodayCount !== undefined
+      ? props.fsrsMeaningDueTodayCount
+      : props.fsrsDueTodayCount !== undefined
+        ? props.fsrsDueTodayCount
+        : computedFsrsMeaningDueTodayCount;
 
-  const computedFsrsNextDueText = useMemo(() => {
+  const computedFsrsMeaningNextDueText = useMemo(() => {
     const futureCards = fsrsRecords
-      .filter((r) => !r.isDeleted && r.quizMode === quizDirection && r.dueAt > nowTicker)
+      .filter((r) => !r.isDeleted && r.quizMode === 'wordToMeaning' && r.dueAt > nowTicker)
       .sort((a, b) => a.dueAt.localeCompare(b.dueAt));
 
-    if (fsrsDueTodayCount > 0) {
+    if (fsrsMeaningDueTodayCount > 0) {
       if (futureCards.length > 0) {
         const interval = formatInterval(futureCards[0].dueAt, new Date(nowTicker));
         return `Next in ${interval}`;
@@ -375,13 +396,63 @@ export function RootStatsSection(props: RootStatsSectionProps) {
       return `Next due in ${interval}`;
     }
 
-    return fsrsRecords.some((r) => !r.isDeleted && r.quizMode === quizDirection)
+    return fsrsRecords.some((r) => !r.isDeleted && r.quizMode === 'wordToMeaning')
       ? 'All caught up'
       : '';
-  }, [fsrsRecords, quizDirection, nowTicker, fsrsDueTodayCount]);
+  }, [fsrsRecords, nowTicker, fsrsMeaningDueTodayCount]);
 
-  const fsrsNextDueText =
-    props.fsrsNextDueText !== undefined ? props.fsrsNextDueText : computedFsrsNextDueText;
+  const fsrsMeaningNextDueText =
+    props.fsrsMeaningNextDueText !== undefined
+      ? props.fsrsMeaningNextDueText
+      : props.fsrsNextDueText !== undefined
+        ? props.fsrsNextDueText
+        : computedFsrsMeaningNextDueText;
+
+  // Spelling FSRS metrics
+  const fsrsSpellingDueRecords = useMemo(() => {
+    return fsrsRecords
+      .filter((r) => !r.isDeleted && r.quizMode === 'spelling' && r.dueAt <= nowTicker)
+      .map((record) => resolveWordTextFromMainTable(record, wordsById))
+      .filter((record): record is WordWithDefinitions<FsrsRecord> => record !== null)
+      .sort((a, b) => a.dueAt.localeCompare(b.dueAt));
+  }, [fsrsRecords, wordsById, nowTicker]);
+
+  const computedFsrsSpellingDueTodayCount = useMemo(
+    () => fsrsSpellingDueRecords.length,
+    [fsrsSpellingDueRecords]
+  );
+  const fsrsSpellingDueTodayCount =
+    props.fsrsSpellingDueTodayCount !== undefined
+      ? props.fsrsSpellingDueTodayCount
+      : computedFsrsSpellingDueTodayCount;
+
+  const computedFsrsSpellingNextDueText = useMemo(() => {
+    const futureCards = fsrsRecords
+      .filter((r) => !r.isDeleted && r.quizMode === 'spelling' && r.dueAt > nowTicker)
+      .sort((a, b) => a.dueAt.localeCompare(b.dueAt));
+
+    if (fsrsSpellingDueTodayCount > 0) {
+      if (futureCards.length > 0) {
+        const interval = formatInterval(futureCards[0].dueAt, new Date(nowTicker));
+        return `Next in ${interval}`;
+      }
+      return 'All due now';
+    }
+
+    if (futureCards.length > 0) {
+      const interval = formatInterval(futureCards[0].dueAt, new Date(nowTicker));
+      return `Next due in ${interval}`;
+    }
+
+    return fsrsRecords.some((r) => !r.isDeleted && r.quizMode === 'spelling')
+      ? 'All caught up'
+      : '';
+  }, [fsrsRecords, nowTicker, fsrsSpellingDueTodayCount]);
+
+  const fsrsSpellingNextDueText =
+    props.fsrsSpellingNextDueText !== undefined
+      ? props.fsrsSpellingNextDueText
+      : computedFsrsSpellingNextDueText;
 
   // Quiz navigation triggers
   const handleOpenAllWordsQuiz = useCallback(() => {
@@ -398,12 +469,29 @@ export function RootStatsSection(props: RootStatsSectionProps) {
     }
   }, [dispatch, pathname, router]);
 
-  const handleOpenFsrsQuiz = useCallback(() => {
-    dispatch(openFsrsQuiz());
-    if (pathname !== '/quiz') {
-      router.push('/quiz');
+  const handleOpenFsrsMeaningQuiz = useCallback(() => {
+    if (props.onOpenFsrsMeaningQuiz) {
+      props.onOpenFsrsMeaningQuiz();
+    } else if (props.onOpenFsrsQuiz) {
+      props.onOpenFsrsQuiz();
+    } else {
+      dispatch(openFsrsQuiz('wordToMeaning'));
+      if (pathname !== '/quiz') {
+        router.push('/quiz');
+      }
     }
-  }, [dispatch, pathname, router]);
+  }, [props, dispatch, pathname, router]);
+
+  const handleOpenFsrsSpellingQuiz = useCallback(() => {
+    if (props.onOpenFsrsSpellingQuiz) {
+      props.onOpenFsrsSpellingQuiz();
+    } else {
+      dispatch(openFsrsSpellingQuiz());
+      if (pathname !== '/quiz') {
+        router.push('/quiz');
+      }
+    }
+  }, [props, dispatch, pathname, router]);
 
   const containerSize = props.size || (pathname === '/' ? 'md' : 'xl');
 
@@ -450,11 +538,14 @@ export function RootStatsSection(props: RootStatsSectionProps) {
           <StatsDashboard
             totalWords={words.length}
             todayCount={todayCount}
-            fsrsDueTodayCount={fsrsDueTodayCount}
-            fsrsNextDueText={fsrsNextDueText}
+            fsrsMeaningDueTodayCount={fsrsMeaningDueTodayCount}
+            fsrsMeaningNextDueText={fsrsMeaningNextDueText}
+            onOpenFsrsMeaningQuiz={handleOpenFsrsMeaningQuiz}
+            fsrsSpellingDueTodayCount={fsrsSpellingDueTodayCount}
+            fsrsSpellingNextDueText={fsrsSpellingNextDueText}
+            onOpenFsrsSpellingQuiz={handleOpenFsrsSpellingQuiz}
             onOpenAllWordsQuiz={handleOpenAllWordsQuiz}
             onOpenTodayQuiz={handleOpenTodayQuiz}
-            onOpenFsrsQuiz={handleOpenFsrsQuiz}
           />
         </Box>
       </Stack>

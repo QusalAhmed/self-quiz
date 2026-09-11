@@ -4,6 +4,7 @@ import quizReducer, {
   nextCard,
   openAllWordsQuiz,
   openFsrsQuiz,
+  openFsrsSpellingQuiz,
   openTodayQuiz,
   previousCard,
   pushQuizHistory,
@@ -218,7 +219,7 @@ describe('quizSlice', () => {
     expect(state.queue[1].word).toBe('BENIGN');
   });
 
-  it('handles shortcut actions: openAllWordsQuiz, openTodayQuiz, openFsrsQuiz', () => {
+  it('handles shortcut actions: openAllWordsQuiz, openTodayQuiz, openFsrsQuiz, openFsrsSpellingQuiz', () => {
     let state = quizReducer(undefined, { type: '@@INIT' });
 
     state = quizReducer(state, openAllWordsQuiz());
@@ -237,6 +238,17 @@ describe('quizSlice', () => {
     state = quizReducer(state, openFsrsQuiz());
     expect(state.mode).toBe('quiz');
     expect(state.quizSource).toBe('fsrs');
+    expect(state.quizDirection).toBe('wordToMeaning');
+
+    state = quizReducer(state, openFsrsQuiz('spelling'));
+    expect(state.mode).toBe('quiz');
+    expect(state.quizSource).toBe('fsrs');
+    expect(state.quizDirection).toBe('spelling');
+
+    state = quizReducer(state, openFsrsSpellingQuiz());
+    expect(state.mode).toBe('quiz');
+    expect(state.quizSource).toBe('fsrs');
+    expect(state.quizDirection).toBe('spelling');
   });
 
   it('handles startGroupQuiz and clearGroupQuiz', () => {

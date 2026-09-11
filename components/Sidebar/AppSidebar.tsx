@@ -32,6 +32,7 @@ import {
   IconTopologyStarRing3,
   IconVolume,
   IconVolumeOff,
+  IconWriting,
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -46,11 +47,17 @@ export type AppSidebarProps = {
   onSetMode: (mode: 'study' | 'quiz') => void;
   onOpenAllWordsQuiz: () => void;
   onOpenTodayQuiz: () => void;
-  onOpenFsrsQuiz: () => void;
+  onOpenFsrsMeaningQuiz?: () => void;
+  onOpenFsrsSpellingQuiz?: () => void;
+  // Legacy prop for backwards compatibility
+  onOpenFsrsQuiz?: () => void;
   onOpenGroupManager: () => void;
   totalWords: number;
   todayCount: number;
-  fsrsDueTodayCount: number;
+  fsrsMeaningDueTodayCount?: number;
+  fsrsSpellingDueTodayCount?: number;
+  // Legacy prop for backwards compatibility
+  fsrsDueTodayCount?: number;
   colorScheme: 'light' | 'dark' | 'auto';
   onToggleTheme: () => void;
 };
@@ -60,14 +67,22 @@ export function AppSidebar({
   onSetMode,
   onOpenAllWordsQuiz,
   onOpenTodayQuiz,
+  onOpenFsrsMeaningQuiz,
+  onOpenFsrsSpellingQuiz,
   onOpenFsrsQuiz,
   onOpenGroupManager,
   totalWords,
   todayCount,
+  fsrsMeaningDueTodayCount,
+  fsrsSpellingDueTodayCount,
   fsrsDueTodayCount,
   colorScheme,
   onToggleTheme,
 }: AppSidebarProps) {
+  const meaningDueCount = fsrsMeaningDueTodayCount ?? fsrsDueTodayCount ?? 0;
+  const spellingDueCount = fsrsSpellingDueTodayCount ?? 0;
+  const handleMeaningQuiz = onOpenFsrsMeaningQuiz ?? onOpenFsrsQuiz ?? (() => {});
+  const handleSpellingQuiz = onOpenFsrsSpellingQuiz ?? (() => {});
   const { soundEnabled, toggleSound } = useSoundPreference();
   const [mobileOpened, setMobileOpened] = useState(false);
   const [fabPosition, setFabPosition] = useState<{
@@ -315,18 +330,38 @@ export function AppSidebar({
                 style={{ borderRadius: 6 }}
               />
               <NavLink
-                label="FSRS Review"
+                label="FSRS Meaning"
                 leftSection={<IconRotateClockwise size={16} />}
                 rightSection={
-                  fsrsDueTodayCount > 0 ? (
+                  meaningDueCount > 0 ? (
                     <Badge size="xs" color="violet">
-                      <RollingNumber value={fsrsDueTodayCount} suffix=" due" thousandSeparator />
+                      <RollingNumber value={meaningDueCount} suffix=" due" thousandSeparator />
                     </Badge>
                   ) : null
                 }
                 onClick={() =>
                   handleLinkClick(() => {
-                    onOpenFsrsQuiz();
+                    handleMeaningQuiz();
+                    if (pathname !== '/quiz') {
+                      router.push('/quiz');
+                    }
+                  })
+                }
+                style={{ borderRadius: 6 }}
+              />
+              <NavLink
+                label="FSRS Spelling"
+                leftSection={<IconWriting size={16} />}
+                rightSection={
+                  spellingDueCount > 0 ? (
+                    <Badge size="xs" color="orange">
+                      <RollingNumber value={spellingDueCount} suffix=" due" thousandSeparator />
+                    </Badge>
+                  ) : null
+                }
+                onClick={() =>
+                  handleLinkClick(() => {
+                    handleSpellingQuiz();
                     if (pathname !== '/quiz') {
                       router.push('/quiz');
                     }

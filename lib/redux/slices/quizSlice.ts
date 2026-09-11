@@ -310,9 +310,19 @@ export const quizSlice = createSlice({
       state.clusterContext = null;
     },
 
-    openFsrsQuiz: (state) => {
+    openFsrsQuiz: (state, action: PayloadAction<QuizDirectionKey | undefined>) => {
       state.mode = 'quiz';
       state.quizSource = 'fsrs';
+      state.quizDirection = action.payload || 'wordToMeaning';
+      state.selectedGroupId = null;
+      state.targetWordIds = null;
+      state.clusterContext = null;
+    },
+
+    openFsrsSpellingQuiz: (state) => {
+      state.mode = 'quiz';
+      state.quizSource = 'fsrs';
+      state.quizDirection = 'spelling';
       state.selectedGroupId = null;
       state.targetWordIds = null;
       state.clusterContext = null;
@@ -466,6 +476,7 @@ export const {
   openAllWordsQuiz,
   openTodayQuiz,
   openFsrsQuiz,
+  openFsrsSpellingQuiz,
   openSrsPracticeQuiz,
   openForgettingQuiz,
   setQuizFilters,
