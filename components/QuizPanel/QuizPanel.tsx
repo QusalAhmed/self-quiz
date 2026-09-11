@@ -1746,8 +1746,14 @@ export const QuizPanel = memo(function QuizPanel({
                 radius="md"
                 onClick={() => {
                   setConfirmDeleteFsrsOpened(false);
+                  setSpellingState('idle');
+                  setTypedWord('');
+                  selectionRangeRef.current = { start: 0, end: 0 };
+                  setShowUserExamples(false);
+                  setShowNotes(false);
                   if (item && onDeleteFsrsRecord) {
                     onDeleteFsrsRecord(item.id, quizDirection);
+                    positionQuizSection();
                   }
                 }}
               >

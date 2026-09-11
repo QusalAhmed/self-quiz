@@ -797,5 +797,46 @@ describe('QuizPanel component', () => {
         Node.DOCUMENT_POSITION_FOLLOWING
       );
     });
+
+    it('triggers onDeleteFsrsRecord when user deletes FSRS record from word actions menu', () => {
+      const handleDeleteFsrsRecord = jest.fn();
+
+      render(
+        <QuizPanel
+          item={fsrsItem}
+          quizDirection="wordToMeaning"
+          revealed={false}
+          onReveal={jest.fn()}
+          onMarkMissed={jest.fn()}
+          isMarkedMissed={false}
+          onNext={jest.fn()}
+          onPrevious={jest.fn()}
+          completed={false}
+          hasPrevious={false}
+          currentIndex={0}
+          totalCount={5}
+          onDeleteFsrsRecord={handleDeleteFsrsRecord}
+        />
+      );
+
+      // Open word actions menu
+      const actionButton = screen.getAllByLabelText(/actions for/i)[0];
+      fireEvent.click(actionButton);
+
+      // Click "Delete FSRS Record"
+      const deleteMenuItem = screen.getByText('Delete FSRS Record');
+      fireEvent.click(deleteMenuItem);
+
+      // Confirm modal should open
+      expect(
+        screen.getByText(/Are you sure you want to delete the FSRS record/i)
+      ).toBeInTheDocument();
+
+      // Click "Delete Record" confirmation button
+      const confirmButton = screen.getByRole('button', { name: 'Delete Record' });
+      fireEvent.click(confirmButton);
+
+      expect(handleDeleteFsrsRecord).toHaveBeenCalledWith('word-1', 'wordToMeaning');
+    });
   });
 });

@@ -186,6 +186,25 @@ describe('quizSlice', () => {
     expect(state.currentIndex).toBe(0);
   });
 
+  it('resets revealed to false when removing a quiz item so the next card is displayed hidden', () => {
+    let state = quizReducer(undefined, setQuizQueue({ queue: dummyItems, poolSignature: 'test' }));
+    expect(state.currentIndex).toBe(0);
+    expect(state.queue[0].id).toBe('word-1');
+
+    // Simulate card being revealed
+    state = quizReducer(state, setRevealed(true));
+    expect(state.revealed).toBe(true);
+
+    // Delete current card 'word-1'
+    state = quizReducer(state, removeQuizItem('word-1'));
+    expect(state.queue).toHaveLength(2);
+    expect(state.currentIndex).toBe(0);
+    expect(state.queue[0].id).toBe('word-2');
+    // The next card must be displayed hidden as if user clicked next button
+    expect(state.revealed).toBe(false);
+    expect(state.completed).toBe(false);
+  });
+
   it('handles syncQueueItems to refresh card definitions', () => {
     let state = quizReducer(undefined, setQuizQueue({ queue: dummyItems, poolSignature: 'test' }));
 

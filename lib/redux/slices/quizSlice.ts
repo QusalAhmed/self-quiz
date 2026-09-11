@@ -421,6 +421,7 @@ export const quizSlice = createSlice({
     removeQuizItem: (state, action: PayloadAction<string>) => {
       const wordId = action.payload;
       state.queue = state.queue.filter((item) => item.id !== wordId);
+      state.revealed = false;
       if (state.queue.length === 0) {
         state.completed = true;
         state.currentIndex = 0;

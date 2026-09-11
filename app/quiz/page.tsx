@@ -1412,11 +1412,21 @@ export default function QuizPage() {
 
   const handleDeleteFsrsRecord = useCallback(
     async (wordId: string, quizMode: QuizDirectionKey) => {
+      // Optimistically advance to next hidden card immediately (0ms UI latency!)
+      dispatch(removeQuizItem(wordId));
+
+      const fsrsId = buildFsrsId(wordId, quizMode);
+      setFsrsRecords((prev) => prev.filter((r) => r.id !== fsrsId));
+      setDismissedRemovedWordIds((prev) => {
+        const next = new Set(prev);
+        next.add(wordId);
+        return next;
+      });
+
       if (!database) {
         return;
       }
 
-      const fsrsId = buildFsrsId(wordId, quizMode);
       const targetWord = words.find((w) => w.id === wordId);
       const wordText = targetWord?.word || 'word';
 
@@ -1443,9 +1453,6 @@ export default function QuizPage() {
           };
           await database.fsrsRecords.upsert(record);
         }
-
-        setFsrsRecords((prev) => prev.filter((r) => r.id !== fsrsId));
-        dispatch(removeQuizItem(wordId));
       } catch (error) {
         console.error('Failed to delete FSRS record:', error);
       }
