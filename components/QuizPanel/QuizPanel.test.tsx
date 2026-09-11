@@ -591,4 +591,137 @@ describe('QuizPanel component', () => {
       expect(handleReveal).toHaveBeenCalled();
     });
   });
+
+  describe('FSRS status section positioning', () => {
+    const fsrsItem: QuizItem = {
+      ...mockItem,
+      fsrsRecord: {
+        id: 'fsrs-1',
+        wordId: 'word-1',
+        quizMode: 'wordToMeaning',
+        state: 'Review',
+        reps: 5,
+        lapses: 1,
+        stability: 14.2,
+        difficulty: 5.1,
+        elapsedDays: 4,
+        scheduledDays: 14,
+        dueAt: new Date().toISOString(),
+        lastReviewedAt: new Date().toISOString(),
+        word: 'ephemeral',
+        meaning: 'lasting for a very short time',
+        learningSteps: 0,
+        isDeleted: false,
+        lastSyncedAt: '',
+        updatedAt: new Date().toISOString(),
+      },
+    };
+
+    it('renders FSRS status badges below session progress and above the card in wordToMeaning mode', () => {
+      render(
+        <QuizPanel
+          item={fsrsItem}
+          quizDirection="wordToMeaning"
+          revealed={false}
+          onReveal={jest.fn()}
+          onMarkMissed={jest.fn()}
+          isMarkedMissed={false}
+          onNext={jest.fn()}
+          onPrevious={jest.fn()}
+          completed={false}
+          hasPrevious={false}
+          currentIndex={0}
+          totalCount={5}
+        />
+      );
+
+      const sessionProgress = screen.getByText('SESSION PROGRESS');
+      const fsrsStateBadge = screen.getByText('🧠 Review');
+      const wordTitles = screen.getAllByRole('heading', { level: 1, name: 'ephemeral' });
+
+      expect(sessionProgress).toBeInTheDocument();
+      expect(fsrsStateBadge).toBeInTheDocument();
+      expect(screen.getByText(/Reps:/)).toBeInTheDocument();
+      expect(screen.getByText(/Lapses:/)).toBeInTheDocument();
+      expect(screen.getByText(/Stab:/)).toBeInTheDocument();
+      expect(screen.getByText(/Diff:/)).toBeInTheDocument();
+
+      // Verify DOM order: sessionProgress precedes fsrsStateBadge, which precedes wordTitle
+      expect(sessionProgress.compareDocumentPosition(fsrsStateBadge)).toBe(
+        Node.DOCUMENT_POSITION_FOLLOWING
+      );
+      expect(fsrsStateBadge.compareDocumentPosition(wordTitles[0])).toBe(
+        Node.DOCUMENT_POSITION_FOLLOWING
+      );
+    });
+
+    it('renders FSRS status always on top in spelling mode when unrevealed and revealed', () => {
+      const { rerender } = render(
+        <QuizPanel
+          item={fsrsItem}
+          quizDirection="spelling"
+          revealed={false}
+          onReveal={jest.fn()}
+          onMarkMissed={jest.fn()}
+          isMarkedMissed={false}
+          onNext={jest.fn()}
+          onPrevious={jest.fn()}
+          completed={false}
+          hasPrevious={false}
+          currentIndex={0}
+          totalCount={5}
+        />
+      );
+
+      expect(screen.getByText('🧠 Review')).toBeInTheDocument();
+      expect(screen.getByTestId('gboard-keyboard')).toBeInTheDocument();
+
+      // Re-render as revealed
+      rerender(
+        <QuizPanel
+          item={fsrsItem}
+          quizDirection="spelling"
+          revealed
+          onReveal={jest.fn()}
+          onMarkMissed={jest.fn()}
+          isMarkedMissed={false}
+          onNext={jest.fn()}
+          onPrevious={jest.fn()}
+          completed={false}
+          hasPrevious={false}
+          currentIndex={0}
+          totalCount={5}
+        />
+      );
+
+      expect(screen.getByText('🧠 Review')).toBeInTheDocument();
+      expect(screen.getByText('SESSION PROGRESS')).toBeInTheDocument();
+    });
+
+    it('renders FSRS status on top below session progress in meaningToWord mode', () => {
+      render(
+        <QuizPanel
+          item={fsrsItem}
+          quizDirection="meaningToWord"
+          revealed={false}
+          onReveal={jest.fn()}
+          onMarkMissed={jest.fn()}
+          isMarkedMissed={false}
+          onNext={jest.fn()}
+          onPrevious={jest.fn()}
+          completed={false}
+          hasPrevious={false}
+          currentIndex={0}
+          totalCount={5}
+        />
+      );
+
+      const sessionProgress = screen.getByText('SESSION PROGRESS');
+      const fsrsBadge = screen.getByText('🧠 Review');
+      expect(fsrsBadge).toBeInTheDocument();
+      expect(sessionProgress.compareDocumentPosition(fsrsBadge)).toBe(
+        Node.DOCUMENT_POSITION_FOLLOWING
+      );
+    });
+  });
 });

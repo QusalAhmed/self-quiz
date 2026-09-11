@@ -951,7 +951,6 @@ export const QuizPanel = memo(function QuizPanel({
 
   const wordWithActions = (includeMissed: boolean) => (
     <Stack gap="xs" align="center" style={{ width: '100%' }}>
-      {fsrsMetaBar}
       <Group gap="sm" align="center" justify="center" wrap="wrap">
         <Title
           order={1}
@@ -1220,6 +1219,8 @@ export const QuizPanel = memo(function QuizPanel({
           </Stack>
         )}
 
+        {fsrsMetaBar}
+
         <div style={{ perspective: '1200px', width: '100%' }}>
           <motion.div
             key={`${item.id}-${quizDirection}`}
@@ -1267,7 +1268,6 @@ export const QuizPanel = memo(function QuizPanel({
 
                 {quizDirection === 'meaningToWord' && (
                   <>
-                    {fsrsMetaBar}
                     {definitionsBlockNoSpoilers}
                     {showUserExamplesButton}
                     {userExamplesBlock}
