@@ -5,26 +5,18 @@
   flex-direction: column;
   width: 100%;
   max-width: 580px;
-  margin: 0 auto;
-  border-radius: 16px;
-  padding: 8px 6px 10px;
-  background-color: var(--gboard-bg, #eceef1);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
-  border: 1px solid var(--gboard-border, rgba(0, 0, 0, 0.08));
+  margin: 0;
+  padding: 0;
+  background: transparent;
   user-select: none;
   -webkit-user-select: none;
   touch-action: manipulation;
-  transition:
-    background-color 0.2s ease,
-    border-color 0.2s ease;
   position: relative;
   z-index: 10;
 }
 
 /* Dark Mode Theme */
 :global([data-mantine-color-scheme='dark']) .keyboardContainer {
-  --gboard-bg: #1c1d21;
-  --gboard-border: rgba(255, 255, 255, 0.07);
   --gboard-key-bg: #31343b;
   --gboard-key-pressed: #454952;
   --gboard-key-text: #f1f3f4;
@@ -42,8 +34,6 @@
 
 /* Light Mode Theme */
 :global([data-mantine-color-scheme='light']) .keyboardContainer {
-  --gboard-bg: #eceef2;
-  --gboard-border: rgba(0, 0, 0, 0.08);
   --gboard-key-bg: #ffffff;
   --gboard-key-pressed: #dce0e6;
   --gboard-key-text: #1f1f1f;
@@ -73,12 +63,8 @@
     max-width: 100vw;
     width: 100%;
     margin: 0;
-    border-radius: 16px 16px 0 0;
-    border-left: none;
-    border-right: none;
-    border-bottom: none;
-    padding-bottom: max(10px, env(safe-area-inset-bottom, 10px));
-    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.25);
+    padding: 0;
+    background: transparent;
     z-index: 999;
   }
 }
