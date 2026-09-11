@@ -1,10 +1,6 @@
 import { formatCloudflareModelDetails } from './cloudflare';
 import { formatGoogleModelDetails } from './google';
 import { ALLOWED_GROQ_MODELS, formatGroqModelDetails } from './groq';
-import { normalizeUsageFrequency } from './word-family';
-import { resolveWordsApiKey, verifyWordWithWordsApi } from './words-api';
-
-export { verifyWordWithWordsApi } from './words-api';
 
 export type WordValidationStatus = 'valid' | 'warning' | 'invalid';
 
@@ -30,7 +26,6 @@ export type WordVerificationResult = {
     partOfSpeech: string;
   };
   generatorAiDetails: string;
-  usageFrequency?: string;
 };
 
 export type WordVerificationIssue = {
@@ -47,7 +42,6 @@ export type WordVerificationIssue = {
   };
   generatorAiDetails: string;
   verifiedAt: string;
-  usageFrequency?: string;
 };
 
 export function getWordVerificationIssue(
@@ -109,12 +103,11 @@ export type WordVerificationDefinitionInput = {
 export type VerifyWordParams = {
   word: string;
   definitions?: WordVerificationDefinitionInput[];
-  preferredProvider?: 'gemini' | 'cloudflare' | 'groq' | 'wordsapi' | 'auto';
+  preferredProvider?: 'gemini' | 'cloudflare' | 'groq' | 'freedictionary' | 'auto';
   customGoogleApiKey?: string;
   customGroqApiKey?: string;
   customCloudflareApiToken?: string;
   customCloudflareAccountId?: string;
-  customWordsApiKey?: string;
   groqModel?: string;
 };
 
@@ -125,8 +118,7 @@ export const WORD_VERIFICATION_SYSTEM_INSTRUCTION =
   '1. Word Validity & Spelling: Is this a recognized English word, term, or idiom? If misspelled or slightly off, identify the correct spelling.\n' +
   '2. Definition Accuracy: For each provided definition, determine if it accurately describes the word. Check if the designated part of speech (noun, verb, adjective, adverb, etc.) matches the definition.\n' +
   '3. Suggestions: If a definition is inaccurate, ambiguous, or if no definitions were provided, provide a clear, concise, accurate definition and part of speech.\n' +
-  '4. Usage Frequency: Estimate the word usage frequency tier in contemporary English corpus: "Top 500", "Top 1000", "Top 2000", "Top 3000", "Top 5000", "Top 10000", or "Rare".\n' +
-  '5. Overall Status: Determine if the word and definitions are "valid" (word is real and definition is accurate), "warning" (minor typo or slight inaccuracy/part-of-speech mismatch), or "invalid" (nonsensical, made up, or completely incorrect definition).\n' +
+  '4. Overall Status: Determine if the word and definitions are "valid" (word is real and definition is accurate), "warning" (minor typo or slight inaccuracy/part-of-speech mismatch), or "invalid" (nonsensical, made up, or completely incorrect definition).\n' +
   'You must output ONLY valid, raw JSON matching the specified schema. Do not include markdown code fences, comments, or explanations outside the JSON.';
 
 export function buildWordVerificationUserPrompt(
@@ -152,7 +144,6 @@ export function buildWordVerificationUserPrompt(
     `  "isWordValid": true/false,\n` +
     `  "wordSpellingSuggestion": "corrected word if misspelled, or null",\n` +
     `  "wordFeedback": "concise feedback on word validity or spelling",\n` +
-    `  "usageFrequency": "Top 500 | Top 1000 | Top 2000 | Top 3000 | Top 5000 | Top 10000 | Rare",\n` +
     `  "overallStatus": "valid" | "warning" | "invalid",\n` +
     `  "definitions": [\n` +
     `    {\n` +
@@ -262,10 +253,6 @@ export function parseWordVerificationResponse(
     };
   }
 
-  const rawUsageFreq =
-    parsed?.usageFrequency ?? parsed?.frequency ?? parsed?.usage_frequency ?? parsed?.freq;
-  const usageFrequency = rawUsageFreq ? normalizeUsageFrequency(rawUsageFreq) : undefined;
-
   return {
     word: originalWord,
     isWordValid,
@@ -275,7 +262,6 @@ export function parseWordVerificationResponse(
     definitions: verifiedDefinitions,
     suggestedNewDefinition,
     generatorAiDetails,
-    usageFrequency: usageFrequency || undefined,
   };
 }
 
@@ -470,16 +456,439 @@ export async function verifyWordWithCloudflare(
 }
 
 /**
- * Free Dictionary API fallback when AI providers are unavailable
+ * Normalizes part-of-speech strings into standard canonical names
+ */
+export function normalizePartOfSpeech(pos: string): string {
+  const p = pos.trim().toLowerCase().replace(/\.$/, '');
+  if (!p) {
+    return '';
+  }
+  if (p === 'n' || p === 'noun') {
+    return 'noun';
+  }
+  if (p === 'v' || p === 'verb') {
+    return 'verb';
+  }
+  if (p === 'adj' || p === 'adjective') {
+    return 'adjective';
+  }
+  if (p === 'adv' || p === 'adverb') {
+    return 'adverb';
+  }
+  if (p === 'prep' || p === 'preposition') {
+    return 'preposition';
+  }
+  if (p === 'conj' || p === 'conjunction') {
+    return 'conjunction';
+  }
+  if (p === 'interj' || p === 'int' || p === 'interjection') {
+    return 'interjection';
+  }
+  if (p === 'pron' || p === 'pronoun') {
+    return 'pronoun';
+  }
+  return p;
+}
+
+export type FreeDictionarySense = {
+  definition: string;
+  tags?: string[];
+  examples?: string[];
+  quotes?: Array<{ text: string; reference?: string }>;
+  synonyms?: string[];
+  antonyms?: string[];
+  translations?: Array<{
+    language: { code: string; name: string };
+    word: string;
+  }>;
+  subsenses?: FreeDictionarySense[];
+};
+
+export type FreeDictionaryEntry = {
+  language?: { code: string; name: string };
+  partOfSpeech?: string;
+  pronunciations?: Array<{ type: string; text: string; tags: string[] }>;
+  forms?: Array<{ word: string; tags: string[] }>;
+  senses?: FreeDictionarySense[];
+  synonyms?: string[];
+  antonyms?: string[];
+};
+
+export type FreeDictionaryResponse = {
+  word: string;
+  entries?: FreeDictionaryEntry[];
+  source?: {
+    url?: string;
+    license?: { name: string; url: string };
+  };
+};
+
+/**
+ * Free Dictionary API (https://freedictionaryapi.com/) verification
+ * Powered by Wiktionary multilingual data (8,500,000+ words).
+ * Requires no API key, completely free, supports inflections, misspellings, and multilingual translations.
+ */
+export async function verifyWordWithFreeDictionaryApi(
+  word: string,
+  definitions: WordVerificationDefinitionInput[] = []
+): Promise<WordVerificationResult> {
+  const trimmedWord = word.trim().toLowerCase();
+  if (!trimmedWord) {
+    throw new Error('Word is required for verification');
+  }
+
+  const url = `https://freedictionaryapi.com/api/v1/entries/en/${encodeURIComponent(trimmedWord)}?translations=true`;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 7000);
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
+  if (!res.ok && res.status === 404) {
+    return {
+      word,
+      isWordValid: false,
+      wordFeedback: `Word "${word}" was not found in English Wiktionary (freedictionaryapi.com).`,
+      overallStatus: 'warning',
+      definitions: definitions.map((_, idx) => ({
+        index: idx,
+        isAccurate: false,
+        partOfSpeechMatches: false,
+        feedback: 'Cannot verify definition for unrecognized word.',
+      })),
+      generatorAiDetails: 'Free Dictionary API (freedictionaryapi.com)',
+    };
+  }
+
+  if (!res.ok) {
+    throw new Error(`Free Dictionary API returned HTTP ${res.status}`);
+  }
+
+  const data = await res.json();
+  return parseFreeDictionaryResponse(data, word, definitions);
+}
+
+/**
+ * Parses Free Dictionary API (freedictionaryapi.com) and legacy responses into WordVerificationResult
+ */
+export function parseFreeDictionaryResponse(
+  data: any,
+  word: string,
+  definitions: WordVerificationDefinitionInput[]
+): WordVerificationResult {
+  // If data is array (legacy dictionaryapi.dev fallback format)
+  if (Array.isArray(data)) {
+    return parseLegacyDictionaryResponse(data, word, definitions);
+  }
+
+  const entries: FreeDictionaryEntry[] = Array.isArray(data?.entries) ? data.entries : [];
+  if (entries.length === 0) {
+    return {
+      word,
+      isWordValid: false,
+      wordFeedback: `Word "${word}" was not found in English Wiktionary (freedictionaryapi.com).`,
+      overallStatus: 'warning',
+      definitions: definitions.map((_, idx) => ({
+        index: idx,
+        isAccurate: false,
+        partOfSpeechMatches: false,
+        feedback: 'Cannot verify definition for unrecognized word.',
+      })),
+      generatorAiDetails: 'Free Dictionary API (freedictionaryapi.com)',
+    };
+  }
+
+  // Check for common misspelling senses (Wiktionary tags them with 'misspelling' or 'Misspelling of X')
+  let spellingSuggestion: string | undefined;
+  let isMisspelling = false;
+
+  for (const entry of entries) {
+    for (const sense of entry.senses || []) {
+      const tags = Array.isArray(sense.tags) ? sense.tags : [];
+      const def = typeof sense.definition === 'string' ? sense.definition : '';
+      const hasMisspellingTag = tags.some((t) => t.toLowerCase() === 'misspelling');
+      const match = def.match(/^Misspelling of\s+([a-zA-Z-]+)\.?/i);
+      if (hasMisspellingTag || match) {
+        isMisspelling = true;
+        if (match && match[1]) {
+          spellingSuggestion = match[1];
+          break;
+        }
+      }
+    }
+    if (spellingSuggestion) {
+      break;
+    }
+  }
+
+  // Extract all senses and parts of speech
+  const dictMeanings: Array<{
+    definition: string;
+    partOfSpeech: string;
+    examples: string[];
+    translations: string[];
+    synonyms: string[];
+  }> = [];
+
+  for (const entry of entries) {
+    const rawPos = typeof entry.partOfSpeech === 'string' ? entry.partOfSpeech.trim() : '';
+    const pos = normalizePartOfSpeech(rawPos);
+    for (const sense of entry.senses || []) {
+      if (typeof sense.definition !== 'string' || !sense.definition.trim()) {
+        continue;
+      }
+      const translations = Array.isArray(sense.translations)
+        ? sense.translations
+            .filter((t: any) => t.language?.code === 'bn' || t.language?.name?.toLowerCase() === 'bengali')
+            .map((t: any) => (typeof t.word === 'string' ? t.word.toLowerCase().trim() : ''))
+            .filter(Boolean)
+        : [];
+      const synonyms = (Array.isArray(sense.synonyms) ? sense.synonyms : []).concat(
+        Array.isArray(entry.synonyms) ? entry.synonyms : []
+      );
+      dictMeanings.push({
+        definition: sense.definition.trim(),
+        partOfSpeech: pos,
+        examples: Array.isArray(sense.examples) ? sense.examples : [],
+        translations,
+        synonyms,
+      });
+    }
+  }
+
+  const primaryDict = dictMeanings[0];
+
+  if (isMisspelling && spellingSuggestion) {
+    return {
+      word,
+      isWordValid: false,
+      wordSpellingSuggestion: spellingSuggestion,
+      wordFeedback: `"${word}" appears to be a misspelling of "${spellingSuggestion}".`,
+      overallStatus: 'warning',
+      definitions: definitions.map((_, idx) => ({
+        index: idx,
+        isAccurate: false,
+        partOfSpeechMatches: true,
+        feedback: `Word appears to be misspelled. Did you mean "${spellingSuggestion}"?`,
+      })),
+      suggestedNewDefinition: primaryDict
+        ? {
+            meaning: primaryDict.definition,
+            partOfSpeech: primaryDict.partOfSpeech || 'noun',
+          }
+        : undefined,
+      generatorAiDetails: 'Free Dictionary API (freedictionaryapi.com)',
+    };
+  }
+
+  const isAlternativeSpelling = entries.some((e: any) =>
+    e.senses?.some(
+      (s: any) =>
+        (Array.isArray(s.tags) &&
+          s.tags.some((t: string) => t.toLowerCase() === 'alt of' || t.toLowerCase() === 'alternative')) ||
+        /^(alternative|archaic|obsolete|dated)\s+(spelling|form)\s+of/i.test(s.definition || '')
+    )
+  );
+
+  const wordFeedback = isAlternativeSpelling
+    ? 'Valid English word (alternative or variant spelling in Wiktionary).'
+    : 'Valid English word (verified via FreeDictionaryAPI / Wiktionary).';
+
+  // Evaluate user-provided definitions
+  const verifiedDefs: SingleDefinitionVerification[] = definitions.map((userDef, idx) => {
+    const userMeaning = userDef.meaning.trim();
+    const userMeaningLower = userMeaning.toLowerCase();
+    const userPos = normalizePartOfSpeech(userDef.partOfSpeech || '');
+
+    const partOfSpeechMatches = userPos
+      ? dictMeanings.some((dm) => dm.partOfSpeech === userPos)
+      : true;
+
+    // Check Bengali / multilingual translation match
+    const matchesBengaliTranslation = dictMeanings.some((dm) =>
+      dm.translations.some((tr) => userMeaningLower.includes(tr) || tr.includes(userMeaningLower))
+    );
+
+    // Check English keyword overlap
+    const userWords = userMeaningLower.split(/\W+/).filter((w) => w.length > 2);
+    const bestEnglishMatch = dictMeanings.find((dm) => {
+      const defLower = dm.definition.toLowerCase();
+      const synsLower = dm.synonyms.map((s) => s.toLowerCase());
+      return userWords.some((w) => defLower.includes(w) || synsLower.includes(w));
+    });
+
+    const isNonLatinMeaning = userWords.length === 0 && userMeaning.length > 0;
+    const isAccurate = matchesBengaliTranslation || Boolean(bestEnglishMatch) || isNonLatinMeaning;
+
+    let feedback = '';
+    if (matchesBengaliTranslation) {
+      feedback = 'Definition matches Bengali translation in Wiktionary.';
+    } else if (bestEnglishMatch) {
+      feedback = 'Definition is consistent with English Wiktionary senses.';
+    } else if (isNonLatinMeaning) {
+      feedback = 'Definition accepted for verified English word.';
+    } else {
+      feedback = 'Definition could not be verified against Wiktionary entries.';
+    }
+
+    if (!partOfSpeechMatches && userPos) {
+      feedback += ` Part of speech "${userDef.partOfSpeech}" does not match dictionary forms.`;
+    }
+
+    const fallbackSuggested = dictMeanings[idx] || dictMeanings[0];
+
+    return {
+      index: idx,
+      isAccurate,
+      partOfSpeechMatches,
+      detectedPartOfSpeech: bestEnglishMatch?.partOfSpeech || primaryDict?.partOfSpeech || 'noun',
+      feedback,
+      suggestedDefinition: isAccurate ? undefined : fallbackSuggested?.definition,
+      suggestedPartOfSpeech: isAccurate ? undefined : fallbackSuggested?.partOfSpeech,
+    };
+  });
+
+  const overallStatus: WordValidationStatus = verifiedDefs.some(
+    (d) => !d.isAccurate || !d.partOfSpeechMatches
+  )
+    ? 'warning'
+    : 'valid';
+
+  return {
+    word,
+    isWordValid: true,
+    wordFeedback,
+    overallStatus,
+    definitions: verifiedDefs,
+    suggestedNewDefinition: primaryDict
+      ? {
+          meaning: primaryDict.definition,
+          partOfSpeech: primaryDict.partOfSpeech || 'noun',
+        }
+      : undefined,
+    generatorAiDetails: 'Free Dictionary API (freedictionaryapi.com)',
+  };
+}
+
+/**
+ * Handles legacy dictionaryapi.dev array format fallback
+ */
+export function parseLegacyDictionaryResponse(
+  entries: any[],
+  word: string,
+  definitions: WordVerificationDefinitionInput[]
+): WordVerificationResult {
+  if (!Array.isArray(entries) || entries.length === 0) {
+    return {
+      word,
+      isWordValid: false,
+      wordFeedback: 'Word not recognized in dictionary entries.',
+      overallStatus: 'warning',
+      definitions: [],
+      generatorAiDetails: 'Dictionary Fallback (api.dictionaryapi.dev)',
+    };
+  }
+
+  const dictMeanings: Array<{ definition: string; partOfSpeech: string }> = [];
+  for (const entry of entries) {
+    if (Array.isArray(entry.meanings)) {
+      for (const m of entry.meanings) {
+        const pos = normalizePartOfSpeech(m.partOfSpeech || '');
+        if (Array.isArray(m.definitions)) {
+          for (const d of m.definitions) {
+            if (typeof d?.definition === 'string') {
+              dictMeanings.push({ definition: d.definition, partOfSpeech: pos });
+            }
+          }
+        }
+      }
+    }
+  }
+
+  const verifiedDefs: SingleDefinitionVerification[] = definitions.map((userDef, idx) => {
+    const userMeaning = userDef.meaning.trim().toLowerCase();
+    const userPos = normalizePartOfSpeech(userDef.partOfSpeech || '');
+
+    const userWords = userMeaning.split(/\W+/).filter((w) => w.length > 3);
+    const bestMatch = dictMeanings.find((dm) => {
+      const dmLower = dm.definition.toLowerCase();
+      return userWords.some((w) => dmLower.includes(w));
+    });
+
+    const isAccurate = userMeaning.length > 0 && (Boolean(bestMatch) || userWords.length === 0);
+    const partOfSpeechMatches = userPos
+      ? dictMeanings.some((dm) => dm.partOfSpeech === userPos)
+      : true;
+
+    const fallbackSuggested = dictMeanings[idx] || dictMeanings[0];
+
+    return {
+      index: idx,
+      isAccurate,
+      partOfSpeechMatches,
+      detectedPartOfSpeech: bestMatch?.partOfSpeech || dictMeanings[0]?.partOfSpeech,
+      feedback: isAccurate
+        ? 'Definition appears consistent with standard dictionary entries.'
+        : 'Definition could not be verified against dictionary entries.',
+      suggestedDefinition: isAccurate ? undefined : fallbackSuggested?.definition,
+      suggestedPartOfSpeech: isAccurate ? undefined : fallbackSuggested?.partOfSpeech,
+    };
+  });
+
+  const primaryDict = dictMeanings[0];
+  const overallStatus: WordValidationStatus = verifiedDefs.some(
+    (d) => !d.isAccurate || !d.partOfSpeechMatches
+  )
+    ? 'warning'
+    : 'valid';
+
+  return {
+    word,
+    isWordValid: true,
+    wordFeedback: 'Valid English word (verified via dictionary).',
+    overallStatus,
+    definitions: verifiedDefs,
+    suggestedNewDefinition: primaryDict
+      ? {
+          meaning: primaryDict.definition,
+          partOfSpeech: primaryDict.partOfSpeech || 'noun',
+        }
+      : undefined,
+    generatorAiDetails: 'Dictionary Fallback (api.dictionaryapi.dev)',
+  };
+}
+
+/**
+ * Free Dictionary API verification (with secondary fallback to api.dictionaryapi.dev)
  */
 export async function verifyWordWithDictionary(
   word: string,
   definitions: WordVerificationDefinitionInput[]
 ): Promise<WordVerificationResult> {
   const trimmedWord = word.trim().toLowerCase();
-  const url = `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(trimmedWord)}`;
 
+  // 1. Primary: Free Dictionary API (freedictionaryapi.com)
   try {
+    return await verifyWordWithFreeDictionaryApi(trimmedWord, definitions);
+  } catch (err: any) {
+    console.warn(
+      'Free Dictionary API (freedictionaryapi.com) failed, trying secondary fallback:',
+      err?.message || err
+    );
+  }
+
+  // 2. Secondary fallback: api.dictionaryapi.dev
+  try {
+    const url = `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(trimmedWord)}`;
     const res = await fetch(url, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
@@ -501,89 +910,8 @@ export async function verifyWordWithDictionary(
       };
     }
 
-    const entries = await res.json();
-    if (!Array.isArray(entries) || entries.length === 0) {
-      return {
-        word,
-        isWordValid: false,
-        wordFeedback: 'Word not recognized in dictionary entries.',
-        overallStatus: 'warning',
-        definitions: [],
-        generatorAiDetails: 'Dictionary Fallback (api.dictionaryapi.dev)',
-      };
-    }
-
-    // Extract all dictionary meanings and parts of speech
-    const dictMeanings: Array<{ definition: string; partOfSpeech: string }> = [];
-    for (const entry of entries) {
-      if (Array.isArray(entry.meanings)) {
-        for (const m of entry.meanings) {
-          const pos = typeof m.partOfSpeech === 'string' ? m.partOfSpeech.toLowerCase() : '';
-          if (Array.isArray(m.definitions)) {
-            for (const d of m.definitions) {
-              if (typeof d?.definition === 'string') {
-                dictMeanings.push({ definition: d.definition, partOfSpeech: pos });
-              }
-            }
-          }
-        }
-      }
-    }
-
-    // Evaluate user-provided definitions
-    const verifiedDefs: SingleDefinitionVerification[] = definitions.map((userDef, idx) => {
-      const userMeaning = userDef.meaning.trim().toLowerCase();
-      const userPos = userDef.partOfSpeech?.trim().toLowerCase();
-
-      // Check if any dictionary definition shares words or matches
-      const userWords = userMeaning.split(/\W+/).filter((w) => w.length > 3);
-      const bestMatch = dictMeanings.find((dm) => {
-        const dmLower = dm.definition.toLowerCase();
-        const matchesWords = userWords.some((w) => dmLower.includes(w));
-        return matchesWords;
-      });
-
-      const isAccurate = userMeaning.length > 0 && (Boolean(bestMatch) || userWords.length === 0);
-      const partOfSpeechMatches = userPos
-        ? dictMeanings.some((dm) => dm.partOfSpeech === userPos)
-        : true;
-
-      const fallbackSuggested = dictMeanings[idx] || dictMeanings[0];
-
-      return {
-        index: idx,
-        isAccurate,
-        partOfSpeechMatches,
-        detectedPartOfSpeech: bestMatch?.partOfSpeech || dictMeanings[0]?.partOfSpeech,
-        feedback: isAccurate
-          ? 'Definition appears consistent with standard dictionary entries.'
-          : 'Definition could not be verified against dictionary entries.',
-        suggestedDefinition: isAccurate ? undefined : fallbackSuggested?.definition,
-        suggestedPartOfSpeech: isAccurate ? undefined : fallbackSuggested?.partOfSpeech,
-      };
-    });
-
-    const primaryDict = dictMeanings[0];
-    const overallStatus: WordValidationStatus = verifiedDefs.some(
-      (d) => !d.isAccurate || !d.partOfSpeechMatches
-    )
-      ? 'warning'
-      : 'valid';
-
-    return {
-      word,
-      isWordValid: true,
-      wordFeedback: 'Valid English word (verified via dictionary).',
-      overallStatus,
-      definitions: verifiedDefs,
-      suggestedNewDefinition: primaryDict
-        ? {
-            meaning: primaryDict.definition,
-            partOfSpeech: primaryDict.partOfSpeech || 'noun',
-          }
-        : undefined,
-      generatorAiDetails: 'Dictionary Fallback (api.dictionaryapi.dev)',
-    };
+    const data = await res.json();
+    return parseLegacyDictionaryResponse(data, word, definitions);
   } catch {
     return {
       word,
@@ -594,7 +922,7 @@ export async function verifyWordWithDictionary(
         index: idx,
         isAccurate: true,
         partOfSpeechMatches: true,
-        feedback: 'Offline: could not verify against live AI.',
+        feedback: 'Offline: could not verify against live dictionary.',
       })),
       generatorAiDetails: 'Offline Fallback',
     };
@@ -615,7 +943,6 @@ export async function verifyWordAndDefinitions(
     customGroqApiKey,
     customCloudflareApiToken,
     customCloudflareAccountId,
-    customWordsApiKey,
     groqModel,
   } = params;
 
@@ -628,37 +955,23 @@ export async function verifyWordAndDefinitions(
     partOfSpeech: d.partOfSpeech || '',
   }));
 
-  type ProviderKey = 'wordsapi' | 'gemini' | 'cloudflare' | 'groq';
-  const hasWordsApiKey = Boolean(resolveWordsApiKey(customWordsApiKey));
-
-  // Define execution order based on preference and available credentials
-  let order: ProviderKey[];
-  if (preferredProvider === 'wordsapi') {
-    order = ['wordsapi', 'gemini', 'cloudflare', 'groq'];
-  } else if (preferredProvider === 'groq') {
-    order = hasWordsApiKey
-      ? ['groq', 'wordsapi', 'gemini', 'cloudflare']
-      : ['groq', 'gemini', 'cloudflare'];
-  } else if (preferredProvider === 'cloudflare') {
-    order = hasWordsApiKey
-      ? ['cloudflare', 'wordsapi', 'gemini', 'groq']
-      : ['cloudflare', 'gemini', 'groq'];
-  } else if (preferredProvider === 'auto') {
-    order = hasWordsApiKey
-      ? ['wordsapi', 'gemini', 'cloudflare', 'groq']
-      : ['gemini', 'cloudflare', 'groq'];
-  } else {
-    // gemini or default
-    order = hasWordsApiKey
-      ? ['gemini', 'wordsapi', 'cloudflare', 'groq']
-      : ['gemini', 'cloudflare', 'groq'];
+  // Direct selection of Free Dictionary API
+  if (preferredProvider === 'freedictionary') {
+    return await verifyWordWithFreeDictionaryApi(word, cleanDefinitions).catch(() =>
+      verifyWordWithDictionary(word, cleanDefinitions)
+    );
   }
+
+  // Define execution order based on preference
+  const order: Array<'gemini' | 'cloudflare' | 'groq'> =
+    preferredProvider === 'groq'
+      ? ['groq', 'gemini', 'cloudflare']
+      : preferredProvider === 'cloudflare'
+        ? ['cloudflare', 'gemini', 'groq']
+        : ['gemini', 'cloudflare', 'groq'];
 
   for (const provider of order) {
     try {
-      if (provider === 'wordsapi') {
-        return await verifyWordWithWordsApi(word, cleanDefinitions, customWordsApiKey);
-      }
       if (provider === 'gemini') {
         return await verifyWordWithGoogle(word, cleanDefinitions, customGoogleApiKey);
       }
@@ -675,13 +988,15 @@ export async function verifyWordAndDefinitions(
       }
     } catch (err: any) {
       console.warn(
-        `Word verification provider "${provider}" failed, trying next candidate:`,
+        `AI verification provider "${provider}" failed, trying next candidate:`,
         err?.message || err
       );
     }
   }
 
-  // Fallback to Free Dictionary API if all configured providers fail
-  console.warn('All word verification providers failed, falling back to Dictionary API');
+  // Fallback to Free Dictionary API (freedictionaryapi.com) if all AI providers fail
+  console.warn(
+    'All AI providers failed for word verification, falling back to Free Dictionary API (freedictionaryapi.com)'
+  );
   return await verifyWordWithDictionary(word, cleanDefinitions);
 }

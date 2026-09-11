@@ -99,6 +99,13 @@ export interface AppFsrsSettings {
   autoRefillQueue: boolean;
 }
 
+export type WordVerificationProviderKey =
+  | 'auto'
+  | 'freedictionary'
+  | 'gemini'
+  | 'groq'
+  | 'cloudflare';
+
 export interface AppAiSettings {
   preferredProvider: AiProviderKey;
   groqModel: string;
@@ -107,12 +114,9 @@ export interface AppAiSettings {
   customGeminiApiKey?: string;
   customCloudflareApiToken?: string;
   customCloudflareAccountId?: string;
-  customWordsApiKey?: string;
   useCustomApiKeys: boolean;
   autoVerifyWords?: boolean;
-  verificationProvider?: 'auto' | 'wordsapi' | 'gemini' | 'cloudflare' | 'groq';
-  autoFetchUsageFrequencyOnAdd?: boolean;
-  frequencyProvider?: 'auto' | 'wordsapi' | 'ai' | 'gemini' | 'groq' | 'cloudflare';
+  verificationProvider?: WordVerificationProviderKey;
 }
 
 export interface AppDataSettings {
@@ -190,12 +194,9 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     customGeminiApiKey: '',
     customCloudflareApiToken: '',
     customCloudflareAccountId: '',
-    customWordsApiKey: '',
     useCustomApiKeys: false,
     autoVerifyWords: true,
-    verificationProvider: 'wordsapi',
-    autoFetchUsageFrequencyOnAdd: true,
-    frequencyProvider: 'auto',
+    verificationProvider: 'auto',
   },
   notifications: DEFAULT_NOTIFICATION_SETTINGS,
   data: {
@@ -361,33 +362,18 @@ export function normalizeAppSettings(raw: Partial<AppSettings> | null | undefine
     customGeminiApiKey: raw.ai?.customGeminiApiKey ?? '',
     customCloudflareApiToken: raw.ai?.customCloudflareApiToken ?? '',
     customCloudflareAccountId: raw.ai?.customCloudflareAccountId ?? '',
-    customWordsApiKey: raw.ai?.customWordsApiKey ?? '',
     useCustomApiKeys: raw.ai?.useCustomApiKeys ?? false,
     autoVerifyWords:
       typeof raw.ai?.autoVerifyWords === 'boolean'
         ? raw.ai.autoVerifyWords
         : DEFAULT_APP_SETTINGS.ai.autoVerifyWords,
     verificationProvider:
-      raw.ai?.verificationProvider === 'wordsapi' ||
+      raw.ai?.verificationProvider === 'freedictionary' ||
       raw.ai?.verificationProvider === 'gemini' ||
-      raw.ai?.verificationProvider === 'cloudflare' ||
       raw.ai?.verificationProvider === 'groq' ||
-      raw.ai?.verificationProvider === 'auto'
+      raw.ai?.verificationProvider === 'cloudflare'
         ? raw.ai.verificationProvider
-        : DEFAULT_APP_SETTINGS.ai.verificationProvider,
-    autoFetchUsageFrequencyOnAdd:
-      typeof raw.ai?.autoFetchUsageFrequencyOnAdd === 'boolean'
-        ? raw.ai.autoFetchUsageFrequencyOnAdd
-        : DEFAULT_APP_SETTINGS.ai.autoFetchUsageFrequencyOnAdd,
-    frequencyProvider:
-      raw.ai?.frequencyProvider === 'wordsapi' ||
-      raw.ai?.frequencyProvider === 'ai' ||
-      raw.ai?.frequencyProvider === 'gemini' ||
-      raw.ai?.frequencyProvider === 'groq' ||
-      raw.ai?.frequencyProvider === 'cloudflare' ||
-      raw.ai?.frequencyProvider === 'auto'
-        ? raw.ai.frequencyProvider
-        : DEFAULT_APP_SETTINGS.ai.frequencyProvider,
+        : 'auto',
   };
 
   const notifications = raw.notifications ? raw.notifications : DEFAULT_NOTIFICATION_SETTINGS;

@@ -584,43 +584,6 @@ export default function WordsPage() {
     [database]
   );
 
-  const fetchAndStoreWordFrequency = useCallback(
-    async (wordId: string, word: string, meaning?: string) => {
-      if (!database || !navigator.onLine) {
-        return;
-      }
-      try {
-        const response = await fetch('/api/word-frequency', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            word: capitalizeWord(word),
-            meaning,
-          }),
-        });
-
-        if (!response.ok) {
-          return;
-        }
-
-        const data = await response.json();
-        if (data.usageFrequency) {
-          const doc = await database.words.findOne(wordId).exec();
-          if (doc) {
-            await safePatchDoc(doc, {
-              usageFrequency: data.usageFrequency,
-              ...(data.generatorDetails ? { generatorAiDetails: data.generatorDetails } : {}),
-              updatedAt: new Date().toISOString(),
-            });
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching word frequency after add:', error);
-      }
-    },
-    [database]
-  );
-
   const handleAddWord = useCallback(
     async (
       word: string,
@@ -700,15 +663,6 @@ export default function WordsPage() {
       void fetchAndStoreWordFamily(record.id, record.word, normalizedMeaning).catch((error) => {
         console.error('Error generating word family after add:', error);
       });
-
-      // Fetch word usage frequency from WordsAPI/AI in background if not provided
-      if (!usageFrequency) {
-        void fetchAndStoreWordFrequency(record.id, record.word, normalizedMeaning).catch(
-          (error) => {
-            console.error('Error fetching word frequency after add:', error);
-          }
-        );
-      }
 
       // Background AI verification after word add
       void verifyAndStoreWord(database, record.id).catch((error) => {
@@ -817,7 +771,6 @@ export default function WordsPage() {
       ensureMissingAiExamples,
       fetchAndStoreWordFamily,
       fetchAndStoreWordAudio,
-      fetchAndStoreWordFrequency,
     ]
   );
 
@@ -1263,7 +1216,6 @@ export default function WordsPage() {
           onDismissVerification={handleDismissVerification}
           onReverify={handleReverifyWord}
           reverifyingWordIds={reverifyingWordIds}
-          onFetchFrequency={fetchAndStoreWordFrequency}
           onNavigateWord={(targetWord) => {
             setSearchQuery(targetWord);
             setSelectedLetter('ALL');

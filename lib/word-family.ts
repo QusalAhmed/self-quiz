@@ -510,10 +510,30 @@ export async function verifyWordInDictionary(rawWord: string): Promise<boolean> 
     // Ignore network timeouts and continue to secondary check
   }
 
-  // 2. Secondary verification with Free Dictionary API
+  // 2. Secondary verification with Free Dictionary API (freedictionaryapi.com - Wiktionary 8.5M+ words)
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2500);
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
+    const res = await fetch(
+      `https://freedictionaryapi.com/api/v1/entries/en/${encodeURIComponent(word)}`,
+      { signal: controller.signal }
+    );
+    clearTimeout(timeoutId);
+
+    if (res.ok) {
+      const data = (await res.json().catch(() => null)) as { entries?: unknown[] } | null;
+      if (data && Array.isArray(data.entries) && data.entries.length > 0) {
+        return true;
+      }
+    }
+  } catch {
+    // Ignore network timeouts and continue to fallback
+  }
+
+  // 3. Fallback verification with api.dictionaryapi.dev
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
     const res = await fetch(
       `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`,
       { signal: controller.signal }

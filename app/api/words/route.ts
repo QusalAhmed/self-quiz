@@ -49,47 +49,25 @@ export async function POST(request: NextRequest) {
       custom_group: normalizedGroups[0] || '',
       ai_example_count: normalizeAiExampleCount(ai_example_count),
       notes: typeof body.notes === 'string' ? body.notes : '',
-      usage_frequency:
-        typeof body.usage_frequency === 'string'
-          ? body.usage_frequency
-          : typeof body.usageFrequency === 'string'
-            ? body.usageFrequency
-            : '',
-      generator_ai_details:
-        typeof body.generator_ai_details === 'string'
-          ? body.generator_ai_details
-          : typeof body.generatorAiDetails === 'string'
-            ? body.generatorAiDetails
-            : '',
     };
 
     let { data, error } = await supabase.from('words').upsert(payload, { onConflict: 'id' });
 
-    // Fallback if remote Supabase schema has not been updated with 'notes' or 'usage_frequency' columns yet
+    // Fallback if remote Supabase schema has not been updated with 'notes' column yet
     if (
       error &&
       (error.message?.includes('notes') ||
-        error.message?.includes('usage_frequency') ||
-        error.message?.includes('generator_ai_details') ||
         error.message?.includes('schema cache') ||
         error.code === 'PGRST204')
     ) {
       console.warn(
-        'Supabase notice: newer columns missing in remote words table. Retrying upsert with compatible payload.'
+        'Supabase notice: "notes" column missing in remote words table. Retrying upsert without notes column. Run "ALTER TABLE public.words ADD COLUMN IF NOT EXISTS notes TEXT DEFAULT \'\';" in Supabase SQL Editor.'
       );
-      const compatiblePayload = { ...payload };
-      if (error.message?.includes('notes')) {
-        delete (compatiblePayload as Record<string, unknown>).notes;
-      }
-      if (error.message?.includes('usage_frequency')) {
-        delete (compatiblePayload as Record<string, unknown>).usage_frequency;
-      }
-      if (error.message?.includes('generator_ai_details')) {
-        delete (compatiblePayload as Record<string, unknown>).generator_ai_details;
-      }
+      const payloadWithoutNotes = { ...payload };
+      delete (payloadWithoutNotes as Record<string, unknown>).notes;
       const retryResult = await supabase
         .from('words')
-        .upsert(compatiblePayload, { onConflict: 'id' });
+        .upsert(payloadWithoutNotes, { onConflict: 'id' });
       data = retryResult.data;
       error = retryResult.error;
     }

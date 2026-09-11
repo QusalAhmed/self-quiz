@@ -4,6 +4,7 @@ import {
   verifyWordAndDefinitions,
   verifyWordWithCloudflare,
   verifyWordWithDictionary,
+  verifyWordWithFreeDictionaryApi,
   verifyWordWithGoogle,
   verifyWordWithGroq,
 } from './word-verification';
@@ -331,7 +332,168 @@ describe('word-verification', () => {
     });
   });
 
+  describe('verifyWordWithFreeDictionaryApi', () => {
+    it('verifies valid English word with definitions using freedictionaryapi.com response', async () => {
+      const mockFreeDictResponse = {
+        word: 'eloquent',
+        entries: [
+          {
+            language: { code: 'en', name: 'English' },
+            partOfSpeech: 'adjective',
+            pronunciations: [{ type: 'ipa', text: '/ˈɛləkwənt/', tags: ['US'] }],
+            senses: [
+              {
+                definition: 'Fluently persuasive and articulate.',
+                tags: [],
+                examples: ['an eloquent speaker'],
+                translations: [
+                  { language: { code: 'bn', name: 'Bengali' }, word: 'বাকপটু' },
+                ],
+              },
+            ],
+          },
+        ],
+        source: {
+          url: 'https://en.wiktionary.org/wiki/eloquent',
+          license: { name: 'CC BY-SA 4.0', url: 'https://creativecommons.org/licenses/by-sa/4.0/' },
+        },
+      };
+
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => mockFreeDictResponse,
+      } as any);
+
+      const result = await verifyWordWithFreeDictionaryApi('eloquent', [
+        { meaning: 'fluent and articulate', partOfSpeech: 'adjective' },
+      ]);
+
+      expect(result.isWordValid).toBe(true);
+      expect(result.overallStatus).toBe('valid');
+      expect(result.generatorAiDetails).toBe('Free Dictionary API (freedictionaryapi.com)');
+      expect(result.definitions[0].isAccurate).toBe(true);
+      expect(result.definitions[0].partOfSpeechMatches).toBe(true);
+    });
+
+    it('verifies Bengali translation match correctly', async () => {
+      const mockFreeDictResponse = {
+        word: 'book',
+        entries: [
+          {
+            language: { code: 'en', name: 'English' },
+            partOfSpeech: 'noun',
+            senses: [
+              {
+                definition: 'A collection of sheets of paper bound together.',
+                translations: [
+                  { language: { code: 'bn', name: 'Bengali' }, word: 'বই' },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => mockFreeDictResponse,
+      } as any);
+
+      const result = await verifyWordWithFreeDictionaryApi('book', [
+        { meaning: 'বই', partOfSpeech: 'noun' },
+      ]);
+
+      expect(result.isWordValid).toBe(true);
+      expect(result.definitions[0].isAccurate).toBe(true);
+      expect(result.definitions[0].feedback).toContain('matches Bengali translation');
+    });
+
+    it('detects common misspelling and suggests correct spelling from Wiktionary', async () => {
+      const mockMisspellingResponse = {
+        word: 'definately',
+        entries: [
+          {
+            language: { code: 'en', name: 'English' },
+            partOfSpeech: 'adverb',
+            senses: [
+              {
+                definition: 'Misspelling of definitely.',
+                tags: ['alt of', 'misspelling'],
+              },
+            ],
+          },
+        ],
+      };
+
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => mockMisspellingResponse,
+      } as any);
+
+      const result = await verifyWordWithFreeDictionaryApi('definately', [
+        { meaning: 'without doubt', partOfSpeech: 'adverb' },
+      ]);
+
+      expect(result.isWordValid).toBe(false);
+      expect(result.wordSpellingSuggestion).toBe('definitely');
+      expect(result.overallStatus).toBe('warning');
+      expect(result.wordFeedback).toContain('misspelling of "definitely"');
+    });
+
+    it('handles unrecognized words with empty entries', async () => {
+      const mockNotFoundResponse = {
+        word: 'xyznotaword123',
+        entries: [],
+      };
+
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => mockNotFoundResponse,
+      } as any);
+
+      const result = await verifyWordWithFreeDictionaryApi('xyznotaword123', [
+        { meaning: 'some fake meaning', partOfSpeech: 'noun' },
+      ]);
+
+      expect(result.isWordValid).toBe(false);
+      expect(result.overallStatus).toBe('warning');
+      expect(result.wordFeedback).toContain('was not found in English Wiktionary');
+      expect(result.definitions[0].isAccurate).toBe(false);
+    });
+  });
+
   describe('verifyWordAndDefinitions orchestrator', () => {
+    it('directly uses freedictionary when preferredProvider is freedictionary', async () => {
+      const mockFreeDictResponse = {
+        word: 'serendipity',
+        entries: [
+          {
+            language: { code: 'en', name: 'English' },
+            partOfSpeech: 'noun',
+            senses: [
+              {
+                definition: 'The faculty of making happy and unexpected discoveries by accident.',
+              },
+            ],
+          },
+        ],
+      };
+
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => mockFreeDictResponse,
+      } as any);
+
+      const result = await verifyWordAndDefinitions({
+        word: 'serendipity',
+        definitions: [{ meaning: 'happy accident', partOfSpeech: 'noun' }],
+        preferredProvider: 'freedictionary',
+      });
+
+      expect(result.isWordValid).toBe(true);
+      expect(result.generatorAiDetails).toBe('Free Dictionary API (freedictionaryapi.com)');
+    });
+
     it('falls back to dictionary API when all AI services fail', async () => {
       delete process.env.GEMINI_API_KEY;
       delete process.env.GOOGLE_API_KEY;
@@ -358,79 +520,6 @@ describe('word-verification', () => {
       const result = await verifyWordAndDefinitions({
         word: 'brisk',
         definitions: [{ meaning: 'quick and energetic', partOfSpeech: 'adjective' }],
-      });
-
-      expect(result.isWordValid).toBe(true);
-      expect(result.generatorAiDetails).toContain('Dictionary Fallback');
-    });
-
-    it('verifies word with WordsAPI when preferredProvider is wordsapi', async () => {
-      const mockWordsApiResponse = {
-        word: 'serendipity',
-        results: [
-          {
-            definition: 'good luck in finding valuable or agreeable things unexpectedly',
-            partOfSpeech: 'noun',
-          },
-        ],
-      };
-
-      global.fetch = jest.fn().mockResolvedValue({
-        status: 200,
-        ok: true,
-        json: async () => mockWordsApiResponse,
-      } as any);
-
-      const result = await verifyWordAndDefinitions({
-        word: 'serendipity',
-        definitions: [
-          {
-            meaning: 'good luck in finding valuable things',
-            partOfSpeech: 'noun',
-          },
-        ],
-        preferredProvider: 'wordsapi',
-        customWordsApiKey: 'test-words-key',
-      });
-
-      expect(result.isWordValid).toBe(true);
-      expect(result.generatorAiDetails).toBe('WordsAPI (wordsapi.com)');
-      expect(result.definitions[0].isAccurate).toBe(true);
-    });
-
-    it('falls back to subsequent provider when WordsAPI fails', async () => {
-      delete process.env.GEMINI_API_KEY;
-      delete process.env.GOOGLE_API_KEY;
-      delete process.env.GROQ_API_KEY;
-      delete process.env.CLOUDFLARE_API_TOKEN;
-
-      // 1. WordsAPI fails (e.g. 500 or 401)
-      // 2. Falls back to Free Dictionary API
-      global.fetch = jest
-        .fn()
-        .mockResolvedValueOnce({
-          status: 401,
-          ok: false,
-        } as any)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => [
-            {
-              word: 'serendipity',
-              meanings: [
-                {
-                  partOfSpeech: 'noun',
-                  definitions: [{ definition: 'finding valuable things unexpectedly' }],
-                },
-              ],
-            },
-          ],
-        } as any);
-
-      const result = await verifyWordAndDefinitions({
-        word: 'serendipity',
-        preferredProvider: 'wordsapi',
-        customWordsApiKey: 'bad-key',
       });
 
       expect(result.isWordValid).toBe(true);

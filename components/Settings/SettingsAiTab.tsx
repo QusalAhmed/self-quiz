@@ -2,7 +2,6 @@
 
 import {
   Alert,
-  Anchor,
   Badge,
   Button,
   Card,
@@ -10,7 +9,6 @@ import {
   Group,
   Paper,
   PasswordInput,
-  Progress,
   Radio,
   Select,
   SimpleGrid,
@@ -24,18 +22,13 @@ import {
 import {
   IconBook,
   IconBrain,
-  IconChartBar,
   IconCheck,
   IconCpu,
   IconKey,
-  IconPlayerStop,
-  IconRefresh,
-  IconSparkles,
   IconTestPipe,
   IconX,
 } from '@tabler/icons-react';
-import React, { useRef, useState } from 'react';
-import { getDatabase, safePatchDoc, type WordRecord } from '@/lib/db';
+import React, { useState } from 'react';
 import { formatGroqModelDetails } from '@/lib/groq';
 import type { AiProviderKey, AppAiSettings } from '@/lib/settings';
 
@@ -53,24 +46,24 @@ const PROVIDERS: Array<{
 }> = [
   {
     key: 'gemini',
-    label: 'Google Gemma AI',
-    desc: 'Google Gemma 4 26B A4B MoE with fast reasoning and rich multilingual knowledge',
-    badge: 'Primary & Recommended',
-    color: 'teal',
+    label: 'Google Gemini',
+    desc: 'Deep linguistic reasoning with official Google Gemini API (gemini-2.5-flash).',
+    badge: 'Recommended',
+    color: 'blue',
   },
   {
     key: 'cloudflare',
     label: 'Cloudflare Workers AI',
-    desc: 'Edge-distributed Google Gemma 4 26B A4B Instruct with global low latency',
-    badge: 'Edge Powered',
+    desc: 'Edge-distributed inference powered by Meta LLaMA 3.3 70B Instruct.',
+    badge: 'Ultra Fast',
     color: 'orange',
   },
   {
     key: 'groq',
-    label: 'Groq Cloud AI',
-    desc: 'LPU inference engine with sub-second generation (Qwen 3.6 27B, GPT-OSS 120B, groq/compound)',
-    badge: 'High Speed',
-    color: 'indigo',
+    label: 'Groq LLaMA',
+    desc: 'Ultra-low latency LPU hardware acceleration with open models.',
+    badge: 'Real-time',
+    color: 'teal',
   },
 ];
 
@@ -78,44 +71,13 @@ const POPULAR_GROQ_MODELS = ['qwen/qwen3.6-27b', 'openai/gpt-oss-120b', 'groq/co
 
 export function SettingsAiTab({ settings, onChange }: SettingsAiTabProps) {
   const [isTesting, setIsTesting] = useState(false);
+  const [isTestingDict, setIsTestingDict] = useState(false);
   const [testResult, setTestResult] = useState<{
     success: boolean;
     message: string;
     model?: string;
     latencyMs?: number;
   } | null>(null);
-
-  const [isTestingWordsApi, setIsTestingWordsApi] = useState(false);
-  const [wordsApiTestResult, setWordsApiTestResult] = useState<{
-    success: boolean;
-    message: string;
-    latencyMs?: number;
-  } | null>(null);
-
-  const [testFrequencyWord, setTestFrequencyWord] = useState('serendipity');
-  const [isTestingFrequency, setIsTestingFrequency] = useState(false);
-  const [frequencyTestResult, setFrequencyTestResult] = useState<{
-    success: boolean;
-    message: string;
-    tier?: string;
-    provider?: string;
-    metrics?: string;
-    latencyMs?: number;
-  } | null>(null);
-
-  const [isBackfilling, setIsBackfilling] = useState(false);
-  const [backfillProgress, setBackfillProgress] = useState<{
-    current: number;
-    total: number;
-    currentWord?: string;
-    updated: number;
-    failed: number;
-  } | null>(null);
-  const [backfillSummary, setBackfillSummary] = useState<{
-    type: 'success' | 'error' | 'info';
-    message: string;
-  } | null>(null);
-  const cancelBackfillRef = useRef(false);
 
   const handleTestConnection = async () => {
     setIsTesting(true);
@@ -163,9 +125,9 @@ export function SettingsAiTab({ settings, onChange }: SettingsAiTabProps) {
     }
   };
 
-  const handleTestWordsApi = async () => {
-    setIsTestingWordsApi(true);
-    setWordsApiTestResult(null);
+  const handleTestDictionary = async () => {
+    setIsTestingDict(true);
+    setTestResult(null);
     const start = Date.now();
 
     try {
@@ -173,201 +135,37 @@ export function SettingsAiTab({ settings, onChange }: SettingsAiTabProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          word: 'soliloquy',
-          definitions: [
-            {
-              meaning: 'speech you make to yourself',
-              partOfSpeech: 'noun',
-            },
-          ],
-          provider: 'wordsapi',
+          word: 'Eloquent',
+          provider: 'freedictionary',
+          definitions: [{ meaning: 'fluent and articulate', partOfSpeech: 'adjective' }],
         }),
       });
 
       const latency = Date.now() - start;
       if (response.ok) {
         const data = await response.json();
-        setWordsApiTestResult({
+        setTestResult({
           success: true,
-          message: `WordsAPI verified "soliloquy" in ${latency}ms! Status: "${data.overallStatus}". Provider: ${data.generatorAiDetails}.`,
+          message: `FreeDictionaryAPI.com connection verified in ${latency}ms! Validated "Eloquent" (${data.definitions?.[0]?.isAccurate ? 'Accurate' : 'Verified'}).`,
+          model: data?.generatorAiDetails || 'Free Dictionary API (freedictionaryapi.com)',
           latencyMs: latency,
         });
       } else {
-        const errData = await response.json().catch(() => ({}));
-        setWordsApiTestResult({
+        const errText = await response.text();
+        setTestResult({
           success: false,
-          message: `WordsAPI error (HTTP ${response.status}): ${errData.error || 'Verification failed'}`,
+          message: `Free Dictionary API returned status ${response.status}: ${errText.slice(0, 100)}`,
           latencyMs: latency,
         });
       }
     } catch (err: any) {
-      setWordsApiTestResult({
+      setTestResult({
         success: false,
-        message: `WordsAPI connection failed: ${err?.message || 'Network error'}`,
+        message: `Dictionary connection failed: ${err?.message || 'Network error'}`,
         latencyMs: Date.now() - start,
       });
     } finally {
-      setIsTestingWordsApi(false);
-    }
-  };
-
-  const handleTestFrequency = async () => {
-    if (!testFrequencyWord.trim()) {
-      return;
-    }
-    setIsTestingFrequency(true);
-    setFrequencyTestResult(null);
-    const start = Date.now();
-
-    try {
-      const response = await fetch('/api/word-frequency', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          word: testFrequencyWord.trim(),
-          provider: settings.frequencyProvider || 'auto',
-        }),
-      });
-
-      const latency = Date.now() - start;
-      if (response.ok) {
-        const data = await response.json();
-        const freq = data.frequency;
-        const details = freq?.details;
-        let metricsStr = '';
-        if (details?.zipf) {
-          metricsStr = `Zipf: ${details.zipf}${details.perMillion ? `, ${details.perMillion}/million` : ''}`;
-        } else if (details?.rationale) {
-          metricsStr = details.rationale;
-        }
-
-        setFrequencyTestResult({
-          success: true,
-          message: `Detected frequency tier "${freq?.usageFrequency || 'Unknown'}" in ${latency}ms`,
-          tier: freq?.usageFrequency,
-          provider: freq?.generatorAiDetails || freq?.provider,
-          metrics: metricsStr,
-          latencyMs: latency,
-        });
-      } else {
-        const errData = await response.json().catch(() => ({}));
-        setFrequencyTestResult({
-          success: false,
-          message: `Failed to fetch frequency (HTTP ${response.status}): ${errData.error || 'Request failed'}`,
-          latencyMs: latency,
-        });
-      }
-    } catch (err: any) {
-      setFrequencyTestResult({
-        success: false,
-        message: `Connection error: ${err?.message || 'Network error'}`,
-        latencyMs: Date.now() - start,
-      });
-    } finally {
-      setIsTestingFrequency(false);
-    }
-  };
-
-  const handleCancelBackfill = () => {
-    cancelBackfillRef.current = true;
-  };
-
-  const handleBackfillFrequencies = async () => {
-    setIsBackfilling(true);
-    setBackfillSummary(null);
-    cancelBackfillRef.current = false;
-
-    try {
-      const db = await getDatabase();
-      const wordDocs = await db.words.find({ selector: { isDeleted: { $ne: true } } }).exec();
-      const missingDocs = wordDocs.filter((d) => {
-        const data = d.toJSON() as WordRecord;
-        return !data.usageFrequency || data.usageFrequency.trim() === '';
-      });
-
-      if (missingDocs.length === 0) {
-        setBackfillSummary({
-          type: 'info',
-          message: 'All words in your local database already have usage frequency assigned!',
-        });
-        setIsBackfilling(false);
-        return;
-      }
-
-      let updated = 0;
-      let failed = 0;
-
-      for (let i = 0; i < missingDocs.length; i++) {
-        if (cancelBackfillRef.current) {
-          setBackfillSummary({
-            type: 'info',
-            message: `Backfill stopped. Updated ${updated} words, skipped ${missingDocs.length - i} remaining.`,
-          });
-          break;
-        }
-
-        const doc = missingDocs[i];
-        const data = doc.toJSON() as WordRecord;
-        setBackfillProgress({
-          current: i + 1,
-          total: missingDocs.length,
-          currentWord: data.word,
-          updated,
-          failed,
-        });
-
-        try {
-          const res = await fetch('/api/word-frequency', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              word: data.word,
-              meaning: data.meaning || data.definitions?.[0]?.meaning,
-              provider: settings.frequencyProvider || 'auto',
-              wordId: data.id,
-              storeInDb: true,
-            }),
-          });
-
-          if (res.ok) {
-            const result = await res.json();
-            if (result.frequency?.usageFrequency) {
-              await safePatchDoc(doc, {
-                usageFrequency: result.frequency.usageFrequency,
-                generatorAiDetails: result.frequency.generatorAiDetails || undefined,
-                updatedAt: new Date().toISOString(),
-              });
-              updated++;
-            } else {
-              failed++;
-            }
-          } else {
-            failed++;
-          }
-        } catch (err) {
-          console.error(`Error backfilling word "${data.word}":`, err);
-          failed++;
-        }
-
-        if (i < missingDocs.length - 1 && !cancelBackfillRef.current) {
-          await new Promise((resolve) => setTimeout(resolve, 250));
-        }
-      }
-
-      if (!cancelBackfillRef.current) {
-        setBackfillSummary({
-          type: 'success',
-          message: `Backfill complete! Successfully populated frequency for ${updated} word${updated === 1 ? '' : 's'}.${failed > 0 ? ` (${failed} skipped/failed)` : ''}`,
-        });
-      }
-    } catch (err: any) {
-      setBackfillSummary({
-        type: 'error',
-        message: `Backfill encountered an error: ${err?.message || 'Database error'}`,
-      });
-    } finally {
-      setIsBackfilling(false);
-      setBackfillProgress(null);
+      setIsTestingDict(false);
     }
   };
 
@@ -541,18 +339,14 @@ export function SettingsAiTab({ settings, onChange }: SettingsAiTabProps) {
 
           {/* Auto-verify Word & Definitions Switch */}
           <div>
-            <Group
-              justify="space-between"
-              align="center"
-              mb={settings.autoVerifyWords ? 'xs' : undefined}
-            >
+            <Group justify="space-between" align="center">
               <div>
                 <Text size="sm" fw={600}>
                   Auto-verify Word & Definitions
                 </Text>
                 <Text size="xs" c="dimmed">
-                  Automatically verify spelling, definition accuracy, and part of speech as you type
-                  or change words
+                  Automatically verify spelling, definition accuracy, and part of speech as you
+                  type or change words
                 </Text>
               </div>
               <Switch
@@ -564,285 +358,38 @@ export function SettingsAiTab({ settings, onChange }: SettingsAiTabProps) {
               />
             </Group>
 
-            {settings.autoVerifyWords && (
-              <Stack gap="xs" mt="xs">
-                <Group justify="space-between" align="center">
-                  <div>
-                    <Text size="xs" fw={600}>
-                      Preferred Verification Engine
-                    </Text>
-                    <Text size="xs" c="dimmed">
-                      Choose WordsAPI (wordsapi.com) for official dictionary verification or LLMs
-                    </Text>
-                  </div>
-                  <Badge size="sm" variant="light" color="cyan">
-                    {settings.verificationProvider === 'wordsapi'
-                      ? 'WordsAPI (Authoritative)'
-                      : settings.verificationProvider === 'auto'
-                        ? 'Auto (Cascade)'
-                        : settings.verificationProvider?.toUpperCase() || 'WordsAPI'}
-                  </Badge>
-                </Group>
+            {settings.autoVerifyWords !== false && (
+              <Stack gap="xs" mt="sm">
+                <Text size="xs" fw={600}>
+                  Verification Engine
+                </Text>
                 <Select
-                  data={[
-                    {
-                      value: 'wordsapi',
-                      label: 'WordsAPI (https://www.wordsapi.com/ - Authoritative Dictionary)',
-                    },
-                    {
-                      value: 'auto',
-                      label: 'Auto Cascade (WordsAPI → Gemma → Cloudflare → Groq)',
-                    },
-                    { value: 'gemini', label: 'Google Gemma (Verification)' },
-                    { value: 'cloudflare', label: 'Cloudflare Workers (Verification)' },
-                    { value: 'groq', label: 'Groq Cloud (Verification)' },
-                  ]}
-                  value={settings.verificationProvider || 'wordsapi'}
-                  onChange={(val) =>
-                    onChange({
-                      verificationProvider: (val as any) || 'wordsapi',
-                    })
-                  }
                   size="xs"
                   radius="md"
+                  value={settings.verificationProvider || 'auto'}
+                  onChange={(val) =>
+                    onChange({
+                      verificationProvider: (val as any) || 'auto',
+                    })
+                  }
+                  data={[
+                    {
+                      value: 'auto',
+                      label: 'Auto (Primary AI with Free Dictionary Fallback)',
+                    },
+                    {
+                      value: 'freedictionary',
+                      label:
+                        'Free Dictionary API (freedictionaryapi.com - Wiktionary 8.5M+ words, No API key required)',
+                    },
+                    { value: 'gemini', label: 'Google Gemini' },
+                    { value: 'groq', label: 'Groq LLaMA' },
+                    { value: 'cloudflare', label: 'Cloudflare Workers AI' },
+                  ]}
                 />
               </Stack>
             )}
           </div>
-        </Stack>
-      </Card>
-
-      {/* Word Usage Frequency Configuration */}
-      <Card
-        withBorder
-        radius="md"
-        p={{ base: 'md', sm: 'lg' }}
-        style={{
-          background: 'var(--card-bg)',
-          border: '1px solid var(--card-border)',
-          boxShadow: 'var(--card-shadow)',
-        }}
-      >
-        <Group justify="space-between" align="center" wrap="wrap" gap="sm" mb="md">
-          <Group gap="sm" style={{ flex: '1 1 200px' }}>
-            <ThemeIcon size="lg" radius="md" color="teal" variant="light">
-              <IconChartBar size={20} />
-            </ThemeIcon>
-            <div>
-              <Group gap="xs" align="center">
-                <Text fw={700} size="md">
-                  Word Usage Frequency
-                </Text>
-                <Badge size="xs" color="teal" variant="light">
-                  WordsAPI & Multi-AI
-                </Badge>
-              </Group>
-              <Text size="xs" c="dimmed">
-                Configure frequency tier detection (Top 500 – Rare) via WordsAPI and AI models
-              </Text>
-            </div>
-          </Group>
-        </Group>
-
-        <Stack gap="md">
-          <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
-            <Select
-              label="Frequency Provider"
-              description="Engine used to retrieve corpus usage frequency"
-              data={[
-                { value: 'auto', label: 'Auto (WordsAPI first, fallback to AI)' },
-                { value: 'wordsapi', label: 'WordsAPI (RapidAPI Zipf scale)' },
-                { value: 'ai', label: 'AI Provider (Current active AI)' },
-                { value: 'gemini', label: 'Google Gemini (Frequency)' },
-                { value: 'groq', label: 'Groq Cloud (Frequency)' },
-                { value: 'cloudflare', label: 'Cloudflare Workers (Frequency)' },
-              ]}
-              value={settings.frequencyProvider || 'auto'}
-              onChange={(val) => onChange({ frequencyProvider: (val as any) || 'auto' })}
-              size="xs"
-              radius="md"
-            />
-
-            <Paper
-              withBorder
-              p="sm"
-              radius="md"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                background: 'var(--mantine-color-body)',
-              }}
-            >
-              <div>
-                <Text size="xs" fw={600}>
-                  Auto-fetch on Word Add
-                </Text>
-                <Text size="xs" c="dimmed">
-                  Fetch frequency tier automatically when adding a word
-                </Text>
-              </div>
-              <Switch
-                checked={settings.autoFetchUsageFrequencyOnAdd ?? true}
-                onChange={(e) =>
-                  onChange({ autoFetchUsageFrequencyOnAdd: e.currentTarget.checked })
-                }
-                color="teal"
-                size="sm"
-              />
-            </Paper>
-          </SimpleGrid>
-
-          <Divider label="Test Frequency Retrieval" labelPosition="left" />
-
-          {/* Quick Frequency Tester */}
-          <Group align="flex-end" gap="xs">
-            <TextInput
-              label="Test Word"
-              placeholder="e.g. serendipity, ubiquitous"
-              value={testFrequencyWord}
-              onChange={(e) => setTestFrequencyWord(e.currentTarget.value)}
-              size="xs"
-              radius="md"
-              style={{ flex: 1 }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  handleTestFrequency();
-                }
-              }}
-            />
-            <Button
-              variant="light"
-              color="teal"
-              size="xs"
-              radius="md"
-              loading={isTestingFrequency}
-              onClick={handleTestFrequency}
-              leftSection={<IconSparkles size={14} />}
-            >
-              Test Frequency
-            </Button>
-          </Group>
-
-          {frequencyTestResult && (
-            <Alert
-              icon={frequencyTestResult.success ? <IconCheck size={16} /> : <IconX size={16} />}
-              color={frequencyTestResult.success ? 'teal' : 'red'}
-              title={
-                frequencyTestResult.success ? 'Frequency Retrieved' : 'Frequency Retrieval Failed'
-              }
-              radius="md"
-            >
-              <Group gap="xs" align="center" mb={4}>
-                <Text size="xs" fw={600}>
-                  {frequencyTestResult.message}
-                </Text>
-                {frequencyTestResult.tier && (
-                  <Badge size="xs" color="teal" variant="filled">
-                    {frequencyTestResult.tier}
-                  </Badge>
-                )}
-              </Group>
-              {frequencyTestResult.provider && (
-                <Text size="xs" c="dimmed">
-                  Provider: {frequencyTestResult.provider}
-                  {frequencyTestResult.metrics ? ` • ${frequencyTestResult.metrics}` : ''}
-                </Text>
-              )}
-            </Alert>
-          )}
-
-          <Divider label="Database Frequency Backfill" labelPosition="left" />
-
-          {/* Backfill Existing Words */}
-          <Paper withBorder p="sm" radius="md" style={{ background: 'var(--mantine-color-body)' }}>
-            <Stack gap="xs">
-              <Group justify="space-between" align="center">
-                <div>
-                  <Text size="xs" fw={600}>
-                    Backfill Missing Word Frequencies
-                  </Text>
-                  <Text size="xs" c="dimmed">
-                    Scan your local library and fetch frequency tiers for words that don&apos;t have
-                    one
-                  </Text>
-                </div>
-                <Group gap="xs">
-                  {isBackfilling ? (
-                    <Button
-                      size="xs"
-                      color="red"
-                      variant="light"
-                      radius="md"
-                      onClick={handleCancelBackfill}
-                      leftSection={<IconPlayerStop size={14} />}
-                    >
-                      Stop
-                    </Button>
-                  ) : (
-                    <Button
-                      size="xs"
-                      color="indigo"
-                      variant="light"
-                      radius="md"
-                      onClick={handleBackfillFrequencies}
-                      leftSection={<IconRefresh size={14} />}
-                    >
-                      Start Backfill
-                    </Button>
-                  )}
-                </Group>
-              </Group>
-
-              {isBackfilling && backfillProgress && (
-                <Stack gap={4} mt="xs">
-                  <Group justify="space-between">
-                    <Text size="xs" c="dimmed">
-                      Processing: <strong>{backfillProgress.currentWord}</strong> (
-                      {backfillProgress.current} of {backfillProgress.total})
-                    </Text>
-                    <Text size="xs" c="teal" fw={600}>
-                      {Math.round((backfillProgress.current / backfillProgress.total) * 100)}%
-                    </Text>
-                  </Group>
-                  <Progress
-                    value={(backfillProgress.current / backfillProgress.total) * 100}
-                    color="teal"
-                    size="sm"
-                    radius="xl"
-                    animated
-                  />
-                  <Text size="xs" c="dimmed">
-                    Updated: {backfillProgress.updated} • Failed/Skipped: {backfillProgress.failed}
-                  </Text>
-                </Stack>
-              )}
-
-              {backfillSummary && (
-                <Alert
-                  color={
-                    backfillSummary.type === 'success'
-                      ? 'teal'
-                      : backfillSummary.type === 'error'
-                        ? 'red'
-                        : 'blue'
-                  }
-                  title={
-                    backfillSummary.type === 'success'
-                      ? 'Backfill Complete'
-                      : backfillSummary.type === 'error'
-                        ? 'Backfill Error'
-                        : 'Backfill Notice'
-                  }
-                  radius="md"
-                  mt="xs"
-                >
-                  <Text size="xs">{backfillSummary.message}</Text>
-                </Alert>
-              )}
-            </Stack>
-          </Paper>
         </Stack>
       </Card>
 
@@ -875,17 +422,6 @@ export function SettingsAiTab({ settings, onChange }: SettingsAiTabProps) {
           <Group gap="xs" wrap="wrap">
             <Button
               variant="light"
-              color="cyan"
-              size="xs"
-              radius="md"
-              loading={isTestingWordsApi}
-              onClick={handleTestWordsApi}
-              leftSection={<IconBook size={14} />}
-            >
-              Test WordsAPI
-            </Button>
-            <Button
-              variant="light"
               color="teal"
               size="xs"
               radius="md"
@@ -894,6 +430,17 @@ export function SettingsAiTab({ settings, onChange }: SettingsAiTabProps) {
               leftSection={<IconTestPipe size={14} />}
             >
               Test AI Connection
+            </Button>
+            <Button
+              variant="light"
+              color="indigo"
+              size="xs"
+              radius="md"
+              loading={isTestingDict}
+              onClick={handleTestDictionary}
+              leftSection={<IconBook size={14} />}
+            >
+              Test Free Dictionary API
             </Button>
           </Group>
         </Group>
@@ -917,38 +464,6 @@ export function SettingsAiTab({ settings, onChange }: SettingsAiTabProps) {
 
           {settings.useCustomApiKeys && (
             <Stack gap="sm" mt="xs">
-              <PasswordInput
-                label="Custom WordsAPI / RapidAPI Key"
-                description={
-                  <Text size="xs" c="dimmed">
-                    From{' '}
-                    <Anchor
-                      href="https://www.wordsapi.com/"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      size="xs"
-                    >
-                      wordsapi.com
-                    </Anchor>{' '}
-                    or{' '}
-                    <Anchor
-                      href="https://rapidapi.com/dpventures/api/wordsapi"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      size="xs"
-                    >
-                      RapidAPI WordsAPI
-                    </Anchor>{' '}
-                    (Free tier includes 2,500 requests/day)
-                  </Text>
-                }
-                placeholder="e.g. 5a1b2c3d4e..."
-                value={settings.customWordsApiKey || ''}
-                onChange={(e) => onChange({ customWordsApiKey: e.currentTarget.value })}
-                size="xs"
-                radius="md"
-              />
-
               <PasswordInput
                 label="Custom Groq API Key"
                 placeholder="gsk_..."
@@ -987,24 +502,6 @@ export function SettingsAiTab({ settings, onChange }: SettingsAiTabProps) {
                 />
               </SimpleGrid>
             </Stack>
-          )}
-
-          {wordsApiTestResult && (
-            <Alert
-              icon={wordsApiTestResult.success ? <IconCheck size={16} /> : <IconX size={16} />}
-              color={wordsApiTestResult.success ? 'cyan' : 'red'}
-              title={
-                wordsApiTestResult.success ? 'WordsAPI Test Successful' : 'WordsAPI Test Failed'
-              }
-              radius="md"
-            >
-              <Text size="xs">{wordsApiTestResult.message}</Text>
-              {wordsApiTestResult.latencyMs && (
-                <Text size="xs" c="dimmed" mt={2}>
-                  Latency: {wordsApiTestResult.latencyMs}ms
-                </Text>
-              )}
-            </Alert>
           )}
 
           {testResult && (

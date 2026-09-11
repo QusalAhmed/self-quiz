@@ -32,7 +32,6 @@ import {
   IconEdit,
   IconHierarchy,
   IconNotes,
-  IconRefresh,
   IconRotateClockwise,
   IconSparkles,
   IconTrash,
@@ -94,7 +93,6 @@ export type WordDetailCardProps = {
   onDismissVerification?: (wordId: string) => Promise<void> | void;
   onReverify?: (wordId: string) => Promise<void> | void;
   isReverifying?: boolean;
-  onFetchFrequency?: (wordId: string, word: string, meaning?: string) => Promise<void> | void;
 };
 
 const POS_COLORS: Record<string, string> = {
@@ -151,12 +149,10 @@ export const WordDetailCard = React.memo(function WordDetailCard({
   onDismissVerification,
   onReverify,
   isReverifying = false,
-  onFetchFrequency,
 }: WordDetailCardProps) {
   const [examplesExpanded, setExamplesExpanded] = useState<Record<number, boolean>>({});
   const [notesExpanded, setNotesExpanded] = useState(true);
   const [fsrsExpanded, setFsrsExpanded] = useState(false);
-  const [isFetchingLocalFrequency, setIsFetchingLocalFrequency] = useState(false);
 
   const definitions = useMemo(() => getWordDefinitions(word), [word]);
   const groups = useMemo(() => getWordGroups(word), [word]);
@@ -318,7 +314,7 @@ export const WordDetailCard = React.memo(function WordDetailCard({
             )}
 
             {/* Usage Frequency Badge */}
-            {word.usageFrequency ? (
+            {word.usageFrequency &&
               (() => {
                 const freqBadge = getUsageFrequencyBadgeProps(word.usageFrequency);
                 return (
@@ -335,38 +331,7 @@ export const WordDetailCard = React.memo(function WordDetailCard({
                     </Badge>
                   </Tooltip>
                 );
-              })()
-            ) : onFetchFrequency ? (
-              <Tooltip
-                label="Fetch usage frequency from WordsAPI or AI and store in database"
-                withArrow
-              >
-                <Badge
-                  variant="outline"
-                  color="gray"
-                  size="sm"
-                  radius="sm"
-                  leftSection={
-                    isFetchingLocalFrequency ? (
-                      <IconRefresh size={12} className="spin-animation" />
-                    ) : (
-                      <IconChartBar size={12} />
-                    )
-                  }
-                  style={{ cursor: 'pointer', textTransform: 'none' }}
-                  onClick={async () => {
-                    setIsFetchingLocalFrequency(true);
-                    try {
-                      await onFetchFrequency(word.id, word.word, word.meaning);
-                    } finally {
-                      setIsFetchingLocalFrequency(false);
-                    }
-                  }}
-                >
-                  {isFetchingLocalFrequency ? 'Fetching...' : '+ Frequency'}
-                </Badge>
-              </Tooltip>
-            ) : null}
+              })()}
 
             {/* Generator AI Details Badge */}
             {word.generatorAiDetails && (

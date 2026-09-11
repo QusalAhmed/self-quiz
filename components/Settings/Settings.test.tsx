@@ -133,22 +133,11 @@ describe('Settings Components', () => {
       render(<SettingsAiTab settings={DEFAULT_APP_SETTINGS.ai} onChange={changeMock} />);
 
       expect(screen.getByText('AI Generation Engine')).toBeInTheDocument();
-      expect(screen.getByText('Groq Cloud AI')).toBeInTheDocument();
-      expect(screen.getByText('Cloudflare Workers AI')).toBeInTheDocument();
-      expect(screen.getByText('Google Gemma AI')).toBeInTheDocument();
+      expect(screen.getAllByText('Google Gemini').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('Cloudflare Workers AI').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('Groq LLaMA').length).toBeGreaterThanOrEqual(1);
       expect(screen.getByText('Test AI Connection')).toBeInTheDocument();
-    });
-
-    it('renders Word Usage Frequency settings, tester, and backfill controls', () => {
-      const changeMock = jest.fn();
-      render(<SettingsAiTab settings={DEFAULT_APP_SETTINGS.ai} onChange={changeMock} />);
-
-      expect(screen.getByText('Word Usage Frequency')).toBeInTheDocument();
-      expect(screen.getByText('Frequency Provider')).toBeInTheDocument();
-      expect(screen.getByText('Auto-fetch on Word Add')).toBeInTheDocument();
-      expect(screen.getByText('Test Frequency')).toBeInTheDocument();
-      expect(screen.getByText('Backfill Missing Word Frequencies')).toBeInTheDocument();
-      expect(screen.getByText('Start Backfill')).toBeInTheDocument();
+      expect(screen.getByText('Test Free Dictionary API')).toBeInTheDocument();
     });
   });
 

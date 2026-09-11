@@ -679,43 +679,6 @@ export default function HomePage() {
     [database]
   );
 
-  const fetchAndStoreWordFrequency = useCallback(
-    async (wordId: string, word: string, meaning?: string) => {
-      if (!database || !navigator.onLine) {
-        return;
-      }
-      try {
-        const response = await fetch('/api/word-frequency', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            word: capitalizeWord(word),
-            meaning,
-          }),
-        });
-
-        if (!response.ok) {
-          return;
-        }
-
-        const data = await response.json();
-        if (data.usageFrequency) {
-          const doc = await database.words.findOne(wordId).exec();
-          if (doc) {
-            await safePatchDoc(doc, {
-              usageFrequency: data.usageFrequency,
-              ...(data.generatorDetails ? { generatorAiDetails: data.generatorDetails } : {}),
-              updatedAt: new Date().toISOString(),
-            });
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching word frequency after add:', error);
-      }
-    },
-    [database]
-  );
-
   const handleRefreshWordFamily = useCallback(
     async (wordId: string, word: string) => {
       const wordDoc = words.find((w) => w.id === wordId);
@@ -835,13 +798,6 @@ export default function HomePage() {
     void fetchAndStoreWordFamily(record.id, record.word, normalizedMeaning).catch((error) => {
       console.error('Error generating word family after add:', error);
     });
-
-    // Fetch word usage frequency from WordsAPI/AI in background if not provided
-    if (!usageFrequency) {
-      void fetchAndStoreWordFrequency(record.id, record.word, normalizedMeaning).catch((error) => {
-        console.error('Error fetching word frequency after add:', error);
-      });
-    }
 
     // Verify word and definition in background after submit
     void verifyAndStoreWord(database, record.id).catch((error) => {
