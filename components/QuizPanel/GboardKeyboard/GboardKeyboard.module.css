@@ -49,24 +49,12 @@
   --gboard-popup-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
 }
 
-/* Docked Mode for Mobile Viewport */
+/* Mobile & Responsive Mode */
 .dockedMobile {
   position: relative;
-}
-
-@media (max-width: 768px) {
-  .dockedMobile {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    max-width: 100vw;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-    background: transparent;
-    z-index: 999;
-  }
+  width: 100%;
+  margin: 0;
+  padding: 0;
 }
 
 /* Keyboard Grid Rows */

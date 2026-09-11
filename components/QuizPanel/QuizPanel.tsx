@@ -1,6 +1,5 @@
 import {
   Badge,
-  Box,
   Button,
   Card,
   Collapse,
@@ -1340,12 +1339,17 @@ export const QuizPanel = memo(function QuizPanel({
                 transform: 'rotateY(0deg)',
                 pointerEvents: revealed ? 'none' : 'auto',
                 width: '100%',
+                ...(revealed ? { position: 'absolute', top: 0, left: 0 } : {}),
               }}
             >
               <Stack
                 gap="md"
                 align="center"
-                style={{ minHeight: '160px', justifyContent: 'center', width: '100%' }}
+                style={{
+                  minHeight: '160px',
+                  justifyContent: quizDirection === 'spelling' ? 'flex-start' : 'center',
+                  width: '100%',
+                }}
               >
                 {quizDirection === 'wordToMeaning' && (
                   <>
@@ -1368,10 +1372,10 @@ export const QuizPanel = memo(function QuizPanel({
                 )}
 
                 {quizDirection === 'spelling' && (
-                  <Stack gap="md" align="center" style={{ width: '100%' }}>
+                  <Stack gap="xs" align="center" style={{ width: '100%' }}>
                     <Card
                       radius="md"
-                      padding="md"
+                      padding="xs"
                       style={{
                         background: 'rgba(99, 102, 241, 0.05)',
                         border: '1px solid rgba(99, 102, 241, 0.15)',
@@ -1453,16 +1457,16 @@ export const QuizPanel = memo(function QuizPanel({
                         handleCheckSpelling();
                         positionQuizSection();
                       }}
-                      size="lg"
+                      size="md"
                       radius="md"
                       className="btn-pulse btn-premium"
                       disabled={typedWord.trim().length === 0}
                       style={{
-                        height: '46px',
-                        fontSize: '1rem',
+                        height: '40px',
+                        fontSize: '0.95rem',
                         fontWeight: 600,
                         width: '100%',
-                        maxWidth: '300px',
+                        maxWidth: '280px',
                         transition: 'all 0.2s ease',
                       }}
                     >
@@ -1477,11 +1481,8 @@ export const QuizPanel = memo(function QuizPanel({
                       }}
                       typedWord={typedWord}
                       disabled={revealed || completed}
-                      docked
+                      docked={false}
                     />
-
-                    {/* Mobile bottom spacer so content never gets covered by docked Gboard */}
-                    <Box hiddenFrom="sm" h={260} />
                   </Stack>
                 )}
               </Stack>
@@ -1496,6 +1497,7 @@ export const QuizPanel = memo(function QuizPanel({
                 transform: 'rotateY(180deg)',
                 pointerEvents: revealed ? 'auto' : 'none',
                 width: '100%',
+                ...(!revealed ? { position: 'absolute', top: 0, left: 0 } : {}),
               }}
             >
               <Stack
