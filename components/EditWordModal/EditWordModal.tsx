@@ -63,7 +63,13 @@ export function EditWordModal({
       }
       centered
       radius="lg"
-      size="auto"
+      size={1365}
+      styles={{
+        content: {
+          maxWidth: 'min(1365px, calc(100vw - 2rem))',
+          width: '100%',
+        },
+      }}
       overlayProps={{ backgroundOpacity: 0.45, blur: 4 }}
     >
       <WordForm

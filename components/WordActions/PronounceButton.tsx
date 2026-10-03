@@ -26,7 +26,7 @@ export type PronounceButtonProps = {
   onEnd?: () => void;
 };
 
-export function PronounceButton({
+function PronounceButtonComponent({
   word,
   audioUrl,
   phonetic,
@@ -141,3 +141,5 @@ export function PronounceButton({
     </Tooltip>
   );
 }
+
+export const PronounceButton = React.memo(PronounceButtonComponent);

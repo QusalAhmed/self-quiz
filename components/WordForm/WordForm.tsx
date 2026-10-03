@@ -1,6 +1,6 @@
 import { Badge, Button, Card, Group, Stack, Text, TextInput } from '@mantine/core';
 import { IconChartBar, IconPlus, IconSparkles } from '@tabler/icons-react';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { EditWordModal } from '@/components/EditWordModal/EditWordModal';
 import { RichNoteEditor } from '@/components/RichNoteEditor/RichNoteEditor';
 import { PronounceButton } from '@/components/WordActions/PronounceButton';
@@ -61,7 +61,7 @@ const FREQUENCY_PRESETS = [
   'Rare',
 ];
 
-export function WordForm({
+function WordFormComponent({
   disabled,
   customGroups,
   onAddCustomGroup,
@@ -81,6 +81,7 @@ export function WordForm({
   const [groups, setGroups] = useState<string[]>([]);
   const [aiExampleCount, setAiExampleCount] = useState(String(DEFAULT_AI_EXAMPLE_COUNT));
   const [notes, setNotes] = useState('');
+  const [showNoteEditor, setShowNoteEditor] = useState(() => Boolean(editValues?.notes));
   const [usageFrequency, setUsageFrequency] = useState('');
   const [generatorAiDetails, setGeneratorAiDetails] = useState('');
   const [isAddingNewGroup, setIsAddingNewGroup] = useState(false);
@@ -99,6 +100,7 @@ export function WordForm({
     setGroups([]);
     setAiExampleCount(String(DEFAULT_AI_EXAMPLE_COUNT));
     setNotes('');
+    setShowNoteEditor(false);
     setUsageFrequency('');
     setGeneratorAiDetails('');
     setIsAddingNewGroup(false);
@@ -108,15 +110,29 @@ export function WordForm({
     setIsVerifying(false);
   }, []);
 
+  const existingWordMap = useMemo(() => {
+    if (!existingWords?.length) {
+      return new Map<string, WordRecord>();
+    }
+    const map = new Map<string, WordRecord>();
+    for (const item of existingWords) {
+      const key = item.word.trim().toLowerCase();
+      if (key && !map.has(key)) {
+        map.set(key, item);
+      }
+    }
+    return map;
+  }, [existingWords]);
+
   const findExistingWord = useCallback(
     (value: string): WordRecord | undefined => {
       const normalized = value.trim().toLowerCase();
-      if (!normalized || !existingWords?.length) {
+      if (!normalized) {
         return undefined;
       }
-      return existingWords.find((item) => item.word.trim().toLowerCase() === normalized);
+      return existingWordMap.get(normalized);
     },
-    [existingWords]
+    [existingWordMap]
   );
 
   const openEditModalForExistingWord = useCallback(
@@ -143,6 +159,7 @@ export function WordForm({
       setGroups(editValues.groups);
       setAiExampleCount(String(normalizeAiExampleCount(editValues.aiExampleCount)));
       setNotes(editValues.notes || '');
+      setShowNoteEditor(Boolean(editValues.notes));
       setUsageFrequency(editValues.usageFrequency || '');
       setGeneratorAiDetails(editValues.generatorAiDetails || '');
       setIsAddingNewGroup(false);
@@ -163,6 +180,8 @@ export function WordForm({
         userExamples: definition.userExamples,
       }))
     );
+
+  const handleSubmitRef = useRef<() => Promise<void>>(async () => {});
 
   const handleSubmit = async (event?: React.SubmitEvent<HTMLFormElement>) => {
     if (event) {
@@ -201,88 +220,96 @@ export function WordForm({
     }
   };
 
-  const handleDefinitionKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  handleSubmitRef.current = handleSubmit;
+
+  const handleDefinitionKeyDown = useCallback((event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
-      void handleSubmit();
+      void handleSubmitRef.current();
     }
-  };
+  }, []);
 
-  const handleWordKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleWordKeyDown = useCallback((event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter') {
       event.preventDefault();
-      void handleSubmit();
+      void handleSubmitRef.current();
     }
-  };
+  }, []);
 
-  const handleExampleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleExampleKeyDown = useCallback((event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
-      void handleSubmit();
+      void handleSubmitRef.current();
     }
-  };
+  }, []);
 
-  const handleNewGroupKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      const trimmed = newGroupName.trim();
-      if (trimmed) {
-        onAddCustomGroup?.(trimmed);
-        setGroups((prev) => Array.from(new Set([...prev, trimmed])));
+  const handleNewGroupKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLInputElement>) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        const trimmed = newGroupName.trim();
+        if (trimmed) {
+          onAddCustomGroup?.(trimmed);
+          setGroups((prev) => Array.from(new Set([...prev, trimmed])));
+        }
+        setNewGroupName('');
+        setIsAddingNewGroup(false);
       }
-      setNewGroupName('');
-      setIsAddingNewGroup(false);
-    }
-  };
+    },
+    [newGroupName, onAddCustomGroup]
+  );
 
-  const updateDefinition = (
-    index: number,
-    value: Partial<Pick<DefinitionFormValue, 'meaning' | 'partOfSpeech'>>
-  ) => {
-    const updatedValue = { ...value };
-    if (updatedValue.meaning !== undefined) {
-      updatedValue.meaning = sanitizeMeaning(updatedValue.meaning);
-    }
-    setDefinitions((prev) =>
-      prev.map((item, i) => (i === index ? { ...item, ...updatedValue } : item))
-    );
-  };
+  const updateDefinition = useCallback(
+    (index: number, value: Partial<Pick<DefinitionFormValue, 'meaning' | 'partOfSpeech'>>) => {
+      const updatedValue = { ...value };
+      if (updatedValue.meaning !== undefined) {
+        updatedValue.meaning = sanitizeMeaning(updatedValue.meaning);
+      }
+      setDefinitions((prev) =>
+        prev.map((item, i) => (i === index ? { ...item, ...updatedValue } : item))
+      );
+    },
+    []
+  );
 
-  const addDefinitionField = () => {
+  const addDefinitionField = useCallback(() => {
     setDefinitions((prev) => [...prev, createEmptyDefinitionFormValue()]);
-  };
+  }, []);
 
-  const removeDefinitionField = (index: number) => {
+  const removeDefinitionField = useCallback((index: number) => {
     setDefinitions((prev) => {
       const next = prev.filter((_, i) => i !== index);
       return next.length > 0 ? next : [createEmptyDefinitionFormValue()];
     });
-  };
+  }, []);
 
-  const updateDefinitionExample = (defIndex: number, exIndex: number, value: string) => {
-    setDefinitions((prev) =>
-      prev.map((item, i) =>
-        i === defIndex
-          ? {
-              ...item,
-              userExamples: item.userExamples.map((example, ei) =>
-                ei === exIndex ? value : example
-              ),
-            }
-          : item
-      )
-    );
-  };
+  const updateDefinitionExample = useCallback(
+    (defIndex: number, exIndex: number, value: string) => {
+      setDefinitions((prev) =>
+        prev.map((item, i) =>
+          i === defIndex
+            ? {
+                ...item,
+                userExamples: item.userExamples.map((example, ei) =>
+                  ei === exIndex ? value : example
+                ),
+              }
+            : item
+        )
+      );
+    },
+    []
+  );
 
-  const addDefinitionExampleField = (defIndex: number) => {
+  const addDefinitionExampleField = useCallback((defIndex: number) => {
     setDefinitions((prev) =>
       prev.map((item, i) =>
         i === defIndex ? { ...item, userExamples: [...item.userExamples, ''] } : item
       )
     );
-  };
+  }, []);
 
-  const removeDefinitionExampleField = (defIndex: number, exIndex: number) => {
+  const removeDefinitionExampleField = useCallback((defIndex: number, exIndex: number) => {
     setDefinitions((prev) =>
       prev.map((item, i) => {
         if (i !== defIndex) {
@@ -292,7 +319,30 @@ export function WordForm({
         return { ...item, userExamples: next.length > 0 ? next : [''] };
       })
     );
-  };
+  }, []);
+
+  const handleNotesChange = useCallback((newNotes: string) => {
+    setNotes(newNotes);
+  }, []);
+
+  const handleStartAddingGroup = useCallback(() => {
+    setIsAddingNewGroup(true);
+  }, []);
+
+  const handleConfirmNewGroup = useCallback(() => {
+    const trimmed = newGroupName.trim();
+    if (trimmed) {
+      onAddCustomGroup?.(trimmed);
+      setGroups((prev) => Array.from(new Set([...prev, trimmed])));
+    }
+    setNewGroupName('');
+    setIsAddingNewGroup(false);
+  }, [newGroupName, onAddCustomGroup]);
+
+  const handleCancelNewGroup = useCallback(() => {
+    setNewGroupName('');
+    setIsAddingNewGroup(false);
+  }, []);
 
   const runVerification = useCallback(
     async (targetWord: string, targetDefs: DefinitionFormValue[]) => {
@@ -390,16 +440,19 @@ export function WordForm({
     (defIndex: number, suggestedMeaning: string) => {
       updateDefinition(defIndex, { meaning: suggestedMeaning });
     },
-    []
+    [updateDefinition]
   );
 
-  const handleApplySuggestedPartOfSpeech = useCallback((defIndex: number, suggestedPos: string) => {
-    updateDefinition(defIndex, { partOfSpeech: suggestedPos });
-  }, []);
+  const handleApplySuggestedPartOfSpeech = useCallback(
+    (defIndex: number, suggestedPos: string) => {
+      updateDefinition(defIndex, { partOfSpeech: suggestedPos });
+    },
+    [updateDefinition]
+  );
 
   const formContent = (
-    <form onSubmit={handleSubmit}>
-      <Stack gap={variant === 'embedded' ? 'md' : 'lg'}>
+    <form onSubmit={handleSubmit} style={{ width: '100%' }}>
+      <Stack gap={variant === 'embedded' ? 'md' : 'lg'} style={{ width: '100%' }}>
         {variant === 'card' && (
           <div>
             <Text
@@ -583,27 +636,32 @@ export function WordForm({
           onGroupsChange={setGroups}
           onNewGroupNameChange={setNewGroupName}
           onNewGroupKeyDown={handleNewGroupKeyDown}
-          onStartAddingGroup={() => setIsAddingNewGroup(true)}
-          onConfirmNewGroup={() => {
-            const trimmed = newGroupName.trim();
-            if (trimmed) {
-              onAddCustomGroup?.(trimmed);
-              setGroups((prev) => Array.from(new Set([...prev, trimmed])));
-            }
-            setNewGroupName('');
-            setIsAddingNewGroup(false);
-          }}
-          onCancelNewGroup={() => {
-            setNewGroupName('');
-            setIsAddingNewGroup(false);
-          }}
+          onStartAddingGroup={handleStartAddingGroup}
+          onConfirmNewGroup={handleConfirmNewGroup}
+          onCancelNewGroup={handleCancelNewGroup}
         />
 
         <Stack gap="xs">
-          <Text size="xs" fw={600} c="dimmed">
-            Rich Text Note (optional)
-          </Text>
-          <RichNoteEditor value={notes} onChange={setNotes} />
+          <Group justify="space-between" align="center">
+            <Text size="xs" fw={600} c="dimmed">
+              Rich Text Note (optional)
+            </Text>
+            {!showNoteEditor && !notes && (
+              <Button
+                variant="subtle"
+                color="indigo"
+                size="xs"
+                onClick={() => setShowNoteEditor(true)}
+                leftSection={<IconPlus size={14} />}
+                type="button"
+              >
+                Add Note
+              </Button>
+            )}
+          </Group>
+          {(showNoteEditor || Boolean(notes)) && (
+            <RichNoteEditor value={notes} onChange={handleNotesChange} />
+          )}
         </Stack>
 
         <Stack gap="sm">
@@ -731,3 +789,5 @@ export function WordForm({
     </>
   );
 }
+
+export const WordForm = React.memo(WordFormComponent);

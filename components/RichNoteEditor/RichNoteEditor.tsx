@@ -115,7 +115,7 @@ type RichNoteEditorProps = {
   minHeight?: number | string;
 };
 
-export function RichNoteEditor({ value, onChange, minHeight = 140 }: RichNoteEditorProps) {
+export function RichNoteEditorComponent({ value, onChange, minHeight = 140 }: RichNoteEditorProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isPreview, setIsPreview] = useState(false);
   const [helpOpened, setHelpOpened] = useState(false);
@@ -1246,154 +1246,166 @@ export function RichNoteEditor({ value, onChange, minHeight = 140 }: RichNoteEdi
       {editorContentNode}
 
       {/* Fullscreen Distraction-Free Modal */}
-      <Modal
-        opened={isFullscreen}
-        onClose={() => setIsFullscreen(false)}
-        size="90vw"
-        radius="lg"
-        title={
-          <Group gap="xs">
-            <IconFocus2 size={20} style={{ color: '#6366f1' }} />
-            <Text fw={700} size="md">
-              Fullscreen Study Note Editor
-            </Text>
-          </Group>
-        }
-        styles={{
-          body: {
-            padding: '12px',
-          },
-        }}
-      >
-        <div style={{ height: '78vh', display: 'flex', flexDirection: 'column' }}>
-          {editorContentNode}
-        </div>
-      </Modal>
+      {isFullscreen && (
+        <Modal
+          opened={isFullscreen}
+          onClose={() => setIsFullscreen(false)}
+          size="90vw"
+          radius="lg"
+          title={
+            <Group gap="xs">
+              <IconFocus2 size={20} style={{ color: '#6366f1' }} />
+              <Text fw={700} size="md">
+                Fullscreen Study Note Editor
+              </Text>
+            </Group>
+          }
+          styles={{
+            body: {
+              padding: '12px',
+            },
+          }}
+        >
+          <div style={{ height: '78vh', display: 'flex', flexDirection: 'column' }}>
+            {editorContentNode}
+          </div>
+        </Modal>
+      )}
 
       {/* Clear Confirmation Modal */}
-      <Modal
-        opened={clearConfirmOpened}
-        onClose={() => setClearConfirmOpened(false)}
-        title="Clear Note Content"
-        size="sm"
-        radius="md"
-      >
-        <Stack gap="md">
-          <Text size="sm">
-            Are you sure you want to clear all contents of this note? This action cannot be undone.
-          </Text>
-          <Group justify="flex-end" gap="xs">
-            <Button variant="default" size="xs" onClick={() => setClearConfirmOpened(false)}>
-              Cancel
-            </Button>
-            <Button
-              color="red"
-              size="xs"
-              onClick={() => {
-                editor.commands.clearContent();
-                setClearConfirmOpened(false);
-              }}
-            >
-              Clear Note
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
+      {clearConfirmOpened && (
+        <Modal
+          opened={clearConfirmOpened}
+          onClose={() => setClearConfirmOpened(false)}
+          title="Clear Note Content"
+          size="sm"
+          radius="md"
+        >
+          <Stack gap="md">
+            <Text size="sm">
+              Are you sure you want to clear all contents of this note? This action cannot be
+              undone.
+            </Text>
+            <Group justify="flex-end" gap="xs">
+              <Button variant="default" size="xs" onClick={() => setClearConfirmOpened(false)}>
+                Cancel
+              </Button>
+              <Button
+                color="red"
+                size="xs"
+                onClick={() => {
+                  editor.commands.clearContent();
+                  setClearConfirmOpened(false);
+                }}
+              >
+                Clear Note
+              </Button>
+            </Group>
+          </Stack>
+        </Modal>
+      )}
 
       {/* Shortcuts & Guide Modal */}
-      <Modal
-        opened={helpOpened}
-        onClose={() => setHelpOpened(false)}
-        title="Rich Text Editor Shortcuts & Guide"
-        size="md"
-        radius="md"
-      >
-        <Stack gap="sm">
-          <Text size="xs" c="dimmed">
-            Use these handy markdown shortcuts and hotkeys to write rich vocabulary notes rapidly:
-          </Text>
-          <div style={{ fontSize: '13px', lineHeight: '1.8' }}>
-            <Group justify="space-between">
-              <span>
-                <strong>Ctrl + B</strong>
-              </span>
-              <span>Bold</span>
-            </Group>
-            <Group justify="space-between">
-              <span>
-                <strong>Ctrl + I</strong>
-              </span>
-              <span>Italic</span>
-            </Group>
-            <Group justify="space-between">
-              <span>
-                <strong>Ctrl + U</strong>
-              </span>
-              <span>Underline</span>
-            </Group>
-            <Group justify="space-between">
-              <span>
-                <strong>Ctrl + Shift + X</strong>
-              </span>
-              <span>Strikethrough</span>
-            </Group>
-            <Group justify="space-between">
-              <span>
-                <strong>Ctrl + E</strong>
-              </span>
-              <span>Inline code</span>
-            </Group>
-            <Group justify="space-between">
-              <span>
-                <strong>Ctrl + Z / Ctrl + Y</strong>
-              </span>
-              <span>Undo / Redo</span>
-            </Group>
-            <Group justify="space-between">
-              <span>
-                <strong># + Space</strong>
-              </span>
-              <span>Heading 1</span>
-            </Group>
-            <Group justify="space-between">
-              <span>
-                <strong>## + Space</strong>
-              </span>
-              <span>Heading 2</span>
-            </Group>
-            <Group justify="space-between">
-              <span>
-                <strong>- or * + Space</strong>
-              </span>
-              <span>Bullet list</span>
-            </Group>
-            <Group justify="space-between">
-              <span>
-                <strong>1. + Space</strong>
-              </span>
-              <span>Numbered list</span>
-            </Group>
-            <Group justify="space-between">
-              <span>
-                <strong>[ ] + Space</strong>
-              </span>
-              <span>Task checklist item</span>
-            </Group>
-            <Group justify="space-between">
-              <span>
-                <strong>&gt; + Space</strong>
-              </span>
-              <span>Blockquote</span>
-            </Group>
-            <Group justify="space-between">
-              <span>
-                <strong>--- + Enter</strong>
-              </span>
-              <span>Horizontal divider</span>
-            </Group>
-          </div>
-        </Stack>
-      </Modal>
+      {helpOpened && (
+        <Modal
+          opened={helpOpened}
+          onClose={() => setHelpOpened(false)}
+          title="Rich Text Editor Shortcuts & Guide"
+          size="md"
+          radius="md"
+        >
+          <Stack gap="sm">
+            <Text size="xs" c="dimmed">
+              Use these handy markdown shortcuts and hotkeys to write rich vocabulary notes rapidly:
+            </Text>
+            <div style={{ fontSize: '13px', lineHeight: '1.8' }}>
+              <Group justify="space-between">
+                <span>
+                  <strong>Ctrl + B</strong>
+                </span>
+                <span>Bold</span>
+              </Group>
+              <Group justify="space-between">
+                <span>
+                  <strong>Ctrl + I</strong>
+                </span>
+                <span>Italic</span>
+              </Group>
+              <Group justify="space-between">
+                <span>
+                  <strong>Ctrl + U</strong>
+                </span>
+                <span>Underline</span>
+              </Group>
+              <Group justify="space-between">
+                <span>
+                  <strong>Ctrl + Shift + X</strong>
+                </span>
+                <span>Strikethrough</span>
+              </Group>
+              <Group justify="space-between">
+                <span>
+                  <strong>Ctrl + E</strong>
+                </span>
+                <span>Inline code</span>
+              </Group>
+              <Group justify="space-between">
+                <span>
+                  <strong>Ctrl + Z / Ctrl + Y</strong>
+                </span>
+                <span>Undo / Redo</span>
+              </Group>
+              <Group justify="space-between">
+                <span>
+                  <strong># + Space</strong>
+                </span>
+                <span>Heading 1</span>
+              </Group>
+              <Group justify="space-between">
+                <span>
+                  <strong>## + Space</strong>
+                </span>
+                <span>Heading 2</span>
+              </Group>
+              <Group justify="space-between">
+                <span>
+                  <strong>- or * + Space</strong>
+                </span>
+                <span>Bullet list</span>
+              </Group>
+              <Group justify="space-between">
+                <span>
+                  <strong>1. + Space</strong>
+                </span>
+                <span>Numbered list</span>
+              </Group>
+              <Group justify="space-between">
+                <span>
+                  <strong>[ ] + Space</strong>
+                </span>
+                <span>Task checklist item</span>
+              </Group>
+              <Group justify="space-between">
+                <span>
+                  <strong>&gt; + Space</strong>
+                </span>
+                <span>Blockquote</span>
+              </Group>
+              <Group justify="space-between">
+                <span>
+                  <strong>--- + Enter</strong>
+                </span>
+                <span>Horizontal divider</span>
+              </Group>
+            </div>
+          </Stack>
+        </Modal>
+      )}
     </>
   );
 }
+
+export const RichNoteEditor = React.memo(
+  RichNoteEditorComponent,
+  (prev, next) => prev.value === next.value && prev.minHeight === next.minHeight
+);

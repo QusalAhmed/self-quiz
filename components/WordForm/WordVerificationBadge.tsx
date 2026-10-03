@@ -31,7 +31,7 @@ export type WordVerificationBadgeProps = {
   hasEmptyDefinitions?: boolean;
 };
 
-export function WordVerificationBadge({
+function WordVerificationBadgeComponent({
   result,
   isVerifying,
   error,
@@ -263,3 +263,5 @@ export function WordVerificationBadge({
     </Stack>
   );
 }
+
+export const WordVerificationBadge = React.memo(WordVerificationBadgeComponent);

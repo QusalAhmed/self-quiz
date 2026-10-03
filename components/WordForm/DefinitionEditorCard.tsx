@@ -5,7 +5,6 @@ import {
   Card,
   Divider,
   Group,
-  RollingNumber,
   Select,
   Stack,
   Text,
@@ -13,10 +12,15 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { IconAlertTriangle, IconCheck, IconPlus, IconWand, IconX } from '@tabler/icons-react';
-import type { KeyboardEvent } from 'react';
+import React, { type KeyboardEvent } from 'react';
 import { PARTS_OF_SPEECH } from '@/lib/definitions';
 import type { SingleDefinitionVerification } from '@/lib/word-verification';
 import type { DefinitionFormValue } from './types';
+
+const PARTS_OF_SPEECH_OPTIONS = PARTS_OF_SPEECH.map((part) => ({
+  value: part,
+  label: part.charAt(0).toUpperCase() + part.slice(1),
+}));
 
 type DefinitionEditorCardProps = {
   definition: DefinitionFormValue;
@@ -40,7 +44,7 @@ type DefinitionEditorCardProps = {
   onExampleKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
 };
 
-export function DefinitionEditorCard({
+function DefinitionEditorCardComponent({
   definition,
   index,
   inputSize,
@@ -75,7 +79,7 @@ export function DefinitionEditorCard({
               c="indigo"
               style={{ lineHeight: 1.4, display: 'inline-flex', alignItems: 'center', gap: '4px' }}
             >
-              Definition <RollingNumber value={index + 1} />
+              Definition {index + 1}
             </Text>
             {verification && verification.isAccurate && verification.partOfSpeechMatches && (
               <Badge
@@ -126,10 +130,7 @@ export function DefinitionEditorCard({
             placeholder="Any"
             value={definition.partOfSpeech || null}
             onChange={(value) => onUpdateDefinition(index, { partOfSpeech: value ?? '' })}
-            data={PARTS_OF_SPEECH.map((part) => ({
-              value: part,
-              label: part.charAt(0).toUpperCase() + part.slice(1),
-            }))}
+            data={PARTS_OF_SPEECH_OPTIONS}
             disabled={disabled || isSaving}
             size="sm"
             radius="md"
@@ -289,3 +290,5 @@ export function DefinitionEditorCard({
     </Card>
   );
 }
+
+export const DefinitionEditorCard = React.memo(DefinitionEditorCardComponent);

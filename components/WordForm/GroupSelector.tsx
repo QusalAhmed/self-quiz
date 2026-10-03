@@ -1,6 +1,6 @@
 import { ActionIcon, Group, MultiSelect, Text, TextInput, Tooltip } from '@mantine/core';
 import { IconCheck, IconPlus, IconX } from '@tabler/icons-react';
-import { useMemo, type KeyboardEvent } from 'react';
+import React, { useMemo, type KeyboardEvent } from 'react';
 
 type GroupSelectorProps = {
   customGroups: string[];
@@ -17,7 +17,7 @@ type GroupSelectorProps = {
   onCancelNewGroup: () => void;
 };
 
-export function GroupSelector({
+function GroupSelectorComponent({
   customGroups,
   groups,
   isAddingNewGroup,
@@ -133,3 +133,5 @@ export function GroupSelector({
     </div>
   );
 }
+
+export const GroupSelector = React.memo(GroupSelectorComponent);

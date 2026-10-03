@@ -1096,8 +1096,78 @@ export default function WordsPage() {
   }, []);
 
   const handleOpenAddModal = useCallback(() => setAddModalOpen(true), []);
+  const handleCloseAddModal = useCallback(() => setAddModalOpen(false), []);
   const handleOpenGroupManager = useCallback(() => setGroupManagerOpen(true), []);
   const handleOpenBatchWordFamilyModal = useCallback(() => setBatchWordFamilyModalOpen(true), []);
+
+  const handleAddCustomGroupCallback = useCallback(
+    (g: string) => {
+      void ensureGroupExists(g);
+    },
+    [ensureGroupExists]
+  );
+
+  const handleEditExistingFromAddModal = useCallback(
+    async (
+      id: string,
+      w: string,
+      m: string,
+      d: WordDefinition[],
+      g: string[],
+      c: number,
+      n?: string,
+      freq?: string,
+      genDetails?: string
+    ) => {
+      await handleEditWord(id, w, m, d, g, c, n, freq, genDetails);
+      setAddModalOpen(false);
+    },
+    [handleEditWord]
+  );
+
+  const handleAddWordSubmit = useCallback(
+    async (
+      w: string,
+      m: string,
+      d: WordDefinition[],
+      g: string[],
+      c: number,
+      n?: string,
+      freq?: string,
+      genDetails?: string
+    ) => {
+      await handleAddWord(w, m, d, g, c, n, freq, genDetails);
+      setAddModalOpen(false);
+    },
+    [handleAddWord]
+  );
+
+  const handleCloseEditModal = useCallback(() => {
+    setEditingWord(null);
+  }, []);
+
+  const handleSaveEditWord = useCallback(
+    async (
+      id: string,
+      w: string,
+      m: string,
+      d: WordDefinition[],
+      g: string[],
+      c: number,
+      n?: string,
+      freq?: string,
+      genDetails?: string
+    ) => {
+      await handleEditWord(id, w, m, d, g, c, n, freq, genDetails);
+      setEditingWord(null);
+    },
+    [handleEditWord]
+  );
+
+  const handleNavigateWordCallback = useCallback((targetWord: string) => {
+    setSearchQuery(targetWord);
+    setSelectedLetter('ALL');
+  }, []);
 
   const handleFixSpelling = useCallback(
     async (wordId: string, correctedWord: string) => {
@@ -1216,17 +1286,14 @@ export default function WordsPage() {
           onDismissVerification={handleDismissVerification}
           onReverify={handleReverifyWord}
           reverifyingWordIds={reverifyingWordIds}
-          onNavigateWord={(targetWord) => {
-            setSearchQuery(targetWord);
-            setSelectedLetter('ALL');
-          }}
+          onNavigateWord={handleNavigateWordCallback}
         />
       </Stack>
 
       {/* Add Word Modal */}
       <Modal
         opened={addModalOpen}
-        onClose={() => setAddModalOpen(false)}
+        onClose={handleCloseAddModal}
         title={
           <Text fw={700} size="md" style={{ fontFamily: 'var(--font-title)' }}>
             Add New Word
@@ -1234,37 +1301,36 @@ export default function WordsPage() {
         }
         centered
         radius="lg"
-        size="auto"
+        size={1365}
+        styles={{
+          content: {
+            maxWidth: 'min(1365px, calc(100vw - 2rem))',
+            width: '100%',
+          },
+        }}
         overlayProps={{ backgroundOpacity: 0.45, blur: 4 }}
       >
-        <WordForm
-          variant="plain"
-          customGroups={customGroups}
-          onAddCustomGroup={(g) => void ensureGroupExists(g)}
-          existingWords={words}
-          onEditExisting={async (id, w, m, d, g, c, n, freq, genDetails) => {
-            await handleEditWord(id, w, m, d, g, c, n, freq, genDetails);
-            setAddModalOpen(false);
-          }}
-          onSubmit={async (w, m, d, g, c, n, freq, genDetails) => {
-            await handleAddWord(w, m, d, g, c, n, freq, genDetails);
-            setAddModalOpen(false);
-          }}
-          onCancel={() => setAddModalOpen(false)}
-        />
+        {addModalOpen && (
+          <WordForm
+            variant="plain"
+            customGroups={customGroups}
+            onAddCustomGroup={handleAddCustomGroupCallback}
+            existingWords={words}
+            onEditExisting={handleEditExistingFromAddModal}
+            onSubmit={handleAddWordSubmit}
+            onCancel={handleCloseAddModal}
+          />
+        )}
       </Modal>
 
       {/* Edit Word Modal */}
       <EditWordModal
         opened={editingWord !== null}
-        onClose={() => setEditingWord(null)}
+        onClose={handleCloseEditModal}
         wordRecord={editingWord}
         customGroups={customGroups}
-        onSave={async (id, w, m, d, g, c, n, freq, genDetails) => {
-          await handleEditWord(id, w, m, d, g, c, n, freq, genDetails);
-          setEditingWord(null);
-        }}
-        onAddCustomGroup={(g) => void ensureGroupExists(g)}
+        onSave={handleSaveEditWord}
+        onAddCustomGroup={handleAddCustomGroupCallback}
       />
 
       {/* Group Manager Modal */}
