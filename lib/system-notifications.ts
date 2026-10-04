@@ -177,6 +177,32 @@ export interface NotificationPayload {
   };
   inAppColor?: string;
   inAppIcon?: React.ReactNode;
+  /**
+   * Optional manual delivery override:
+   * - 'system': forces system (OS) notification even when user is inside the app
+   * - 'in_app': forces in-app toast even when user is outside the app
+   * - 'both': sends both channels (used for testing and explicit dual alerts)
+   */
+  forceDelivery?: 'system' | 'in_app' | 'both';
+}
+
+/**
+ * Determines whether the user is currently inside the application (visible and focused).
+ * Returns true if the page is visible and the document has focus.
+ * Returns false if the tab is hidden, minimized, backgrounded, or if another application has focus.
+ */
+export function isUserInApp(): boolean {
+  if (typeof document === 'undefined') {
+    return false;
+  }
+  const isVisible =
+    typeof document.visibilityState !== 'undefined'
+      ? document.visibilityState === 'visible'
+      : !document.hidden;
+
+  const hasFocus = typeof document.hasFocus === 'function' ? document.hasFocus() : true;
+
+  return isVisible && hasFocus;
 }
 
 /**
@@ -245,6 +271,7 @@ async function dispatchOsNotification(payload: NotificationPayload): Promise<boo
 
 /**
  * Unified notification dispatcher handling OS notifications, Mantine toasts, and audio chimes.
+ * Routes system notifications only when the user is not in the app, and normal in-app toasts otherwise.
  */
 export async function dispatchSystemNotification(
   eventType: SystemNotificationEventType,
@@ -287,8 +314,31 @@ export async function dispatchSystemNotification(
     playNotificationSound();
   }
 
-  // 2. Dispatch In-App Toast if enabled
-  if (settings.inAppNotificationsEnabled) {
+  const inApp = isUserInApp();
+  const isTest = eventType === 'test_notification';
+
+  const canShowSystem =
+    settings.systemNotificationsEnabled &&
+    isNotificationSupported() &&
+    getNotificationPermission() === 'granted';
+
+  // System notification is shown ONLY when user is not in app (or when sending a test notification / forced)
+  const shouldDeliverSystem =
+    payload.forceDelivery === 'system' ||
+    payload.forceDelivery === 'both' ||
+    isTest ||
+    (!inApp && payload.forceDelivery !== 'in_app');
+
+  // Normal notification (in-app toast) is shown when user is in app (or when sending a test notification / forced / fallback)
+  const shouldDeliverInApp =
+    payload.forceDelivery === 'in_app' ||
+    payload.forceDelivery === 'both' ||
+    isTest ||
+    (inApp && payload.forceDelivery !== 'system') ||
+    (!inApp && !canShowSystem && payload.forceDelivery !== 'system');
+
+  // 2. Dispatch In-App Toast if determined and enabled
+  if (shouldDeliverInApp && settings.inAppNotificationsEnabled) {
     appNotifications.show({
       id: payload.tag,
       title: payload.title,
@@ -305,8 +355,8 @@ export async function dispatchSystemNotification(
     });
   }
 
-  // 3. Dispatch OS / Web Push Notification if enabled & permission is granted
-  if (settings.systemNotificationsEnabled) {
+  // 3. Dispatch OS / Web Push Notification if determined and enabled
+  if (shouldDeliverSystem && settings.systemNotificationsEnabled) {
     await dispatchOsNotification(payload);
   }
 }

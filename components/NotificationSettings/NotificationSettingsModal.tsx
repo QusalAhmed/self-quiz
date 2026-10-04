@@ -177,7 +177,8 @@ export function NotificationSettingsModal({ opened, onClose }: NotificationSetti
                   </Text>
                 </Group>
                 <Text size="xs" c="dimmed">
-                  Show desktop and mobile system notifications when app is active or in background
+                  Show desktop and mobile system notifications when outside the app or tab is in
+                  background
                 </Text>
               </div>
               <Switch
@@ -200,7 +201,7 @@ export function NotificationSettingsModal({ opened, onClose }: NotificationSetti
                   </Text>
                 </Group>
                 <Text size="xs" c="dimmed">
-                  Display subtle, elegant popups within the application interface
+                  Display subtle toast popups when actively inside the application interface
                 </Text>
               </div>
               <Switch

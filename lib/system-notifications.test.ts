@@ -6,6 +6,7 @@ import {
   getNotificationPermission,
   getNotificationSettings,
   isNotificationSupported,
+  isUserInApp,
   notifyDailyGoalReached,
   notifyFsrsQueueRefill,
   notifyFsrsWordAdded,
@@ -43,6 +44,19 @@ describe('System Notifications Service', () => {
     localStorage.clear();
     jest.clearAllMocks();
 
+    // Default to user being in-app (visible & focused) for predictable testing
+    Object.defineProperty(document, 'visibilityState', {
+      value: 'visible',
+      writable: true,
+      configurable: true,
+    });
+    Object.defineProperty(document, 'hidden', {
+      value: false,
+      writable: true,
+      configurable: true,
+    });
+    jest.spyOn(document, 'hasFocus').mockReturnValue(true);
+
     mockShowNotification = jest.fn().mockResolvedValue(undefined);
     mockGetRegistration = jest.fn().mockResolvedValue({
       active: true,
@@ -72,6 +86,34 @@ describe('System Notifications Service', () => {
       value: mockNotificationConstructor,
       writable: true,
       configurable: true,
+    });
+  });
+
+  describe('isUserInApp Detection', () => {
+    it('returns true when document is visible and focused', () => {
+      Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+      jest.spyOn(document, 'hasFocus').mockReturnValue(true);
+      expect(isUserInApp()).toBe(true);
+    });
+
+    it('returns false when document is hidden', () => {
+      Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+      jest.spyOn(document, 'hasFocus').mockReturnValue(true);
+      expect(isUserInApp()).toBe(false);
+    });
+
+    it('returns false when document does not have focus', () => {
+      Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+      jest.spyOn(document, 'hasFocus').mockReturnValue(false);
+      expect(isUserInApp()).toBe(false);
+    });
+
+    it('falls back to visibility when hasFocus is not a function', () => {
+      Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+      const origHasFocus = document.hasFocus;
+      Object.defineProperty(document, 'hasFocus', { value: undefined, configurable: true });
+      expect(isUserInApp()).toBe(true);
+      Object.defineProperty(document, 'hasFocus', { value: origHasFocus, configurable: true });
     });
   });
 
@@ -124,15 +166,20 @@ describe('System Notifications Service', () => {
     });
   });
 
-  describe('Event Notifications Dispatching', () => {
-    it('dispatches fsrs_word_added with proper quiz mode details', async () => {
+  describe('In-App Notification Delivery (User IS in the app)', () => {
+    beforeEach(() => {
+      Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+      jest.spyOn(document, 'hasFocus').mockReturnValue(true);
+    });
+
+    it('dispatches in-app toast and audio chime, but suppresses OS notification for fsrs_word_added', async () => {
       await notifyFsrsWordAdded({
         word: 'Ephemeral',
         quizMode: 'wordToMeaning',
         meaning: 'Lasting for a very short time',
       });
 
-      // 1. Toast
+      // 1. In-App Toast IS shown
       expect(notifications.show).toHaveBeenCalledWith(
         expect.objectContaining({
           title: 'FSRS Review: "Ephemeral"',
@@ -141,24 +188,14 @@ describe('System Notifications Service', () => {
         })
       );
 
-      // 2. Sound
+      // 2. Sound chime IS played
       expect(soundModule.playNotificationSound).toHaveBeenCalled();
 
-      // 3. Service Worker OS Notification
-      expect(mockShowNotification).toHaveBeenCalledWith(
-        'FSRS Review: "Ephemeral"',
-        expect.objectContaining({
-          body: expect.stringContaining('Word to Meaning'),
-          data: expect.objectContaining({
-            eventType: 'fsrs_word_added',
-            quizMode: 'wordToMeaning',
-            word: 'Ephemeral',
-          }),
-        })
-      );
+      // 3. OS notification is NOT dispatched because user is actively in the app
+      expect(mockShowNotification).not.toHaveBeenCalled();
     });
 
-    it('dispatches fsrs_word_added for spelling mode', async () => {
+    it('dispatches in-app toast for spelling mode without OS notification', async () => {
       await notifyFsrsWordAdded({
         word: 'Acquiesce',
         quizMode: 'spelling',
@@ -170,19 +207,10 @@ describe('System Notifications Service', () => {
           message: expect.stringContaining('Spelling'),
         })
       );
-      expect(mockShowNotification).toHaveBeenCalledWith(
-        'FSRS Review: "Acquiesce"',
-        expect.objectContaining({
-          body: expect.stringContaining('Spelling'),
-          data: expect.objectContaining({
-            eventType: 'fsrs_word_added',
-            quizMode: 'spelling',
-          }),
-        })
-      );
+      expect(mockShowNotification).not.toHaveBeenCalled();
     });
 
-    it('dispatches fsrs_queue_refill notification', async () => {
+    it('dispatches in-app toast for fsrs_queue_refill without OS notification', async () => {
       await notifyFsrsQueueRefill({ count: 7, quizMode: 'meaningToWord' });
 
       expect(notifications.show).toHaveBeenCalledWith(
@@ -193,9 +221,10 @@ describe('System Notifications Service', () => {
           ),
         })
       );
+      expect(mockShowNotification).not.toHaveBeenCalled();
     });
 
-    it('dispatches quiz_completed notification with accuracy stats', async () => {
+    it('dispatches in-app toast for quiz_completed without OS notification', async () => {
       await notifyQuizCompleted({
         modeName: 'FSRS Review',
         totalCards: 15,
@@ -209,9 +238,10 @@ describe('System Notifications Service', () => {
           color: 'teal',
         })
       );
+      expect(mockShowNotification).not.toHaveBeenCalled();
     });
 
-    it('dispatches daily_goal_reached notification', async () => {
+    it('dispatches in-app toast for daily_goal_reached without OS notification', async () => {
       await notifyDailyGoalReached({ minutesSpent: 20, wordsReviewed: 45 });
 
       expect(notifications.show).toHaveBeenCalledWith(
@@ -223,9 +253,10 @@ describe('System Notifications Service', () => {
           color: 'yellow',
         })
       );
+      expect(mockShowNotification).not.toHaveBeenCalled();
     });
 
-    it('dispatches sync_status notification for success and error', async () => {
+    it('dispatches in-app toast for sync_status without OS notification', async () => {
       await notifySyncStatus({ success: true, count: 12 });
       expect(notifications.show).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -234,6 +265,7 @@ describe('System Notifications Service', () => {
           color: 'teal',
         })
       );
+      expect(mockShowNotification).not.toHaveBeenCalled();
 
       await notifySyncStatus({ success: false, errorMessage: 'Network offline' });
       expect(notifications.show).toHaveBeenCalledWith(
@@ -243,9 +275,10 @@ describe('System Notifications Service', () => {
           color: 'orange',
         })
       );
+      expect(mockShowNotification).not.toHaveBeenCalled();
     });
 
-    it('dispatches word_saved notification for create, update, delete', async () => {
+    it('dispatches in-app toast for word_saved without OS notification', async () => {
       await notifyWordSaved({ word: 'Eloquent', action: 'created' });
       expect(notifications.show).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -253,6 +286,7 @@ describe('System Notifications Service', () => {
           message: '"Eloquent" was added to your vocabulary dictionary.',
         })
       );
+      expect(mockShowNotification).not.toHaveBeenCalled();
 
       await notifyWordSaved({ word: 'Eloquent', action: 'deleted' });
       expect(notifications.show).toHaveBeenCalledWith(
@@ -261,17 +295,157 @@ describe('System Notifications Service', () => {
           color: 'red',
         })
       );
+      expect(mockShowNotification).not.toHaveBeenCalled();
     });
 
-    it('dispatches test notification', async () => {
+    it('respects inAppNotificationsEnabled = false when in-app', async () => {
+      updateNotificationSettings({
+        inAppNotificationsEnabled: false,
+      });
+
+      await notifyWordSaved({ word: 'Test', action: 'created' });
+      expect(notifications.show).not.toHaveBeenCalled();
+      expect(mockShowNotification).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Out-of-App Notification Delivery (User is NOT in the app)', () => {
+    it('dispatches OS system notification and suppresses in-app toast when tab is hidden', async () => {
+      Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+      jest.spyOn(document, 'hasFocus').mockReturnValue(true);
+
+      await notifyFsrsQueueRefill({ count: 5, quizMode: 'wordToMeaning' });
+
+      // OS notification IS dispatched
+      expect(mockShowNotification).toHaveBeenCalledWith(
+        'Review Queue Refilled',
+        expect.objectContaining({
+          body: expect.stringContaining('5 words ready for spaced repetition review'),
+          data: expect.objectContaining({
+            eventType: 'fsrs_queue_refill',
+            count: 5,
+          }),
+        })
+      );
+
+      // In-app toast is suppressed because user is out of app
+      expect(notifications.show).not.toHaveBeenCalled();
+    });
+
+    it('dispatches OS system notification and suppresses in-app toast when window lacks focus', async () => {
+      Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+      jest.spyOn(document, 'hasFocus').mockReturnValue(false);
+
+      await notifyFsrsWordAdded({
+        word: 'Serendipity',
+        quizMode: 'wordToMeaning',
+      });
+
+      expect(mockShowNotification).toHaveBeenCalledWith(
+        'FSRS Review: "Serendipity"',
+        expect.objectContaining({
+          body: expect.stringContaining('Word to Meaning review queue'),
+        })
+      );
+      expect(notifications.show).not.toHaveBeenCalled();
+    });
+
+    it('respects systemNotificationsEnabled = false when out of app (suppresses OS notification and falls back to in-app toast)', async () => {
+      Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+      jest.spyOn(document, 'hasFocus').mockReturnValue(false);
+
+      updateNotificationSettings({
+        systemNotificationsEnabled: false,
+      });
+
+      await notifyWordSaved({ word: 'Test', action: 'created' });
+      expect(mockShowNotification).not.toHaveBeenCalled();
+      // Fallback in-app toast is queued for when user returns
+      expect(notifications.show).toHaveBeenCalled();
+    });
+
+    it('falls back to in-app toast when notification permission is denied', async () => {
+      Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+      jest.spyOn(document, 'hasFocus').mockReturnValue(false);
+
+      Object.assign(Notification, { permission: 'denied' });
+
+      await notifyWordSaved({ word: 'Test', action: 'created' });
+      expect(mockShowNotification).not.toHaveBeenCalled();
+      expect(notifications.show).toHaveBeenCalled();
+    });
+  });
+
+  describe('Test Notification (sendTestNotification)', () => {
+    it('dispatches BOTH in-app toast and OS system notification when sendTestNotification is triggered', async () => {
+      // Even if user is currently inside the app looking at Settings
+      Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+      jest.spyOn(document, 'hasFocus').mockReturnValue(true);
+
       await sendTestNotification();
+
+      // Dispatches in-app toast
       expect(notifications.show).toHaveBeenCalledWith(
         expect.objectContaining({
           title: 'Notifications Working! 🔔',
         })
       );
+
+      // AND dispatches OS system notification so user can verify permissions
+      expect(mockShowNotification).toHaveBeenCalledWith(
+        'Notifications Working! 🔔',
+        expect.objectContaining({
+          body: 'System notifications, in-app toasts, and audio alerts are properly configured.',
+        })
+      );
+    });
+  });
+
+  describe('Manual Force Delivery Overrides', () => {
+    it('delivers OS notification even when in-app when forceDelivery is "system"', async () => {
+      Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+      jest.spyOn(document, 'hasFocus').mockReturnValue(true);
+
+      await dispatchSystemNotification('word_saved', {
+        title: 'Forced System',
+        body: 'Testing forced system delivery',
+        forceDelivery: 'system',
+      });
+
+      expect(mockShowNotification).toHaveBeenCalled();
+      expect(notifications.show).not.toHaveBeenCalled();
     });
 
+    it('delivers in-app toast even when out of app when forceDelivery is "in_app"', async () => {
+      Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+      jest.spyOn(document, 'hasFocus').mockReturnValue(false);
+
+      await dispatchSystemNotification('word_saved', {
+        title: 'Forced In-App',
+        body: 'Testing forced in-app delivery',
+        forceDelivery: 'in_app',
+      });
+
+      expect(notifications.show).toHaveBeenCalled();
+      expect(mockShowNotification).not.toHaveBeenCalled();
+    });
+
+    it('delivers both channels when forceDelivery is "both"', async () => {
+      Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+      jest.spyOn(document, 'hasFocus').mockReturnValue(true);
+
+      await dispatchSystemNotification('word_saved', {
+        title: 'Forced Both',
+        body: 'Testing dual delivery',
+        forceDelivery: 'both',
+      });
+
+      expect(notifications.show).toHaveBeenCalled();
+      expect(mockShowNotification).toHaveBeenCalled();
+    });
+  });
+
+  describe('Event Subscriptions & Auto-Close Lifecycle', () => {
     it('respects event subscription settings when disabled', async () => {
       updateNotificationSettings({
         eventSubscriptions: {
@@ -282,26 +456,6 @@ describe('System Notifications Service', () => {
 
       await notifyFsrsWordAdded({ word: 'Ignored', quizMode: 'wordToMeaning' });
       expect(notifications.show).not.toHaveBeenCalled();
-      expect(mockShowNotification).not.toHaveBeenCalled();
-    });
-
-    it('respects inAppNotificationsEnabled = false', async () => {
-      updateNotificationSettings({
-        inAppNotificationsEnabled: false,
-      });
-
-      await notifyWordSaved({ word: 'Test', action: 'created' });
-      expect(notifications.show).not.toHaveBeenCalled();
-      expect(mockShowNotification).toHaveBeenCalled();
-    });
-
-    it('respects systemNotificationsEnabled = false', async () => {
-      updateNotificationSettings({
-        systemNotificationsEnabled: false,
-      });
-
-      await notifyWordSaved({ word: 'Test', action: 'created' });
-      expect(notifications.show).toHaveBeenCalled();
       expect(mockShowNotification).not.toHaveBeenCalled();
     });
 

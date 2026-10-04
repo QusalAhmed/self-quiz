@@ -50,7 +50,6 @@ import {
   updateFsrsRecordContent,
 } from '@/lib/fsrs';
 import { getActiveGroupNames, wordHasAnyGroup, wordHasGroup } from '@/lib/groups';
-import { showQueueRefillNotification } from '@/lib/notifications';
 import { useAppDispatch, useAppSelector } from '@/lib/redux/hooks';
 import {
   clearGroupQuiz,
@@ -1055,7 +1054,6 @@ export default function QuizPage() {
       const isRefill = quizSource === 'fsrs' && isInitialized;
       resetQuiz();
       if (isRefill) {
-        showQueueRefillNotification(quizCandidates.length);
         void notifyFsrsQueueRefill({
           count: quizCandidates.length,
           quizMode: quizDirection as import('@/lib/db').QuizMode,

@@ -181,7 +181,7 @@ export function SettingsNotificationsTab({ settings, onChange }: SettingsNotific
                 </Text>
               </Group>
               <Text size="xs" c="dimmed">
-                Show native OS toast banners even when the tab is running in the background
+                Show native OS toast banners when you are outside the app or tab is in background
               </Text>
             </div>
             <Switch
@@ -202,7 +202,7 @@ export function SettingsNotificationsTab({ settings, onChange }: SettingsNotific
                 </Text>
               </Group>
               <Text size="xs" c="dimmed">
-                Display modern glassmorphism toast banners inside the application view
+                Display modern glassmorphism toast banners when actively inside the application view
               </Text>
             </div>
             <Switch
